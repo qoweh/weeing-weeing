@@ -1,6 +1,7 @@
 name: Slack 알림
 
 # 이슈·PR 활동과 main 직접 push를 Slack 채널로 보낸다.
+# 메시지 모양: 제목 한 줄 + 이벤트별 색 띠 카드(정보 칸, 본문 미리보기, 바로가기 버튼, 레포·시각).
 # 웹훅 URL은 레포 Secret `SLACK_WEBHOOK_URL`에 저장한다.
 
 on:
@@ -28,12 +29,37 @@ jobs:
             exit 0
           fi
 
-          # 이벤트별 문구 결정. 제목 등 사용자 입력은 jq로만 다뤄 셸에 끼워 넣지 않는다.
-          text=$(jq -r '
+          # 이벤트별 메시지(JSON) 생성. 제목 등 사용자 입력은 jq로만 다뤄 셸에 끼워 넣지 않는다.
+          payload=$(jq -c '
             def esc: gsub("&";"&amp;") | gsub("<";"&lt;") | gsub(">";"&gt;");
-            def link(o): "<\(o.html_url)|#\(o.number) \(o.title | esc)>";
             def firstline: split("\n")[0];
-            .action as $a | .sender.login as $who |
+            def trunc($n): if length > $n then .[0:$n] + "…" else . end;
+            # 본문 미리보기: 템플릿 안내 주석과 빈 줄을 빼고 앞 4줄(최대 300자)만 인용으로
+            def excerpt:
+              (. // "") | gsub("\r";"") | gsub("<!--[\\s\\S]*?-->";"")
+              | [split("\n")[] | select(test("\\S"))] as $l
+              | ($l[0:4] | join("\n") | trunc(300) | esc) as $t
+              | if $t == "" then null
+                else ($t | split("\n") | map("> " + .) | join("\n"))
+                     + (if ($l | length) > 4 then "\n> …" else "" end)
+                end;
+            def dur($from; $to):
+              (($to | fromdateiso8601) - ($from | fromdateiso8601)) as $s
+              | if $s < 3600 then "\($s / 60 | floor)분"
+                elif $s < 86400 then "\($s / 3600 | floor)시간 \($s % 3600 / 60 | floor)분"
+                else "\($s / 86400 | floor)일 \($s % 86400 / 3600 | floor)시간" end;
+            def link(o): "<\(o.html_url)|#\(o.number) \(o.title | esc)>";
+            def names: (. // []) | map(.login) | join(", ");
+            def labels(o): [o.labels[]?.name | esc | "`\(.)`"] | join(" ");
+            def branch(p): "`\(p.head.ref)` → `\(p.base.ref)`";
+            def changes(p):
+              if p.changed_files == null then null
+              else "파일 \(p.changed_files)개 · +\(p.additions) / −\(p.deletions) · 커밋 \(p.commits)개" end;
+            def field($k; $v): if ($v // "") == "" then empty else {type: "mrkdwn", text: "*\($k)*\n\($v)"} end;
+
+            .action as $a | .sender.login as $who | .repository.name as $repo |
+
+            # 이벤트마다 {color, title, fields, body, button}을 만든 뒤 아래에서 같은 틀로 그린다
             if .pusher then
               # PR 머지로 생긴 push는 PR 알림과 겹치므로 건너뛴다 (merge 커밋, squash의 "(#N)" 꼬리)
               if .deleted or (.commits | length) == 0
@@ -41,31 +67,141 @@ jobs:
               then empty
               else
                 (.commits | length) as $n
-                | "\(if .forced then "⚠️ 강제 push" else "⬆️ 직접 push" end) | `\(.ref | sub("^refs/heads/";""))` <\(.compare)|커밋 \($n)개> — \($who)\n"
-                  + ([.commits[-5:][] | "• `\(.id[0:7])` \(.message | firstline | esc) (\(.author.name | esc))"] | join("\n"))
-                  + (if $n > 5 then "\n…외 \($n - 5)개" else "" end)
+                | ([.commits[] | (.added + .modified + .removed)[]] | unique | length) as $files
+                | {
+                    color: (if .forced then "#cf222e" else "#d4a72c" end),
+                    title: "*\(if .forced then "⚠️ 강제 push" else "⬆️ 직접 push" end)* | `\(.ref | sub("^refs/heads/";""))` 커밋 \($n)개 — \($who)",
+                    fields: [
+                      field("push한 사람"; $who),
+                      field("브랜치"; "`\(.ref | sub("^refs/heads/";""))`"),
+                      field("커밋"; "\($n)개"),
+                      field("변경 파일"; "\($files)개")
+                    ],
+                    body: ((
+                      [.commits[-10:][] | "• <\(.url)|`\(.id[0:7])`> \(.message | firstline | esc) — \(.author.name | esc)"] | join("\n")
+                    ) + (if $n > 10 then "\n…외 \($n - 10)개" else "" end)),
+                    button: {label: "변경 비교", url: .compare}
+                  }
               end
+
             elif .pull_request and .review then
-              ({"approved":"✅ 승인","changes_requested":"🔁 변경 요청","commented":"💬 코멘트"}[.review.state | ascii_downcase] // "📝 리뷰") as $s
-              | "\($s) | \(link(.pull_request)) — \($who)"
+              .pull_request as $p | .review as $r | ($r.state | ascii_downcase) as $st
+              | {
+                  color: ({"approved": "#1a7f37", "changes_requested": "#bc4c00"}[$st] // "#8b949e"),
+                  title: "*\({"approved": "✅ 승인", "changes_requested": "🔁 변경 요청", "commented": "💬 리뷰 코멘트"}[$st] // "📝 리뷰")* | \(link($p)) — \($who)",
+                  fields: [
+                    field("리뷰어"; $who),
+                    field("PR 작성자"; $p.user.login),
+                    field("브랜치"; branch($p))
+                  ],
+                  body: ($r.body | excerpt),
+                  button: {label: "리뷰 보기", url: $r.html_url}
+                }
+
             elif .pull_request then
-              if $a == "opened" then "🆕 PR 생성 | \(link(.pull_request)) — \($who)\n`\(.pull_request.head.ref)` → `\(.pull_request.base.ref)`"
-              elif $a == "reopened" then "🔄 PR 다시 열림 | \(link(.pull_request)) — \($who)"
-              elif $a == "ready_for_review" then "👀 리뷰 요청 가능 | \(link(.pull_request)) — \($who)"
-              elif $a == "closed" and .pull_request.merged then "🎉 PR 머지 | \(link(.pull_request)) — \(.pull_request.merged_by.login)\n`\(.pull_request.head.ref)` → `\(.pull_request.base.ref)`"
-              elif $a == "closed" then "🚫 PR 닫힘 (머지 안 됨) | \(link(.pull_request)) — \($who)"
-              else empty end
+              .pull_request as $p
+              | {
+                  fields: [
+                    field("작성자"; $p.user.login),
+                    field("브랜치"; branch($p)),
+                    field("변경"; changes($p))
+                  ],
+                  button: {label: "PR 보기", url: $p.html_url}
+                } as $base
+              | if $a == "opened" or $a == "reopened" or $a == "ready_for_review" then
+                  $base + {
+                    color: (if $p.draft then "#8b949e" else "#0969da" end),
+                    title: "*\({"opened": "🆕 PR 생성", "reopened": "🔄 PR 다시 열림", "ready_for_review": "👀 리뷰 요청 가능"}[$a])\(if $p.draft then " (Draft)" else "" end)* | \(link($p)) — \($who)",
+                    fields: ($base.fields + [
+                      field("리뷰 요청"; ([$p.requested_reviewers[]?.login] + [$p.requested_teams[]?.name | "@" + .]) | join(", ")),
+                      field("담당자"; $p.assignees | names),
+                      field("라벨"; labels($p)),
+                      field("마일스톤"; $p.milestone.title)
+                    ]),
+                    body: (if $a == "opened" then $p.body | excerpt else null end)
+                  }
+                elif $a == "closed" and $p.merged then
+                  $base + {
+                    color: "#8250df",
+                    title: "*🎉 PR 머지* | \(link($p)) — \($p.merged_by.login)",
+                    fields: ($base.fields + [
+                      field("머지한 사람"; $p.merged_by.login),
+                      field("머지 커밋"; if $p.merge_commit_sha then "`\($p.merge_commit_sha[0:7])`" else null end),
+                      field("생성→머지"; dur($p.created_at; $p.merged_at))
+                    ])
+                  }
+                elif $a == "closed" then
+                  $base + {
+                    color: "#cf222e",
+                    title: "*🚫 PR 닫힘 (머지 안 됨)* | \(link($p)) — \($who)",
+                    fields: ($base.fields + [
+                      field("닫은 사람"; $who),
+                      field("열려 있던 기간"; dur($p.created_at; $p.closed_at))
+                    ])
+                  }
+                else empty end
+
             elif .issue then
-              if $a == "opened" then "📌 이슈 등록 | \(link(.issue)) — \($who)"
-              elif $a == "closed" then "✔️ 이슈 완료 | \(link(.issue)) — \($who)"
-              elif $a == "reopened" then "🔄 이슈 다시 열림 | \(link(.issue)) — \($who)"
-              elif $a == "assigned" then "🙋 담당자 지정 | \(link(.issue)) → \(.assignee.login)"
-              else empty end
+              .issue as $i
+              | {
+                  fields: [
+                    field("작성자"; $i.user.login),
+                    field("담당자"; $i.assignees | names),
+                    field("라벨"; labels($i))
+                  ],
+                  button: {label: "이슈 보기", url: $i.html_url}
+                } as $base
+              | if $a == "opened" then
+                  $base + {
+                    color: "#1a7f37",
+                    title: "*📌 이슈 등록* | \(link($i)) — \($who)",
+                    fields: ($base.fields + [field("마일스톤"; $i.milestone.title)]),
+                    body: ($i.body | excerpt)
+                  }
+                elif $a == "closed" then
+                  ($i.state_reason == "completed" or $i.state_reason == null) as $done
+                  | $base + {
+                      color: (if $done then "#8250df" else "#8b949e" end),
+                      title: "*\(if $done then "✔️ 이슈 완료" else "🚫 이슈 닫힘 (\({"not_planned": "진행 안 함", "duplicate": "중복"}[$i.state_reason] // $i.state_reason))" end)* | \(link($i)) — \($who)",
+                      fields: ([field("닫은 사람"; $who)] + $base.fields + [field("열려 있던 기간"; dur($i.created_at; $i.closed_at))])
+                    }
+                elif $a == "reopened" then
+                  $base + {
+                    color: "#1a7f37",
+                    title: "*🔄 이슈 다시 열림* | \(link($i)) — \($who)",
+                    fields: ([field("다시 연 사람"; $who)] + $base.fields)
+                  }
+                elif $a == "assigned" then
+                  $base + {
+                    color: "#0969da",
+                    title: "*🙋 담당자 지정* | \(link($i)) → \(.assignee.login)",
+                    fields: [
+                      field("새 담당자"; .assignee.login),
+                      field("지정한 사람"; $who),
+                      field("전체 담당자"; $i.assignees | names),
+                      field("라벨"; labels($i))
+                    ]
+                  }
+                else empty end
+
             else empty end
+
+            # 공통 틀: 제목 한 줄(알림 미리보기에도 쓰임) + 색 띠 카드(정보 칸, 본문, 버튼, 레포·시각)
+            | {
+                text: .title,
+                attachments: [{
+                  color: .color,
+                  blocks: (
+                    (if (.fields | length) > 0 then [{type: "section", fields: .fields}] else [] end)
+                    + (if (.body // "") != "" then [{type: "section", text: {type: "mrkdwn", text: .body}}] else [] end)
+                    + [{type: "actions", elements: [{type: "button", text: {type: "plain_text", text: .button.label}, url: .button.url}]}]
+                    + [{type: "context", elements: [{type: "mrkdwn", text: "\($repo) · <!date^\(now | floor)^{date_short_pretty} {time}|\(now | todate)>"}]}]
+                  )
+                }]
+              }
           ' "$GITHUB_EVENT_PATH")
 
-          [ -z "$text" ] && exit 0
+          [ -z "$payload" ] && exit 0
 
-          jq -n --arg text "$text" --arg repo "$GITHUB_REPOSITORY" \
-            '{text: "[\($repo)] \($text)"}' \
+          printf '%s' "$payload" \
           | curl -fsS -X POST -H 'Content-Type: application/json' --data @- "$SLACK_WEBHOOK_URL"
