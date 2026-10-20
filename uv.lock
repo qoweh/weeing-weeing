@@ -3341,7 +3341,7 @@ wheels = [
 ]
 
 [[package]]
-name = "smart-factory"
+name = "weeing-weeing"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
