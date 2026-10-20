@@ -1,0 +1,81 @@
+name: 🐛 버그 리포트
+description: 의도와 다르게 동작하는 문제를 보고합니다.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        재현할 수 있게 적어 주세요. 같은 문제가 이미 이슈로 있는지 먼저 검색해 주세요.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 영역
+      description: 문제가 발생한 모듈 (여러 개 선택 가능)
+      multiple: true
+      options:
+        - Unreal (가상 공정·고장 주입)
+        - Virtual PLC
+        - Backend (FastAPI·DB)
+        - Main Engine (룰 판정·Incident)
+        - AI 에이전트 (RAG·LLM)
+        - HMI (대시보드·보고서·승인)
+        - 데이터 (Telemetry·합성 데이터)
+        - 문서 (룰 정의서·매뉴얼·SOP·보고서 규격)
+        - 인프라·배포
+        - 기타
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 무엇이 문제인가요?
+      description: 한두 문장으로 요약해 주세요.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 재현 방법
+      placeholder: |
+        1. `...` 실행
+        2. `...` 입력/데이터 주입
+        3. 오류 발생
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 기대 동작
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 실제 동작
+      description: 에러 메시지, 로그, 스크린샷을 붙여 주세요. 로그는 코드 블록(```)으로 감싸 주세요.
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: 환경
+      description: 해당하는 것만 적어 주세요.
+      placeholder: |
+        - 브랜치 / 커밋:
+        - OS:
+        - 사용 데이터: (예: v3 15컬럼, SC-GEN)
+        - 룰 프로파일: (DEMO / PRODUCTION)
+        - LLM 모델:
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: 추가 정보
+      description: 원인 추정, 관련 이슈·PR, 노션 링크 등

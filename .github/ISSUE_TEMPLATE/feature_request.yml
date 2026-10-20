@@ -1,0 +1,60 @@
+name: ✨ 기능 요청
+description: 새 기능이나 개선할 작업을 제안합니다.
+title: "[Feat] "
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: 영역
+      description: 작업할 모듈 (여러 개 선택 가능)
+      multiple: true
+      options:
+        - Unreal (가상 공정·고장 주입)
+        - Virtual PLC
+        - Backend (FastAPI·DB)
+        - Main Engine (룰 판정·Incident)
+        - AI 에이전트 (RAG·LLM)
+        - HMI (대시보드·보고서·승인)
+        - 데이터 (Telemetry·합성 데이터)
+        - 문서 (룰 정의서·매뉴얼·SOP·보고서 규격)
+        - 인프라·배포
+        - 기타
+    validations:
+      required: true
+
+  - type: textarea
+    id: background
+    attributes:
+      label: 배경 / 목적
+      description: 왜 필요한가요? 어떤 문제를 해결하나요?
+    validations:
+      required: true
+
+  - type: textarea
+    id: tasks
+    attributes:
+      label: 할 일
+      description: 체크리스트로 쪼개 주세요.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: done
+    attributes:
+      label: 완료 조건
+      description: 무엇이 확인되면 이 이슈를 닫을 수 있나요?
+      placeholder: |
+        - P02 발동 시 Incident가 생성되고 HMI 알람 목록에 표시된다
+        - 관련 테스트가 통과한다
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: 참고 자료
+      description: 근거 문서(BTT-RULE, BTT-RESPONSE, SOP 등)의 절 번호, 노션 링크, 관련 이슈

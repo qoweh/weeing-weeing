@@ -1,0 +1,21 @@
+name: 📝 기타
+description: 버그·기능이 아닌 작업 (조사, 논의 안건, 문서, 환경 설정 등)
+body:
+  - type: textarea
+    id: content
+    attributes:
+      label: 내용
+    validations:
+      required: true
+
+  - type: textarea
+    id: tasks
+    attributes:
+      label: 할 일
+      placeholder: |
+        - [ ] ...
+
+  - type: textarea
+    id: references
+    attributes:
+      label: 참고 자료
