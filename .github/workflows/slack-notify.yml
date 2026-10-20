@@ -1,9 +1,11 @@
 name: Slack 알림
 
-# 이슈·PR 활동을 Slack 채널로 보낸다.
+# 이슈·PR 활동과 main 직접 push를 Slack 채널로 보낸다.
 # 웹훅 URL은 레포 Secret `SLACK_WEBHOOK_URL`에 저장한다.
 
 on:
+  push:
+    branches: [main]
   issues:
     types: [opened, closed, reopened, assigned]
   pull_request:
@@ -30,8 +32,20 @@ jobs:
           text=$(jq -r '
             def esc: gsub("&";"&amp;") | gsub("<";"&lt;") | gsub(">";"&gt;");
             def link(o): "<\(o.html_url)|#\(o.number) \(o.title | esc)>";
+            def firstline: split("\n")[0];
             .action as $a | .sender.login as $who |
-            if .pull_request and .review then
+            if .pusher then
+              # PR 머지로 생긴 push는 PR 알림과 겹치므로 건너뛴다 (merge 커밋, squash의 "(#N)" 꼬리)
+              if .deleted or (.commits | length) == 0
+                 or (.head_commit.message | firstline | test("^Merge pull request #|\\(#[0-9]+\\)$"))
+              then empty
+              else
+                (.commits | length) as $n
+                | "\(if .forced then "⚠️ 강제 push" else "⬆️ 직접 push" end) | `\(.ref | sub("^refs/heads/";""))` <\(.compare)|커밋 \($n)개> — \($who)\n"
+                  + ([.commits[-5:][] | "• `\(.id[0:7])` \(.message | firstline | esc) (\(.author.name | esc))"] | join("\n"))
+                  + (if $n > 5 then "\n…외 \($n - 5)개" else "" end)
+              end
+            elif .pull_request and .review then
               ({"approved":"✅ 승인","changes_requested":"🔁 변경 요청","commented":"💬 코멘트"}[.review.state | ascii_downcase] // "📝 리뷰") as $s
               | "\($s) | \(link(.pull_request)) — \($who)"
             elif .pull_request then
