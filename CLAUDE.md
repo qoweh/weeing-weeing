@@ -1,0 +1,20 @@
+# Weeing-Weeing 공통 작업 규칙
+- 본 저장소는 6명이 협업하는 Python 기반 AI Agent 프로젝트다.
+- 작업 전에 README.md와 관련 코드를 읽는다.
+- 설치·실행·테스트 방법은 README.md를 따른다.
+- 기존 폴더 구조를 유지하고 요청 범위만 수정한다.
+- 다른 팀원의 변경을 임의로 덮어쓰거나 되돌리지 않는다.
+- Python 버전은 .python-version과 pyproject.toml을 따른다.
+- 환경 설치는 uv sync --locked --no-install-project를 사용한다.
+- 프로그램과 개발 도구는 uv run으로 실행한다.
+- 의존성 추가·삭제는 uv add와 uv remove를 사용한다.
+- 의존성 변경 시 pyproject.toml과 uv.lock을 함께 반영한다.
+- 잠금 파일 오류의 원인을 확인하고 --locked를 임의로 우회하지 않는다.
+- 코드 스타일은 pyproject.toml의 Ruff 설정을 따른다.
+- Python 변경 후 해당 파일에 uv run ruff check --fix <파일경로>와 uv run ruff format <파일경로>를 실행한다.
+- 완료 전 uv run ruff check .와 uv run ruff format --check . 및 관련 테스트를 실행한다.
+- .env·.venv·API 키·개인정보는 커밋하지 않고 비밀 값을 로그에 남기지 않는다.
+- 새 환경변수는 비밀 값 없이 .env.example에 기록하고 외부 API에는 타임아웃과 실패 처리를 적용한다.
+- 새 작업은 최신 main에서 브랜치를 만들며 미커밋 변경이 있으면 보존하고 main에 직접 Push하지 않는다.
+- 커밋·Push·PR·병합은 사용자에게 요청받은 범위에서만 수행한다.
+- 변경 내용·검증 결과·미실행 사유·남은 문제를 한국어로 보고하며 검사 실패를 숨기지 않는다.
