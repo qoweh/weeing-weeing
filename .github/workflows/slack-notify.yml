@@ -1,0 +1,57 @@
+name: Slack 알림
+
+# 이슈·PR 활동을 Slack 채널로 보낸다.
+# 웹훅 URL은 레포 Secret `SLACK_WEBHOOK_URL`에 저장한다.
+
+on:
+  issues:
+    types: [opened, closed, reopened, assigned]
+  pull_request:
+    types: [opened, reopened, ready_for_review, closed]
+  pull_request_review:
+    types: [submitted]
+
+permissions: {}
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Slack으로 전송
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL 시크릿이 없어 건너뜀"
+            exit 0
+          fi
+
+          # 이벤트별 문구 결정. 제목 등 사용자 입력은 jq로만 다뤄 셸에 끼워 넣지 않는다.
+          text=$(jq -r '
+            def esc: gsub("&";"&amp;") | gsub("<";"&lt;") | gsub(">";"&gt;");
+            def link(o): "<\(o.html_url)|#\(o.number) \(o.title | esc)>";
+            .action as $a | .sender.login as $who |
+            if .pull_request and .review then
+              ({"approved":"✅ 승인","changes_requested":"🔁 변경 요청","commented":"💬 코멘트"}[.review.state | ascii_downcase] // "📝 리뷰") as $s
+              | "\($s) | \(link(.pull_request)) — \($who)"
+            elif .pull_request then
+              if $a == "opened" then "🆕 PR 생성 | \(link(.pull_request)) — \($who)\n`\(.pull_request.head.ref)` → `\(.pull_request.base.ref)`"
+              elif $a == "reopened" then "🔄 PR 다시 열림 | \(link(.pull_request)) — \($who)"
+              elif $a == "ready_for_review" then "👀 리뷰 요청 가능 | \(link(.pull_request)) — \($who)"
+              elif $a == "closed" and .pull_request.merged then "🎉 PR 머지 | \(link(.pull_request)) — \(.pull_request.merged_by.login)\n`\(.pull_request.head.ref)` → `\(.pull_request.base.ref)`"
+              elif $a == "closed" then "🚫 PR 닫힘 (머지 안 됨) | \(link(.pull_request)) — \($who)"
+              else empty end
+            elif .issue then
+              if $a == "opened" then "📌 이슈 등록 | \(link(.issue)) — \($who)"
+              elif $a == "closed" then "✔️ 이슈 완료 | \(link(.issue)) — \($who)"
+              elif $a == "reopened" then "🔄 이슈 다시 열림 | \(link(.issue)) — \($who)"
+              elif $a == "assigned" then "🙋 담당자 지정 | \(link(.issue)) → \(.assignee.login)"
+              else empty end
+            else empty end
+          ' "$GITHUB_EVENT_PATH")
+
+          [ -z "$text" ] && exit 0
+
+          jq -n --arg text "$text" --arg repo "$GITHUB_REPOSITORY" \
+            '{text: "[\($repo)] \($text)"}' \
+          | curl -fsS -X POST -H 'Content-Type: application/json' --data @- "$SLACK_WEBHOOK_URL"
