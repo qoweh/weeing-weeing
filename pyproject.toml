@@ -1,7 +1,7 @@
 [project]
 name = "weeing-weeing"
 version = "0.1.0"
-description = "Add your description here"
+description = "배터리 트레이 이송 공정 설비 이상 대응 AI Agent (위잉위잉 캡스톤)"
 readme = "README.md"
 authors = [
     { name = "Laplace888", email = "stmdaks888@gmail.com" }
@@ -14,6 +14,7 @@ dependencies = [
     "langchain-huggingface>=1.2.3",
     "langchain-text-splitters>=1.1.3",
     "pdfplumber>=0.11.10",
+    "pydantic>=2.14.1",
     "sentence-transformers>=6.1.0",
     "uvicorn[standard]>=0.54.0",
 ]
@@ -27,6 +28,9 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
+    "pre-commit>=4.7.0",
+    "pytest>=9.1.1",
     "ruff>=0.17.1",
 ]
 
@@ -36,7 +40,18 @@ indent-width = 4
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "I", "N"]
+# 보안 룰: 하드코딩 비밀값(S105/S106), 요청 timeout 누락(S113),
+# SQL 문자열 조립(S608). "외부 API에는 타임아웃" 팀 규칙을 린트로 강제한다.
+extend-select = ["S105", "S106", "S113", "S608"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S105", "S106"]
 
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"

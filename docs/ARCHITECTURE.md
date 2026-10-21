@@ -1,0 +1,60 @@
+# 아키텍처와 모듈 경계
+
+## 전체 흐름
+
+```mermaid
+flowchart LR
+  U["simulator<br>Unreal 가상 공정"] --> I["ingest<br>수집·검증"]
+  CSV["data/telemetry<br>CSV 재생"] --> I
+  I --> P["plc<br>Virtual PLC"]
+  I --> D["detector<br>Main Engine"]
+  D -- Incident --> G["agent<br>원인 추론"]
+  R["rag<br>근거 검색"] --> G
+  G -- AnalysisResult --> API["api<br>FastAPI + db"]
+  D -- Incident --> API
+  API --> H["hmi<br>Streamlit"]
+  H -- "리셋·재가동 승인" --> P
+  H -- "확정 보고서" --> R
+```
+
+- Virtual PLC는 FastAPI·Agent가 멈춰도 혼자 정지 판단을 할 수 있어야 한다. 그래서 detector와 따로 둔다.
+- AI는 제안까지만 한다. 원인 확정, 정지 해제, 재가동은 사람이 HMI에서 한다.
+
+## 모듈 표
+
+| 모듈 | 하는 일 | 입력 → 출력 | 차수 |
+|---|---|---|---|
+| `contracts` | 모듈 간 데이터 모양 정의 | - | 0차 |
+| `ingest` | CSV·시뮬레이터 수집, 검증, 재생 | 파일·스트림 → `TelemetryRecord` | 1차 |
+| `detector` | 룰 판정, Incident 생성·갱신 | `TelemetryRecord` → `Incident` | 1~2차 |
+| `rag` | 문서 색인, 근거 검색 | 문서 → `Evidence` | 1차 |
+| `agent` | 원인 후보·점검 순서 생성 | `Incident` → `AnalysisResult` | 1차 |
+| `api` | HTTP API, 모듈 연결 | HTTP JSON | 2차 |
+| `db` | PostgreSQL 저장 | contracts 모델 ↔ 테이블 | 2차 |
+| `plc` | 상태 전환, 보호 정지 | `TelemetryRecord` → `PlcState` | 3차 |
+| `hmi/` | 대시보드, 보고서, 결재 | api 호출 | 5차 |
+| `simulator/` | Unreal 연동 | 고장 주입 → Telemetry | 4차 |
+
+각 모듈의 책임과 금지 사항은 `src/weeing_weeing/<모듈>/__init__.py` 첫 주석에, 바깥에 내놓는 함수 모양은 `<모듈>/interface.py`의 `Protocol`에 있다.
+
+## 의존 규칙
+
+1. 모든 모듈은 `contracts`를 import할 수 있다.
+2. 다른 모듈은 **`interface.py`만** import한다. 내부 파일을 직접 import하지 않는다.
+3. 모듈을 서로 이어 붙이는 일은 `api`(또는 실행 스크립트)만 한다.
+4. `plc`는 `api`·`agent`·`rag`를 import하지 않는다.
+
+이 규칙을 지키면 나중에 모듈 하나를 별도 서비스로 떼어낼 때, `interface.py` 구현을 HTTP 클라이언트로 바꾸기만 하면 된다. 이때 `contracts` 모델이 그대로 요청·응답 JSON 스키마가 된다.
+
+## 폴더
+
+```
+src/weeing_weeing/   파이썬 패키지 (모듈별 하위 폴더)
+hmi/                 Streamlit 앱 (5차)
+simulator/           Unreal 연동 메모·스크립트 (4차)
+data/                원본 데이터와 지식 문서 (data/README.md)
+scripts/             일회성·보조 스크립트 (합성 데이터 생성, 색인 실행 등)
+tests/               pytest. 모듈 폴더 구조를 따라간다
+docs/                설계·규칙 문서
+.agents/skills/      팀 공용 에이전트 스킬 원본 (.claude/skills는 자동 생성 사본)
+```

@@ -1,1 +1,56 @@
-# -
+# 위잉위잉 — 설비 이상 대응 AI Agent
+
+> 한화 K-뉴딜 아카데미 캡스톤 · 제조 설비 이상정보 기반 원인·대응정보 생성 Agent
+
+가상의 **배터리 트레이 자동 이송 공정**(BLDC 모터 벨트 컨베이어 1기, 센서 7종)을 대상으로, 센서 이상을 감지하면 AI Agent가 매뉴얼·SOP·정비 이력을 근거로 원인 후보와 점검 순서를 제안합니다. 사람이 점검·조치한 결과는 보고서와 결재를 거쳐 다음 진단의 지식이 됩니다.
+
+- **근거 기반**: 모든 제안에 센서값·룰 코드·문서 인용을 붙이고, 근거가 없으면 멈춘다
+- **사람 우선**: AI는 제안까지. 원인 확정·정지 해제·재가동은 사람이 한다
+- **로컬 LLM**: Ollama로 설비 데이터를 외부로 내보내지 않는다
+
+## 빠른 시작
+
+```bash
+uv sync --locked --no-install-project   # Python 3.12 + 의존성 설치 (= make setup)
+cp .env.example .env
+uv run --no-sync pytest                 # 테스트 (= make test)
+make api                                # FastAPI 개발 서버
+```
+
+자세한 설치(uv·Docker·Ollama)와 문제 해결: [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md)
+
+## 구조
+
+```
+src/weeing_weeing/
+  contracts/   모듈 간 데이터 모양 (Telemetry, Incident, AnalysisResult, 보고서)
+  ingest/      CSV·시뮬레이터 수집, 검증, 재생           ← 1차
+  detector/    룰 판정, Incident 생성 (Main Engine)     ← 1차
+  rag/         문서 색인, 근거 검색                      ← 1차
+  agent/       Ollama 원인 추론, 대응 제안               ← 1차
+  api/  db/    FastAPI, PostgreSQL                       ← 2차
+  plc/         Virtual PLC 상태·보호 제어                ← 3차
+hmi/           Streamlit 화면                            ← 5차
+simulator/     Unreal 연동                               ← 4차
+data/          원본 데이터, 룰 정의서·매뉴얼·SOP
+tests/  scripts/  docs/
+```
+
+각 모듈의 책임은 `__init__.py` 첫 주석에, 바깥에 내놓는 함수 모양은 `interface.py`에 있습니다. 다른 모듈은 `interface.py`와 `contracts`만 import합니다.
+
+## 문서
+
+| 문서 | 내용 |
+|---|---|
+| [ARCHITECTURE](docs/ARCHITECTURE.md) | 전체 흐름, 모듈 표, 의존 규칙 **← 먼저 읽기** |
+| [CONTRACTS](docs/CONTRACTS.md) | 데이터 계약 요약, 근거 자료, 미결 사항 |
+| [LOCAL_SETUP](docs/LOCAL_SETUP.md) | 개발 환경 설치, 실행, 문제 해결 |
+| [CHANGE_WORKFLOW](docs/CHANGE_WORKFLOW.md) | 이슈·브랜치·커밋·PR·머지 규칙 |
+| [DECISIONS](docs/DECISIONS.md) | 기술 결정 기록 |
+| [data/README](data/README.md) | 데이터·문서 출처 |
+
+에이전트(Claude Code·Codex 등) 작업 규칙은 [CLAUDE.md](CLAUDE.md) / [AGENTS.md](AGENTS.md)에, 팀 공용 스킬(환경 설치·PR 전 점검·PR 생성)은 [.agents/skills](.agents/skills/README.md)에 있습니다.
+
+## 팀
+
+임보영(팀장) · 길용현 · 김민우 · 안규현 · 이승민 · 홍동인
