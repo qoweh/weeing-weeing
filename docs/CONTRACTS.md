@@ -14,7 +14,7 @@
 | `Evidence`, `AnalysisResult` | 1차 분담 'AI Agent 4. 결과 구조화 및 검증', 김민우 정리본 `ai_analysis` |
 | `MaintenanceReport` | 김민우 정리본 4장 보고서 규격 v1.0 초안, 보고서 양식 v1.2 |
 
-원본 문서는 `data/knowledge/`, `data/templates/`에 있다.
+원본 문서는 `data/manuals/`, `data/rulebase/`, `data/regulations/`, `data/templates/`에 있다.
 
 ## 핵심 규칙
 

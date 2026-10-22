@@ -22,9 +22,7 @@ class ChunkerConfig:
         if self.chunk_size <= 0:
             raise ValueError("chunk_size는 0보다 커야 합니다.")
         if not 0 <= self.chunk_overlap < self.chunk_size:
-            raise ValueError(
-                "chunk_overlap은 0 이상, chunk_size 미만이어야 합니다."
-            )
+            raise ValueError("chunk_overlap은 0 이상, chunk_size 미만이어야 합니다.")
 
 
 def _is_table_row(line: str) -> bool:
@@ -105,9 +103,7 @@ def _extract_page_title(text: str) -> tuple[str, str]:
     first_line, _, remaining = text.partition("\n")
 
     # 현재 매뉴얼의 "01 공통 대응..." 또는 Markdown 제목.
-    if remaining.strip() and re.match(
-        r"^(?:#{1,6}\s+|\d{2}\s+)", first_line
-    ):
+    if remaining.strip() and re.match(r"^(?:#{1,6}\s+|\d{2}\s+)", first_line):
         return first_line.strip(), remaining.strip()
 
     return "", text
@@ -121,8 +117,7 @@ def _make_units(text: str, body_limit: int) -> list[_ChunkUnit]:
     for block_id, (block_type, content) in enumerate(_split_blocks(text)):
         if block_type == "text":
             units.extend(
-                _ChunkUnit(content=part)
-                for part in splitter.split_text(content)
+                _ChunkUnit(content=part) for part in splitter.split_text(content)
             )
             continue
 
@@ -205,17 +200,12 @@ def chunk_documents(
 
         title_length = len(title) + 2 if title else 0
         if title_length >= config.chunk_size:
-            raise ValueError(
-                "chunk_size가 페이지 제목을 담기에 너무 작습니다."
-            )
+            raise ValueError("chunk_size가 페이지 제목을 담기에 너무 작습니다.")
 
         # 본문 조각은 다음 청크의 겹침을 넣을 여유를 두고 분할한다.
         body_limit = max(
             1,
-            config.chunk_size
-            - title_length
-            - config.chunk_overlap
-            - 2,
+            config.chunk_size - title_length - config.chunk_overlap - 2,
         )
         units = _make_units(text, body_limit)
 
@@ -225,10 +215,7 @@ def chunk_documents(
         for unit in units:
             candidate = [*current, unit]
 
-            if (
-                current
-                and len(_render_units(candidate, title)) > config.chunk_size
-            ):
+            if current and len(_render_units(candidate, title)) > config.chunk_size:
                 page_chunks.append(_render_units(current, title))
 
                 overlap = _overlap_units(current, config.chunk_overlap)

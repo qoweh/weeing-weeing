@@ -57,9 +57,7 @@ def main() -> None:
 
     # 4. 청크의 본문만 임베딩
     print("문서 임베딩 중...")
-    vectors = embeddings.embed_documents(
-        [chunk.page_content for chunk in chunks]
-    )
+    vectors = embeddings.embed_documents([chunk.page_content for chunk in chunks])
 
     # 5. 벡터 수·차원·값 검증
     if len(vectors) != len(chunks):

@@ -37,6 +37,16 @@ flowchart LR
 
 각 모듈의 책임과 금지 사항은 `src/weeing_weeing/<모듈>/__init__.py` 첫 주석에, 바깥에 내놓는 함수 모양은 `<모듈>/interface.py`의 `Protocol`에 있다.
 
+### 공통 룰 평가와 사건 연결
+
+`detector.interface.RuleDetector`가 `Detector` Protocol을 구현한다. 하나의 인스턴스를
+유지하며, 사용 방법과 룰별 입력·정책은 [DETECTOR_RULES](DETECTOR_RULES.md)를 따른다.
+`builtin_rules`의 순간 평가 → `rule_engine`의 지속·회복 확정 → `IncidentManager`
+기록 순서다. 기존 `AnomalyDetector`와 전용 관측·상태 모델은 공통 평가 모델로 대체했다.
+빈 평가 목록으로 회복을 추론하지 않는다.
+기존 `P03Detector`는 P03만 활성화하는 호환용 래퍼다. Manager API와 공통 계약은
+변경하지 않았다. JSON 시연은 공통 엔진을 사용하며 Agent/RAG는 호출하지 않는다.
+
 ## 의존 규칙
 
 1. 모든 모듈은 `contracts`를 import할 수 있다.

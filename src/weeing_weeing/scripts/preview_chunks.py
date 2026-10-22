@@ -28,9 +28,7 @@ def main() -> None:
         config=ChunkerConfig(chunk_size=1000, chunk_overlap=150),
     )
 
-    output_path = (
-        project_root / "data/chunked/manual_chunks_preview.md"
-    )
+    output_path = project_root / "data/chunked/manual_chunks_preview.md"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     sections = []
@@ -47,6 +45,7 @@ def main() -> None:
         encoding="utf-8",
     )
     print(f"청킹 결과 저장: {output_path}")
+
 
 if __name__ == "__main__":
     main()
