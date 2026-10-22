@@ -53,3 +53,7 @@ wheels/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# 노트북 파일
+/notebooks/
+*.ipynb
