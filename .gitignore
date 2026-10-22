@@ -28,7 +28,6 @@ wheels/
 .omc/
 .claude/worktrees/
 .claude/settings.local.json
-=======
 /storage/chroma/
 
 # macOS
