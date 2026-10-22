@@ -1,0 +1,114 @@
+name: PR CI
+
+# PR마다 도는 검사. 결정 근거는 docs/DECISIONS.md D-06.
+# - Lint·Test: 코드에 영향 있는 파일이 바뀐 PR만 실행. 문서만 바뀌면 건너뛴다(skipped = 통과로 취급).
+# - Secret scan·Skills sync: 어떤 파일에든 생길 수 있는 문제라 항상 실행(각 10초 이내).
+# 트리거 단계의 paths 필터 대신 잡 단위 if로 건너뛰는 이유: 워크플로 자체가 안 뜨면 필수 검사로
+# 지정했을 때 PR이 "대기 중"으로 영원히 멈춘다. 잡이 skipped로 끝나면 그런 문제가 없다.
+# 액션은 태그 대신 커밋 SHA로 고정한다(태그 바꿔치기 공급망 공격 방지).
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      code: ${{ steps.detect.outputs.code }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+      - name: 코드 영향 여부 판단 (불확실하면 실행 쪽으로)
+        id: detect
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # main push는 항상 전체 실행
+          if [ "$EVENT" != "pull_request" ]; then echo "code=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          # diff를 못 구하거나 비어 있으면 안전하게 전체 실행
+          if ! files=$(git diff --name-only "$BASE_SHA...$HEAD_SHA") || [ -z "$files" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          code=false
+          while IFS= read -r f; do
+            case "$f" in
+              # 코드·테스트에 영향 없는 파일. 여기 없는 경로는 전부 코드로 본다(새 폴더도 기본 검사).
+              *.md|docs/*|.agents/skills/*|.claude/skills/*|data/knowledge/*|data/templates/*|data/manuals/*|.github/ISSUE_TEMPLATE/*|LICENSE) ;;
+              *) code=true; echo "코드 영향: $f" ;;
+            esac
+          done <<< "$files"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "code=$code"
+
+  lint:
+    name: Lint (ruff)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      # 린트는 dev 그룹(ruff)만 설치해 빠르게 끝낸다.
+      - run: uv sync --locked --only-group dev
+      - run: uv run --no-sync ruff check --output-format=github .
+      - run: uv run --no-sync ruff format --check .
+
+  test:
+    name: Test (pytest)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: true
+      - run: uv sync --locked --no-install-project
+      - run: uv run --no-sync pytest
+
+  skills:
+    name: Skills sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      # 표준 라이브러리만 쓰는 스크립트라 의존성 설치 없이 실행
+      - run: python3 scripts/sync_skills.py --check
+
+  secrets:
+    name: Secret scan (gitleaks)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+      - name: gitleaks (PR에 새로 들어온 커밋만)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITLEAKS_VERSION: "8.30.1"
+          GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -o /tmp/gl.tgz
+          echo "${GITLEAKS_SHA256}  /tmp/gl.tgz" | sha256sum -c -
+          tar -xzf /tmp/gl.tgz -C /tmp gitleaks
+          /tmp/gitleaks detect --redact -v --log-opts="${BASE_SHA}..${HEAD_SHA}"

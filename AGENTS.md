@@ -3,6 +3,11 @@
 - 작업 전에 README.md와 관련 코드를 읽는다.
 - 설치·실행·테스트 방법은 README.md를 따른다.
 - 기존 폴더 구조를 유지하고 요청 범위만 수정한다.
+- 모듈 구조·의존 규칙은 docs/ARCHITECTURE.md를 따른다. 다른 모듈은 그 모듈의 interface.py와 contracts만 import한다.
+- plc 모듈은 api·agent·rag를 import하지 않는다(서버·AI 장애와 무관하게 정지 동작 유지).
+- contracts/를 바꾸면 docs/CONTRACTS.md와 tests/contracts/를 같은 PR에서 고치고 PR 본문에 영향 모듈을 적는다.
+- 팀 스킬은 원본 .agents/skills만 고치고 scripts/sync_skills.py(make skills)로 .claude/skills에 복사한다. .claude/skills를 직접 고치지 않는다.
+- AI(agent)는 정비 보고서의 maintenance·approval 칸을 쓰지 않고, 근거가 없으면 INSUFFICIENT_EVIDENCE로 멈춘다.
 - 다른 팀원의 변경을 임의로 덮어쓰거나 되돌리지 않는다.
 - Python 버전은 .python-version과 pyproject.toml을 따른다.
 - 환경 설치는 uv sync --locked --no-install-project를 사용한다.
@@ -12,10 +17,11 @@
 - 잠금 파일 오류의 원인을 확인하고 --locked를 임의로 우회하지 않는다.
 - 코드 스타일은 pyproject.toml의 Ruff 설정을 따른다.
 - Python 변경 후 해당 파일에 uv run ruff check --fix <파일경로>와 uv run ruff format <파일경로>를 실행한다.
-- 완료 전 uv run ruff check .와 uv run ruff format --check . 및 관련 테스트를 실행한다.
+- 완료 전 make check(= uv run --no-sync로 ruff check ., ruff format --check ., pytest)를 실행한다.
 - .env·.venv·API 키·개인정보는 커밋하지 않고 비밀 값을 로그에 남기지 않는다.
 - 새 환경변수는 비밀 값 없이 .env.example에 기록하고 외부 API에는 타임아웃과 실패 처리를 적용한다.
 - 새 작업은 최신 main에서 브랜치를 만들며 미커밋 변경이 있으면 보존하고 main에 직접 Push하지 않는다.
 - git worktree에서는 main·dev를 checkout하지 않는다(한 브랜치는 한 worktree에서만 checkout 가능). 원격 내용 확인·반영은 origin/main·origin/dev를 직접 참조한다.
+- 브랜치·커밋·PR 규칙은 docs/CHANGE_WORKFLOW.md를 따르고 PR은 .github/pull_request_template.md 양식을 채운다.
 - 커밋·Push·PR·병합은 사용자에게 요청받은 범위에서만 수행한다.
 - 변경 내용·검증 결과·미실행 사유·남은 문제를 한국어로 보고하며 검사 실패를 숨기지 않는다.

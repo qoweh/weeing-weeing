@@ -1,0 +1,45 @@
+# 자주 쓰는 명령 모음. make가 없는 환경(Windows)은 docs/LOCAL_SETUP.md의 원래 명령을 쓴다.
+# 사용법: make help
+
+ENV_FILE := $(if $(wildcard .env),--env-file .env,)
+# 팀 규칙: 프로젝트 자체는 설치하지 않는다(uv sync --no-install-project).
+# 그냥 uv run을 쓰면 실행 전에 프로젝트를 설치하므로 --no-sync로 실행한다.
+# 의존성이 바뀌면(pull 후 등) make setup을 다시 실행한다.
+RUN := uv run --no-sync
+
+.PHONY: help setup lint fmt test check skills db-up ollama-up down api
+
+help: ## 명령 목록
+	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
+
+setup: ## 의존성 설치 (uv.lock 기준)
+	uv sync --locked --no-install-project
+
+lint: ## 린트·포맷 검사 (CI와 같음)
+	$(RUN) ruff check .
+	$(RUN) ruff format --check .
+
+fmt: ## 린트 자동 수정 + 포맷
+	$(RUN) ruff check --fix .
+	$(RUN) ruff format .
+
+test: ## 테스트
+	$(RUN) pytest
+
+check: lint test ## PR 올리기 전 전체 검사
+	python3 scripts/sync_skills.py --check
+
+skills: ## 스킬 원본(.agents/skills)을 Claude Code용 사본(.claude/skills)으로 복사
+	python3 scripts/sync_skills.py
+
+db-up: ## PostgreSQL 기동
+	docker compose up -d postgres
+
+ollama-up: ## Ollama 컨테이너 기동 (Linux용, Mac은 Ollama 앱 권장)
+	docker compose --profile ollama up -d ollama
+
+down: ## 보조 서비스 정지
+	docker compose --profile ollama down
+
+api: ## FastAPI 개발 서버 (http://localhost:8000/docs)
+	$(RUN) $(ENV_FILE) uvicorn --app-dir src weeing_weeing.api.app:app --reload

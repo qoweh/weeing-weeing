@@ -1,0 +1,23 @@
+# 커밋 직전 자동 검사. 설치(1회): uv run pre-commit install
+# 버전은 CI(.github/workflows/ci.yml)와 pyproject의 ruff 버전에 맞춘다.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.1
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+  # .env·API 키가 실수로 스테이징돼도 커밋 전에 막는다. CI와 같은 버전.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+  # 스킬 사본(.claude/skills)이 원본(.agents/skills)과 같은지 검사. 다르면 make skills 후 다시 커밋.
+  - repo: local
+    hooks:
+      - id: skills-sync
+        name: Skills sync (.agents/skills → .claude/skills)
+        entry: python scripts/sync_skills.py --check
+        language: python
+        pass_filenames: false
+        files: ^(\.agents|\.claude)/skills/|^scripts/sync_skills\.py$
