@@ -21,7 +21,8 @@ git add .agents/skills .claude/skills
 |---|---|
 | [`ww-setup`](ww-setup/SKILL.md) | 로컬 개발 환경 설치와 단계별 동작 확인 |
 | [`ww-review-before-pr`](ww-review-before-pr/SKILL.md) | PR 전 셀프 리뷰: 깨끗한 환경 동작 + 프로젝트 규칙 점검 |
-| [`ww-pr`](ww-pr/SKILL.md) | 규칙대로 커밋·push·PR 생성/갱신, CI·자동 리뷰 확인 |
+| [`ww-pr`](ww-pr/SKILL.md) | 규칙대로 커밋·push·PR 생성/갱신, merge 충돌·push 거절 등 꼬인 git 상태 해결, CI·자동 리뷰 확인 |
+| [`ww-release`](ww-release/SKILL.md) | dev → main release 전 점검과 release PR 생성(merge commit으로 머지) |
 
 ## 권장 흐름
 
@@ -32,7 +33,9 @@ ww-setup                 처음 1회 (새 머신, 새 팀원)
    │
 ww-review-before-pr      PR 올리기 전
    │
-ww-pr                    커밋·push·PR
+ww-pr                    커밋·push·PR (→ dev)
+   ⋮
+ww-release               dev → main 반영 (담당자)
 ```
 
 ## 스킬을 고치거나 추가할 때

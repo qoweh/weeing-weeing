@@ -11,7 +11,7 @@ description: weeing-weeing에서 PR을 올리거나 PR 브랜치에 push하기 �
 
 ```bash
 git fetch origin
-git diff --name-only origin/main...HEAD     # 이 브랜치가 바꾼 파일
+git diff --name-only origin/dev...HEAD     # 이 브랜치가 바꾼 파일
 git status --short                          # 아직 커밋 안 한 변경
 ```
 
@@ -67,7 +67,7 @@ uv run --no-sync python scripts/sync_skills.py --check
 | 컨테이너 포트 | compose `ports`가 `127.0.0.1:`로 시작하지 않음 | 로컬 개발은 `127.0.0.1:<포트>:<포트>` |
 | 테스트 | 새 로직에 테스트가 없음, 테스트가 실제 Ollama·네트워크를 부름 | CI에서 돌 수 있게 가짜 객체(`interface`의 Protocol 구현)로 대체 |
 | 문서와 코드 | 문서·주석의 명령·키 이름·경로가 실제와 다름 | 바꾼 쪽에 맞춰 함께 수정 |
-| 큰 파일 | `git diff --stat origin/main...HEAD`에 수 MB 이상 파일 | `data/README.md`에 출처 기록, 수십 MB 이상은 커밋하지 않음 |
+| 큰 파일 | `git diff --stat origin/dev...HEAD`에 수 MB 이상 파일 | `data/README.md`에 출처 기록, 수십 MB 이상은 커밋하지 않음 |
 
 ### 같은 종류 결함은 전부 찾는다
 
