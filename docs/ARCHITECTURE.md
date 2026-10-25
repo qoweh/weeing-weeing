@@ -39,6 +39,11 @@ flowchart LR
 
 ### 공통 룰 평가와 사건 연결
 
+사건 센서 이력을 명시적으로 켜려면 `detector.interface.HistoryDetector`를 사용한다.
+같은 모듈의 `RuleDetector.process_frame()`에서 입력을 한 번만 평가하고 후보 구간부터
+회복 확정 행까지 수집한다. 파일 저장·공개 조회 API와 제약은
+[INCIDENT_HISTORY](INCIDENT_HISTORY.md)를 따른다. 공통 Incident 계약은 변경하지 않는다.
+
 `detector.interface.RuleDetector`가 `Detector` Protocol을 구현한다. 하나의 인스턴스를
 유지하며, 사용 방법과 룰별 입력·정책은 [DETECTOR_RULES](DETECTOR_RULES.md)를 따른다.
 `builtin_rules`의 순간 평가 → `rule_engine`의 지속·회복 확정 → `IncidentManager`

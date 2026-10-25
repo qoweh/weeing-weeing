@@ -8,7 +8,12 @@ from weeing_weeing.contracts import Incident, Severity, TelemetryRecord
 from weeing_weeing.contracts.codes import CODES
 from weeing_weeing.detector.builtin_rules import BuiltinRules, default_policies
 from weeing_weeing.detector.incident_manager import IncidentManager
-from weeing_weeing.detector.rule_models import RuleAssessment, RuleDecision, RulePolicy
+from weeing_weeing.detector.rule_models import (
+    DetectionFrame,
+    RuleAssessment,
+    RuleDecision,
+    RulePolicy,
+)
 
 
 @dataclass
@@ -49,6 +54,8 @@ class RuleEvaluator:
         self._states: dict[tuple[str, str, str], _RuleState] = {}
         self._rules = BuiltinRules()
         self.last_assessments: list[RuleAssessment] = []
+        self.last_input_accepted = False
+        self.last_gap_seconds: float | None = None
 
     def _interrupt(self, key: tuple[str, str]) -> None:
         self._rules.reset(key)
@@ -64,6 +71,8 @@ class RuleEvaluator:
         assessments: list[RuleAssessment] | None = None,
     ) -> list[RuleDecision]:
         context = plc_context or {}
+        self.last_input_accepted = False
+        self.last_gap_seconds = None
         key = record.process_id, record.asset_id
         previous = self._previous.get(key)
         gap = False
@@ -79,6 +88,9 @@ class RuleEvaluator:
                 raise ValueError("레코드 ID 충돌 또는 증가하지 않는 timestamp")
             gap = (record.timestamp - previous.timestamp).total_seconds() > 2
             if gap:
+                self.last_gap_seconds = (
+                    record.timestamp - previous.timestamp
+                ).total_seconds()
                 self._interrupt(key)
         supplied = assessments
         if supplied is not None:
@@ -109,6 +121,7 @@ class RuleEvaluator:
             self._interrupt(key)
         self._context_keys[key] = context_key
         self._previous[key] = record
+        self.last_input_accepted = True
         if context.get("telemetry_valid", True) is not True:
             self._interrupt(key)
             supplied = [
@@ -236,6 +249,51 @@ class RuleDetector:
     ) -> list[Incident]:
         """별도 룰 평가기도 동일한 확정·Manager 경로로 연결한다."""
         return self._apply(self.evaluator.evaluate(record, assessments=assessments))
+
+    def process_frame(
+        self,
+        record: TelemetryRecord,
+        plc_context: dict[str, Any] | None = None,
+        *,
+        assessments: list[RuleAssessment] | None = None,
+    ) -> DetectionFrame:
+        """이력 연동용 단일 평가. 지속/회복 타이머를 재계산하지 않는다."""
+        decisions = self.evaluator.evaluate(
+            record, plc_context, assessments=assessments
+        )
+        incidents = self._apply(decisions)
+        progress = {}
+        recovered = {d.rule_code for d in decisions if d.action == "recover"}
+        for item in self.last_assessments:
+            state = self.evaluator._states[
+                (record.process_id, record.asset_id, item.rule_code)
+            ]
+            if item.rule_code in recovered:
+                phase = "recovered"
+            elif item.severity in (Severity.UNKNOWN, Severity.SUPPRESSED):
+                phase = item.severity.value.lower()
+            elif state.normal_since is not None:
+                phase = "recovery_wait"
+            elif state.severity is not None:
+                phase = "ongoing"
+            elif state.warning_since is not None:
+                phase = "candidate"
+            else:
+                phase = "normal"
+            progress[item.rule_code] = {
+                "phase": phase,
+                "warning_since": state.warning_since,
+                "error_since": state.error_since,
+                "normal_since": state.normal_since,
+                "incident_severity": state.severity,
+            }
+        return DetectionFrame(
+            self.evaluator.last_input_accepted,
+            self.evaluator.last_gap_seconds,
+            self.last_assessments,
+            progress,
+            incidents,
+        )
 
     def _apply(self, decisions: list[RuleDecision]) -> list[Incident]:
         changed = []

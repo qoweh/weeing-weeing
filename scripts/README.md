@@ -1,5 +1,17 @@
 # scripts
 
+## 사건 센서 이력 저장
+
+기존 스냅샷 데모와 별도로 `demo_incident_history.py`를 사용한다.
+입력 CSV, 출력 경로, 대상 룰, RUN_ONLY/MINIMAL 시뮬레이션 문맥을 지정할 수 있다.
+실행 후 저장 이력을 다시 검증하고 사건별 행 수와 실제 파일 크기를 출력한다.
+
+```bash
+uv run --no-sync python scripts/demo_incident_history.py --csv data/telemetry/battery_tray_transfer_5min_warning_error_v4.csv --context MINIMAL
+```
+
+저장 형식·조회 API·버퍼·실패 중단 정책: [INCIDENT_HISTORY](../docs/INCIDENT_HISTORY.md).
+
 한 번씩 돌리는 보조 스크립트를 둔다(합성 데이터 생성, RAG 색인 실행, 시드 데이터 등).
 
 - 실행: `uv run python scripts/<이름>.py`

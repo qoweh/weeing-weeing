@@ -5,7 +5,7 @@ from datetime import datetime
 from math import isfinite
 from typing import Literal
 
-from weeing_weeing.contracts import SensorEvidence, Severity, TelemetryRecord
+from weeing_weeing.contracts import Incident, SensorEvidence, Severity, TelemetryRecord
 from weeing_weeing.contracts.codes import CODES, Direction
 
 
@@ -62,3 +62,14 @@ class RuleDecision:
     first_detected_at: datetime
     evidence: list[SensorEvidence]
     direction: Direction | None = None
+
+
+@dataclass(frozen=True)
+class DetectionFrame:
+    """한 입력을 정확히 한 번 평가한 결과. history 전용이며 공통 계약은 아니다."""
+
+    accepted: bool
+    gap_seconds: float | None
+    assessments: list[RuleAssessment]
+    progress: dict[str, dict]
+    incidents: list[Incident]
