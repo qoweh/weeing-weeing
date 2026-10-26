@@ -4,9 +4,10 @@ import chromadb
 import pytest
 from chromadb.config import Settings
 from fakes import FakeEmbedder
-from test_store_contract import manual_chunks
+from test_store_contract import manual_chunks, sop_chunks
 
 from weeing_weeing.rag.chroma_store import ChromaVectorStore, to_where
+from weeing_weeing.rag.sparse import KiwiBm25Encoder
 from weeing_weeing.rag.store import STORE_SCHEMA, StoreMismatchError
 
 
@@ -98,6 +99,47 @@ def test_recreate_drops_existing_collection(client):
 )
 def test_where_translation(where, expected):
     assert to_where(where) == expected
+
+
+def test_sparse_encoder_name_is_recorded(client):
+    make(client, sparse_encoder=KiwiBm25Encoder()).replace_document(
+        "BTT-MANUAL", manual_chunks()
+    )
+    assert client.get_collection("knowledge").metadata["sparse_encoder"] == (
+        KiwiBm25Encoder.NAME
+    )
+
+
+def test_bm25_cache_follows_writes(client):
+    store = make(client, sparse_encoder=KiwiBm25Encoder())
+    store.replace_document("BTT-MANUAL", manual_chunks())
+    store.replace_document("BTT-SOP-001", sop_chunks())
+    assert store.hybrid_query("광전")  # 캐시 생성
+
+    store.replace_document("BTT-MANUAL", manual_chunks("2.1", ["새로운 첨도 내용"]))
+    hits = store.hybrid_query("첨도", k=10)
+    assert hits[0].chunk.chunk_id == "BTT-MANUAL:2.1:0000"
+    assert not any(":2.0:" in h.chunk.chunk_id for h in hits)  # 옛 청크가 안 나온다
+
+    store.delete_document("BTT-MANUAL")
+    hits = store.hybrid_query("첨도 격리", k=10)
+    assert [h.chunk.doc_id for h in hits] == ["BTT-SOP-001"]  # 지운 문서가 안 나온다
+
+
+def test_bm25_cache_follows_writes_from_another_store_object(client):
+    """API 서버가 검색하는 동안 색인 명령(다른 객체)이 써도 KeyError·옛 내용이 없다."""
+    reader = make(client, sparse_encoder=KiwiBm25Encoder())
+    writer = make(client, sparse_encoder=KiwiBm25Encoder())
+    writer.replace_document("BTT-SOP-001", sop_chunks())
+    assert reader.hybrid_query("격리")  # reader 캐시 생성
+
+    writer.replace_document("BTT-MANUAL", manual_chunks(texts=["첨도 상한 이탈 점검"]))
+    hits = reader.hybrid_query("첨도", k=10)
+    assert hits[0].chunk.chunk_id == "BTT-MANUAL:2.0:0000"
+
+    writer.replace_document("BTT-MANUAL", manual_chunks(texts=["바뀐 첨도 설명"]))
+    hits = reader.hybrid_query("첨도", k=1)
+    assert hits[0].chunk.text == "바뀐 첨도 설명"
 
 
 def test_large_document_is_written_in_batches(client, monkeypatch):

@@ -13,9 +13,10 @@ from collections.abc import Sequence
 from qdrant_client import QdrantClient
 from qdrant_client import models as qm
 
+from weeing_weeing.rag.sparse import SparseEncoder
 from weeing_weeing.rag.store import (
     FILTER_KEYS,
-    STORE_SCHEMA,
+    RRF_K,
     Chunk,
     DocInfo,
     Embedder,
@@ -27,6 +28,7 @@ from weeing_weeing.rag.store import (
     check_where,
     chunk_from_payload,
     chunk_payloads,
+    collection_meta,
     doc_infos,
 )
 
@@ -70,18 +72,19 @@ class QdrantVectorStore:
         *,
         embedder: Embedder,
         embedding_model: str,
+        sparse_encoder: SparseEncoder | None = None,
         collection: str = "knowledge",
         recreate: bool = False,
         batch_size: int = 64,
     ) -> None:
         self._client = client
         self._embedder = embedder
+        self._sparse = sparse_encoder
         self._collection = collection
         self._batch_size = batch_size
-        self._expected = {
-            "embedding_model": embedding_model,
-            "store_schema": STORE_SCHEMA,
-        }
+        self._expected = collection_meta(
+            embedding_model, sparse_encoder.name if sparse_encoder else None
+        )
         if recreate and client.collection_exists(collection):
             client.delete_collection(collection)
         if client.collection_exists(collection):
@@ -106,7 +109,10 @@ class QdrantVectorStore:
             sparse_vectors_config={
                 SPARSE: qm.SparseVectorParams(modifier=qm.Modifier.IDF)
             },
-            metadata={**self._expected, "dim": dim},
+            metadata={
+                **{k: v for k, v in self._expected.items() if v is not None},
+                "dim": dim,
+            },
         )
         # 로컬 모드에서는 인덱스가 효과가 없고 경고만 나므로 서버일 때만 만든다.
         if self._client.init_options.get("url") or self._client.init_options.get(
@@ -127,13 +133,23 @@ class QdrantVectorStore:
         vectors = self._embedder.embed_documents([c.text for c in chunks])
         if len(vectors) != len(chunks):
             raise ValueError("임베더가 청크 수와 다른 개수의 벡터를 돌려줬다")
+        sparse = (
+            self._sparse.encode_documents([c.text for c in chunks])
+            if self._sparse
+            else None
+        )
         self._ensure_collection(len(vectors[0]))
-        return [
-            qm.PointStruct(
-                id=point_id(c.chunk_id), vector={DENSE: vector}, payload=payload
+        points = []
+        for i, (c, payload) in enumerate(zip(chunks, payloads, strict=True)):
+            vector: dict = {DENSE: vectors[i]}
+            if sparse is not None:
+                vector[SPARSE] = qm.SparseVector(
+                    indices=sparse[i].indices, values=sparse[i].values
+                )
+            points.append(
+                qm.PointStruct(id=point_id(c.chunk_id), vector=vector, payload=payload)
             )
-            for c, payload, vector in zip(chunks, payloads, vectors, strict=True)
-        ]
+        return points
 
     def replace_document(self, doc_id: str, chunks: Sequence[Chunk]) -> int:
         check_chunks(doc_id, chunks)
@@ -188,7 +204,46 @@ class QdrantVectorStore:
     def hybrid_query(
         self, text: str, *, k: int = 5, where: Where | None = None
     ) -> list[Hit]:
-        raise NotImplementedError("hybrid_query는 #25에서 구현한다")
+        """dense·sparse를 각각 k*4개 뽑아(prefetch) DB 안에서 RRF로 합친다.
+
+        필터는 prefetch마다 넣는다. 상위 쿼리 필터만으로는 prefetch 후보가 걸러지지 않는다.
+        """
+        if self._sparse is None:
+            raise RuntimeError(
+                "sparse_encoder 없이 만든 저장소는 hybrid_query를 못 쓴다"
+            )
+        flt = to_filter(where)
+        if not self._exists():
+            return []
+        prefetch = [
+            qm.Prefetch(
+                query=self._embedder.embed_query(text),
+                using=DENSE,
+                filter=flt,
+                limit=k * 4,
+            )
+        ]
+        sparse = self._sparse.encode_query(text)
+        if sparse.indices:  # 키워드가 하나도 안 나오면 dense만으로 순위를 낸다
+            prefetch.append(
+                qm.Prefetch(
+                    query=qm.SparseVector(indices=sparse.indices, values=sparse.values),
+                    using=SPARSE,
+                    filter=flt,
+                    limit=k * 4,
+                )
+            )
+        result = self._client.query_points(
+            self._collection,
+            prefetch=prefetch,
+            query=qm.RrfQuery(rrf=qm.Rrf(k=RRF_K)),
+            query_filter=flt,
+            limit=k,
+            with_payload=True,
+        )
+        return [
+            Hit(chunk_from_payload(p.payload or {}), p.score) for p in result.points
+        ]
 
     def _payloads(self, where: Where | None) -> list[dict]:
         flt = to_filter(where)

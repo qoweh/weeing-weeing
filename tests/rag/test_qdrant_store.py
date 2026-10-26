@@ -9,6 +9,7 @@ from qdrant_client import models as qm
 from test_store_contract import manual_chunks
 
 from weeing_weeing.rag.qdrant_store import QdrantVectorStore, point_id, to_filter
+from weeing_weeing.rag.sparse import KiwiBm25Encoder
 from weeing_weeing.rag.store import STORE_SCHEMA, StoreMismatchError
 
 
@@ -96,6 +97,25 @@ def test_where_translation():
     )
     assert to_filter(None) is None
     assert to_filter({}) is None
+
+
+def test_sparse_encoder_name_is_recorded_and_points_have_sparse_vectors():
+    client = QdrantClient(":memory:")
+    make(client, sparse_encoder=KiwiBm25Encoder()).replace_document(
+        "BTT-MANUAL", manual_chunks()
+    )
+
+    assert client.get_collection("knowledge").config.metadata["sparse_encoder"] == (
+        KiwiBm25Encoder.NAME
+    )
+    (record,), _ = client.scroll("knowledge", limit=1, with_vectors=True)
+    assert set(record.vector) == {"dense", "sparse"}
+
+
+def test_hybrid_needs_sparse_encoder():
+    store = make(QdrantClient(":memory:"))
+    with pytest.raises(RuntimeError, match="sparse_encoder"):
+        store.hybrid_query("이송")
 
 
 def test_write_interrupted_midway_is_marked_incomplete(monkeypatch):

@@ -12,4 +12,5 @@
 - store.py: 저장 계층 계약. Chunk·Hit·Embedder·VectorStore (#7, #22)
 - qdrant_store.py: VectorStore Qdrant 구현, 기본 백엔드 (#23)
 - chroma_store.py: VectorStore Chroma 구현, 대체 백엔드 (#24)
+- sparse.py: Kiwi 형태소 BM25 인코더와 메모리 BM25. hybrid_query의 키워드 쪽 (#25)
 """

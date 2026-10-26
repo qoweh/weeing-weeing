@@ -17,8 +17,17 @@ from qdrant_client import QdrantClient
 
 from weeing_weeing.rag.chroma_store import ChromaVectorStore
 from weeing_weeing.rag.qdrant_store import QdrantVectorStore
+from weeing_weeing.rag.sparse import KiwiBm25Encoder
 
 MODEL = "fake-embedder-v1"
+SPARSE = KiwiBm25Encoder()
+_DEFAULT = object()
+
+
+def _kwargs(kwargs: dict) -> dict:
+    """make()에 sparse_encoder를 주지 않으면 Kiwi BM25를 쓴다. None이면 dense 전용."""
+    sparse = kwargs.pop("sparse_encoder", _DEFAULT)
+    return {**kwargs, "sparse_encoder": SPARSE if sparse is _DEFAULT else sparse}
 
 
 @contextmanager
@@ -30,7 +39,7 @@ def _memory(tmp_path):
             storage,
             embedder=embedder or FakeEmbedder(),
             embedding_model=embedding_model,
-            **kwargs,
+            **_kwargs(kwargs),
         )
 
     yield make
@@ -46,7 +55,7 @@ def _qdrant(client: QdrantClient, collection: str = "knowledge"):
             embedder=embedder or FakeEmbedder(),
             embedding_model=embedding_model,
             collection=collection,
-            **kwargs,
+            **_kwargs(kwargs),
         )
 
     try:
@@ -82,7 +91,7 @@ def _chroma(tmp_path):
             client,
             embedder=embedder or FakeEmbedder(),
             embedding_model=embedding_model,
-            **kwargs,
+            **_kwargs(kwargs),
         )
 
     yield make

@@ -129,6 +129,24 @@ class VectorStore(Protocol):
         ...
 
 
+RRF_K = 60  # Qdrant RrfQuery(rrf=Rrf(k=60))와 같은 값
+
+
+def rrf(
+    rankings: Sequence[Sequence[str]], *, k: int = RRF_K
+) -> list[tuple[str, float]]:
+    """Reciprocal Rank Fusion. 점수 = Σ 1/(k + rank), rank는 0부터(Qdrant와 같은 식).
+
+    여러 순위 목록(dense, sparse)을 합쳐 (id, 점수)를 점수 내림차순으로 돌려준다.
+    점수가 같으면 id 순서.
+    """
+    scores: dict[str, float] = {}
+    for ranking in rankings:
+        for rank, key in enumerate(ranking):
+            scores[key] = scores.get(key, 0.0) + 1.0 / (k + rank)
+    return sorted(scores.items(), key=lambda kv: (-kv[1], kv[0]))
+
+
 class StoreMismatchError(RuntimeError):
     """컬렉션이 다른 임베딩 모델·차원·스키마·sparse 인코더로 만들어졌다."""
 
@@ -282,10 +300,24 @@ def doc_infos(payloads: Sequence[Mapping[str, object]]) -> dict[str, DocInfo]:
     return infos
 
 
+def collection_meta(
+    embedding_model: str, sparse_encoder: str | None
+) -> dict[str, str | None]:
+    """컬렉션에 기록하고 열 때 비교하는 값. sparse_encoder가 None이면 dense 전용."""
+    return {
+        "embedding_model": embedding_model,
+        "store_schema": STORE_SCHEMA,
+        "sparse_encoder": sparse_encoder,
+    }
+
+
 def check_collection_meta(
     collection: str, stored: Mapping[str, object], expected: Mapping[str, object]
 ) -> None:
-    """컬렉션에 기록된 값과 현재 설정이 다르면 재색인을 안내하며 멈춘다."""
+    """컬렉션에 기록된 값과 현재 설정이 다르면 재색인을 안내하며 멈춘다.
+
+    기록이 없는 키는 None으로 본다(None 값은 기록하지 않는다. Chroma가 거부한다).
+    """
     for key, want in expected.items():
         have = stored.get(key)
         if have != want:

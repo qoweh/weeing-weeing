@@ -202,6 +202,86 @@ def test_reopen_with_other_embedding_model_is_rejected(store_factory):
     assert len(store_factory().chunks()) == 3  # 같은 모델로는 다시 열린다
 
 
+# --- 하이브리드 (#25) ---
+
+KEYWORD_ONLY = (
+    "BTT-MANUAL:2.0:0010"  # 활용형만 있어 FakeEmbedder(어절 해시)로는 안 맞는 청크
+)
+
+
+def hybrid_extra_chunks():
+    texts = {
+        10: "이송시간이 초과되면 광전센서를 점검한다",
+        11: "매우 빨리 처리하는 방법",  # 질의와 어절은 같지만 키워드(명사)는 없다
+        12: "매우 빨리 끝내기",
+    }
+    return [
+        Chunk(make_chunk_id("BTT-MANUAL", "2.0", seq), "BTT-MANUAL", "2.0", text, {})
+        for seq, text in texts.items()
+    ]
+
+
+@pytest.fixture
+def hybrid_filled(store):
+    store.replace_document("BTT-MANUAL", manual_chunks() + hybrid_extra_chunks())
+    store.replace_document("BTT-SOP-001", sop_chunks())
+    return store
+
+
+def test_hybrid_on_empty_store(store):
+    assert store.hybrid_query("이송") == []
+
+
+def test_hybrid_finds_code_query(hybrid_filled):
+    hits = hybrid_filled.hybrid_query("P03 대응", k=3)
+    assert ids(hits)[0] == "BTT-MANUAL:2.0:0001"  # 본문의 'P03' = 질의의 'P03'
+
+
+def test_hybrid_finds_keyword_only_match(hybrid_filled):
+    query = "매우 빨리 광전센서"  # 0번 청크는 "광전 센서"로 띄어 써서 키워드가 다르다
+
+    assert KEYWORD_ONLY not in ids(hybrid_filled.query(query, k=2))
+    hits = hybrid_filled.hybrid_query(query, k=2)
+    assert ids(hits)[0] == KEYWORD_ONLY
+    assert hits[0].score > hits[1].score
+
+
+def test_hybrid_respects_where(hybrid_filled):
+    hits = hybrid_filled.hybrid_query("이송시간 초과", k=5, where={"doc_type": "sop"})
+    assert ids(hits) == ["BTT-SOP-001:1.1:0000"]
+
+
+def test_hybrid_filters_before_taking_candidates(store):
+    """필터는 후보(k*4)를 뽑기 전에 적용된다. 아니면 필터에 맞는 청크가 후보에서 빠진다."""
+    near = [
+        Chunk(make_chunk_id("M", "1", i), "M", "1", f"이송 시간 초과 {i}", {})
+        for i in range(12)
+    ]
+    store.replace_document("M", near)
+    store.replace_document("BTT-SOP-001", sop_chunks())
+
+    hits = store.hybrid_query("이송 시간 초과", k=1, where={"doc_type": "sop"})
+    assert ids(hits) == ["BTT-SOP-001:1.1:0000"]
+
+
+def test_hybrid_score_is_rrf(hybrid_filled):
+    hits = hybrid_filled.hybrid_query("이송시간 초과 광전센서", k=3)
+    assert hits[0].score <= 2 / 60 + 1e-9  # 두 목록 모두 1위일 때 최댓값
+    assert [h.score for h in hits] == sorted((h.score for h in hits), reverse=True)
+
+
+def test_chunk_without_keywords_is_stored(store):
+    store.replace_document("X", [Chunk("X:1:0000", "X", "1", "— · !", {})])
+    assert ids(store.hybrid_query("— · !")) == ["X:1:0000"]
+
+
+def test_reopen_without_sparse_encoder_is_rejected(store_factory):
+    store_factory().replace_document("BTT-MANUAL", manual_chunks())
+
+    with pytest.raises(StoreMismatchError, match="sparse_encoder"):
+        store_factory(sparse_encoder=None)
+
+
 def test_chunk_id_must_start_with_doc_and_version(store):
     other = Chunk("OTHER:2.0:0000", "BTT-MANUAL", "2.0", "t", {})
     with pytest.raises(ValueError, match="BTT-MANUAL:2.0:로 시작"):

@@ -10,8 +10,8 @@ import math
 import re
 from collections.abc import Sequence
 
+from weeing_weeing.rag.sparse import Bm25Index
 from weeing_weeing.rag.store import (
-    STORE_SCHEMA,
     Chunk,
     DocInfo,
     Hit,
@@ -22,8 +22,10 @@ from weeing_weeing.rag.store import (
     check_where,
     chunk_from_payload,
     chunk_payloads,
+    collection_meta,
     doc_infos,
     matches,
+    rrf,
 )
 
 
@@ -72,12 +74,16 @@ class MemoryVectorStore:
         *,
         embedder,
         embedding_model: str,
+        sparse_encoder=None,
         collection: str = "knowledge",
     ) -> None:
         self._storage = storage
         self._embedder = embedder
+        self._sparse = sparse_encoder
         self._collection = collection
-        self._meta = {"embedding_model": embedding_model, "store_schema": STORE_SCHEMA}
+        self._meta = collection_meta(
+            embedding_model, sparse_encoder.name if sparse_encoder else None
+        )
         if collection in storage:
             check_collection_meta(collection, storage[collection]["meta"], self._meta)
 
@@ -129,7 +135,20 @@ class MemoryVectorStore:
     def hybrid_query(
         self, text: str, *, k: int = 5, where: Where | None = None
     ) -> list[Hit]:
-        raise NotImplementedError("hybrid_query는 #25에서 구현한다")
+        dense = self.query(text, k=k * 4, where=where)
+        if not dense:
+            return []
+        payloads = {cid: p for cid, (p, _) in self._points.items()}
+        vectors = self._sparse.encode_documents([p["text"] for p in payloads.values()])
+        scores = Bm25Index(dict(zip(payloads, vectors, strict=True))).scores(
+            self._sparse.encode_query(text)
+        )
+        sparse = sorted(
+            (cid for cid in scores if matches(payloads[cid], where)),
+            key=lambda cid: (-scores[cid], cid),
+        )[: k * 4]
+        fused = rrf([[h.chunk.chunk_id for h in dense], sparse])[:k]
+        return [Hit(chunk_from_payload(payloads[cid]), sc) for cid, sc in fused]
 
     def documents(self, where: Where | None = None) -> dict[str, DocInfo]:
         check_where(where)
