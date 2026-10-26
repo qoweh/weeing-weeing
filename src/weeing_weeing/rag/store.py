@@ -128,6 +128,10 @@ class VectorStore(Protocol):
         """조건에 맞는 청크 전체. chunk_id 순서."""
         ...
 
+    def close(self) -> None:
+        """연결·로컬 폴더 잠금을 푼다. 프로세스가 끝나기 전에 부른다."""
+        ...
+
 
 RRF_K = 60  # Qdrant RrfQuery(rrf=Rrf(k=60))와 같은 값
 
@@ -323,5 +327,5 @@ def check_collection_meta(
         if have != want:
             raise StoreMismatchError(
                 f"컬렉션 '{collection}'의 {key}: 기록={have!r}, 현재={want!r}. "
-                "전체 재색인(build_index --force)이 필요하다"
+                "컬렉션을 새로 만들어 전체 재색인(make index ARGS=--recreate)해야 한다"
             )

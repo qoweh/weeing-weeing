@@ -61,7 +61,8 @@ def sync(
     force: bool = False,
     dry_run: bool = False,
 ) -> SyncReport:
-    """force: 모든 문서를 다시 색인(임베딩 모델·토크나이저를 바꿨을 때).
+    """force: 바뀌지 않은 문서도 모두 다시 색인한다(청킹·파서를 바꿨을 때).
+    모델·차원·토크나이저를 바꿨으면 저장소를 recreate=True로 만든 뒤 force로 부른다.
     dry_run: 무엇이 바뀔지만 계산한다. 이때 indexer는 None이어도 된다.
     """
     if indexer is None and not dry_run:

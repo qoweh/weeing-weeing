@@ -14,4 +14,5 @@
 - chroma_store.py: VectorStore Chroma 구현, 대체 백엔드 (#24)
 - sparse.py: Kiwi 형태소 BM25 인코더와 메모리 BM25. hybrid_query의 키워드 쪽 (#25)
 - catalog.py, sync.py: 문서 목록 검증과 저장소 동기화(변경 감지·교체·삭제) (#26)
+- factory.py: 설정으로 저장소를 한 번 조립(build_store), make index 진입점 (#27)
 """

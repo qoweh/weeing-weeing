@@ -1,5 +1,21 @@
 # scripts
 
+## RAG 색인 (`build_index.py`)
+
+`data/catalog.toml`에 적힌 문서와 벡터 DB를 맞춘다. 바뀐 문서만 다시 색인하고, 목록에서 빠진 문서는 지운다.
+설정은 `.env`(`VECTOR_STORE`, `EMBEDDING_MODEL`, `QDRANT_*`, `CHROMA_DIR`)를 읽는다.
+
+```bash
+make index                  # = PYTHONPATH=src uv run --no-sync python scripts/build_index.py
+make index ARGS=--dry-run   # 무엇이 바뀔지만 출력. 모델을 올리지 않는다
+make index ARGS=--force     # 바뀌지 않은 문서도 다시 색인 (청킹·파서를 바꿨을 때)
+make index ARGS=--recreate  # 컬렉션을 새로 만들고 전부 색인 (임베딩 모델·차원·토크나이저를 바꿨을 때)
+```
+
+결과는 added/updated/unchanged/removed/failed 표로 나온다. 종료 코드는 0 성공, 1 실패한 문서 있음, 2 설정·잠금·Indexer 문제로 시작 못 함.
+실제 색인은 #6 Indexer(파싱·청킹)가 `rag/factory.py`의 `indexer_class`에 연결된 뒤 동작한다. 그 전에는 `--dry-run`만 쓸 수 있다.
+`--recreate`는 카탈로그 밖에서 들어온 문서(승인 보고서)도 지우므로 그것도 다시 넣어야 한다.
+
 ## 사건 센서 이력 저장
 
 기존 스냅샷 데모와 별도로 `demo_incident_history.py`를 사용한다.

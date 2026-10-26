@@ -8,7 +8,7 @@
 |---|---|---|
 | [uv](https://docs.astral.sh/uv/) | Python·패키지 관리 | `uv --version` |
 | Git | 협업 | `git --version` |
-| Docker Desktop | PostgreSQL (2차부터) | `docker compose version` |
+| Docker Desktop | PostgreSQL (2차부터), Qdrant 서버 모드(선택) | `docker compose version` |
 | [Ollama](https://ollama.com) | 로컬 LLM (Agent 담당은 1차부터) | `ollama --version` |
 
 uv 설치:
@@ -62,6 +62,24 @@ docker compose ps                 # postgres 가 healthy 인지 확인
 - **macOS**: Ollama 앱을 설치해 쓴다. 컨테이너 안에서는 GPU를 못 써서 느리다
 - **Linux 서버**: `docker compose --profile ollama up -d ollama`
 - 모델 받기: `ollama pull <모델명>` 후 `.env`의 `OLLAMA_MODEL`에 기입
+
+## 5. RAG 색인 (벡터 DB)
+
+색인 대상 문서는 `data/catalog.toml`에 적는다. `.env`에 `EMBEDDING_MODEL`(예: `BAAI/bge-m3`)을 넣고 `make index`를 실행한다(사용법: [scripts/README](../scripts/README.md)).
+
+| | Qdrant 로컬 모드 (기본) | Qdrant 서버 모드 |
+|---|---|---|
+| 설정 | `QDRANT_URL` 비움, `QDRANT_PATH=storage/qdrant` | `QDRANT_URL=http://localhost:6333` |
+| 준비 | 없음 | `make qdrant-up` (= `docker compose --profile qdrant up -d qdrant`) |
+| 정체 | qdrant-client 안의 파이썬 재구현, 폴더에 저장 | 실제 Qdrant 엔진. 대시보드 http://localhost:6333/dashboard |
+| 동시 접근 | **한 폴더를 한 프로세스만** 연다 | 여러 프로세스 가능 |
+| 용도 | 개발·단위 테스트 | 통합 시험·시연·운영 |
+
+- **한 프로세스만 쓰기**: Qdrant 로컬 모드는 폴더를 한 프로세스만 열 수 있다. API 서버가 떠 있는 동안 `make index`를 실행하면 "다른 프로세스가 사용 중" 오류로 멈춘다(종료 코드 2). API를 끄거나 서버 모드를 쓴다. Chroma 내장 모드는 **잠금이 없어 오류 없이 열리지만** 여러 프로세스가 같은 폴더에 쓰면 손상될 수 있으므로, 동시에 쓰지 않도록 직접 주의한다.
+- **다시 색인해야 할 때**: 청킹·파서를 바꿨으면 `make index ARGS=--force`. 임베딩 모델·벡터 차원·sparse 토크나이저를 바꿨으면 `make index ARGS=--recreate`(컬렉션을 새로 만든다). 다른 모델로 기존 컬렉션을 열면 `StoreMismatchError`로 멈춘다.
+- **Chroma로 바꾸기**: `.env`에 `VECTOR_STORE=chroma`. 데이터는 `CHROMA_DIR`에 저장되고 텔레메트리는 꺼져 있다. 하이브리드 검색은 같은 결과를 파이썬에서 계산한다.
+- **서버 모드 계약 테스트**: `make qdrant-up` 후 `QDRANT_URL=http://localhost:6333 uv run --no-sync pytest tests/rag`. 로컬 모드는 엔진이 달라 주기적으로 서버 모드로도 돌린다.
+- **실제 모델 스모크 테스트**(모델 다운로드 필요): `RAG_SLOW_TESTS=1 EMBEDDING_MODEL=BAAI/bge-m3 uv run --no-sync pytest tests/rag/test_real_model_smoke.py`. 모델을 이미 받았으면 `HF_HUB_OFFLINE=1`을 붙인다(붙이지 않으면 Hub 확인으로 수 분 멈출 수 있다)
 
 ## 문제가 생기면
 

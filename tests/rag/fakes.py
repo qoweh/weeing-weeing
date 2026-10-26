@@ -161,6 +161,9 @@ class MemoryVectorStore:
         ]
         return sorted(found, key=lambda c: c.chunk_id)
 
+    def close(self) -> None:
+        pass
+
 
 class TextIndexer:
     """테스트용 스텁 Indexer(#6 대신). 텍스트 파일을 빈 줄 기준으로 나눠 청크를 만든다.

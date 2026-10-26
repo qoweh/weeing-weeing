@@ -8,7 +8,7 @@ Qdrant는 sparse 벡터를 저장해 DB 안에서 IDF를 곱하고, Chroma는 �
     점수:     Σ 질의값 × 문서값 × idf,  idf = ln((N - n + 0.5)/(n + 0.5) + 1)
 
 토크나이저 규칙(코드 정규식·사용자 사전·품사)을 바꾸면 NAME의 버전을 올린다.
-컬렉션에 기록된 이름과 다르면 저장소가 재색인(--force)을 요구한다.
+컬렉션에 기록된 이름과 다르면 저장소가 재색인(make index ARGS=--recreate)을 요구한다.
 """
 
 import hashlib

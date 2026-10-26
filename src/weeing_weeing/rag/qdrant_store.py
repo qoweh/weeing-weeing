@@ -270,3 +270,6 @@ class QdrantVectorStore:
 
     def documents(self, where: Where | None = None) -> dict[str, DocInfo]:
         return doc_infos(self._payloads(where))
+
+    def close(self) -> None:
+        self._client.close()

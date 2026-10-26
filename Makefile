@@ -7,7 +7,7 @@ ENV_FILE := $(if $(wildcard .env),--env-file .env,)
 # 의존성이 바뀌면(pull 후 등) make setup을 다시 실행한다.
 RUN := uv run --no-sync
 
-.PHONY: help setup lint fmt test check skills db-up ollama-up qdrant-up down api
+.PHONY: help setup lint fmt test check skills db-up ollama-up qdrant-up down api index
 
 help: ## 명령 목록
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -43,6 +43,9 @@ qdrant-up: ## Qdrant 서버 기동 (서버 모드, .env에 QDRANT_URL=http://loc
 
 down: ## 보조 서비스 정지
 	docker compose --profile ollama --profile qdrant down
+
+index: ## RAG 색인: data/catalog.toml과 벡터 DB 동기화 (ARGS=--dry-run|--force|--recreate)
+	PYTHONPATH=src $(RUN) $(ENV_FILE) python scripts/build_index.py $(ARGS)
 
 api: ## FastAPI 개발 서버 (http://localhost:8000/docs)
 	$(RUN) $(ENV_FILE) uvicorn --app-dir src weeing_weeing.api.app:app --reload

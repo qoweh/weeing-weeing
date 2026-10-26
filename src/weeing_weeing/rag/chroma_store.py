@@ -253,3 +253,6 @@ class ChromaVectorStore:
 
     def documents(self, where: Where | None = None) -> dict[str, DocInfo]:
         return doc_infos(self._payloads(where))
+
+    def close(self) -> None:
+        """내장 모드는 따로 닫을 연결이 없다."""
