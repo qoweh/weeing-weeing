@@ -5,6 +5,7 @@
 
 | # | 날짜 | 결정 | 이유 | 상태 |
 |---|---|---|---|---|
+| D-17 | 2026-10-26 | 색인 대상 문서 목록은 `data/catalog.toml`(경로는 `data/` 기준). 문서 ID·버전·종류·상태를 명시하고 초안도 `status=draft`로 색인. 서로 다른 항목의 SHA-256이 같으면 오류 | 파일명 파싱은 규칙을 어기면 조용히 틀리고 초안/승인을 표현 못 함. #7 결정은 `data/knowledge/catalog.toml`이었으나 #41에서 `data/knowledge/`가 종류별 폴더(`manuals/` 등)로 바뀌어 위치만 옮김 | 확정 |
 | D-16 | 2026-10-22 | 컬렉션은 `knowledge` 하나. 문서 종류는 메타데이터 `doc_type`(manual/rule/sop/report)으로 거름 | Agent는 매뉴얼·룰·SOP·보고서를 한 순위로 받아야 함. Qdrant 공식 문서도 종류별 컬렉션 대신 payload 분할을 권장 | 확정 |
 | D-15 | 2026-10-22 | 청크 ID `{doc_id}:{doc_version}:{seq:04d}`(= `Evidence.evidence_id`). Qdrant point ID는 `uuid5(chunk_id)` | 읽기 쉽고 항상 같은 값. Qdrant는 UUID·정수 ID만 받음(`BTT-MANUAL:2.0:0001`은 거부됨) | 확정 |
 | D-14 | 2026-10-22 | Qdrant 기본은 로컬 모드(`QDRANT_PATH`), `QDRANT_URL`이 있으면 서버 접속. compose에는 `profiles: ["qdrant"]` 선택형 서비스 | 1차는 Docker 없이 개발하고 통합·6차는 설정만 바꿈. 로컬 모드는 파이썬 재구현이라 서버 모드로도 주기적으로 테스트 | 확정 |

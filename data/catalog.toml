@@ -1,0 +1,32 @@
+# 색인 대상 문서 목록. 문서를 추가·교체하면 여기도 고치고 make index를 실행한다.
+# path: 이 파일이 있는 data/ 기준 경로
+# doc_type: manual | rule | sop | report    status: approved | draft
+# doc_id·doc_version은 청크 ID({doc_id}:{doc_version}:{순번})와 인용에 들어간다. ':'는 쓰지 않는다.
+# 같은 doc_id의 새 버전을 올리면 옛 버전 청크는 색인에서 지워진다(파일은 남겨도 된다).
+# 정비 보고서(report)는 이 목록이 아니라 승인 보고서 반영 경로(#29)로 들어온다.
+# templates/(보고서 양식)과 report/(보고서 서식)는 지식 문서가 아니라서 넣지 않는다.
+
+[[documents]]
+doc_id = "BTT-MANUAL"
+doc_version = "2.0"
+doc_type = "manual"
+status = "approved"
+path = "manuals/BTT-MANUAL_v2.0.pdf"
+title = "에러코드·대응 매뉴얼"
+
+[[documents]]
+doc_id = "BTT-RULE"
+doc_version = "2.0"
+doc_type = "rule"
+status = "approved"
+path = "rulebase/BTT-RULE_v2.0.pdf"
+title = "룰베이스 최종 정의서"
+
+[[documents]]
+doc_id = "BTT-SOP-001"
+# 표지에는 버전 표기가 없다. 제19조 ①의 "원문 버전 1.1, status=review_draft"를 따른다.
+doc_version = "1.1"
+doc_type = "sop"
+status = "draft"
+path = "regulations/BTT-SOP-001.pdf"
+title = "배터리 트레이 자동 이송 공정 사내 규정"

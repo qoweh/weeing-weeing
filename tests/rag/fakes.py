@@ -160,3 +160,24 @@ class MemoryVectorStore:
             chunk_from_payload(p) for p, _ in self._points.values() if matches(p, where)
         ]
         return sorted(found, key=lambda c: c.chunk_id)
+
+
+class TextIndexer:
+    """테스트용 스텁 Indexer(#6 대신). 텍스트 파일을 빈 줄 기준으로 나눠 청크를 만든다.
+
+    rag/interface.py의 Indexer 계약대로 metadata를 청크마다 그대로 넣는다.
+    """
+
+    def __init__(self, store) -> None:
+        self.store = store
+        self.calls: list[str] = []  # index_file을 부른 doc_id 순서
+
+    def index_file(self, path, metadata: dict) -> int:
+        self.calls.append(metadata["doc_id"])
+        parts = [p.strip() for p in path.read_text(encoding="utf-8").split("\n\n")]
+        doc_id, version = metadata["doc_id"], metadata["doc_version"]
+        chunks = [
+            Chunk(f"{doc_id}:{version}:{seq:04d}", doc_id, version, text, metadata)
+            for seq, text in enumerate(p for p in parts if p)
+        ]
+        return self.store.replace_document(doc_id, chunks)
