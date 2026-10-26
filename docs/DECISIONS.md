@@ -5,6 +5,15 @@
 
 | # | 날짜 | 결정 | 이유 | 상태 |
 |---|---|---|---|---|
+| D-16 | 2026-10-22 | 컬렉션은 `knowledge` 하나. 문서 종류는 메타데이터 `doc_type`(manual/rule/sop/report)으로 거름 | Agent는 매뉴얼·룰·SOP·보고서를 한 순위로 받아야 함. Qdrant 공식 문서도 종류별 컬렉션 대신 payload 분할을 권장 | 확정 |
+| D-15 | 2026-10-22 | 청크 ID `{doc_id}:{doc_version}:{seq:04d}`(= `Evidence.evidence_id`). Qdrant point ID는 `uuid5(chunk_id)` | 읽기 쉽고 항상 같은 값. Qdrant는 UUID·정수 ID만 받음(`BTT-MANUAL:2.0:0001`은 거부됨) | 확정 |
+| D-14 | 2026-10-22 | Qdrant 기본은 로컬 모드(`QDRANT_PATH`), `QDRANT_URL`이 있으면 서버 접속. compose에는 `profiles: ["qdrant"]` 선택형 서비스 | 1차는 Docker 없이 개발하고 통합·6차는 설정만 바꿈. 로컬 모드는 파이썬 재구현이라 서버 모드로도 주기적으로 테스트 | 확정 |
+| D-13 | 2026-10-22 | sparse 표현은 Kiwi 형태소 BM25. 코드는 정규식으로 먼저 뽑고 도메인 용어는 사용자 사전에 넣음 | `Qdrant/bm25`는 한국어를 어절 단위로만 자름(`이송시간이` ≠ `이송시간`). 임베딩 모델과 독립 | 확정 |
+| D-12 | 2026-10-22 | 하이브리드 검색(`hybrid_query`)은 저장 계층에서 끝냄. Qdrant는 네이티브 sparse+RRF, Chroma는 같은 토크나이저로 파이썬 BM25+RRF(k=60) | #8은 메서드 한 번만 부르고 리랭킹·Evidence에 집중. Chroma 하이브리드는 Cloud 전용이라 로컬에서 쓸 수 없음 | 확정 |
+| D-11 | 2026-10-22 | 갱신은 문서 단위 교체. 원본 SHA-256으로 변경 감지. 임베딩 먼저 계산 → 새 청크 쓰기 → 남은 옛 청크 삭제. 청크마다 저장 당시 전체 수(`chunk_total`)를 기록 | 수백 청크 규모라 단순·멱등한 방식이 나음. 쓰기 전 실패는 기존 색인이 그대로 남고, 쓰는 도중 끊기면 `documents()`가 `complete=False`로 알려 다음 동기화가 다시 색인 | 확정 |
+| D-10 | 2026-10-22 | 임베딩은 저장소가 주입받은 `Embedder`로 색인·검색 모두 계산. 모델 이름을 컬렉션에 기록하고 다른 모델로 열면 거부 | 색인 모델과 검색 모델이 어긋나도 에러 없이 품질만 떨어지는 버그를 구조적으로 막음. 모델 선정·임베더 구현은 #6 | 확정 |
+| D-09 | 2026-10-22 | 네이티브 클라이언트(qdrant-client, chromadb) 위에 rag 내부 Protocol(`rag/store.py`)을 둠. LangChain 벡터스토어 래퍼는 쓰지 않음 | 래퍼는 재실행 시 중복 적재, ID로만 삭제, 랜덤 `uuid4` ID, DB마다 다른 기본 거리(Chroma l2, Qdrant Cosine), 변경 감지 없음 | 확정 |
+| D-08 | 2026-10-22 | 벡터 DB는 `VectorStore` Protocol 하나에 Qdrant(기본)·Chroma 두 구현. 설정 `VECTOR_STORE`로 고름 | 같은 계약 테스트를 두 구현에 돌려 교체를 보증하고 성능 비교. Qdrant는 온프레미스에서 하이브리드를 DB 안에서 처리 | 확정 |
 | D-07 | 2026-10-20 | 스킬 원본은 `.agents/skills`, Claude Code용 `.claude/skills`는 `scripts/sync_skills.py`로 만든 복사본을 커밋 | Codex와 Claude Code가 찾는 위치가 다름. 심볼릭 링크는 Windows에서 깨질 수 있음. CI·pre-commit이 두 폴더가 같은지 검사 | 확정 |
 | D-06 | 2026-10-20 | 문서만 바뀐 PR은 Lint·Test를 건너뜀. 잡 단위 `if`로 건너뛰고 트리거 `paths` 필터는 쓰지 않음. Secret scan·Skills sync는 항상 실행 | Actions 시간 절약(private 레포는 월 사용량 한도). 트리거 필터는 필수 검사 지정 시 PR이 '대기 중'으로 멈춤. 판단이 불확실하면 실행하고, 건너뛸 경로만 목록으로 둠 | 확정 |
 | D-05 | 2026-10-20 | CI 액션은 커밋 SHA로 고정. `actions/checkout`은 v6.1.0 유지 | 태그 바꿔치기 공급망 공격 방지. v7은 fork PR 체크아웃 동작이 바뀌는 큰 변경이라 보류함 | 확정 |
