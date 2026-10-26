@@ -1,0 +1,9 @@
+$app-gap: 1rem;
+
+.app {
+  padding: $app-gap;
+
+  &__title {
+    color: #1e293b;
+  }
+}

@@ -56,3 +56,6 @@ wheels/
 # 노트북 파일
 /notebooks/
 *.ipynb
+
+# frontend
+node_modules
