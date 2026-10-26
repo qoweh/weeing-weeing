@@ -14,11 +14,13 @@ Agent/RAG/DB/HMI를 호출하거나 구현하지 않는다.
 
 ```powershell
 uv run --no-sync python scripts/demo_incident_history.py
-uv run --no-sync python scripts/demo_incident_history.py --csv data/telemetry/battery_tray_transfer_5min_warning_error_v4.csv --context MINIMAL --output outputs/incident_history
+uv run --no-sync python scripts/demo_incident_history.py --csv data/telemetry/battery_tray_transfer_5min_warning_error_v4.csv --context MINIMAL --interval 0 --output outputs/incident_history
 uv run --no-sync python scripts/demo_incident_history.py --codes BTT2-M10 --buffer-seconds 120 --buffer-rows 2048
 ```
 
 CSV가 실제 존재해야 한다. v4라는 이름의 합성 대체 파일을 생성하지 않는다.
+데모는 [공통 JSON 입력 경로](JSON_INPUT.md)를 사용한다. `--interval` 기본값은
+0.5초이며 0은 대기 없는 실행이다. CSV의 원래 timestamp와 집계 의미는 유지한다.
 데모는 실행 경로·사건별 행 수·이벤트 수·센서 파일 바이트 수·실행 전체 바이트 수를
 **생성된 파일에서 측정**해 출력한다. 원본 CSV 경로와 SHA-256도 manifest에 보존한다.
 
