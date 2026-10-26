@@ -10,4 +10,5 @@
 내부 파일 (다른 모듈은 interface.py만 import)
 - pdf_parser.py, chunker.py, embedder.py: 파싱·청킹·임베딩 모델 (#6)
 - store.py: 저장 계층 계약. Chunk·Hit·Embedder·VectorStore (#7, #22)
+- qdrant_store.py: VectorStore Qdrant 구현, 기본 백엔드 (#23)
 """

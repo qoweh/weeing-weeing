@@ -11,6 +11,11 @@ class Settings:
     ollama_model: str
     llm_timeout_s: float
     embedding_model: str
+    vector_store: str  # qdrant | chroma
+    rag_collection: str
+    qdrant_path: Path
+    qdrant_url: str  # 비어 있으면 로컬 모드(qdrant_path)
+    qdrant_timeout_s: float
     chroma_dir: Path
     database_url: str
     telemetry_csv: Path
@@ -24,6 +29,11 @@ def get_settings() -> Settings:
         ollama_model=env("OLLAMA_MODEL", ""),
         llm_timeout_s=float(env("LLM_TIMEOUT_S", "60")),
         embedding_model=env("EMBEDDING_MODEL", ""),
+        vector_store=env("VECTOR_STORE", "qdrant"),
+        rag_collection=env("RAG_COLLECTION", "knowledge"),
+        qdrant_path=Path(env("QDRANT_PATH", "storage/qdrant")),
+        qdrant_url=env("QDRANT_URL", ""),
+        qdrant_timeout_s=float(env("QDRANT_TIMEOUT_S", "10")),
         chroma_dir=Path(env("CHROMA_DIR", "storage/chroma")),
         database_url=env(
             "DATABASE_URL", "postgresql://weeing:weeing@localhost:5432/weeing"

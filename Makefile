@@ -7,7 +7,7 @@ ENV_FILE := $(if $(wildcard .env),--env-file .env,)
 # 의존성이 바뀌면(pull 후 등) make setup을 다시 실행한다.
 RUN := uv run --no-sync
 
-.PHONY: help setup lint fmt test check skills db-up ollama-up down api
+.PHONY: help setup lint fmt test check skills db-up ollama-up qdrant-up down api
 
 help: ## 명령 목록
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -38,8 +38,11 @@ db-up: ## PostgreSQL 기동
 ollama-up: ## Ollama 컨테이너 기동 (Linux용, Mac은 Ollama 앱 권장)
 	docker compose --profile ollama up -d ollama
 
+qdrant-up: ## Qdrant 서버 기동 (서버 모드, .env에 QDRANT_URL=http://localhost:6333)
+	docker compose --profile qdrant up -d qdrant
+
 down: ## 보조 서비스 정지
-	docker compose --profile ollama down
+	docker compose --profile ollama --profile qdrant down
 
 api: ## FastAPI 개발 서버 (http://localhost:8000/docs)
 	$(RUN) $(ENV_FILE) uvicorn --app-dir src weeing_weeing.api.app:app --reload
