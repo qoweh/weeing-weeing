@@ -9,10 +9,13 @@ import os
 import uuid
 from contextlib import contextmanager
 
+import chromadb
 import pytest
+from chromadb.config import Settings
 from fakes import FakeEmbedder, MemoryVectorStore
 from qdrant_client import QdrantClient
 
+from weeing_weeing.rag.chroma_store import ChromaVectorStore
 from weeing_weeing.rag.qdrant_store import QdrantVectorStore
 
 MODEL = "fake-embedder-v1"
@@ -67,11 +70,30 @@ def _qdrant_server(tmp_path):
     return _qdrant(QdrantClient(url=url, timeout=10), f"test_{uuid.uuid4().hex[:12]}")
 
 
+@contextmanager
+def _chroma(tmp_path):
+    # EphemeralClient는 프로세스 안에서 상태를 공유하므로 테스트마다 새 폴더를 쓴다.
+    client = chromadb.PersistentClient(
+        path=str(tmp_path / "chroma"), settings=Settings(anonymized_telemetry=False)
+    )
+
+    def make(*, embedder=None, embedding_model=MODEL, **kwargs):
+        return ChromaVectorStore(
+            client,
+            embedder=embedder or FakeEmbedder(),
+            embedding_model=embedding_model,
+            **kwargs,
+        )
+
+    yield make
+
+
 # 이름 → (tmp_path → 같은 저장소를 다시 여는 함수를 내주는 context manager)
 BACKENDS = {
     "memory": _memory,
     "qdrant-memory": _qdrant_memory,
     "qdrant-path": _qdrant_path,
+    "chroma": _chroma,
 }
 if os.environ.get("QDRANT_URL"):
     BACKENDS["qdrant-server"] = _qdrant_server
