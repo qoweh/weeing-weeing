@@ -1,0 +1,129 @@
+async function request(path, { method = "GET", body } = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 300_000);
+  const isFormData = body instanceof FormData;
+
+  try {
+    const response = await fetch(`/api${path}`, {
+      method,
+      cache: "no-store",
+      signal: controller.signal,
+      headers:
+        body !== undefined && !isFormData
+          ? { "Content-Type": "application/json" }
+          : undefined,
+      body:
+        body === undefined || isFormData
+          ? body
+          : JSON.stringify(body),
+    });
+
+    const text = await response.text();
+    let data;
+
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      throw new Error(
+        `서버가 JSON 형식으로 응답하지 않았습니다. HTTP ${response.status}`,
+      );
+    }
+
+    if (!response.ok) {
+      const detail = data?.detail ?? data?.message ?? "요청 실패";
+      const message =
+        typeof detail === "string" ? detail : JSON.stringify(detail);
+
+      throw new Error(`HTTP ${response.status}: ${message}`);
+    }
+
+    return data;
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error(
+        "응답 대기 시간이 초과됐습니다. 서버에서 처리가 계속되는지 확인하세요.",
+        { cause: error },
+      );
+    }
+
+    if (error instanceof TypeError) {
+      throw new Error(
+        "서버에 연결하지 못했습니다. FastAPI 실행 상태를 확인하세요.",
+        { cause: error },
+      );
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export function checkHealth() {
+  return request("/health");
+}
+
+export async function uploadDocument(formData, onProgress = () => {}) {
+  onProgress("uploading");
+
+  let job = await request("/documents", {
+    method: "POST",
+    body: formData,
+  });
+
+  const uploadId = job.upload_id;
+  if (!uploadId) {
+    throw new Error("서버 응답에 업로드 ID가 없습니다.");
+  }
+
+  const deadline = Date.now() + 30 * 60 * 1000;
+
+  while (true) {
+    onProgress(job.stage ?? job.status);
+
+    if (job.status === "completed") {
+      return job;
+    }
+
+    if (job.status === "failed") {
+      throw new Error(
+        `${job.error ?? "문서 처리에 실패했습니다."} 업로드 ID: ${uploadId}`,
+      );
+    }
+
+    if (!["queued", "processing"].includes(job.status)) {
+      throw new Error(`알 수 없는 처리 상태입니다: ${job.status}`);
+    }
+
+    if (Date.now() >= deadline) {
+      throw new Error(
+        `처리 상태 확인 시간이 초과됐습니다. 서버 작업은 계속될 수 있습니다. 업로드 ID: ${uploadId}`,
+      );
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    try {
+      job = await request(`/documents/${encodeURIComponent(uploadId)}`);
+    } catch (error) {
+      throw new Error(
+        `상태 조회에 실패했습니다. 서버 작업은 계속될 수 있습니다. 업로드 ID: ${uploadId}. ${error.message}`,
+        { cause: error },
+      );
+    }
+  }
+}
+
+export function approveTestReport(payload) {
+  return request("/test/reports/approve", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function analyzeTestIncident(payload) {
+  return request("/test/analysis", {
+    method: "POST",
+    body: payload,
+  });
+}
