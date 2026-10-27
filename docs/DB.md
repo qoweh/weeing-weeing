@@ -11,7 +11,8 @@
 | `incident` | 이상 사건. 같은 `incident_id`는 갱신 | `Incident` | detector → api | #61 |
 | `analysis` | AI 분석 결과. 한 사건에 여러 건(재분석·모델 비교) | `AnalysisResult` | agent → api | #61 |
 | `telemetry` | 센서 1초 데이터(v3 15컬럼) | `TelemetryRecord` | ingest → api, HMI 그래프 | #63 |
-| `report`·`approval`·`user` | 정비 보고서·결재·사용자 | `MaintenanceReport` | 보고서·HMI | #62 |
+| `app_user`·`user_session` | 사용자 계정(비밀번호 scrypt 해시)·로그인 세션(토큰 SHA-256) | `UserAccount` | api 로그인([AUTH.md](AUTH.md)) | #62 |
+| `report`·`approval` | 정비 보고서·결재 (아직 없음) | `MaintenanceReport` | 보고서·HMI | #62 |
 
 저장 방식은 공통으로 **조회에 쓰는 값은 칼럼, 계약 전체는 `data`(PostgreSQL JSONB)** 다. 꺼낼 때는 `data`를 계약 모델로 다시 검증하므로, 계약에 칸이 늘어도 마이그레이션 없이 저장된다. 단, 새 칸으로 **필터·정렬**하려면 칼럼과 마이그레이션을 추가한다.
 `telemetry`만 예외로 15컬럼을 모두 칼럼으로 둔다(값이 고정이고 양이 많아 구간 조회가 잦다).

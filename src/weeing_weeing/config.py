@@ -35,6 +35,7 @@ class Settings:
     telemetry_history_dir: Path = Path("outputs/incident_history")
     reranker_model: str = ""  # 비어 있으면 RRF 순위, 지정하면 로컬 CrossEncoder
     rag_candidate_k: int = 30  # 리랭킹할 최소 후보 수. 최종 k보다 작으면 k까지 확장
+    auth_session_hours: float = 12  # 로그인 세션 유효 시간(교대 근무 한 번)
 
 
 def get_settings() -> Settings:
@@ -70,4 +71,5 @@ def get_settings() -> Settings:
         ),
         reranker_model=env("RERANKER_MODEL", "BAAI/bge-reranker-v2-m3"),
         rag_candidate_k=int(env("RAG_CANDIDATE_K", "30")),
+        auth_session_hours=float(env("AUTH_SESSION_HOURS", "12")),
     )

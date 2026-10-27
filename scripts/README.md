@@ -11,6 +11,17 @@ make models ARGS=--skip-ollama  # Hugging Face 모델만
 
 종료 코드는 0 모두 받음, 1 받지 못한 모델 있음.
 
+## 시연 계정 (`seed_users.py`, #62)
+
+`data/seed/demo_users_v1.toml`의 계정(관리자 `ADMIN` + 직책 4종)을 DB에 만든다. 이미 있는 사번은 건드리지 않는다. 로그인·권한은 [docs/AUTH.md](../docs/AUTH.md).
+
+```bash
+make seed-users                          # 계정마다 임의 비밀번호를 한 번만 출력
+make seed-users ARGS=--ask-password     # 모든 시연 계정을 같은 비밀번호로(입력받음, 8자 이상)
+```
+
+종료 코드는 0 성공, 2 DB 연결 실패·비밀번호 규칙 위반.
+
 ## RAG 색인 (`build_index.py`)
 
 DB의 문서 목록(`document` 테이블)과 벡터 DB를 맞춘다. 순서는

@@ -1,0 +1,28 @@
+# 시연용 계정(가상 인물). make seed-users가 DB에 없는 사번만 만든다. 비밀번호는 여기 두지 않는다.
+# role: 관제 담당자 | 보전 팀장 | 현장 책임자 | 현장 점검자 (contracts/report.py Role)
+
+[[users]]
+employee_no = "ADMIN"
+name = "시스템 관리자"
+role = "관제 담당자"
+is_admin = true
+
+[[users]]
+employee_no = "C1001"
+name = "관제 담당자(시연)"
+role = "관제 담당자"
+
+[[users]]
+employee_no = "L2001"
+name = "보전 팀장(시연)"
+role = "보전 팀장"
+
+[[users]]
+employee_no = "M3001"
+name = "현장 책임자(시연)"
+role = "현장 책임자"
+
+[[users]]
+employee_no = "I4001"
+name = "현장 점검자(시연)"
+role = "현장 점검자"

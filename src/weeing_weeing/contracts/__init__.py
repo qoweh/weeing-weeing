@@ -9,6 +9,7 @@
 - analysis: RAG 검색 근거와 AI 분석 결과
 - report: 정비 보고서와 결재
 - document: 문서 레지스트리 한 줄(색인 대상 문서와 업로드 처리 상태)
+- user: 사용자 계정(사번·직책·관리자 여부)
 
 바꿀 때는 docs/CONTRACTS.md를 함께 고치고, 사용하는 모듈 담당자에게 알린다.
 """
@@ -19,6 +20,7 @@ from weeing_weeing.contracts.document import DocumentRecord
 from weeing_weeing.contracts.incident import Incident, IncidentStatus, SensorEvidence
 from weeing_weeing.contracts.report import MaintenanceReport, ReportStatus, Role
 from weeing_weeing.contracts.telemetry import SCHEMA_VERSION, TelemetryRecord
+from weeing_weeing.contracts.user import UserAccount
 
 __all__ = [
     "CODES",
@@ -36,4 +38,5 @@ __all__ = [
     "SensorEvidence",
     "Severity",
     "TelemetryRecord",
+    "UserAccount",
 ]

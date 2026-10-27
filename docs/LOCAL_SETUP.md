@@ -50,7 +50,7 @@ http://localhost:8000/health 와 http://localhost:8000/docs 에서 확인한다.
 
 ## 3. DB (PostgreSQL)
 
-문서 목록(`document` 테이블)이 DB에 있어서 `make index`와 업로드 API에 DB가 필요하다. 테이블과 사용법은 [DB.md](DB.md).
+문서 목록(`document` 테이블)이 DB에 있어서 `make index`와 업로드 API에 DB가 필요하다. 테이블과 사용법은 [DB.md](DB.md). 로그인할 시연 계정은 `make seed-users`([AUTH.md](AUTH.md)).
 
 ```bash
 docker compose up -d postgres     # 또는 make db-up

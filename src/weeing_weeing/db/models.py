@@ -146,3 +146,35 @@ class TelemetryRow(Base):
             "asset_id", "timestamp", "process_id", name="uq_telemetry_asset_time"
         ),
     )
+
+
+class UserRow(Base):
+    """사용자 계정(contracts/user.py UserAccount + 비밀번호 해시).
+
+    PostgreSQL에서 user는 예약어라 테이블 이름을 app_user로 둔다.
+    """
+
+    __tablename__ = "app_user"
+
+    employee_no: Mapped[str] = mapped_column(String(32), primary_key=True)
+    name: Mapped[str] = mapped_column(String(64))
+    role: Mapped[str] = mapped_column(String(16))
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    password_hash: Mapped[str] = mapped_column(String(256))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class SessionRow(Base):
+    """로그인 세션. 토큰 원문은 저장하지 않고 SHA-256만 둔다(DB가 새도 토큰을 쓸 수 없게)."""
+
+    __tablename__ = "user_session"
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    employee_no: Mapped[str] = mapped_column(
+        String(32), ForeignKey("app_user.employee_no", ondelete="CASCADE"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

@@ -1,6 +1,6 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import lru_cache
 from threading import Lock
 from typing import TYPE_CHECKING, Any, Protocol
@@ -10,11 +10,19 @@ from weeing_weeing.contracts import (
     DocumentRecord,
     Incident,
     IncidentStatus,
+    Role,
     TelemetryRecord,
+    UserAccount,
 )
 from weeing_weeing.db.documents import SeedResult
 from weeing_weeing.db.incidents import UnknownIncidentError
 from weeing_weeing.db.session import DatabaseUnavailableError
+from weeing_weeing.db.users import (
+    MIN_PASSWORD_LENGTH,
+    DuplicateUserError,
+    LastAdminError,
+    UnknownUserError,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy import Engine
@@ -22,16 +30,23 @@ if TYPE_CHECKING:
 __all__ = [
     "DatabaseUnavailableError",
     "DocumentRepository",
+    "MIN_PASSWORD_LENGTH",
+    "DuplicateUserError",
     "IncidentRepository",
+    "LastAdminError",
     "SeedResult",
     "TelemetryRepository",
     "UnknownIncidentError",
+    "UnknownUserError",
+    "UserRepository",
     "get_documents",
     "get_incidents",
     "get_telemetry",
+    "get_users",
     "open_documents",
     "open_incidents",
     "open_telemetry",
+    "open_users",
 ]
 
 
@@ -127,6 +142,48 @@ class TelemetryRepository(Protocol):
     ) -> TelemetryRecord | None: ...
 
 
+class UserRepository(Protocol):
+    """사용자 계정과 로그인 세션(app_user·user_session). 비밀번호 원문·토큰 원문은 저장하지 않는다."""
+
+    def create_user(self, account: UserAccount, password: str) -> UserAccount:
+        """사번이 이미 있으면 DuplicateUserError, 비밀번호가 짧으면 ValueError."""
+        ...
+
+    def get_user(self, employee_no: str) -> UserAccount | None: ...
+
+    def list_users(self) -> list[UserAccount]: ...
+
+    def update_user(
+        self,
+        employee_no: str,
+        *,
+        name: str | None = None,
+        role: Role | None = None,
+        is_admin: bool | None = None,
+        is_active: bool | None = None,
+    ) -> UserAccount:
+        """None인 칸은 그대로. 없는 사번은 UnknownUserError, 마지막 관리자를 없애면 LastAdminError."""
+        ...
+
+    def set_password(self, employee_no: str, password: str) -> None:
+        """비밀번호 변경. 그 사람의 기존 세션은 모두 끊는다."""
+        ...
+
+    def check_password(self, employee_no: str, password: str) -> bool:
+        """세션을 만들지 않고 비밀번호만 확인."""
+        ...
+
+    def login(
+        self, employee_no: str, password: str, *, ttl: timedelta
+    ) -> tuple[str, datetime, UserAccount] | None:
+        """(토큰, 만료 시각, 계정). 틀리거나 비활성 계정이면 None(이유는 구분하지 않는다)."""
+        ...
+
+    def user_for_token(self, token: str) -> UserAccount | None: ...
+
+    def logout(self, token: str) -> None: ...
+
+
 def open_engine(url: str, *, timeout_s: float = 5) -> "Engine":
     """DB에 연결하고 스키마를 최신으로 올린 엔진. 저장소들이 이 엔진 하나를 함께 쓴다."""
     from sqlalchemy.exc import InterfaceError, OperationalError
@@ -156,6 +213,12 @@ def open_incidents(url: str, *, timeout_s: float = 5) -> IncidentRepository:
     return SqlIncidents(open_engine(url, timeout_s=timeout_s))
 
 
+def open_users(url: str, *, timeout_s: float = 5) -> UserRepository:
+    from weeing_weeing.db.users import SqlUsers
+
+    return SqlUsers(open_engine(url, timeout_s=timeout_s))
+
+
 def open_telemetry(url: str, *, timeout_s: float = 5) -> TelemetryRepository:
     from weeing_weeing.db.telemetry import SqlTelemetry
 
@@ -167,6 +230,7 @@ class _Shared:
     documents: DocumentRepository
     incidents: IncidentRepository
     telemetry: TelemetryRepository
+    users: UserRepository
 
 
 @lru_cache(maxsize=4)
@@ -174,9 +238,15 @@ def _cached(url: str, timeout_s: float) -> _Shared:
     from weeing_weeing.db.documents import SqlDocuments
     from weeing_weeing.db.incidents import SqlIncidents
     from weeing_weeing.db.telemetry import SqlTelemetry
+    from weeing_weeing.db.users import SqlUsers
 
     engine = open_engine(url, timeout_s=timeout_s)
-    return _Shared(SqlDocuments(engine), SqlIncidents(engine), SqlTelemetry(engine))
+    return _Shared(
+        SqlDocuments(engine),
+        SqlIncidents(engine),
+        SqlTelemetry(engine),
+        SqlUsers(engine),
+    )
 
 
 _OPEN_LOCK = Lock()
@@ -208,3 +278,8 @@ def get_incidents() -> IncidentRepository:
 def get_telemetry() -> TelemetryRepository:
     """.env의 DATABASE_URL로 연 센서 데이터 저장소."""
     return _shared().telemetry
+
+
+def get_users() -> UserRepository:
+    """.env의 DATABASE_URL로 연 사용자·세션 저장소."""
+    return _shared().users

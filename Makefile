@@ -7,7 +7,7 @@ ENV_FILE := $(if $(wildcard .env),--env-file .env,)
 # 의존성이 바뀌면(pull 후 등) make setup을 다시 실행한다.
 RUN := uv run --no-sync
 
-.PHONY: help setup lint fmt test check skills db-up db-migrate ollama-up qdrant-up down api models index rag-e2e llm-check
+.PHONY: help setup lint fmt test check skills db-up db-migrate ollama-up qdrant-up down api models index seed-users rag-e2e llm-check
 
 help: ## 명령 목록
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -52,6 +52,9 @@ models: ## 임베딩·리랭커·LLM 모델 미리 받기 (새 PC에서 한 번,
 
 index: ## RAG 색인: catalog.toml을 DB에 반영 → DB 문서 목록과 벡터 DB 동기화 (DB 필요, ARGS=--dry-run|--force|--recreate)
 	PYTHONPATH=src $(RUN) $(ENV_FILE) python scripts/build_index.py $(ARGS)
+
+seed-users: ## 시연용 계정 만들기 (DB 필요, 있는 사번은 건너뜀, ARGS=--ask-password)
+	PYTHONPATH=src $(RUN) $(ENV_FILE) python scripts/seed_users.py $(ARGS)
 
 rag-e2e: ## RAG 실제 문서 E2E 검증·백엔드 비교 (#28, ARGS="--backends qdrant,chroma,qdrant-server")
 	PYTHONPATH=src $(RUN) $(ENV_FILE) python scripts/verify_rag_e2e.py $(ARGS)
