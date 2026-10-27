@@ -3,7 +3,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Protocol
 
-from weeing_weeing.contracts import Evidence
+from weeing_weeing.contracts import DocumentRecord, Evidence
 from weeing_weeing.rag.retriever import HybridRetriever as HybridRetriever
 
 ProgressCallback = Callable[[str], None]
