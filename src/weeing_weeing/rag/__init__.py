@@ -13,6 +13,7 @@
 - qdrant_store.py: VectorStore Qdrant 구현, 기본 백엔드 (#23)
 - chroma_store.py: VectorStore Chroma 구현, 대체 백엔드 (#24)
 - sparse.py: Kiwi 형태소 BM25 인코더와 메모리 BM25. hybrid_query의 키워드 쪽 (#25)
+- retriever.py: HybridRetriever. 하이브리드 검색 결과를 출처가 있는 Evidence로 변환
 - catalog.py, sync.py: 문서 목록 검증과 저장소 동기화(변경 감지·교체·삭제) (#26)
 - factory.py: 설정으로 저장소를 한 번 조립(build_store), make index 진입점 (#27)
 - parsers.py, indexer.py: 형식별 파서 등록과 범용 Indexer. 업로드 API·make index 공용 (#6·#7)

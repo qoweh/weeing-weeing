@@ -3,7 +3,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Protocol
 
-from weeing_weeing.contracts import DocumentRecord, Evidence
+from weeing_weeing.contracts import Evidence
+from weeing_weeing.rag.retriever import HybridRetriever as HybridRetriever
 
 ProgressCallback = Callable[[str], None]
 
@@ -32,7 +33,15 @@ class Retriever(Protocol):
     def search(
         self, query: str, *, k: int = 5, filters: dict[str, Any] | None = None
     ) -> list[Evidence]:
-        """관련도 순으로 근거를 돌려준다. filters 예: {"code": "BTT2-P01"}"""
+        """관련도 순으로 최대 k개의 근거를 돌려준다. 없으면 빈 리스트다.
+
+        HybridRetriever에 저장소를 주입해 사용한다. filters의 code는 저장소의
+        codes 별칭이다(둘을 함께 쓰면 오류). 예: {"code": "BTT2-P01"}.
+        나머지 키는 저장소 메타데이터 필터로 전달한다. 여러 키는 AND,
+        리스트 값은 하나라도 일치하면 된다. 빈 리스트·None 값은 허용하지 않는다.
+        query는 공백만 있는 문자열일 수 없고 k는 1 이상의 정수다.
+        score는 RRF 순위 점수이며 검색 실패는 예외로 전달한다.
+        """
         ...
 
 
