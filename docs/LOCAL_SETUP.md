@@ -50,7 +50,7 @@ http://localhost:8000/health 와 http://localhost:8000/docs 에서 확인한다.
 
 ## 3. DB (PostgreSQL)
 
-문서 목록(`document` 테이블)이 DB에 있어서 `make index`와 업로드 API에 DB가 필요하다.
+문서 목록(`document` 테이블)이 DB에 있어서 `make index`와 업로드 API에 DB가 필요하다. 테이블과 사용법은 [DB.md](DB.md).
 
 ```bash
 docker compose up -d postgres     # 또는 make db-up
@@ -66,7 +66,7 @@ DB 테스트는 SQLite로 항상 돌고, PostgreSQL에서도 확인하려면:
 make db-up
 TEST_DATABASE_URL=postgresql://weeing:weeing@localhost:5432/weeing uv run --no-sync pytest tests/db
 ```
-테스트는 `document` 테이블을 비우므로 실제 데이터가 있는 DB를 가리키지 않는다(CI는 별도 DB `weeing_test`).
+테스트는 모든 테이블을 비우므로 실제 데이터가 있는 DB를 가리키지 않는다(CI는 별도 DB `weeing_test`).
 
 ## 4. Ollama
 

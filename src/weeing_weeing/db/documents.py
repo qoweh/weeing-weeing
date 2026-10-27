@@ -4,18 +4,21 @@
 한 번에 커밋하고, 부분 유니크 인덱스가 같은 doc_id의 completed를 하나로 막는다.
 """
 
-from collections.abc import Iterable, Iterator
-from contextlib import contextmanager
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import ColumnElement, Engine, and_, or_, select
-from sqlalchemy.exc import IntegrityError, InterfaceError, OperationalError
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import ColumnElement, and_, or_, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from weeing_weeing.contracts import DocumentRecord
 from weeing_weeing.db.models import DocumentRow
+from weeing_weeing.db.session import DatabaseUnavailableError, Repository
+from weeing_weeing.db.session import now as _now
+from weeing_weeing.db.session import utc as _utc
+from weeing_weeing.db.session import utc_values as _utc_values
 
 IN_PROGRESS = ("queued", "processing")
 # 이보다 오래 queued·processing인 업로드는 멈춘 것으로 본다(서버 재시작 등으로 색인이 끊김).
@@ -32,29 +35,12 @@ SEED_FIELDS = (
 )
 
 
-class DatabaseUnavailableError(RuntimeError):
-    """DB에 연결하지 못했거나 잠금 대기 시간이 지났다."""
-
-
 @dataclass
 class SeedResult:
     added: list[str] = field(default_factory=list)
     updated: list[str] = field(default_factory=list)
     removed: list[str] = field(default_factory=list)
     superseded: list[str] = field(default_factory=list)  # 카탈로그에 밀린 upload_id
-
-
-def _utc(value: datetime | None) -> datetime | None:
-    """SQLite는 시간대를 저장하지 않으므로 항상 UTC로 쓰고, 읽을 때 UTC를 붙인다."""
-    if value is None:
-        return None
-    if value.tzinfo is None:
-        return value.replace(tzinfo=UTC)
-    return value.astimezone(UTC)
-
-
-def _utc_values(values: dict[str, Any]) -> dict[str, Any]:
-    return {k: _utc(v) if isinstance(v, datetime) else v for k, v in values.items()}
 
 
 def _alive(now: datetime) -> ColumnElement[bool]:
@@ -75,23 +61,10 @@ def to_record(row: DocumentRow) -> DocumentRecord:
     return DocumentRecord(**values)
 
 
-def _now() -> datetime:
-    return datetime.now(UTC)
+__all__ = ["DatabaseUnavailableError", "SeedResult", "SqlDocuments"]
 
 
-class SqlDocuments:
-    def __init__(self, engine: Engine) -> None:
-        self._engine = engine
-        self._sessions = sessionmaker(engine, expire_on_commit=False)
-
-    @contextmanager
-    def _transaction(self) -> Iterator[Session]:
-        try:
-            with self._sessions.begin() as session:
-                yield session
-        except (OperationalError, InterfaceError) as exc:
-            raise DatabaseUnavailableError(f"{type(exc).__name__}: {exc.orig}") from exc
-
+class SqlDocuments(Repository):
     # --- 목록 ---
 
     def listed(self) -> list[DocumentRecord]:

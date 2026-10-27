@@ -3,7 +3,7 @@
     make db-up
     TEST_DATABASE_URL=postgresql://weeing:weeing@localhost:5432/weeing uv run --no-sync pytest tests/db
 
-PostgreSQL 쪽은 테스트마다 document 테이블을 비운다. 실제 데이터가 있는 DB를 쓰지 않는다.
+PostgreSQL 쪽은 테스트마다 모든 테이블을 비운다. 실제 데이터가 있는 DB를 쓰지 않는다.
 """
 
 import os
@@ -11,8 +11,15 @@ import os
 import pytest
 from sqlalchemy import text
 
-from weeing_weeing.db.interface import open_documents
+from weeing_weeing.db.interface import (
+    open_documents,
+    open_engine,
+    open_incidents,
+    open_telemetry,
+)
 
+# 외래 키 순서: 참조하는 쪽부터 지운다.
+TABLES = ("analysis", "incident", "telemetry", "document")
 BACKENDS = ["sqlite"]
 if os.environ.get("TEST_DATABASE_URL"):
     BACKENDS.append("postgresql")
@@ -23,15 +30,30 @@ def database_url(request, tmp_path):
     if request.param == "sqlite":
         return f"sqlite:///{tmp_path / 'test.db'}"
     url = os.environ["TEST_DATABASE_URL"]
-    repo = open_documents(url)
-    with repo._engine.begin() as connection:
-        connection.execute(text("DELETE FROM document"))
-    repo._engine.dispose()
+    engine = open_engine(url)
+    with engine.begin() as connection:
+        for table in TABLES:
+            connection.execute(text(f"DELETE FROM {table}"))  # noqa: S608 (고정 이름)
+    engine.dispose()
     return url
 
 
 @pytest.fixture
 def repo(database_url):
     repo = open_documents(database_url)
+    yield repo
+    repo._engine.dispose()
+
+
+@pytest.fixture
+def incidents(database_url):
+    repo = open_incidents(database_url)
+    yield repo
+    repo._engine.dispose()
+
+
+@pytest.fixture
+def telemetry(database_url):
+    repo = open_telemetry(database_url)
     yield repo
     repo._engine.dispose()
