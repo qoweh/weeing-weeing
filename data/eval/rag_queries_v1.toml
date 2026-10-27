@@ -2,6 +2,8 @@
 # 정답은 청크 ID가 아니라 "기대 문서 + 기대 키워드"로 판정한다. 청크 ID는 #6의 청킹 방식에 따라 달라지기 때문이다.
 #   hit: 상위 k개 안에 doc_id가 같고, 본문에 any_of 키워드 중 하나라도 있는 청크가 있다
 #   where(선택): 저장소 필터. 예: { doc_type = "sop" }
+#   codes(query 대신): Incident 코드. 질의문은 rag.query.codes_query로 만든다(#8). 정답 키워드는 코드 목록 표가 아니라
+#   대응 절 본문에만 있는 문구로 정한다(표에도 코드 문자열이 있어 코드만으로는 표가 정답으로 잡힌다).
 # 키워드는 data/parsed/*.md에서 해당 문서에 실제로 있는지 확인했다.
 # #8 평가셋(질문 + 정답 청크)이 생기면 그것으로 바꾸거나 함께 쓴다.
 
@@ -77,3 +79,41 @@ id = "q12"
 query = "센서 값이 결측되면 룰 판정은 어떻게 하나"
 doc_id = "BTT-RULE"
 any_of = ["결측"]
+
+# --- Incident 코드로 만든 질의(#8): 코드·짧은 코드·코드 이름 → 질의문 ---
+
+[[queries]]
+id = "i01"
+codes = ["BTT2-P03"]
+doc_id = "BTT-MANUAL"
+any_of = ["감지면 오염", "센서 앞 물체 유무"]
+
+[[queries]]
+id = "i02"
+codes = ["BTT2-P01"]
+doc_id = "BTT-MANUAL"
+any_of = ["후속 설비 수신", "트레이 변형"]
+
+[[queries]]
+id = "i03"
+codes = ["BTT2-M02"]
+doc_id = "BTT-MANUAL"
+any_of = ["목표속도·기동 유예", "마찰·전달"]
+
+[[queries]]
+id = "i04"
+codes = ["BTT2-M12"]
+doc_id = "BTT-MANUAL"
+any_of = ["체결·정렬"]
+
+[[queries]]
+id = "i05"
+codes = ["BTT2-M14"]
+doc_id = "BTT-MANUAL"
+any_of = ["투입시각과 충격"]
+
+[[queries]]
+id = "i06"
+codes = ["BTT2-M19"]
+doc_id = "BTT-MANUAL"
+any_of = ["절대 크기를 직접 비교"]

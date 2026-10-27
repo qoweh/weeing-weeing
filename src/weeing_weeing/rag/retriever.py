@@ -3,7 +3,7 @@
 처리 흐름: 입력 검증 → 필터 변환 → 하이브리드 검색 → 리랭킹 → 상위 k개 근거 반환.
 실제 dense·BM25·RRF 계산은 저장소가, 모델 기반 재정렬은 reranker가 담당한다.
 이 파일은 각 단계를 연결하고 문서 본문·출처를 공통 Evidence 형식으로 옮긴다.
-Incident를 검색어로 바꾸는 처리는 호출자가 별도로 준비해야 한다.
+Incident를 검색어로 바꾸는 처리는 interface.incident_query(rag/query.py)가 맡는다.
 """
 
 from typing import Any

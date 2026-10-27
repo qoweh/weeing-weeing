@@ -143,3 +143,10 @@ Markdown 보고서로 남긴다. 없으면 기존 두 방식만 평가한다. �
   검색 범위 밖의 스킬 파일은 변경하지 않았다.
 - 실제 리랭커 모델을 지정·다운로드하지 않아 실제 모델의 검색 품질은 측정하지 않았다.
 - Windows에 make가 없어 `make check` 구성 명령을 개별 실행했다.
+
+## 2026-10-27 실제 모델 측정과 Incident 질의 (#8 후속)
+
+- `RERANKER_MODEL=BAAI/bge-reranker-v2-m3`로 실제 문서를 쟀다: hybrid MRR 0.773 → reranked **0.917**, hit@1 11 → 15/18(Qdrant·Chroma 같음). 자세한 내용은 [RAG_E2E](RAG_E2E.md) ②.
+- Incident → 질의문은 `interface.incident_query(incident)`(`rag/query.py`)가 만든다. 형식과 근거(질의문 형태별 실측)는 `rag/query.py` 주석과 DECISIONS D-22.
+- 평가 질의 파일은 문장(`query`) 대신 Incident 코드(`codes`)로도 쓸 수 있다(`data/eval/rag_queries_v1.toml`의 i01~i06).
+- Incident로 검색할 때는 `retriever.search(incident_query(incident), k=5)`처럼 코드 필터 없이 쓰는 것을 기본으로 한다. `filters={"code": ...}`를 걸면 코드가 없는 SOP 절차 조각(정지·격리·재가동)이 빠진다(D-22). 위 예시의 코드 필터는 코드 관련 조각만 볼 때의 선택 사항이다.

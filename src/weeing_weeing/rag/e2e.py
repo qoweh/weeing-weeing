@@ -10,6 +10,7 @@
 
 정답 판정은 청크 ID가 아니라 "기대 문서 + 기대 키워드"로 한다. 청크 ID는 청킹 방식에 따라
 달라지기 때문이다. 질의 파일 형식은 data/eval/rag_queries_v1.toml.
+질의는 문장(query) 또는 Incident 코드(codes → rag.query.codes_query로 질의문 생성)로 쓴다.
 """
 
 import time
@@ -19,11 +20,12 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
-from weeing_weeing.contracts import Evidence
+from weeing_weeing.contracts import CODES, Evidence
 from weeing_weeing.rag.catalog import Catalog
 from weeing_weeing.rag.interface import Indexer, Retriever
+from weeing_weeing.rag.query import codes_query
 from weeing_weeing.rag.store import Chunk, Hit, VectorStore
 from weeing_weeing.rag.sync import SyncReport, sync
 
@@ -41,10 +43,26 @@ class EvalQuery(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     id: str = Field(min_length=1)
-    query: str = Field(min_length=1)
+    query: str | None = Field(default=None, min_length=1)
+    # Incident 코드. 질의문은 rag.query로 만든다
+    codes: tuple[str, ...] | None = Field(default=None, min_length=1)
     doc_id: str = Field(min_length=1)  # 정답이 있어야 할 문서
     any_of: tuple[str, ...] = Field(min_length=1)  # 정답 청크 본문에 있어야 할 키워드
     where: dict[str, str | list[str]] | None = None
+
+    @model_validator(mode="after")
+    def _query_or_codes(self) -> "EvalQuery":
+        if (self.query is None) == (self.codes is None):
+            raise ValueError(f"{self.id}: query와 codes 중 하나만 쓴다")
+        unknown = [c for c in self.codes or () if c not in CODES]
+        if unknown:
+            raise ValueError(f"{self.id}: 정의되지 않은 코드 {unknown}")
+        return self
+
+    @property
+    def text(self) -> str:
+        """검색에 넣을 질의문. codes면 Incident 질의문과 같은 방식으로 만든다."""
+        return self.query if self.query is not None else codes_query(self.codes)
 
 
 def load_queries(path: str | Path) -> list[EvalQuery]:
@@ -123,11 +141,11 @@ def _search(
     store: VectorStore, query: EvalQuery, k: int, retriever: Retriever | None
 ) -> list[QueryResult]:
     found: dict[str, list[Hit] | list[Evidence]] = {
-        "dense": store.query(query.query, k=k, where=query.where),
-        "hybrid": store.hybrid_query(query.query, k=k, where=query.where),
+        "dense": store.query(query.text, k=k, where=query.where),
+        "hybrid": store.hybrid_query(query.text, k=k, where=query.where),
     }
     if retriever is not None:
-        found["reranked"] = retriever.search(query.query, k=k, filters=query.where)
+        found["reranked"] = retriever.search(query.text, k=k, filters=query.where)
     results = []
     for mode, top in found.items():
         rank = next(

@@ -11,7 +11,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Protocol
 
-from weeing_weeing.contracts import DocumentRecord, Evidence
+from weeing_weeing.contracts import DocumentRecord, Evidence, Incident
 
 # 기존 호출자가 공개 인터페이스에서 구현 클래스를 가져갈 수 있도록 다시 노출한다.
 from weeing_weeing.rag.retriever import HybridRetriever as HybridRetriever
@@ -139,3 +139,14 @@ def upload_index_metadata(record: DocumentRecord, upload_dir: Path) -> dict[str,
 
     entry = entry_from_record(record, upload_dir)
     return index_metadata(entry, file_sha256(Path(entry.path)))
+
+
+def incident_query(incident: Incident) -> str:
+    """Incident → Retriever.search에 넣을 질의문. 구현은 rag/query.py.
+
+    짧은 코드 + 코드 이름 + 대응 문구. 예: BTT2-P03 →
+    "P03 입구 장기 점유 발생 시 원인 점검과 현장 대응 절차"
+    """
+    from weeing_weeing.rag.query import incident_query as build
+
+    return build(incident)

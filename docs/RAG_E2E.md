@@ -2,7 +2,22 @@
 
 실제 문서 3종·실제 임베딩 모델·실제 Indexer로 벡터 DB(#7)를 처음부터 끝까지 확인한 기록이다. 측정 도구는 `make rag-e2e`(`scripts/verify_rag_e2e.py`), 원본 보고서는 [`rag_e2e/`](rag_e2e/)에 날짜별로 둔다.
 
-## 2026-10-27 측정
+## 2026-10-27 측정 ② 리랭커 실측·Incident 질의 (#8)
+
+#71의 리랭커(`RERANKER_MODEL`, 후보 `RAG_CANDIDATE_K`=30)에 `BAAI/bge-reranker-v2-m3`를 넣어 처음으로 실제 모델 품질을 쟀다. 질의는 Incident 코드 질의 6개를 더해 18개(코드 → `interface.incident_query`와 같은 질의문, 정답은 대응 절 본문 문구).
+`RERANKER_MODEL=BAAI/bge-reranker-v2-m3 make rag-e2e ARGS="--backends qdrant,chroma"`, 원본 [`rag_e2e/report-2026-10-27-rerank.md`](rag_e2e/report-2026-10-27-rerank.md).
+
+| 방식(Qdrant·Chroma 같은 값) | hit@1 | hit@5 | MRR |
+|---|---|---|---|
+| dense | 12/18 | 18/18 | 0.798 |
+| hybrid | 11/18 | 18/18 | 0.773 |
+| **reranked** | **15/18** | 18/18 | **0.917** |
+
+- 리랭커가 hybrid의 약점(코드 목록 표 쏠림 q05·q06)과 표현이 다른 질의(q01·q02·q12)를 함께 끌어올렸다. Incident 코드 질의 6개는 reranked에서 모두 1위.
+- Incident 질의문 형태가 결과를 크게 바꿨다(코드 질의 6개, 리랭크 MRR): 전체 코드+짧은 코드+이름 0.458 → **짧은 코드+이름+대응 문구 1.000**(D-22, `rag/query.py` 주석).
+- 비용(M1 Pro): 모델 약 2.3GB, 첫 호출 로딩 약 10초, 이후 후보 20~30개에 1초 안팎.
+
+## 2026-10-27 측정 ①
 
 **환경**
 
@@ -51,8 +66,8 @@
 
 | 개선 | 담당 | 기대 |
 |---|---|---|
-| `codes` 필터와 함께 쓰기(`where={"codes": incident.codes}`) | #8 | 코드 질의의 정확 매칭은 필터가 가장 확실 |
-| 리랭커 | #8 | hybrid 후보 20개를 다시 줄 세워 1위 적중 개선 |
+| ~~`codes` 필터 기본 적용~~ | #8 | 하지 않기로 함: 코드 없는 SOP 절차 조각이 빠진다. 질의문의 짧은 코드로 대신(D-22) |
+| ~~리랭커~~ | #8 | #71 구현 + ② 실측(MRR 0.773 → 0.917) |
 | 구조 기준 청킹(조·사례 단위) + 문맥 머리줄 | #6 | 표 청크·조항 끊김 완화 |
 | dense·sparse 가중치(RRF 대신 가중 결합) | #7 후속 | 코드 표 쏠림 완화 |
 | 한국어 임베딩 모델 비교(KURE-v1 등) | #6 | dense 자체 품질 |

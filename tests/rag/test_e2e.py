@@ -277,3 +277,37 @@ def test_cli_reranker_failure_is_reported_as_failure(cli, monkeypatch, capsys):
     assert cli("--backends", "qdrant") == 2
     assert "검증 실패" in capsys.readouterr().err
     assert "모델 없음" in cli.out.read_text(encoding="utf-8")
+
+
+# --- Incident 코드 질의 (#8) ---
+
+
+def test_repo_query_set_has_incident_code_queries():
+    queries = load_queries(ROOT / "data/eval/rag_queries_v1.toml")
+    coded = [q for q in queries if q.codes]
+    assert len(coded) >= 5
+    assert coded[0].text.startswith("P03 ")
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        'id = "a"\nquery = "q"\ncodes = ["BTT2-P03"]\ndoc_id = "D"\nany_of = ["k"]',
+        'id = "a"\ndoc_id = "D"\nany_of = ["k"]',
+        'id = "a"\ncodes = []\ndoc_id = "D"\nany_of = ["k"]',
+        'id = "a"\nquery = "q"\ncodes = []\ndoc_id = "D"\nany_of = ["k"]',
+        'id = "a"\ncodes = ["BTT2-P3"]\ndoc_id = "D"\nany_of = ["k"]',  # 오타 코드
+    ],
+)
+def test_query_needs_exactly_one_of_text_or_codes(tmp_path, body):
+    path = tmp_path / "q.toml"
+    path.write_text("[[queries]]\n" + body, encoding="utf-8")
+    with pytest.raises(QueryError):
+        load_queries(path)
+
+
+def test_code_query_is_searched_with_generated_text(ws, store):
+    coded = EvalQuery(id="c1", codes=("BTT2-P03",), doc_id="MAN", any_of=("점유",))
+    result = run_backend("test", store, ws.catalog(), TextIndexer, [coded], k=2)
+    by = {r.mode: r for r in result.results}
+    assert by["hybrid"].rank == 1  # "입구 장기 점유"가 MAN 본문과 맞는다
