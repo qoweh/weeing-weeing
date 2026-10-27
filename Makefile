@@ -7,10 +7,10 @@ ENV_FILE := $(if $(wildcard .env),--env-file .env,)
 # 의존성이 바뀌면(pull 후 등) make setup을 다시 실행한다.
 RUN := uv run --no-sync
 
-.PHONY: help setup lint fmt test check skills db-up ollama-up qdrant-up down api index
+.PHONY: help setup lint fmt test check skills db-up ollama-up qdrant-up down api index rag-e2e
 
 help: ## 명령 목록
-	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
+	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
 
 setup: ## 의존성 설치 (uv.lock 기준)
 	uv sync --locked --no-install-project
@@ -46,6 +46,9 @@ down: ## 보조 서비스 정지
 
 index: ## RAG 색인: 문서 목록(catalog.toml + 업로드)과 벡터 DB 동기화 (ARGS=--dry-run|--force|--recreate)
 	PYTHONPATH=src $(RUN) $(ENV_FILE) python scripts/build_index.py $(ARGS)
+
+rag-e2e: ## RAG 실제 문서 E2E 검증·백엔드 비교 (#28, ARGS="--backends qdrant,chroma,qdrant-server")
+	PYTHONPATH=src $(RUN) $(ENV_FILE) python scripts/verify_rag_e2e.py $(ARGS)
 
 api: ## FastAPI 개발 서버 (http://localhost:8000/docs)
 	$(RUN) $(ENV_FILE) uvicorn --app-dir src weeing_weeing.api.app:app --reload

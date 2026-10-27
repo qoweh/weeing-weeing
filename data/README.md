@@ -4,6 +4,7 @@
 
 | 경로 | 내용 | 출처 |
 |---|---|---|
+| `eval/rag_queries_v1.toml` | RAG E2E 검증용 샘플 질의 12개(기대 문서 + 기대 키워드). 키워드는 `parsed/`에서 해당 문서에 있는지 확인함 | 직접 작성 (#28) |
 | `catalog.toml` | RAG 색인 대상 문서 목록(문서 ID·버전·종류·상태·경로). `make index`가 이 목록과 벡터 DB를 맞춘다 | 직접 작성 (#26) |
 | `telemetry/battery_tray_transfer_telemetry_v3_15cols.csv` | Telemetry v3 원본 60행(1초 간격). 전류·외함 온도는 전부 빈 값. SHA-256 `66f2ee2e…381a6` | 노션 1차 분담 최종 문서 |
 | `rulebase/BTT-RULE_v2.0.pdf` | 룰베이스 최종 정의서 BTT-RULE v2.0 (코드 31개, 임계값, 사건 저장 계약) | 노션 1차 분담 최종 문서 |

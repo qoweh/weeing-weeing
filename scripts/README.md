@@ -20,6 +20,25 @@ make index ARGS=--recreate  # 컬렉션을 새로 만들고 전부 색인 (임�
 `--recreate`는 업로드 문서도 목록에 있으므로 함께 다시 색인한다. 목록 밖에서 들어온 문서(승인 보고서, #29)는 지워지므로 다시 넣어야 한다.
 API 서버가 Qdrant 로컬 폴더를 열고 있으면 `make index`는 잠금 오류로 멈춘다(종료 코드 2). API를 끄거나 `QDRANT_URL` 서버 모드를 쓴다.
 
+## RAG E2E 검증 (`verify_rag_e2e.py`, #28)
+
+카탈로그 문서를 백엔드마다 **새 임시 저장소**에 색인하고 아래를 확인한다. `storage/`의 실제 색인은 건드리지 않는다.
+
+| 검사 | 통과 조건 |
+|---|---|
+| 색인 | 모든 문서가 added, 실패 없음 |
+| 멱등 | 한 번 더 실행하면 전부 unchanged |
+| 갱신 | 첫 문서의 버전만 올리면 그 문서만 updated, 옛 버전 청크 0 |
+| 검색 비교 | `data/eval/rag_queries_v1.toml` 질의를 dense·hybrid로 실행해 hit@1·hit@k·MRR을 표로 남김(통과 기준 없음) |
+
+```bash
+make rag-e2e                                                    # Qdrant 로컬 + Chroma
+make rag-e2e ARGS="--backends qdrant,chroma,qdrant-server"      # 서버도 (make qdrant-up, QDRANT_URL 먼저)
+```
+
+결과는 `outputs/rag_e2e/report-<시각>.md`에 남는다. 공식 측정 결과와 해석은 [docs/RAG_E2E.md](../docs/RAG_E2E.md)에 날짜별로 남긴다. 종료 코드는 0 통과, 1 검사 실패, 2 시작 못 함(설정·Indexer).
+#6 Indexer가 `rag/factory.py`의 `indexer_class()`에 연결돼야 실행된다. 그 전에는 종료 코드 2로 안내한다.
+
 ## 사건 센서 이력 저장
 
 기존 스냅샷 데모와 별도로 `demo_incident_history.py`를 사용한다.
