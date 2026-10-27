@@ -72,14 +72,14 @@ TEST_DATABASE_URL=postgresql://weeing:weeing@localhost:5432/weeing uv run --no-s
 
 - **macOS**: Ollama 앱을 설치해 쓴다. 컨테이너 안에서는 GPU를 못 써서 느리다
 - **Linux 서버**: `docker compose --profile ollama up -d ollama`
-- 모델 받기: `ollama pull qwen3:8b`(기본 모델, Q4_K_M 5.2GB). 다른 모델은 받은 뒤 `.env`의 `OLLAMA_MODEL`에 기입
+- 모델 받기: `make models`가 LLM(`ollama pull qwen3:8b`, Q4_K_M 5.2GB)과 RAG 모델(5절)을 한 번에 받는다. 다른 모델은 받은 뒤 `.env`의 `OLLAMA_MODEL`에 기입
 - 확인: `make llm-check`. 모델이 로컬에서 돌고 JSON 스키마대로 답하는지 사례 4개로 점검한다(종료 코드 0 통과·1 실패 사례 있음·2 서버·모델 없음). 사례 하나가 시간 초과되면 그 사례만 실패로 남긴다
 - 모델 비교: `make llm-check ARGS="--model <모델> --repeat 3"`. 보고서는 `outputs/llm_check/`
 - 생각 단계(`OLLAMA_THINK`)는 기본으로 끈다. 켜면 판단이 더 정확하지만 2~4배 느리다(실측은 DECISIONS D-21). 켤 때는 `LLM_TIMEOUT_S=120`도 함께. `OLLAMA_KEEP_ALIVE`는 `10m`처럼 단위를 붙이거나 초 단위 숫자(`-1`은 계속 유지)
 
 ## 5. RAG 색인 (벡터 DB)
 
-문서 목록은 DB `document` 테이블이 원본이다(3절). 기준 문서는 `data/catalog.toml`(git)에 적으면 `make index`가 DB에 반영(seed)하고, 화면에서 올린 문서는 원본 PDF가 `storage/uploads/`(git 밖)에, 상태는 DB에 쌓인다. `.env`에 `EMBEDDING_MODEL`(예: `BAAI/bge-m3`)을 넣고 `make index`를 실행하면 DB 목록 전체를 색인한다(사용법: [scripts/README](../scripts/README.md)). 업로드 API(`POST /documents`)도 같은 Indexer·저장소를 쓴다.
+문서 목록은 DB `document` 테이블이 원본이다(3절). 기준 문서는 `data/catalog.toml`(git)에 적으면 `make index`가 DB에 반영(seed)하고, 화면에서 올린 문서는 원본 PDF가 `storage/uploads/`(git 밖)에, 상태는 DB에 쌓인다. 처음 한 번 `make models`로 임베딩(`BAAI/bge-m3`)·리랭커(`BAAI/bge-reranker-v2-m3`) 모델을 받고(`.env.example` 기본값, 검색 중에는 내려받지 않는다), `make index`를 실행하면 DB 목록 전체를 색인한다. 리랭커를 끄려면 `.env`에 `RERANKER_MODEL=`(빈 값)(사용법: [scripts/README](../scripts/README.md)). 업로드 API(`POST /documents`)도 같은 Indexer·저장소를 쓴다.
 
 | | Qdrant 로컬 모드 (기본) | Qdrant 서버 모드 |
 |---|---|---|

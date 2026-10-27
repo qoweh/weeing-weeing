@@ -7,7 +7,7 @@ ENV_FILE := $(if $(wildcard .env),--env-file .env,)
 # 의존성이 바뀌면(pull 후 등) make setup을 다시 실행한다.
 RUN := uv run --no-sync
 
-.PHONY: help setup lint fmt test check skills db-up db-migrate ollama-up qdrant-up down api index rag-e2e llm-check
+.PHONY: help setup lint fmt test check skills db-up db-migrate ollama-up qdrant-up down api models index rag-e2e llm-check
 
 help: ## 명령 목록
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -46,6 +46,9 @@ qdrant-up: ## Qdrant 서버 기동 (서버 모드, .env에 QDRANT_URL=http://loc
 
 down: ## 보조 서비스 정지
 	docker compose --profile ollama --profile qdrant down
+
+models: ## 임베딩·리랭커·LLM 모델 미리 받기 (새 PC에서 한 번, 약 10GB, ARGS=--skip-ollama)
+	PYTHONPATH=src $(RUN) $(ENV_FILE) python scripts/download_models.py $(ARGS)
 
 index: ## RAG 색인: catalog.toml을 DB에 반영 → DB 문서 목록과 벡터 DB 동기화 (DB 필요, ARGS=--dry-run|--force|--recreate)
 	PYTHONPATH=src $(RUN) $(ENV_FILE) python scripts/build_index.py $(ARGS)

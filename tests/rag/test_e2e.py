@@ -194,6 +194,7 @@ def cli(ws, tmp_path, monkeypatch):
         encoding="utf-8",
     )
     monkeypatch.setenv("EMBEDDING_MODEL", "fake-embedder-v1")
+    monkeypatch.setenv("RERANKER_MODEL", "")  # 기본값(실제 모델)을 쓰지 않는다
     monkeypatch.delenv("QDRANT_URL", raising=False)
     monkeypatch.setattr(factory, "_default_embedder", lambda name: FakeEmbedder())
     monkeypatch.setattr(factory, "indexer_class", lambda: TextIndexer)

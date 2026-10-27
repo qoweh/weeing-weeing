@@ -1,5 +1,16 @@
 # scripts
 
+## 모델 받기 (`download_models.py`)
+
+`.env`의 `EMBEDDING_MODEL`·`RERANKER_MODEL`(Hugging Face 캐시)과 `OLLAMA_MODEL`(`ollama pull`)을 받는다. 검색·리랭킹은 실행 중에 모델을 내려받지 않으므로 새 PC에서 `make index` 전에 한 번 실행한다. 이미 받은 모델은 확인만 하고 넘어간다.
+
+```bash
+make models                     # = PYTHONPATH=src uv run --no-sync python scripts/download_models.py
+make models ARGS=--skip-ollama  # Hugging Face 모델만
+```
+
+종료 코드는 0 모두 받음, 1 받지 못한 모델 있음.
+
 ## RAG 색인 (`build_index.py`)
 
 DB의 문서 목록(`document` 테이블)과 벡터 DB를 맞춘다. 순서는

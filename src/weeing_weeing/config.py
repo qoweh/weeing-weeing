@@ -45,7 +45,7 @@ def get_settings() -> Settings:
         ollama_think=env("OLLAMA_THINK", "false").lower() in ("1", "true", "yes"),
         ollama_keep_alive=env("OLLAMA_KEEP_ALIVE", "10m"),
         llm_timeout_s=float(env("LLM_TIMEOUT_S", "60")),
-        embedding_model=env("EMBEDDING_MODEL", ""),
+        embedding_model=env("EMBEDDING_MODEL", "BAAI/bge-m3"),
         vector_store=env("VECTOR_STORE", "qdrant"),
         rag_collection=env("RAG_COLLECTION", "knowledge"),
         rag_catalog=Path(env("RAG_CATALOG", "data/catalog.toml")),
@@ -68,6 +68,6 @@ def get_settings() -> Settings:
         telemetry_history_dir=Path(
             env("TELEMETRY_HISTORY_DIR", "outputs/incident_history")
         ),
-        reranker_model=env("RERANKER_MODEL", ""),
+        reranker_model=env("RERANKER_MODEL", "BAAI/bge-reranker-v2-m3"),
         rag_candidate_k=int(env("RAG_CANDIDATE_K", "30")),
     )
