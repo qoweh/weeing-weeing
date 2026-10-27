@@ -1,10 +1,12 @@
 """document 테이블: seed 반영, 업로드 상태, 개정판 대체(트랜잭션), 제약, 마이그레이션."""
 
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
+from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError
 
 from weeing_weeing.config import PROJECT_ROOT
@@ -255,7 +257,11 @@ def test_postgresql_url_uses_psycopg3():
 
 def test_relative_sqlite_path_is_from_project_root():
     url = normalize_url("sqlite:///storage/test-relative.db")
-    assert url == f"sqlite:///{PROJECT_ROOT / 'storage/test-relative.db'}"
+    parsed = make_url(url)
+    assert parsed.drivername == "sqlite"
+    # URL rendering may escape the Windows drive separator and backslashes.
+    # Verify the resolved database target, not a platform-dependent spelling.
+    assert Path(parsed.database) == PROJECT_ROOT / "storage/test-relative.db"
 
 
 def test_get_documents_reads_database_url(tmp_path, monkeypatch):

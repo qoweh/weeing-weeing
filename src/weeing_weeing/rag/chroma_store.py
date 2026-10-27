@@ -80,8 +80,13 @@ class ChromaVectorStore:
         sparse_encoder: SparseEncoder | None = None,
         collection: str = "knowledge",
         recreate: bool = False,
+        owns_client: bool = False,
     ) -> None:
         self._client = client
+        # Injected clients may be shared by several store wrappers. Ownership
+        # must be explicit; factory-created stores own their dedicated client.
+        self._owns_client = owns_client
+        self._closed = False
         self._embedder = embedder
         self._sparse = sparse_encoder
         self._name = collection
@@ -255,4 +260,7 @@ class ChromaVectorStore:
         return doc_infos(self._payloads(where))
 
     def close(self) -> None:
-        """내장 모드는 따로 닫을 연결이 없다."""
+        """소유한 클라이언트만 닫는다. 빌린 공유 객체는 호출자가 관리한다."""
+        if self._owns_client and not self._closed:
+            self._client.close()
+            self._closed = True

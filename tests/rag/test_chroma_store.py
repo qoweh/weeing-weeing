@@ -1,5 +1,7 @@
 """Chroma 구현만의 동작. 공용 시나리오는 test_store_contract.py."""
 
+import shutil
+
 import chromadb
 import pytest
 from chromadb.config import Settings
@@ -174,3 +176,62 @@ def test_write_interrupted_midway_is_marked_incomplete(client, monkeypatch):
 
     assert store.documents()["BTT-MANUAL"].complete is False
     assert store.documents()["BTT-MANUAL"].chunk_count == 3  # 문서가 비지 않았다
+
+
+def test_borrowed_client_close_preserves_other_wrappers(client):
+    reader, writer = make(client), make(client)
+    writer.replace_document("BTT-MANUAL", manual_chunks())
+    writer.close()
+    writer.close()
+    assert len(reader.chunks()) == 3
+    assert len(writer.chunks()) == 3  # preserve existing borrowed-client behavior
+    client.close()
+
+
+def test_owned_client_close_is_idempotent_and_unlocks_files(tmp_path, monkeypatch):
+    directory = tmp_path / "owned-chroma"
+    assert directory.resolve().parent == tmp_path.resolve()
+    client = chromadb.PersistentClient(
+        path=str(directory), settings=Settings(anonymized_telemetry=False)
+    )
+    store = make(client, owns_client=True)
+    store.replace_document("BTT-MANUAL", manual_chunks())
+    calls = []
+    close = client.close
+
+    def tracked_close():
+        calls.append(1)
+        close()
+
+    monkeypatch.setattr(client, "close", tracked_close)
+    store.close()
+    store.close()
+    assert calls == [1]
+    reopened = chromadb.PersistentClient(
+        path=str(directory), settings=Settings(anonymized_telemetry=False)
+    )
+    try:
+        assert len(make(reopened).chunks()) == 3  # closing is not deleting
+    finally:
+        reopened.close()
+    assert directory.resolve().parent == tmp_path.resolve()
+    shutil.rmtree(directory)  # Windows must release persistent file handles
+    assert not directory.exists()
+
+
+def test_closing_owned_client_keeps_separate_client_on_same_path(tmp_path):
+    path = str(tmp_path / "shared-system")
+    settings = Settings(anonymized_telemetry=False)
+    first = make(
+        chromadb.PersistentClient(path=path, settings=settings), owns_client=True
+    )
+    second = make(
+        chromadb.PersistentClient(path=path, settings=settings), owns_client=True
+    )
+    try:
+        first.replace_document("BTT-MANUAL", manual_chunks())
+        first.close()
+        assert len(second.chunks()) == 3
+    finally:
+        first.close()
+        second.close()

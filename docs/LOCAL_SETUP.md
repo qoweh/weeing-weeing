@@ -89,6 +89,7 @@ TEST_DATABASE_URL=postgresql://weeing:weeing@localhost:5432/weeing uv run --no-s
 - **한 프로세스만 쓰기**: Qdrant 로컬 모드는 폴더를 한 프로세스만 열 수 있다. API 서버가 떠 있는 동안 `make index`를 실행하면 "다른 프로세스가 사용 중" 오류로 멈춘다(종료 코드 2). API를 끄거나 서버 모드를 쓴다. Chroma 내장 모드는 **잠금이 없어 오류 없이 열리지만** 여러 프로세스가 같은 폴더에 쓰면 손상될 수 있으므로, 동시에 쓰지 않도록 직접 주의한다.
 - **다시 색인해야 할 때**: 청킹·파서를 바꿨으면 `make index ARGS=--force`. 임베딩 모델·벡터 차원·sparse 토크나이저를 바꿨으면 `make index ARGS=--recreate`(컬렉션을 새로 만든다). 다른 모델로 기존 컬렉션을 열면 `StoreMismatchError`로 멈춘다.
 - **Chroma로 바꾸기**: `.env`에 `VECTOR_STORE=chroma`. 데이터는 `CHROMA_DIR`에 저장되고 텔레메트리는 꺼져 있다. 하이브리드 검색은 같은 결과를 파이썬에서 계산한다.
+- **Chroma 자원 종료**: `build_store()`가 만든 저장소는 자기 클라이언트를 소유하므로 작업이 끝나면 `store.close()`로 닫는다. 임시 폴더 삭제 전에 닫아야 Windows 파일 잠금을 해제할 수 있다. `ChromaVectorStore`에 외부 클라이언트를 직접 주입한 경우 기본은 빌린 객체(`owns_client=False`)이며, 종료는 클라이언트를 만든 쪽에서 담당한다. 이 기본값은 같은 클라이언트를 공유하는 기존 코드의 동작을 유지한다.
 - **서버 모드 계약 테스트**: `make qdrant-up` 후 `QDRANT_URL=http://localhost:6333 uv run --no-sync pytest tests/rag`. 로컬 모드는 엔진이 달라 주기적으로 서버 모드로도 돌린다.
 - **실제 모델 스모크 테스트**(모델 다운로드 필요): `RAG_SLOW_TESTS=1 EMBEDDING_MODEL=BAAI/bge-m3 uv run --no-sync pytest tests/rag/test_real_model_smoke.py`. 모델을 이미 받았으면 `HF_HUB_OFFLINE=1`을 붙인다(붙이지 않으면 Hub 확인으로 수 분 멈출 수 있다)
 

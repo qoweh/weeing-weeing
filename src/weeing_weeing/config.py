@@ -30,6 +30,7 @@ class Settings:
     db_timeout_s: float
     telemetry_csv: Path
     replay_speed: float
+    telemetry_history_dir: Path = Path("outputs/incident_history")
 
 
 def get_settings() -> Settings:
@@ -58,4 +59,7 @@ def get_settings() -> Settings:
             )
         ),
         replay_speed=float(env("REPLAY_SPEED", "1.0")),
+        telemetry_history_dir=Path(
+            env("TELEMETRY_HISTORY_DIR", "outputs/incident_history")
+        ),
     )

@@ -82,3 +82,8 @@ uv run --no-sync python scripts/demo_incident_json.py
 회복 JSON의 센서 근거는 마지막 이상 시점인 29초의 값을 보존한다.
 각 파일은 `Incident` 하나이며 `Incident.model_validate_json()`으로 다시 읽을 수 있다.
 재실행하면 새 사건 ID의 폴더가 생긴다. 산출물은 Git에서 제외되며 Agent 호출은 포함하지 않는다.
+
+## CSV WebSocket 테스트 송신기
+
+서버를 켜둔 뒤 `uv run --no-sync python scripts/send_csv_websocket.py --context MINIMAL`로
+v4 CSV를 전송한다. 서버 실행·옵션·응답 규격은 [WebSocket 안내](../docs/WEBSOCKET_TELEMETRY.md)를 따른다.

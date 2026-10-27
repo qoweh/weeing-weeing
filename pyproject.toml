@@ -23,6 +23,7 @@ dependencies = [
     "sentence-transformers>=6.1.0",
     "sqlalchemy>=2.0",
     "uvicorn[standard]>=0.54.0",
+    "websockets>=17.2",
 ]
 
 [project.scripts]

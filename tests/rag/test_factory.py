@@ -53,6 +53,40 @@ def test_chroma_with_telemetry_off(tmp_path):
 
     assert isinstance(store, ChromaVectorStore)
     assert store._client.get_settings().anonymized_telemetry is False
+    store.close()
+
+
+def test_chroma_factory_releases_client_on_constructor_failure(tmp_path, monkeypatch):
+    configured = settings(tmp_path, vector_store="chroma")
+    first = factory.build_store(configured, embedder=FakeEmbedder())
+    first.replace_document("A", [Chunk("A:1:0000", "A", "1", "probe", {})])
+    real_client = factory._chroma_client
+    closed = []
+
+    def tracked_client(settings):
+        client = real_client(settings)
+        close = client.close
+
+        def tracked_close():
+            closed.append(1)
+            close()
+
+        monkeypatch.setattr(client, "close", tracked_close)
+        return client
+
+    monkeypatch.setattr(factory, "_chroma_client", tracked_client)
+    try:
+        from weeing_weeing.rag.store import StoreMismatchError
+
+        with pytest.raises(StoreMismatchError):
+            factory.build_store(
+                dataclasses.replace(configured, embedding_model="other-model"),
+                embedder=FakeEmbedder(),
+            )
+        assert closed == [1]
+        assert first.query("probe")
+    finally:
+        first.close()
 
 
 def test_qdrant_server_mode_uses_url_and_timeout(tmp_path, monkeypatch):

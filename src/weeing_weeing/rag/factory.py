@@ -109,7 +109,14 @@ def build_store(
     if settings.vector_store == "chroma":
         from weeing_weeing.rag.chroma_store import ChromaVectorStore
 
-        return ChromaVectorStore(_chroma_client(settings), **kwargs)
+        client = _chroma_client(settings)
+        try:
+            return ChromaVectorStore(client, owns_client=True, **kwargs)
+        except Exception:
+            # Failed construction must not retain a reference to a persistent
+            # system and keep its files locked after other clients close.
+            client.close()
+            raise
     raise StoreConfigError(
         f"VECTOR_STORE={settings.vector_store!r}: qdrant 또는 chroma만 쓸 수 있다"
     )
