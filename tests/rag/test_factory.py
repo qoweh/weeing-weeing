@@ -280,6 +280,56 @@ def test_real_indexer_is_connected():
     assert factory.indexer_class() is DocumentIndexer
 
 
+def test_build_retriever_uses_configured_reranker(tmp_path, monkeypatch):
+    from unittest.mock import Mock
+
+    from weeing_weeing.rag import reranker
+    from weeing_weeing.rag.store import Hit
+
+    model = Mock()
+    model.predict.return_value = [0.1, 0.9]
+    load = Mock(return_value=model)
+    monkeypatch.setattr(reranker, "_load_model", load)
+    store = Mock()
+    store.hybrid_query.return_value = [
+        Hit(Chunk(f"MAN:1:{i:04d}", "MAN", "1", text), 0.03 - i * 0.01)
+        for i, text in enumerate(["모터 점검", "광전 센서 점검"])
+    ]
+    retriever = factory.build_retriever(
+        settings(tmp_path, reranker_model="local", rag_candidate_k=12), store
+    )
+    load.assert_not_called()
+    assert retriever.search("센서", k=1)[0].text == "광전 센서 점검"
+    store.hybrid_query.assert_called_once_with("센서", k=12, where=None)
+
+
+def test_public_indexer_and_retriever_share_one_store(tmp_path, monkeypatch):
+    from unittest.mock import Mock
+
+    from weeing_weeing.rag import interface
+
+    store = Mock()
+    store.hybrid_query.return_value = []
+    build_store = Mock(return_value=store)
+    monkeypatch.setattr(factory, "build_store", build_store)
+    monkeypatch.setenv("RERANKER_MODEL", "")
+    interface.get_indexer.cache_clear()
+    interface.get_retriever.cache_clear()
+    interface._get_store.cache_clear()
+    try:
+        indexer = interface.get_indexer()
+        retriever = interface.get_retriever()
+        assert interface.get_indexer() is indexer
+        assert interface.get_retriever() is retriever
+        assert retriever.search("센서") == []
+        build_store.assert_called_once()
+        store.hybrid_query.assert_called_once_with("센서", k=5, where=None)
+    finally:
+        interface.get_indexer.cache_clear()
+        interface.get_retriever.cache_clear()
+        interface._get_store.cache_clear()
+
+
 # --- DB(document 테이블)와 함께 ---
 
 

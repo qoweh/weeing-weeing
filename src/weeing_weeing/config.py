@@ -33,6 +33,8 @@ class Settings:
     telemetry_csv: Path
     replay_speed: float
     telemetry_history_dir: Path = Path("outputs/incident_history")
+    reranker_model: str = ""  # 비어 있으면 RRF 순위, 지정하면 로컬 CrossEncoder
+    rag_candidate_k: int = 30  # 리랭킹할 최소 후보 수. 최종 k보다 작으면 k까지 확장
 
 
 def get_settings() -> Settings:
@@ -66,4 +68,6 @@ def get_settings() -> Settings:
         telemetry_history_dir=Path(
             env("TELEMETRY_HISTORY_DIR", "outputs/incident_history")
         ),
+        reranker_model=env("RERANKER_MODEL", ""),
+        rag_candidate_k=int(env("RAG_CANDIDATE_K", "30")),
     )

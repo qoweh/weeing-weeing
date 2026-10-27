@@ -14,6 +14,8 @@ from collections.abc import Callable
 
 from weeing_weeing.config import Settings
 from weeing_weeing.rag.interface import Indexer
+from weeing_weeing.rag.reranker import CrossEncoderReranker, Reranker
+from weeing_weeing.rag.retriever import HybridRetriever
 from weeing_weeing.rag.sparse import KiwiBm25Encoder, SparseEncoder
 from weeing_weeing.rag.store import Embedder, VectorStore
 
@@ -135,3 +137,21 @@ def indexer_class() -> Callable[[VectorStore], Indexer]:
 
 def build_indexer(store: VectorStore) -> Indexer:
     return indexer_class()(store)
+
+
+def build_reranker(settings: Settings) -> Reranker | None:
+    """모델을 지정한 경우에만 리랭커를 만든다. 가중치는 첫 검색에서 로드한다."""
+    if not settings.reranker_model.strip():
+        return None
+    return CrossEncoderReranker(settings.reranker_model)
+
+
+def build_retriever(
+    settings: Settings, store: VectorStore, *, reranker: Reranker | None = None
+) -> HybridRetriever:
+    """색인된 저장소에 검색을 연결한다. 저장소의 소유·종료는 호출자가 담당한다."""
+    return HybridRetriever(
+        store,
+        reranker=reranker if reranker is not None else build_reranker(settings),
+        candidate_k=settings.rag_candidate_k,
+    )

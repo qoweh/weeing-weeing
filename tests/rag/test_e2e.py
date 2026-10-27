@@ -16,6 +16,7 @@ from weeing_weeing.rag.e2e import (
     load_queries,
     run_backend,
 )
+from weeing_weeing.rag.retriever import HybridRetriever
 from weeing_weeing.rag.store import Chunk
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -151,6 +152,25 @@ def test_markdown_report(ws, store):
     assert "멱등" in md and "갱신" in md
 
 
+def test_e2e_evaluates_public_retriever_and_writes_reranked_results(ws, store):
+    class KeywordReranker:
+        def rerank(self, query, hits):
+            return sorted(hits, key=lambda h: "재가동" in h.chunk.text, reverse=True)
+
+    query = EvalQuery(id="restart", query="승인", doc_id="SOP", any_of=("재가동",))
+    retriever = HybridRetriever(store, reranker=KeywordReranker(), candidate_k=10)
+    result = run_backend(
+        "test", store, ws.catalog(), TextIndexer, [query], k=1, retriever=retriever
+    )
+    reranked = next(r for r in result.results if r.mode == "reranked")
+    assert reranked.rank == 1
+    assert reranked.top[0].text == "재가동 승인"
+    assert {s.mode for s in result.summaries()} == {"dense", "hybrid", "reranked"}
+    md = format_markdown([result], k=1)
+    assert "| test | reranked | 1/1 | 1/1 | 1.000 |" in md
+    assert reranked.top[0].evidence_id in md
+
+
 # --- 실행 스크립트 ---
 
 
@@ -227,3 +247,32 @@ def test_cli_keeps_finished_results_when_a_backend_cannot_start(
     assert "| chroma | hybrid |" in report
     assert "시작하지 못한 백엔드" in report and "qdrant-server" in report
     assert "qdrant-server] 시작하지 못함" in capsys.readouterr().err
+
+
+def test_cli_configured_reranker_is_measured(cli, monkeypatch):
+    from unittest.mock import Mock
+
+    from weeing_weeing.rag import reranker
+
+    model = Mock()
+    model.predict.side_effect = lambda pairs, **kw: [1.0] * len(pairs)
+    load = Mock(return_value=model)
+    monkeypatch.setenv("RERANKER_MODEL", "local-model")
+    monkeypatch.setattr(reranker, "_load_model", load)
+    assert cli("--backends", "qdrant,chroma") == 0
+    report = cli.out.read_text(encoding="utf-8")
+    assert "| qdrant | reranked |" in report
+    assert "| chroma | reranked |" in report
+    load.assert_called_once_with("local-model")
+
+
+def test_cli_reranker_failure_is_reported_as_failure(cli, monkeypatch, capsys):
+    from unittest.mock import Mock
+
+    from weeing_weeing.rag import reranker
+
+    monkeypatch.setenv("RERANKER_MODEL", "missing-local-model")
+    monkeypatch.setattr(reranker, "_load_model", Mock(side_effect=OSError("모델 없음")))
+    assert cli("--backends", "qdrant") == 2
+    assert "검증 실패" in capsys.readouterr().err
+    assert "모델 없음" in cli.out.read_text(encoding="utf-8")

@@ -129,3 +129,68 @@ def test_search_with_each_store_backend(store):
         len(retriever.search("센서", filters={"codes": ["BTT2-P01", "BTT2-P03"]})) == 2
     )
     assert len(retriever.search("센서", filters={"status": "approved"})) == 1
+
+
+def test_reranking_expands_candidates_before_selecting_k():
+    store = Mock(spec=VectorStore)
+    candidates = [
+        Hit(chunk(i, citation=f"매뉴얼 {i}"), 0.03 - i * 0.01) for i in range(3)
+    ]
+    store.hybrid_query.return_value = candidates
+    reranker = Mock()
+    reranker.rerank.return_value = list(reversed(candidates))
+    filters = {"code": "BTT2-P01", "status": "approved"}
+
+    found = HybridRetriever(store, reranker=reranker, candidate_k=30).search(
+        "센서", k=1, filters=filters
+    )
+
+    store.hybrid_query.assert_called_once_with(
+        "센서", k=30, where={"codes": "BTT2-P01", "status": "approved"}
+    )
+    reranker.rerank.assert_called_once_with("센서", candidates)
+    assert [e.evidence_id for e in found] == [candidates[2].chunk.chunk_id]
+    assert found[0].score == candidates[2].score
+    assert found[0].citation == "매뉴얼 2"
+    assert filters == {"code": "BTT2-P01", "status": "approved"}
+
+
+def test_candidate_count_is_at_least_final_k():
+    store = Mock(spec=VectorStore)
+    store.hybrid_query.return_value = []
+    reranker = Mock()
+    assert (
+        HybridRetriever(store, reranker=reranker, candidate_k=2).search("센서", k=5)
+        == []
+    )
+    store.hybrid_query.assert_called_once_with("센서", k=5, where=None)
+    reranker.rerank.assert_not_called()
+
+
+def test_reranking_failure_is_propagated():
+    store = Mock(spec=VectorStore)
+    store.hybrid_query.return_value = [Hit(chunk(), 0.03)]
+    reranker = Mock()
+    reranker.rerank.side_effect = RuntimeError("리랭킹 실패")
+    with pytest.raises(RuntimeError, match="리랭킹 실패"):
+        HybridRetriever(store, reranker=reranker).search("센서")
+
+
+@pytest.mark.parametrize("candidate_k", [0, -1, True, 1.5])
+def test_invalid_candidate_count(candidate_k):
+    with pytest.raises((ValueError, TypeError)):
+        HybridRetriever(Mock(spec=VectorStore), candidate_k=candidate_k)
+
+
+def test_reranking_with_each_store_backend(store):
+    store.replace_document(
+        "BTT-MANUAL",
+        [chunk(i, codes=["BTT2-P01"], status="approved") for i in range(3)],
+    )
+    candidates = store.hybrid_query("센서", k=3, where={"codes": "BTT2-P01"})
+    reranker = Mock()
+    reranker.rerank.side_effect = lambda query, hits: list(reversed(hits))
+    found = HybridRetriever(store, reranker=reranker, candidate_k=3).search(
+        "센서", k=1, filters={"code": "BTT2-P01"}
+    )
+    assert [e.evidence_id for e in found] == [candidates[-1].chunk.chunk_id]

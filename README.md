@@ -49,6 +49,7 @@ tests/  scripts/  docs/
 | [LOCAL_SETUP](docs/LOCAL_SETUP.md) | 개발 환경 설치, 실행, 문제 해결 |
 | [CHANGE_WORKFLOW](docs/CHANGE_WORKFLOW.md) | 이슈·브랜치·커밋·PR·머지 규칙 |
 | [DECISIONS](docs/DECISIONS.md) | 기술 결정 기록 |
+| [RAG_RETRIEVAL](docs/RAG_RETRIEVAL.md) | 폴더별 역할, 검색·리랭킹 구조, 공개 연결 방법과 평가 |
 | [data/README](data/README.md) | 데이터·문서 출처 |
 
 에이전트(Claude Code·Codex 등) 작업 규칙은 [CLAUDE.md](CLAUDE.md) / [AGENTS.md](AGENTS.md)에, 팀 공용 스킬(환경 설치·PR 전 점검·PR 생성)은 [.agents/skills](.agents/skills/README.md)에 있습니다.

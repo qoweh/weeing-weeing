@@ -2,7 +2,7 @@
 
 입력: data/catalog.toml과 그 문서들, data/eval/rag_queries_v1.toml(샘플 질의), .env(EMBEDDING_MODEL 등)
 출력: 터미널 요약, outputs/rag_e2e/report-<시각>.md(검색 비교표·색인·갱신·질의별 상위 결과)
-종료 코드: 0 모든 검사 통과 / 1 색인·멱등·갱신 검사 실패 / 2 설정·Indexer 문제로 시작 못 함
+종료 코드: 0 모든 검사 통과 / 1 색인·멱등·갱신 검사 실패 / 2 설정·연결·실행 오류
 
     make rag-e2e                                      # Qdrant 로컬 + Chroma
     make rag-e2e ARGS="--backends qdrant,chroma,qdrant-server"   # 서버도(make qdrant-up 먼저)
@@ -10,6 +10,7 @@
 - 저장소는 백엔드마다 임시 폴더(서버는 임시 컬렉션)에 새로 만들고 끝나면 지운다.
   storage/의 실제 색인은 건드리지 않는다.
 - 임베딩 모델은 한 번만 올려 모든 백엔드가 같이 쓴다.
+- RERANKER_MODEL이 있으면 로컬 리랭커도 한 번만 올려 reranked 결과를 비교한다.
 - 실제 색인에는 #6 Indexer가 rag/factory.py의 indexer_class()에 연결돼 있어야 한다.
 """
 
@@ -17,7 +18,10 @@ import argparse
 import dataclasses
 import sys
 import tempfile
+import time
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
@@ -56,6 +60,27 @@ def _cannot_start(message: object) -> int:
     return 2
 
 
+@contextmanager
+def _temporary_store(backend: str) -> Iterator[Path]:
+    temporary = tempfile.TemporaryDirectory(prefix=f"rag-e2e-{backend}-")
+    path = Path(temporary.name).resolve()
+    if not path.is_relative_to(Path(tempfile.gettempdir()).resolve()):
+        raise ValueError("임시 저장소가 지정된 임시 폴더 밖에 있습니다.")
+    try:
+        yield path
+    finally:
+        # Chroma의 Rust SQLite 연결은 close 직후에도 잠시 파일을 잡을 수 있다.
+        # 정리는 짧게 재시도하고, 계속 실패하면 예외를 숨기지 않는다.
+        for attempt in range(5):
+            try:
+                temporary.cleanup()
+                break
+            except PermissionError:
+                if attempt == 4:
+                    raise
+                time.sleep(0.1)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--catalog", type=Path, default=Path("data/catalog.toml"))
@@ -78,6 +103,7 @@ def main(argv: list[str] | None = None) -> int:
         catalog = load_catalog(args.catalog)
         queries = load_queries(args.queries)
         make_indexer = factory.indexer_class()
+        reranker = factory.build_reranker(settings)
     except NotImplementedError:
         return _cannot_start(
             "#6 Indexer가 아직 없다. rag/factory.py의 indexer_class()에 연결한 뒤 실행한다"
@@ -89,8 +115,8 @@ def main(argv: list[str] | None = None) -> int:
     runs = []
     skipped: dict[str, str] = {}  # 시작하지 못한 백엔드 → 이유. 나머지는 계속 돈다
     for backend in backends:
-        with tempfile.TemporaryDirectory(prefix=f"rag-e2e-{backend}-") as tmp:
-            run_settings = _settings_for(backend, settings, Path(tmp))
+        with _temporary_store(backend) as tmp:
+            run_settings = _settings_for(backend, settings, tmp)
             try:
                 store = factory.build_store(run_settings, embedder=embedder)
             except Exception as exc:  # 설정 누락·서버 연결 실패 등
@@ -101,9 +127,22 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"[{backend}] 색인·검사 중...", flush=True)
                 runs.append(
                     run_backend(
-                        backend, store, catalog, make_indexer, queries, k=args.k
+                        backend,
+                        store,
+                        catalog,
+                        make_indexer,
+                        queries,
+                        k=args.k,
+                        retriever=factory.build_retriever(
+                            run_settings, store, reranker=reranker
+                        )
+                        if reranker is not None
+                        else None,
                     )
                 )
+            except Exception as exc:
+                skipped[backend] = f"{type(exc).__name__}: {exc}"
+                print(f"[{backend}] 검증 실패: {skipped[backend]}", file=sys.stderr)
             finally:
                 store.close()
                 if backend == "qdrant-server":
@@ -111,7 +150,7 @@ def main(argv: list[str] | None = None) -> int:
 
     report = format_markdown(runs, k=args.k)
     if skipped:
-        report += "\n## 시작하지 못한 백엔드\n\n" + "".join(
+        report += "\n## 시작하지 못한 백엔드·검증 실패\n\n" + "".join(
             f"- {b}: {why}\n" for b, why in skipped.items()
         )
     out = args.out or Path("outputs/rag_e2e") / (
@@ -121,10 +160,9 @@ def main(argv: list[str] | None = None) -> int:
     out.write_text(report, encoding="utf-8")
 
     for run in runs:
-        best = {s.mode: f"{s.hit_at_k}/{s.total}" for s in run.summaries()}
+        best = " / ".join(f"{s.mode} {s.hit_at_k}/{s.total}" for s in run.summaries())
         print(
-            f"[{run.backend}] 검사 {'통과' if run.ok else '실패'} · "
-            f"hit@{args.k} dense {best['dense']} / hybrid {best['hybrid']}"
+            f"[{run.backend}] 검사 {'통과' if run.ok else '실패'} · hit@{args.k} {best}"
         )
     print(f"결과 저장: {out}")
     if skipped:

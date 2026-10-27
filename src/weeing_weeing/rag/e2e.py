@@ -3,7 +3,7 @@
     run_backend(이름, store, catalog, Indexer 만드는 함수, 질의들)
       1. 색인      sync(catalog) → 문서별 청크 수, 걸린 시간
       2. 멱등      한 번 더 sync → 전부 unchanged여야 한다
-      3. 검색      질의마다 dense(query)·hybrid(hybrid_query) 상위 k개, 정답 순위
+      3. 검색      dense·hybrid, retriever 주입 시 reranked 상위 k개와 정답 순위
       4. 갱신      첫 문서의 버전만 올린 카탈로그로 sync → 그 문서만 updated,
                    청크가 모두 새 버전이고 수는 같아야 한다(#7 완료 조건)
       5. 메타데이터 #6이 채울 키(section·page·codes·citation)가 빠진 청크 수
@@ -21,8 +21,9 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from weeing_weeing.contracts import Evidence
 from weeing_weeing.rag.catalog import Catalog
-from weeing_weeing.rag.interface import Indexer
+from weeing_weeing.rag.interface import Indexer, Retriever
 from weeing_weeing.rag.store import Chunk, Hit, VectorStore
 from weeing_weeing.rag.sync import SyncReport, sync
 
@@ -59,16 +60,16 @@ def load_queries(path: str | Path) -> list[EvalQuery]:
     return queries
 
 
-def is_hit(chunk: Chunk, query: EvalQuery) -> bool:
+def is_hit(chunk: Chunk | Evidence, query: EvalQuery) -> bool:
     return chunk.doc_id == query.doc_id and any(k in chunk.text for k in query.any_of)
 
 
 @dataclass
 class QueryResult:
     query_id: str
-    mode: str  # dense | hybrid
+    mode: str  # dense | hybrid | reranked
     rank: int | None  # 첫 정답의 순위(1부터). 상위 k개 안에 없으면 None
-    top: list[Hit]
+    top: list[Hit] | list[Evidence]
 
 
 @dataclass(frozen=True)
@@ -100,7 +101,10 @@ class BackendResult:
 
     def summaries(self) -> list[ModeSummary]:
         out = []
-        for mode in MODES:
+        modes = list(MODES)
+        if any(r.mode == "reranked" for r in self.results):
+            modes.append("reranked")
+        for mode in modes:
             rs = [r for r in self.results if r.mode == mode]
             out.append(
                 ModeSummary(
@@ -115,15 +119,25 @@ class BackendResult:
         return out
 
 
-def _search(store: VectorStore, query: EvalQuery, k: int) -> list[QueryResult]:
-    found = {
+def _search(
+    store: VectorStore, query: EvalQuery, k: int, retriever: Retriever | None
+) -> list[QueryResult]:
+    found: dict[str, list[Hit] | list[Evidence]] = {
         "dense": store.query(query.query, k=k, where=query.where),
         "hybrid": store.hybrid_query(query.query, k=k, where=query.where),
     }
+    if retriever is not None:
+        found["reranked"] = retriever.search(query.query, k=k, filters=query.where)
     results = []
-    for mode in MODES:
-        top = found[mode]
-        rank = next((i for i, h in enumerate(top, 1) if is_hit(h.chunk, query)), None)
+    for mode, top in found.items():
+        rank = next(
+            (
+                i
+                for i, h in enumerate(top, 1)
+                if is_hit(h.chunk if isinstance(h, Hit) else h, query)
+            ),
+            None,
+        )
         results.append(QueryResult(query.id, mode, rank, top))
     return results
 
@@ -166,6 +180,7 @@ def run_backend(
     queries: Sequence[EvalQuery],
     *,
     k: int = 5,
+    retriever: Retriever | None = None,
 ) -> BackendResult:
     """빈 저장소에서 시작한다. 갱신 검사가 첫 문서의 버전을 바꿔 두므로 끝난 뒤 버린다."""
     indexer = make_indexer(store)
@@ -178,7 +193,7 @@ def run_backend(
     missing = {
         key: sum(key not in c.metadata for c in all_chunks) for key in PARSED_KEYS
     }
-    results = [r for q in queries for r in _search(store, q, k)]
+    results = [r for q in queries for r in _search(store, q, k, retriever)]
     update_ok, detail = _check_update(store, catalog, indexer, counts)
     return BackendResult(
         backend=name,
@@ -239,8 +254,8 @@ def format_markdown(runs: Sequence[BackendResult], *, k: int) -> str:
         for r in first.results:
             got = f"{r.rank}위" if r.rank else "없음"
             lines.append(f"- **{r.query_id}** {r.mode} 정답 {got}")
-            lines += [
-                f"  {i}. `{h.chunk.chunk_id}` {h.chunk.text[:40]!r}"
-                for i, h in enumerate(r.top, 1)
-            ]
+            for i, h in enumerate(r.top, 1):
+                source = h.chunk if isinstance(h, Hit) else h
+                source_id = h.chunk.chunk_id if isinstance(h, Hit) else h.evidence_id
+                lines.append(f"  {i}. `{source_id}` {source.text[:40]!r}")
     return "\n".join(lines) + "\n"

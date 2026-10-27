@@ -32,7 +32,7 @@ API 서버가 Qdrant 로컬 폴더를 열고 있으면 `make index`는 잠금 �
 | 색인 | 모든 문서가 added, 실패 없음 |
 | 멱등 | 한 번 더 실행하면 전부 unchanged |
 | 갱신 | 첫 문서의 버전만 올리면 그 문서만 updated, 옛 버전 청크 0 |
-| 검색 비교 | `data/eval/rag_queries_v1.toml` 질의를 dense·hybrid로 실행해 hit@1·hit@k·MRR을 표로 남김(통과 기준 없음) |
+| 검색 비교 | `data/eval/rag_queries_v1.toml` 질의를 dense·hybrid로 실행해 hit@1·hit@k·MRR을 표로 남김. `RERANKER_MODEL`이 있으면 공개 검색기의 reranked 결과도 비교(통과 기준 없음) |
 
 ```bash
 make rag-e2e                                                    # Qdrant 로컬 + Chroma
