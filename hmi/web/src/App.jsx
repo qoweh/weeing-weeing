@@ -7,9 +7,11 @@ import {
   uploadDocument,
 } from "./api/client";
 
+import ReportWorkspace from "./components/ReportWorkspace.jsx";
+
 const tabs = [
   { id: "documents", label: "문서 등록" },
-  { id: "reports", label: "가상 보고서 승인" },
+  { id: "report-write", label: "보고서·결재" },
   { id: "analysis", label: "에러 분석" },
 ];
 
@@ -240,7 +242,11 @@ export default function App() {
         ))}
       </nav>
 
-      <section className="panel">
+      <div hidden={tab !== "report-write"}>
+        <ReportWorkspace />
+      </div>
+
+      <section className="panel" hidden={tab === "report-write"}>
         <h2>{tabs.find((item) => item.id === tab)?.label}</h2>
 
         {tab === "reports" && (

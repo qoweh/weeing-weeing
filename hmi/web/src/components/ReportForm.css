@@ -1,0 +1,261 @@
+.report-sheet {
+  --report-navy: #17263f;
+  --report-yellow: #f4bc00;
+  --report-line: #d1d9e5;
+  --report-muted: #6d7d96;
+
+  padding: 32px;
+  margin-bottom: 24px;
+  border-top: 8px solid var(--report-navy);
+  background: #fff;
+  color: var(--report-navy);
+}
+
+.report-heading {
+  margin-bottom: 28px;
+}
+
+.report-heading::after {
+  display: block;
+  width: 56px;
+  height: 4px;
+  margin-top: 18px;
+  background: var(--report-yellow);
+  content: "";
+}
+
+.report-heading h2 {
+  margin: 8px 0;
+  font-size: clamp(23px, 4vw, 30px);
+  line-height: 1.4;
+}
+
+.report-heading p {
+  margin: 6px 0;
+  color: var(--report-muted);
+  font-size: 13px;
+}
+
+.report-meta {
+  font-size: 12px;
+}
+
+.report-section {
+  margin-bottom: 26px;
+}
+
+.report-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  font-size: 17px;
+}
+
+.report-section-title > span {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 4px;
+  background: var(--report-navy);
+  color: var(--report-yellow);
+  font-size: 14px;
+}
+
+.report-read-grid,
+.report-input-grid,
+.report-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.report-read-grid {
+  gap: 1px;
+  padding: 1px;
+  margin: 0 0 12px;
+  background: var(--report-line);
+}
+
+.report-read-value {
+  display: grid;
+  grid-template-columns: minmax(100px, 35%) minmax(0, 1fr);
+  background: #fff;
+}
+
+.report-read-value dt,
+.report-read-value dd {
+  padding: 10px 12px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.report-read-value dt {
+  background: #f0f3f7;
+  font-weight: 700;
+}
+
+.report-read-value dd {
+  white-space: pre-wrap;
+}
+
+.report-read-value ul,
+.report-read-value ol {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.report-input-grid {
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.report-wide {
+  grid-column: 1 / -1;
+}
+
+.report-sheet label {
+  gap: 7px;
+  font-size: 13px;
+}
+
+.report-sheet input,
+.report-sheet textarea,
+.report-sheet select {
+  border-color: var(--report-line);
+  border-radius: 3px;
+  font-weight: 400;
+}
+
+.report-sensors {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1px;
+  padding: 1px;
+  background: var(--report-line);
+}
+
+.report-sensors > div {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+
+.report-sensors strong,
+.report-sensors span {
+  padding: 10px;
+  font-size: 12px;
+}
+
+.report-sensors strong {
+  flex: 1;
+  background: var(--report-navy);
+  color: #fff;
+}
+
+.report-empty {
+  padding: 16px;
+  border: 1px dashed var(--report-line);
+  background: #f7f9fc;
+}
+
+.report-empty p {
+  margin: 0;
+}
+
+.report-photo-grid {
+  gap: 16px;
+}
+
+.report-photo {
+  min-width: 0;
+  border: 1px solid var(--report-line);
+}
+
+.report-photo h4 {
+  padding: 10px 12px;
+  margin: 0;
+  background: var(--report-navy);
+  color: #fff;
+  font-size: 14px;
+}
+
+.report-photo-body {
+  display: grid;
+  gap: 14px;
+  padding: 12px;
+}
+
+.report-photo-preview {
+  display: grid;
+  height: 220px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px dashed #aebbd0;
+  background: #f0f3f7;
+}
+
+.report-photo-preview p {
+  padding: 16px;
+  color: var(--report-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.report-photo-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: contain;
+}
+
+.report-note {
+  color: var(--report-muted);
+  font-size: 12px;
+}
+
+.report-feedback {
+  padding: 14px;
+  background: #edf5ff;
+  color: #244b78;
+}
+
+.report-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding-top: 18px;
+  border-top: 1px solid var(--report-line);
+  color: var(--report-muted);
+  font-size: 12px;
+}
+
+.report-check-button {
+  border-color: var(--report-navy);
+  background: var(--report-navy);
+  color: #fff;
+}
+
+@media (max-width: 680px) {
+  .report-sheet {
+    padding: 20px 14px;
+  }
+
+  .report-read-grid,
+  .report-input-grid,
+  .report-photo-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .report-sensors {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .report-read-value {
+    grid-template-columns: 110px minmax(0, 1fr);
+  }
+}

@@ -19,6 +19,12 @@ from weeing_weeing.contracts.codes import CODES, RULE_VERSION, Severity
 from weeing_weeing.contracts.document import DocumentRecord
 from weeing_weeing.contracts.incident import Incident, IncidentStatus, SensorEvidence
 from weeing_weeing.contracts.report import MaintenanceReport, ReportStatus, Role
+from weeing_weeing.contracts.report_workflow import (
+    ReportDocument,
+    ReportDraft,
+    ReportFormData,
+    ReportSummary,
+)
 from weeing_weeing.contracts.telemetry import SCHEMA_VERSION, TelemetryRecord
 from weeing_weeing.contracts.user import UserAccount
 
@@ -34,6 +40,10 @@ __all__ = [
     "IncidentStatus",
     "MaintenanceReport",
     "ReportStatus",
+    "ReportDocument",
+    "ReportDraft",
+    "ReportFormData",
+    "ReportSummary",
     "Role",
     "SensorEvidence",
     "Severity",

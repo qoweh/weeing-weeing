@@ -15,12 +15,24 @@ from weeing_weeing.db.interface import (
     open_documents,
     open_engine,
     open_incidents,
+    open_reports,
     open_telemetry,
     open_users,
 )
 
 # 외래 키 순서: 참조하는 쪽부터 지운다.
-TABLES = ("user_session", "app_user", "analysis", "incident", "telemetry", "document")
+TABLES = (
+    "report_index_job",
+    "approval",
+    "report_version",
+    "report",
+    "user_session",
+    "app_user",
+    "analysis",
+    "incident",
+    "telemetry",
+    "document",
+)
 BACKENDS = ["sqlite"]
 if os.environ.get("TEST_DATABASE_URL"):
     BACKENDS.append("postgresql")
@@ -66,5 +78,12 @@ def users(database_url, monkeypatch):
 
     monkeypatch.setattr(module, "SCRYPT_N", 2**10)  # 테스트 속도. 형식·검증 경로는 같다
     repo = open_users(database_url)
+    yield repo
+    repo._engine.dispose()
+
+
+@pytest.fixture
+def reports(database_url):
+    repo = open_reports(database_url)
     yield repo
     repo._engine.dispose()

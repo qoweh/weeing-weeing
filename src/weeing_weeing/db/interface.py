@@ -10,12 +10,21 @@ from weeing_weeing.contracts import (
     DocumentRecord,
     Incident,
     IncidentStatus,
+    MaintenanceReport,
+    ReportDocument,
+    ReportDraft,
+    ReportSummary,
     Role,
     TelemetryRecord,
     UserAccount,
 )
 from weeing_weeing.db.documents import SeedResult
 from weeing_weeing.db.incidents import UnknownIncidentError
+from weeing_weeing.db.reports import (
+    ReportConflictError,
+    ReportForbiddenError,
+    ReportNotFoundError,
+)
 from weeing_weeing.db.session import DatabaseUnavailableError
 from weeing_weeing.db.users import (
     MIN_PASSWORD_LENGTH,
@@ -39,6 +48,12 @@ __all__ = [
     "UnknownIncidentError",
     "UnknownUserError",
     "UserRepository",
+    "ReportRepository",
+    "ReportConflictError",
+    "ReportForbiddenError",
+    "ReportNotFoundError",
+    "get_reports",
+    "open_reports",
     "get_documents",
     "get_incidents",
     "get_telemetry",
@@ -184,6 +199,59 @@ class UserRepository(Protocol):
     def logout(self, token: str) -> None: ...
 
 
+class ReportRepository(Protocol):
+    """보고서·버전·결재. actor_id는 인증된 사번, 수정은 조회한 revision이 필요하다."""
+
+    def create_draft(self, actor_id: str, draft: ReportDraft) -> ReportDocument: ...
+
+    def save_draft(
+        self,
+        actor_id: str,
+        report_id: str,
+        draft: ReportDraft,
+        *,
+        expected_revision: int,
+    ) -> ReportDocument: ...
+
+    def get_report(
+        self,
+        actor_id: str,
+        report_id: str,
+        *,
+        version: int | None = None,
+    ) -> ReportDocument: ...
+
+    def list_reports(
+        self,
+        actor_id: str,
+        *,
+        review: bool = False,
+        limit: int = 100,
+    ) -> list[ReportSummary]: ...
+
+    def transition(
+        self,
+        actor_id: str,
+        report_id: str,
+        action: str,
+        *,
+        expected_revision: int,
+        comment: str = "",
+    ) -> ReportDocument: ...
+
+    def revise(
+        self,
+        actor_id: str,
+        report_id: str,
+        *,
+        expected_revision: int,
+    ) -> ReportDocument: ...
+
+    def pending_index_reports(self, *, limit: int = 100) -> list[MaintenanceReport]:
+        """#29가 소비할 최신 승인 판. 이 메서드는 벡터 색인을 실행하지 않는다."""
+        ...
+
+
 def open_engine(url: str, *, timeout_s: float = 5) -> "Engine":
     """DB에 연결하고 스키마를 최신으로 올린 엔진. 저장소들이 이 엔진 하나를 함께 쓴다."""
     from sqlalchemy.exc import InterfaceError, OperationalError
@@ -225,18 +293,26 @@ def open_telemetry(url: str, *, timeout_s: float = 5) -> TelemetryRepository:
     return SqlTelemetry(open_engine(url, timeout_s=timeout_s))
 
 
+def open_reports(url: str, *, timeout_s: float = 5) -> ReportRepository:
+    from weeing_weeing.db.reports import SqlReports
+
+    return SqlReports(open_engine(url, timeout_s=timeout_s))
+
+
 @dataclass(frozen=True)
 class _Shared:
     documents: DocumentRepository
     incidents: IncidentRepository
     telemetry: TelemetryRepository
     users: UserRepository
+    reports: ReportRepository
 
 
 @lru_cache(maxsize=4)
 def _cached(url: str, timeout_s: float) -> _Shared:
     from weeing_weeing.db.documents import SqlDocuments
     from weeing_weeing.db.incidents import SqlIncidents
+    from weeing_weeing.db.reports import SqlReports
     from weeing_weeing.db.telemetry import SqlTelemetry
     from weeing_weeing.db.users import SqlUsers
 
@@ -246,6 +322,7 @@ def _cached(url: str, timeout_s: float) -> _Shared:
         SqlIncidents(engine),
         SqlTelemetry(engine),
         SqlUsers(engine),
+        SqlReports(engine),
     )
 
 
@@ -283,3 +360,8 @@ def get_telemetry() -> TelemetryRepository:
 def get_users() -> UserRepository:
     """.env의 DATABASE_URL로 연 사용자·세션 저장소."""
     return _shared().users
+
+
+def get_reports() -> ReportRepository:
+    """.env의 DATABASE_URL로 연 보고서·결재 저장소."""
+    return _shared().reports

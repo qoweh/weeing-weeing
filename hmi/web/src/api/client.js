@@ -1,3 +1,9 @@
+let accessToken = "";
+
+export function setAccessToken(token) {
+  accessToken = token;
+}
+
 async function request(path, { method = "GET", body } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 300_000);
@@ -8,10 +14,11 @@ async function request(path, { method = "GET", body } = {}) {
       method,
       cache: "no-store",
       signal: controller.signal,
-      headers:
-        body !== undefined && !isFormData
-          ? { "Content-Type": "application/json" }
-          : undefined,
+      headers: {
+        ...(body !== undefined && !isFormData
+          ? { "Content-Type": "application/json" } : {}),
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
       body:
         body === undefined || isFormData
           ? body
@@ -34,7 +41,9 @@ async function request(path, { method = "GET", body } = {}) {
       const message =
         typeof detail === "string" ? detail : JSON.stringify(detail);
 
-      throw new Error(`HTTP ${response.status}: ${message}`);
+      const error = new Error(`HTTP ${response.status}: ${message}`);
+      error.status = response.status;
+      throw error;
     }
 
     return data;
@@ -125,5 +134,28 @@ export function analyzeTestIncident(payload) {
   return request("/test/analysis", {
     method: "POST",
     body: payload,
+  });
+}
+
+export function loginUser(employeeNo, password) {
+  return request("/auth/login", { method: "POST", body: { employee_no: employeeNo, password } });
+}
+
+export function currentUser() { return request("/auth/me"); }
+export function logoutUser() { return request("/auth/logout", { method: "POST" }); }
+export function listIncidents() { return request("/incidents"); }
+export function listReports(scope = "mine") { return request(`/reports?scope=${scope}`); }
+export function getReport(id, version) {
+  const suffix = version ? `/versions/${version}` : "";
+  return request(`/reports/${encodeURIComponent(id)}${suffix}`);
+}
+export function saveReport(id, body) {
+  return request(id ? `/reports/${encodeURIComponent(id)}/draft` : "/reports", {
+    method: id ? "PUT" : "POST", body,
+  });
+}
+export function actOnReport(id, action, revision, comment = "") {
+  return request(`/reports/${encodeURIComponent(id)}/${action}`, {
+    method: "POST", body: { expected_revision: revision, comment },
   });
 }

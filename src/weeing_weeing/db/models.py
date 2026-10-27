@@ -9,9 +9,11 @@ from datetime import datetime
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     String,
@@ -178,3 +180,95 @@ class SessionRow(Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ReportRow(Base):
+    """보고서 관리대장. 작성자·현재 버전·상태·변경 번호만 보관한다."""
+
+    __tablename__ = "report"
+
+    report_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    author_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("app_user.employee_no"), index=True
+    )
+    incident_id: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("incident.incident_id"), index=True
+    )
+    report_status: Mapped[str] = mapped_column(String(16), index=True)
+    current_version: Mapped[int] = mapped_column(Integer)
+    revision: Mapped[int] = mapped_column(Integer)
+    data_origin: Mapped[str] = mapped_column(String(16))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        CheckConstraint(
+            "current_version > 0 AND revision > 0", name="ck_report_version"
+        ),
+        CheckConstraint(
+            "report_status IN ('DRAFT','SUBMITTED','REVIEWED','APPROVED','REJECTED')",
+            name="ck_report_status",
+        ),
+        CheckConstraint(
+            "data_origin IN ('LIVE','REPLAY','SYNTHETIC')", name="ck_report_origin"
+        ),
+    )
+
+
+class ReportVersionRow(Base):
+    """제출된 판은 고정한다. data에는 폼·사건/AI 스냅샷·제출된 계약 전체를 보존한다."""
+
+    __tablename__ = "report_version"
+
+    report_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("report.report_id"), primary_key=True
+    )
+    version_no: Mapped[int] = mapped_column(Integer, primary_key=True)
+    author_name: Mapped[str] = mapped_column(String(64))
+    report_status: Mapped[str] = mapped_column(String(16))
+    data_origin: Mapped[str] = mapped_column(String(16))
+    data: Mapped[dict] = mapped_column(JsonColumn)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ApprovalRow(Base):
+    __tablename__ = "approval"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    report_id: Mapped[str] = mapped_column(String(64))
+    version_no: Mapped[int] = mapped_column(Integer)
+    step: Mapped[int] = mapped_column(Integer)
+    employee_no: Mapped[str] = mapped_column(
+        String(32), ForeignKey("app_user.employee_no")
+    )
+    role: Mapped[str] = mapped_column(String(16))
+    decision: Mapped[str] = mapped_column(String(8))
+    comment: Mapped[str | None] = mapped_column(Text)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["report_id", "version_no"],
+            ["report_version.report_id", "report_version.version_no"],
+        ),
+        UniqueConstraint("report_id", "version_no", "step", name="uq_approval_step"),
+    )
+
+
+class ReportIndexJobRow(Base):
+    """#29용 승인 outbox. #62는 대기 기록만 만들고 벡터 색인을 실행하지 않는다."""
+
+    __tablename__ = "report_index_job"
+
+    report_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    version_no: Mapped[int] = mapped_column(Integer, primary_key=True)
+    status: Mapped[str] = mapped_column(String(16))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["report_id", "version_no"],
+            ["report_version.report_id", "report_version.version_no"],
+        ),
+    )
