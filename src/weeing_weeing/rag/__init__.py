@@ -16,6 +16,6 @@
 - catalog.py, sync.py: 문서 목록 검증과 저장소 동기화(변경 감지·교체·삭제) (#26)
 - factory.py: 설정으로 저장소를 한 번 조립(build_store), make index 진입점 (#27)
 - parsers.py, indexer.py: 형식별 파서 등록과 범용 Indexer. 업로드 API·make index 공용 (#6·#7)
-- registry.py: 문서 목록 = catalog.toml + 업로드 매니페스트 (#6·#7)
+- registry.py: DB 문서 레지스트리(DocumentRecord) ↔ 색인 목록, catalog.toml → seed (#60)
 - e2e.py: 실제 문서 E2E 검증(색인·멱등·갱신·검색 비교), make rag-e2e (#28)
 """

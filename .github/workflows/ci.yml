@@ -75,6 +75,21 @@ jobs:
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # DB 테스트(tests/db)를 SQLite와 함께 PostgreSQL에서도 돌린다(TEST_DATABASE_URL).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: weeing
+          POSTGRES_PASSWORD: weeing
+          POSTGRES_DB: weeing_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U weeing -d weeing_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://weeing:weeing@localhost:5432/weeing_test
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0

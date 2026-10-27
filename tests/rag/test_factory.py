@@ -32,6 +32,7 @@ def settings(tmp_path, **overrides):
         qdrant_url="",
         chroma_dir=tmp_path / "chroma",
         upload_dir=tmp_path / "uploads",
+        database_url=f"sqlite:///{tmp_path / 'test.db'}",
     )
     return dataclasses.replace(base, **{**values, **overrides})
 
@@ -135,6 +136,8 @@ def cli(tmp_path, monkeypatch):
         return script.main(["--catalog", str(tmp_path / "catalog.toml"), *args])
 
     run.script = script
+    run.ws = ws
+    run.db_url = f"sqlite:///{tmp_path / 'test.db'}"
     return run
 
 
@@ -241,3 +244,124 @@ def test_real_indexer_is_connected():
     from weeing_weeing.rag.indexer import DocumentIndexer
 
     assert factory.indexer_class() is DocumentIndexer
+
+
+# --- DB(document 테이블)와 함께 ---
+
+
+def _db(cli):
+    from weeing_weeing.db.interface import open_documents
+
+    return open_documents(cli.db_url)
+
+
+def test_cli_without_database_is_exit_code_2_with_hint(
+    cli, capsys, monkeypatch, tmp_path
+):
+    down = settings(
+        tmp_path, database_url="postgresql://x:y@127.0.0.1:9/none", db_timeout_s=1
+    )
+    monkeypatch.setattr(cli.script, "get_settings", lambda: down)
+    assert cli() == 2
+    err = capsys.readouterr().err
+    assert "DB에 연결하지 못함" in err
+    assert "sqlite:///storage/dev.db" in err
+
+
+def test_cli_seeds_catalog_into_db_and_records_result(cli, capsys):
+    assert cli() == 0
+    assert "카탈로그 추가 1 · 수정 0 · 삭제 0" in capsys.readouterr().out
+    [record] = _db(cli).listed()
+    assert (record.doc_id, record.origin) == ("MAN", "seed")
+    assert record.indexed_at is not None and record.index_error is None
+
+    assert cli() == 0
+    assert "카탈로그 추가 0 · 수정 0 · 삭제 0" in capsys.readouterr().out
+
+
+def test_cli_removes_seed_dropped_from_catalog(cli, capsys):
+    cli.ws.add("SOP", "정지 후 에너지 격리", doc_type="sop")
+    cli.ws.catalog()
+    assert cli() == 0
+    del cli.ws.entries["SOP"]
+    cli.ws.catalog()
+    capsys.readouterr()
+
+    assert cli() == 0
+    out = capsys.readouterr().out
+    assert "삭제 1" in out
+    assert "removed      1  SOP" in out
+    assert [r.doc_id for r in _db(cli).listed()] == ["MAN"]
+
+
+def test_cli_indexes_completed_uploads_from_db(cli, capsys, tmp_path):
+    from weeing_weeing.contracts import DocumentRecord
+
+    folder = tmp_path / "uploads/u1"
+    folder.mkdir(parents=True)
+    (folder / "up.txt").write_text("업로드 문서 본문", encoding="utf-8")
+    repo = _db(cli)
+    repo.add_upload(
+        DocumentRecord(
+            doc_id="UP-A",
+            doc_version="1.0",
+            doc_type="manual",
+            origin="upload",
+            upload_id="u1",
+            title="up.txt",
+            source="u1/up.txt",
+            source_sha256="sha-up",
+            status="processing",
+        )
+    )
+    assert cli() == 0
+    assert "UP-A" not in capsys.readouterr().out  # 완료 전에는 목록에 없다
+
+    repo.complete_upload("u1", chunk_count=1)
+    assert cli() == 0
+    assert "added        1  UP-A" in capsys.readouterr().out
+
+
+def test_cli_dry_run_does_not_write_db(cli, capsys):
+    assert cli("--dry-run") == 0
+    assert "added        1  MAN" in capsys.readouterr().out
+    assert _db(cli).listed() == []
+
+
+def test_cli_imports_legacy_manifest_uploads_once(cli, capsys, tmp_path):
+    """#58의 metadata.json 업로드는 DB로 옮겨져 색인에서 빠지지 않는다."""
+    import hashlib
+    import json
+
+    folder = tmp_path / "uploads/old1"
+    folder.mkdir(parents=True)
+    (folder / "old.txt").write_text("예전 업로드 본문", encoding="utf-8")
+    manifest = {
+        "upload_id": "old1",
+        "doc_id": "UP-OLD",
+        "doc_version": "1.0",
+        "doc_type": "manual",
+        "doc_status": "approved",
+        "asset_id": "BLDC-001",
+        "title": "old.txt",
+        "source": "old.txt",
+        "source_sha256": hashlib.sha256("예전 업로드 본문".encode()).hexdigest(),
+        "uploaded_at": "2026-10-27T01:00:00+00:00",
+        "status": "completed",
+        "chunk_count": 1,
+    }
+    (folder / "metadata.json").write_text(json.dumps(manifest), encoding="utf-8")
+    broken = tmp_path / "uploads/bad"
+    broken.mkdir()
+    (broken / "metadata.json").write_text("{not json", encoding="utf-8")
+
+    assert cli() == 0
+    captured = capsys.readouterr()
+    assert "added        2  MAN, UP-OLD" in captured.out
+    assert "old1(UP-OLD)를 DB로 옮김: completed" in captured.err
+    assert "bad: 옮기지 못함" in captured.err
+    assert (folder / "metadata.json.imported").is_file()
+    assert _db(cli).get_upload("old1").extra == {"asset_id": "BLDC-001"}
+
+    assert cli() == 0
+    assert "unchanged    2  MAN, UP-OLD" in capsys.readouterr().out

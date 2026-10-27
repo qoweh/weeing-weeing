@@ -26,7 +26,8 @@ class Settings:
     qdrant_url: str  # 비어 있으면 로컬 모드(qdrant_path)
     qdrant_timeout_s: float
     chroma_dir: Path
-    database_url: str
+    database_url: str  # postgresql://… 또는 개발용 sqlite:///storage/dev.db
+    db_timeout_s: float
     telemetry_csv: Path
     replay_speed: float
 
@@ -49,6 +50,7 @@ def get_settings() -> Settings:
         database_url=env(
             "DATABASE_URL", "postgresql://weeing:weeing@localhost:5432/weeing"
         ),
+        db_timeout_s=float(env("DB_TIMEOUT_S", "5")),
         telemetry_csv=Path(
             env(
                 "TELEMETRY_CSV",

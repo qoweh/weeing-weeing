@@ -1,6 +1,5 @@
-"""문서 업로드 API: 저장 위치(git 밖), 충돌 거부, 색인(가짜 저장소), 개정판 교체."""
+"""문서 업로드 API: 저장 위치(git 밖), DB 기록, 충돌 거부, 색인(가짜 저장소), 개정판 교체."""
 
-import json
 import shutil
 from pathlib import Path
 
@@ -9,6 +8,8 @@ from fastapi.testclient import TestClient
 
 from weeing_weeing.api import documents
 from weeing_weeing.api.app import app
+from weeing_weeing.db import interface as db
+from weeing_weeing.db.documents import SqlDocuments
 from weeing_weeing.rag import interface
 from weeing_weeing.rag.indexer import DocumentIndexer
 
@@ -34,6 +35,7 @@ def env(tmp_path, monkeypatch):
     )
     monkeypatch.setenv("RAG_CATALOG", str(catalog))
     monkeypatch.setenv("UPLOAD_DIR", str(tmp_path / "uploads"))
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'test.db'}")
     monkeypatch.setattr(
         interface, "get_indexer", lambda: DocumentIndexer(store, write_previews=True)
     )
@@ -95,9 +97,12 @@ def test_new_version_upload_replaces_previous(env):
 
     versions = {c.doc_version for c in store.chunks(where={"doc_id": "UP-MANUAL"})}
     assert versions == {"2.0"}
-    old = json.loads((uploads / first / "metadata.json").read_text(encoding="utf-8"))
-    assert old["status"] == "superseded"
+    old = TestClient(app).get(f"/documents/{first}").json()
+    assert (old["status"], old["superseded_by"]) == ("superseded", second)
     assert TestClient(app).get(f"/documents/{second}").json()["status"] == "completed"
+    assert [
+        r.upload_id for r in db.get_documents().listed() if r.origin == "upload"
+    ] == [second]
 
 
 def test_broken_pdf_fails_with_message(env):
@@ -138,15 +143,17 @@ def test_upload_dir_is_used_not_data_manuals(env):
 def test_uploaded_document_is_unchanged_on_next_make_index(env):
     """업로드 때 넣은 메타데이터와 make index가 계산하는 값이 같아 재색인되지 않는다."""
     from weeing_weeing.config import get_settings
-    from weeing_weeing.rag.registry import load_registry
+    from weeing_weeing.rag.registry import catalog_from_records
     from weeing_weeing.rag.sync import sync
 
     store, uploads = env
     upload(other_pdf())
-    settings = get_settings()
-    report = sync(
-        load_registry(settings.rag_catalog, uploads), interface.get_indexer(), store
+    catalog = catalog_from_records(
+        db.get_documents().listed(),
+        seed_root=get_settings().rag_catalog.parent,
+        upload_dir=uploads,
     )
+    report = sync(catalog, interface.get_indexer(), store)
     assert "UP-MANUAL" in report.unchanged
 
 
@@ -171,8 +178,114 @@ def test_broken_catalog_is_503_not_500(env, monkeypatch, tmp_path):
 def test_older_upload_is_skipped_when_newer_exists(env, monkeypatch):
     """같은 doc_id의 새 업로드가 이미 있으면 예전 업로드는 색인하지 않고 superseded로 끝난다."""
     store, uploads = env
-    monkeypatch.setattr(interface, "newer_upload", lambda *a, **k: "newer-id")
+    monkeypatch.setattr(SqlDocuments, "newer_upload", lambda *a, **k: "newer-id")
     response = upload(other_pdf())
     status = TestClient(app).get(f"/documents/{response.json()['upload_id']}").json()
     assert status["status"] == "superseded"
     assert store.chunks(where={"doc_id": "UP-MANUAL"}) == []
+
+
+# --- DB ---
+
+
+def test_upload_is_recorded_in_db_without_manifest_file(env):
+    _, uploads = env
+    body = upload(other_pdf()).json()
+    assert body["asset_id"] == "BLDC-001"  # 화면이 쓰던 응답 모양 유지
+    assert body["source"] == f"{body['upload_id']}/manual.pdf"
+
+    record = db.get_documents().get_upload(body["upload_id"])
+    assert (record.origin, record.status) == ("upload", "completed")
+    assert record.extra == {"asset_id": "BLDC-001"}
+    assert not list(uploads.glob("*/metadata.json"))
+
+
+def test_upload_checks_catalog_without_writing_seeds(env):
+    """카탈로그 충돌은 파일 기준으로 보고, seed 반영은 make index만 한다."""
+    assert upload(MANUAL.read_bytes(), doc_id="UP-COPY").status_code == 409
+    upload(other_pdf())
+    assert [r.origin for r in db.get_documents().listed()] == ["upload"]
+
+
+def test_upload_is_not_indexed_over_catalog_document(env, monkeypatch):
+    """접수 후 make index가 같은 doc_id를 카탈로그에 넣었다면 업로드는 색인하지 않는다."""
+    from weeing_weeing.config import get_settings
+
+    store, _ = env
+    repo = db.get_documents()
+    seed = interface.seed_records(get_settings().rag_catalog)[0]
+    real_newer = SqlDocuments.newer_upload
+
+    def seed_added_meanwhile(self, *args, **kwargs):  # 접수와 색인 사이에 make index
+        self.sync_seed([seed, seed.model_copy(update={"doc_id": "UP-MANUAL"})])
+        return real_newer(self, *args, **kwargs)
+
+    monkeypatch.setattr(SqlDocuments, "newer_upload", seed_added_meanwhile)
+    status = upload(other_pdf()).json()
+    record = repo.get_upload(status["upload_id"])
+    assert (record.status, record.superseded_by) == ("superseded", "seed")
+    assert store.chunks(where={"doc_id": "UP-MANUAL"}) == []
+
+
+def test_lost_completion_flags_winner_for_reindex(env, monkeypatch):
+    """색인 중에 다른 쪽이 승자가 되면 이 업로드는 superseded, 승자에는 다시 색인 필요 표시."""
+    repo = db.get_documents()
+    real_complete = SqlDocuments.complete_upload
+
+    def other_wins(self, upload_id, *, chunk_count):
+        self.add_upload(
+            documents.DocumentRecord(
+                **{
+                    **self.get_upload(upload_id).model_dump(),
+                    "upload_id": "f" * 32,
+                    "uploaded_at": self.get_upload(upload_id).uploaded_at
+                    + __import__("datetime").timedelta(seconds=1),
+                    "status": "queued",
+                }
+            )
+        )
+        real_complete(self, "f" * 32, chunk_count=1)
+        return real_complete(self, upload_id, chunk_count=chunk_count)
+
+    monkeypatch.setattr(SqlDocuments, "complete_upload", other_wins)
+    body = upload(other_pdf()).json()
+    assert repo.get_upload(body["upload_id"]).status == "superseded"
+    [winner] = repo.listed()
+    assert "덮어씀" in winner.index_error
+
+
+def test_completion_error_marks_failed_not_stuck(env, monkeypatch):
+    def broken(self, upload_id, *, chunk_count):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(SqlDocuments, "complete_upload", broken)
+    body = upload(other_pdf()).json()
+    record = db.get_documents().get_upload(body["upload_id"])
+    assert (record.status, record.error_type) == ("failed", "RuntimeError")
+
+
+def test_database_down_is_503_and_leaves_no_files(env, monkeypatch):
+    def down():
+        raise db.DatabaseUnavailableError("OperationalError: connection refused")
+
+    monkeypatch.setattr(db, "get_documents", down)
+    response = upload(other_pdf())
+    assert response.status_code == 503
+    assert "DB" in response.json()["detail"]
+    assert not any(env[1].iterdir())
+    assert TestClient(app).get(f"/documents/{'0' * 32}").status_code == 503
+
+
+def test_database_lost_during_indexing_is_logged_not_raised(env, monkeypatch, caplog):
+    calls = []
+    real = db.get_documents
+
+    def flaky():
+        calls.append(1)
+        if len(calls) > 1:  # 접수는 되고, 백그라운드 색인에서 끊긴다
+            raise db.DatabaseUnavailableError("OperationalError: gone")
+        return real()
+
+    monkeypatch.setattr(db, "get_documents", flaky)
+    assert upload(other_pdf()).status_code == 202
+    assert "상태 기록 실패" in caplog.text

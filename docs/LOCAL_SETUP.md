@@ -48,14 +48,25 @@ uv run --no-sync --env-file .env uvicorn --app-dir src weeing_weeing.api.app:app
 
 http://localhost:8000/health 와 http://localhost:8000/docs 에서 확인한다.
 
-## 3. PostgreSQL (2차부터)
+## 3. DB (PostgreSQL)
+
+문서 목록(`document` 테이블)이 DB에 있어서 `make index`와 업로드 API에 DB가 필요하다.
 
 ```bash
 docker compose up -d postgres     # 또는 make db-up
 docker compose ps                 # postgres 가 healthy 인지 확인
 ```
 
-접속 정보는 `.env`의 `DATABASE_URL`. 데이터는 docker 볼륨 `postgres_data`에 남는다.
+접속 정보는 `.env`의 `DATABASE_URL`. 데이터는 docker 볼륨 `postgres_data`에 남는다. 스키마는 `make index`·API가 시작할 때 최신으로 올린다(직접 올리려면 `make db-migrate`).
+
+**Docker 없이 개발할 때**: `.env`에 `DATABASE_URL=sqlite:///storage/dev.db`. 같은 코드가 파일 하나(`storage/dev.db`, git 밖)로 동작한다. 지우면 처음 상태로 돌아가고, 다음 `make index`가 카탈로그 문서를 다시 넣는다(업로드 기록은 사라진다). 통합 시험·시연은 PostgreSQL로 한다.
+
+DB 테스트는 SQLite로 항상 돌고, PostgreSQL에서도 확인하려면:
+```bash
+make db-up
+TEST_DATABASE_URL=postgresql://weeing:weeing@localhost:5432/weeing uv run --no-sync pytest tests/db
+```
+테스트는 `document` 테이블을 비우므로 실제 데이터가 있는 DB를 가리키지 않는다(CI는 별도 DB `weeing_test`).
 
 ## 4. Ollama
 
@@ -65,7 +76,7 @@ docker compose ps                 # postgres 가 healthy 인지 확인
 
 ## 5. RAG 색인 (벡터 DB)
 
-색인 대상 문서는 `data/catalog.toml`(git)에 적고, 화면에서 올린 문서는 `storage/uploads/`(git 밖)에 쌓인다. `.env`에 `EMBEDDING_MODEL`(예: `BAAI/bge-m3`)을 넣고 `make index`를 실행하면 둘을 합쳐 색인한다(사용법: [scripts/README](../scripts/README.md)). 업로드 API(`POST /documents`)도 같은 Indexer·저장소를 쓴다.
+문서 목록은 DB `document` 테이블이 원본이다(3절). 기준 문서는 `data/catalog.toml`(git)에 적으면 `make index`가 DB에 반영(seed)하고, 화면에서 올린 문서는 원본 PDF가 `storage/uploads/`(git 밖)에, 상태는 DB에 쌓인다. `.env`에 `EMBEDDING_MODEL`(예: `BAAI/bge-m3`)을 넣고 `make index`를 실행하면 DB 목록 전체를 색인한다(사용법: [scripts/README](../scripts/README.md)). 업로드 API(`POST /documents`)도 같은 Indexer·저장소를 쓴다.
 
 | | Qdrant 로컬 모드 (기본) | Qdrant 서버 모드 |
 |---|---|---|

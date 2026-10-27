@@ -12,6 +12,7 @@
 - 보고서(doc_type=report)는 승인 보고서 반영 경로(#29)로 들어오므로 지우지 않는다.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from weeing_weeing.rag.catalog import Catalog, CatalogEntry, file_sha256
@@ -61,10 +62,13 @@ def sync(
     *,
     force: bool = False,
     dry_run: bool = False,
+    still_listed: Callable[[str], bool] | None = None,
 ) -> SyncReport:
     """force: 바뀌지 않은 문서도 모두 다시 색인한다(청킹·파서를 바꿨을 때).
     모델·차원·토크나이저를 바꿨으면 저장소를 recreate=True로 만든 뒤 force로 부른다.
     dry_run: 무엇이 바뀔지만 계산한다. 이때 indexer는 None이어도 된다.
+    still_listed: 지우기 직전에 목록을 다시 확인한다. 동기화하는 동안 다른 프로세스(업로드
+    API)가 새로 완료한 문서를 지우지 않게 한다.
     """
     if indexer is None and not dry_run:
         raise ValueError("indexer 없이 실제 동기화를 할 수 없다(dry_run만 가능)")
@@ -90,6 +94,8 @@ def sync(
         if doc_id in listed or info.metadata.get("doc_type") == "report":
             continue
         try:
+            if still_listed is not None and still_listed(doc_id):
+                continue
             if not dry_run:
                 store.delete_document(doc_id)
             report.removed.append(doc_id)

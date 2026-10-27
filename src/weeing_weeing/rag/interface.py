@@ -3,7 +3,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Protocol
 
-from weeing_weeing.contracts import Evidence
+from weeing_weeing.contracts import DocumentRecord, Evidence
 
 ProgressCallback = Callable[[str], None]
 
@@ -58,37 +58,20 @@ def get_indexer() -> Indexer:
     return DocumentIndexer(build_store(get_settings()), write_previews=True)
 
 
-# 업로드 문서 목록(레지스트리) 관련. 구현은 rag/registry.py.
-def upload_conflict(
-    doc_id: str, sha256: str, catalog_path: Path, upload_dir: Path
-) -> str | None:
-    """새 업로드가 카탈로그·기존 업로드와 부딪히면 이유를 돌려준다."""
-    from weeing_weeing.rag.registry import upload_conflict as check
+# 문서 레지스트리(DB의 document 행) ↔ 색인. 구현은 rag/registry.py.
+# DB를 읽고 쓰는 일은 api·실행 스크립트가 db.interface로 한다.
+def seed_records(catalog_path: Path) -> list[DocumentRecord]:
+    """data/catalog.toml → seed 행(DB에 반영할 값). 카탈로그가 잘못되면 ValueError."""
+    from weeing_weeing.rag.registry import seed_records as load
 
-    return check(doc_id, sha256, catalog_path, upload_dir)
+    return load(catalog_path)
 
 
-def upload_index_metadata(folder: Path, record: dict[str, Any]) -> dict[str, str]:
-    """업로드 매니페스트 → index_file에 넘길 metadata. make index가 계산하는 값과 같다."""
+def upload_index_metadata(record: DocumentRecord, upload_dir: Path) -> dict[str, str]:
+    """업로드 행 → index_file에 넘길 metadata. make index가 계산하는 값과 같다."""
     from weeing_weeing.rag.catalog import file_sha256
-    from weeing_weeing.rag.registry import upload_entry
+    from weeing_weeing.rag.registry import entry_from_record
     from weeing_weeing.rag.sync import index_metadata
 
-    entry = upload_entry(folder, record)
+    entry = entry_from_record(record, upload_dir)
     return index_metadata(entry, file_sha256(Path(entry.path)))
-
-
-def newer_upload(
-    upload_dir: Path, doc_id: str, uploaded_at: str, *, exclude: str
-) -> str | None:
-    """같은 doc_id로 더 늦게 올린 업로드가 있으면 그 upload_id(먼저 올린 것은 색인하지 않는다)."""
-    from weeing_weeing.rag.registry import newer_upload as find
-
-    return find(upload_dir, doc_id, uploaded_at, exclude=exclude)
-
-
-def supersede_uploads(upload_dir: Path, doc_id: str, *, keep: str) -> list[str]:
-    """같은 doc_id의 예전 업로드를 superseded로 바꾼다(개정판 업로드 완료 후)."""
-    from weeing_weeing.rag.registry import supersede_uploads as supersede
-
-    return supersede(upload_dir, doc_id, keep=keep)

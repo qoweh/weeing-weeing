@@ -8,12 +8,11 @@ import hashlib
 import tomllib
 from collections import Counter
 from pathlib import Path
-from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
-DocType = Literal["manual", "rule", "sop", "report"]
-DocStatus = Literal["approved", "draft"]
+from weeing_weeing.contracts.document import DocStatus, DocType
+
 # 청크 ID 구분자(':')와 공백은 ID·버전에 쓸 수 없다.
 _ID = r"^[^:\s]+$"
 

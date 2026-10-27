@@ -126,6 +126,18 @@ def test_removed_from_catalog_is_deleted_but_reports_stay(ws, store):
     assert set(store.documents()) == {"MAN", "MR-1"}
 
 
+def test_document_completed_meanwhile_is_not_deleted(ws, store):
+    """동기화 중에 업로드 API가 새로 완료한 문서(목록을 읽은 뒤 생김)는 지우지 않는다."""
+    sync(ws.catalog(), TextIndexer(store), store)
+    del ws.entries["SOP"]
+
+    report = sync(
+        ws.catalog(), TextIndexer(store), store, still_listed=lambda d: d == "SOP"
+    )
+    assert report.removed == []
+    assert set(store.documents()) == {"MAN", "SOP"}
+
+
 def test_force_reindexes_everything(ws, store):
     indexer = TextIndexer(store)
     sync(ws.catalog(), indexer, store)

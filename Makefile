@@ -7,7 +7,7 @@ ENV_FILE := $(if $(wildcard .env),--env-file .env,)
 # 의존성이 바뀌면(pull 후 등) make setup을 다시 실행한다.
 RUN := uv run --no-sync
 
-.PHONY: help setup lint fmt test check skills db-up ollama-up qdrant-up down api index rag-e2e
+.PHONY: help setup lint fmt test check skills db-up db-migrate ollama-up qdrant-up down api index rag-e2e
 
 help: ## 명령 목록
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -35,6 +35,9 @@ skills: ## 스킬 원본(.agents/skills)을 Claude Code용 사본(.claude/skills
 db-up: ## PostgreSQL 기동
 	docker compose up -d postgres
 
+db-migrate: ## DB 스키마를 최신으로 (make index·API도 시작할 때 자동으로 올린다)
+	PYTHONPATH=src $(RUN) $(ENV_FILE) alembic upgrade head
+
 ollama-up: ## Ollama 컨테이너 기동 (Linux용, Mac은 Ollama 앱 권장)
 	docker compose --profile ollama up -d ollama
 
@@ -44,7 +47,7 @@ qdrant-up: ## Qdrant 서버 기동 (서버 모드, .env에 QDRANT_URL=http://loc
 down: ## 보조 서비스 정지
 	docker compose --profile ollama --profile qdrant down
 
-index: ## RAG 색인: 문서 목록(catalog.toml + 업로드)과 벡터 DB 동기화 (ARGS=--dry-run|--force|--recreate)
+index: ## RAG 색인: catalog.toml을 DB에 반영 → DB 문서 목록과 벡터 DB 동기화 (DB 필요, ARGS=--dry-run|--force|--recreate)
 	PYTHONPATH=src $(RUN) $(ENV_FILE) python scripts/build_index.py $(ARGS)
 
 rag-e2e: ## RAG 실제 문서 E2E 검증·백엔드 비교 (#28, ARGS="--backends qdrant,chroma,qdrant-server")
