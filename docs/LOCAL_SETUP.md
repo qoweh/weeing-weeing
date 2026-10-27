@@ -72,7 +72,10 @@ TEST_DATABASE_URL=postgresql://weeing:weeing@localhost:5432/weeing uv run --no-s
 
 - **macOS**: Ollama 앱을 설치해 쓴다. 컨테이너 안에서는 GPU를 못 써서 느리다
 - **Linux 서버**: `docker compose --profile ollama up -d ollama`
-- 모델 받기: `ollama pull <모델명>` 후 `.env`의 `OLLAMA_MODEL`에 기입
+- 모델 받기: `ollama pull qwen3:8b`(기본 모델, Q4_K_M 5.2GB). 다른 모델은 받은 뒤 `.env`의 `OLLAMA_MODEL`에 기입
+- 확인: `make llm-check`. 모델이 로컬에서 돌고 JSON 스키마대로 답하는지 사례 4개로 점검한다(종료 코드 0 통과·1 실패 사례 있음·2 서버·모델 없음). 사례 하나가 시간 초과되면 그 사례만 실패로 남긴다
+- 모델 비교: `make llm-check ARGS="--model <모델> --repeat 3"`. 보고서는 `outputs/llm_check/`
+- 생각 단계(`OLLAMA_THINK`)는 기본으로 끈다. 켜면 판단이 더 정확하지만 2~4배 느리다(실측은 DECISIONS D-21). 켤 때는 `LLM_TIMEOUT_S=120`도 함께. `OLLAMA_KEEP_ALIVE`는 `10m`처럼 단위를 붙이거나 초 단위 숫자(`-1`은 계속 유지)
 
 ## 5. RAG 색인 (벡터 DB)
 

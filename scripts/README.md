@@ -42,6 +42,21 @@ make rag-e2e ARGS="--backends qdrant,chroma,qdrant-server"      # 서버도 (mak
 결과는 `outputs/rag_e2e/report-<시각>.md`에 남는다. 공식 측정 결과와 해석은 [docs/RAG_E2E.md](../docs/RAG_E2E.md)에 날짜별로 남긴다. 종료 코드는 0 통과, 1 검사 실패, 2 시작 못 함(설정·Indexer).
 #6 Indexer가 `rag/factory.py`의 `indexer_class()`에 연결돼야 실행된다. 그 전에는 종료 코드 2로 안내한다.
 
+## LLM 점검 (`check_llm.py`, #10)
+
+Ollama 모델이 로컬에서 돌고 구조화 출력(JSON 스키마)을 지키는지 `data/eval/llm_cases_v1.toml` 사례로 점검한다.
+
+```bash
+make llm-check                                        # .env의 OLLAMA_MODEL
+make llm-check ARGS="--model qwen3:8b --repeat 3"     # 모델 비교
+make llm-check ARGS="--think"                         # 생각 단계 켜고 비교
+```
+
+- 반드시 통과: JSON → 분석 초안 스키마 → `AnalysisResult` 계약(원인 후보는 실제 근거만 인용)
+- 숫자로 기록: 기대 상태(OK / INSUFFICIENT_EVIDENCE) 일치, 사례당 시간, 초당 토큰
+- 보고서: `outputs/llm_check/report-<시각>.md`. 종료 코드 0 통과 / 1 실패 사례 있음 / 2 서버·모델·설정 문제
+- 프롬프트는 점검용 최소본(`agent/llm_check.py`)이다. 실제 분석 프롬프트·워크플로는 #11~#13
+
 ## 사건 센서 이력 저장
 
 기존 스냅샷 데모와 별도로 `demo_incident_history.py`를 사용한다.

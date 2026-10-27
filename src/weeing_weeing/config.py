@@ -16,6 +16,8 @@ def from_root(path: Path) -> Path:
 class Settings:
     ollama_base_url: str
     ollama_model: str
+    ollama_think: bool  # qwen3 등 생각 단계가 있는 모델의 생각 출력
+    ollama_keep_alive: str  # 마지막 호출 뒤 모델을 메모리에 남길 시간
     llm_timeout_s: float
     embedding_model: str
     vector_store: str  # qdrant | chroma
@@ -37,7 +39,9 @@ def get_settings() -> Settings:
     env = os.environ.get
     return Settings(
         ollama_base_url=env("OLLAMA_BASE_URL", "http://localhost:11434"),
-        ollama_model=env("OLLAMA_MODEL", ""),
+        ollama_model=env("OLLAMA_MODEL", "qwen3:8b"),
+        ollama_think=env("OLLAMA_THINK", "false").lower() in ("1", "true", "yes"),
+        ollama_keep_alive=env("OLLAMA_KEEP_ALIVE", "10m"),
         llm_timeout_s=float(env("LLM_TIMEOUT_S", "60")),
         embedding_model=env("EMBEDDING_MODEL", ""),
         vector_store=env("VECTOR_STORE", "qdrant"),

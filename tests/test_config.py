@@ -29,4 +29,7 @@ def test_defaults_match_env_example(monkeypatch):
 
     for key, value in example.items():
         actual = getattr(settings, key.lower())
-        assert actual == type(actual)(value), key
+        if isinstance(actual, bool):  # bool("false")는 True라 문자열로 비교한다
+            assert actual == (value.lower() in ("1", "true", "yes")), key
+        else:
+            assert actual == type(actual)(value), key

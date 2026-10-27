@@ -1,0 +1,52 @@
+# LLM 구조화 출력 점검 사례 (#10, make llm-check). 근거 문장은 data/parsed/의 매뉴얼·룰에서 줄여 옮겼다.
+# expected_status: 근거로 판단할 수 있으면 OK, 근거가 없거나 관련 없으면 INSUFFICIENT_EVIDENCE.
+# 검사: JSON·스키마·AnalysisResult 계약(인용은 실제 근거만)은 반드시 통과해야 하고,
+#       expected_status 일치율은 숫자로만 기록한다(모델 비교용).
+
+[[cases]]
+id = "c01-p03-occupancy"
+incident = "BTT2-P03 입구 장기 점유 Error. 입구 광전센서가 6.2초 연속 true. 같은 시간 RPM 1480(정상), 출구 센서는 false 유지."
+expected_status = "OK"
+
+  [[cases.evidence]]
+  evidence_id = "BTT-MANUAL:2.0:0007"
+  doc_id = "BTT-MANUAL"
+  doc_version = "2.0"
+  citation = "BTT-MANUAL 2.0 3절 P03/P04"
+  text = "P03/P04 센서 장기 점유: 센서 앞 물체 유무와 실제 출력 상태를 먼저 대조한다. 실제 점유면 입구 밀착 투입·출구 인계·기계 간섭을 점검한다. 물체가 없는데 점유가 지속되면 감지면 오염, 광축·감도, 장착 풀림, 배선·극성·입력 매핑을 확인한다."
+
+  [[cases.evidence]]
+  evidence_id = "BTT-RULE:2.0:0004"
+  doc_id = "BTT-RULE"
+  doc_version = "2.0"
+  citation = "BTT-RULE 2.0 4절 BTT2-P03"
+  text = "BTT2-P03 입구 장기 점유: true가 3초를 넘으면 Warning, 5초를 넘으면 Error. 입구 물체·가이드·연속 밀착 투입·센서 출력을 점검한다. false 2초 및 Error 점검 승인 후 종료."
+
+[[cases]]
+id = "c02-m12-vibration"
+incident = "BTT2-M12 구동측(DE) 진동 RMS 상한 초과. RMS 0.095 g가 30초 지속(상한 0.080601 g). 속도·하중 변화 없음."
+expected_status = "OK"
+
+  [[cases.evidence]]
+  evidence_id = "BTT-MANUAL:2.0:0015"
+  doc_id = "BTT-MANUAL"
+  doc_version = "2.0"
+  citation = "BTT-MANUAL 2.0 5절 M12/M16"
+  text = "RMS 상한 M12/M16: 같은 속도·하중과 센서 장착인지 확인한다. 보전 담당자는 체결·정렬·벨트/전달부·접촉 여부를 조사하고, 필요 시 원시 파형·주파수/엔벨로프 분석으로 원인을 구분한다. 높은 전체 진동은 추가 분석의 출발점이며 베어링 교환의 단독 근거가 아니다."
+
+[[cases]]
+id = "c03-no-evidence"
+incident = "BTT2-P03 입구 장기 점유 Error. 입구 광전센서가 7초 연속 true."
+expected_status = "INSUFFICIENT_EVIDENCE"
+
+[[cases]]
+id = "c04-unrelated-evidence"
+incident = "BTT2-P03 입구 장기 점유 Error. 입구 광전센서가 7초 연속 true."
+expected_status = "INSUFFICIENT_EVIDENCE"
+
+  [[cases.evidence]]
+  evidence_id = "BTT-RULE:2.0:0002"
+  doc_id = "BTT-RULE"
+  doc_version = "2.0"
+  citation = "BTT-RULE 2.0 2절 결측 처리"
+  text = "빈 문자열·NULL은 0으로 바꾸지 않는다. NaN·무한대·형식 오류는 유효 수치로 평가하지 않는다. 결측·시간 공백 발생 시 연속성 타이머를 끊고 Unknown으로 표시한다."
