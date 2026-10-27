@@ -34,7 +34,7 @@ class SyncReport:
 
 def index_metadata(entry: CatalogEntry, sha: str) -> dict[str, str]:
     """Indexer.index_file에 넘기는 값. 청크 메타데이터에 그대로 들어가야 변경 감지가 된다."""
-    return {
+    standard = {
         "doc_id": entry.doc_id,
         "doc_version": entry.doc_version,
         "doc_type": entry.doc_type,
@@ -43,6 +43,7 @@ def index_metadata(entry: CatalogEntry, sha: str) -> dict[str, str]:
         "source_path": entry.path,
         "source_sha256": sha,
     }
+    return {**entry.extra, **standard}  # extra가 표준 키를 덮어쓰지 못하게
 
 
 def _is_current(info: DocInfo | None, metadata: dict[str, str]) -> bool:

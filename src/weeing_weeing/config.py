@@ -4,6 +4,13 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+# 상대 경로 설정(UPLOAD_DIR 등)은 실행 위치가 아니라 레포 루트 기준으로 푼다.
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
+def from_root(path: Path) -> Path:
+    return path if path.is_absolute() else PROJECT_ROOT / path
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -13,6 +20,8 @@ class Settings:
     embedding_model: str
     vector_store: str  # qdrant | chroma
     rag_collection: str
+    rag_catalog: Path  # git이 관리하는 기준 문서 목록
+    upload_dir: Path  # 업로드 문서(git 밖)
     qdrant_path: Path
     qdrant_url: str  # 비어 있으면 로컬 모드(qdrant_path)
     qdrant_timeout_s: float
@@ -31,6 +40,8 @@ def get_settings() -> Settings:
         embedding_model=env("EMBEDDING_MODEL", ""),
         vector_store=env("VECTOR_STORE", "qdrant"),
         rag_collection=env("RAG_COLLECTION", "knowledge"),
+        rag_catalog=Path(env("RAG_CATALOG", "data/catalog.toml")),
+        upload_dir=Path(env("UPLOAD_DIR", "storage/uploads")),
         qdrant_path=Path(env("QDRANT_PATH", "storage/qdrant")),
         qdrant_url=env("QDRANT_URL", ""),
         qdrant_timeout_s=float(env("QDRANT_TIMEOUT_S", "10")),

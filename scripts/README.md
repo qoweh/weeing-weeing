@@ -2,8 +2,11 @@
 
 ## RAG 색인 (`build_index.py`)
 
-`data/catalog.toml`에 적힌 문서와 벡터 DB를 맞춘다. 바뀐 문서만 다시 색인하고, 목록에서 빠진 문서는 지운다.
-설정은 `.env`(`VECTOR_STORE`, `EMBEDDING_MODEL`, `QDRANT_*`, `CHROMA_DIR`)를 읽는다.
+문서 목록과 벡터 DB를 맞춘다. 목록 = `data/catalog.toml`(git) + 화면에서 올린 완료된 업로드(`storage/uploads/`, git 밖).
+바뀐 문서만 다시 색인하고, 목록에서 빠진 문서는 지운다. 업로드 API도 같은 Indexer·저장소를 쓴다.
+설정은 `.env`(`VECTOR_STORE`, `EMBEDDING_MODEL`, `QDRANT_*`, `CHROMA_DIR`, `RAG_CATALOG`, `UPLOAD_DIR`)를 읽는다.
+
+언제 쓰나: 서비스 기능이 아니라 관리 명령이다. 새 PC·서버를 처음 세팅할 때, 기준 문서를 바꿨을 때, 임베딩 모델을 바꿨을 때(`--recreate`), 배포할 때.
 
 ```bash
 make index                  # = PYTHONPATH=src uv run --no-sync python scripts/build_index.py
@@ -13,8 +16,9 @@ make index ARGS=--recreate  # 컬렉션을 새로 만들고 전부 색인 (임�
 ```
 
 결과는 added/updated/unchanged/removed/failed 표로 나온다. 종료 코드는 0 성공, 1 실패한 문서 있음, 2 설정·잠금·Indexer 문제로 시작 못 함.
-실제 색인은 #6 Indexer(파싱·청킹)가 `rag/factory.py`의 `indexer_class`에 연결된 뒤 동작한다. 그 전에는 `--dry-run`만 쓸 수 있다.
-`--recreate`는 카탈로그 밖에서 들어온 문서(승인 보고서)도 지우므로 그것도 다시 넣어야 한다.
+업로드 항목에 문제가 있으면(매니페스트 깨짐, 파일 없음, 카탈로그와 doc_id·내용이 겹침) 그 항목만 건너뛰고 `경고:`로 알린다. 카탈로그(`data/catalog.toml`) 문제는 종료 코드 2로 멈춘다.
+`--recreate`는 업로드 문서도 목록에 있으므로 함께 다시 색인한다. 목록 밖에서 들어온 문서(승인 보고서, #29)는 지워지므로 다시 넣어야 한다.
+API 서버가 Qdrant 로컬 폴더를 열고 있으면 `make index`는 잠금 오류로 멈춘다(종료 코드 2). API를 끄거나 `QDRANT_URL` 서버 모드를 쓴다.
 
 ## 사건 센서 이력 저장
 

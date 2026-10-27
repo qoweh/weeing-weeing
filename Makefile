@@ -44,7 +44,7 @@ qdrant-up: ## Qdrant 서버 기동 (서버 모드, .env에 QDRANT_URL=http://loc
 down: ## 보조 서비스 정지
 	docker compose --profile ollama --profile qdrant down
 
-index: ## RAG 색인: data/catalog.toml과 벡터 DB 동기화 (ARGS=--dry-run|--force|--recreate)
+index: ## RAG 색인: 문서 목록(catalog.toml + 업로드)과 벡터 DB 동기화 (ARGS=--dry-run|--force|--recreate)
 	PYTHONPATH=src $(RUN) $(ENV_FILE) python scripts/build_index.py $(ARGS)
 
 api: ## FastAPI 개발 서버 (http://localhost:8000/docs)

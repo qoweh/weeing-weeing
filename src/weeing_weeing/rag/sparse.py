@@ -22,6 +22,8 @@ from typing import Protocol
 
 from kiwipiepy import Kiwi
 
+from weeing_weeing.contracts import CODES
+
 # BTT2-P01 같은 정식 코드, 매뉴얼의 짧은 표기 P01, 센서 ID S01~S07. 대소문자는 가리지
 # 않는다(질의에 "p03"이라고 써도 맞게). Kiwi는 BTT2-P01을 BTT/2/-/P/01로 쪼개므로
 # 형태소 분석 전에 뽑아낸다.
@@ -65,6 +67,16 @@ def normalize_code(code: str) -> str:
     """P01 → BTT2-P01. 센서 ID와 정식 코드는 그대로. 대문자로 맞춘다."""
     code = code.upper()
     return f"BTT2-{code}" if re.fullmatch(r"[PMD]\d{2}", code) else code
+
+
+def extract_codes(text: str) -> list[str]:
+    """본문에 나온 룰 코드(BTT2-…)를 정식 표기로, 나온 순서대로 중복 없이 돌려준다.
+
+    짧은 표기(P01)와 소문자도 정식 코드로 바꾸고, 룰 정의서에 없는 코드(P99)와 센서 ID(S01)는 뺀다.
+    청크 메타데이터 codes를 채워 where={"codes": …} 필터에 쓴다.
+    """
+    found = (normalize_code(m) for m in _CODE.findall(text))
+    return list(dict.fromkeys(c for c in found if c in CODES))
 
 
 def term_id(token: str) -> int:

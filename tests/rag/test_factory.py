@@ -16,7 +16,11 @@ from weeing_weeing.rag.sparse import KiwiBm25Encoder
 from weeing_weeing.rag.store import Chunk
 
 ROOT = Path(__file__).resolve().parents[2]
-REAL_INDEXER_CLASS = factory.indexer_class
+
+
+def no_indexer():
+    """Indexer 구현이 연결되지 않은 상태를 흉내 낸다(색인 명령이 저장소를 열기 전에 멈춰야 함)."""
+    raise NotImplementedError("#6 Indexer가 아직 없다")
 
 
 def settings(tmp_path, **overrides):
@@ -27,6 +31,7 @@ def settings(tmp_path, **overrides):
         qdrant_path=tmp_path / "qdrant",
         qdrant_url="",
         chroma_dir=tmp_path / "chroma",
+        upload_dir=tmp_path / "uploads",
     )
     return dataclasses.replace(base, **{**values, **overrides})
 
@@ -159,7 +164,7 @@ def test_cli_exit_code_1_on_failed_document(cli, capsys, monkeypatch):
 
 
 def test_cli_exit_code_2_without_indexer(cli, capsys, monkeypatch):
-    monkeypatch.setattr(factory, "indexer_class", REAL_INDEXER_CLASS)
+    monkeypatch.setattr(factory, "indexer_class", no_indexer)
     assert cli() == 2
     assert "#6 Indexer" in capsys.readouterr().err
 
@@ -178,7 +183,7 @@ def test_cli_model_change_needs_recreate(cli, capsys, monkeypatch, tmp_path):
 
 def test_cli_recreate_without_indexer_keeps_index(cli, capsys, monkeypatch):
     assert cli() == 0
-    monkeypatch.setattr(factory, "indexer_class", REAL_INDEXER_CLASS)
+    monkeypatch.setattr(factory, "indexer_class", no_indexer)
 
     assert cli("--recreate") == 2
     monkeypatch.setattr(factory, "indexer_class", lambda: TextIndexer)
@@ -230,3 +235,9 @@ def test_cli_store_read_failure_is_exit_code_2_and_closes(cli, capsys, monkeypat
     assert cli() == 2
     assert "상태를 읽지 못함(TimeoutError)" in capsys.readouterr().err
     assert closed == [True]
+
+
+def test_real_indexer_is_connected():
+    from weeing_weeing.rag.indexer import DocumentIndexer
+
+    assert factory.indexer_class() is DocumentIndexer

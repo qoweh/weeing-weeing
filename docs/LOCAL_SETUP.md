@@ -65,7 +65,7 @@ docker compose ps                 # postgres 가 healthy 인지 확인
 
 ## 5. RAG 색인 (벡터 DB)
 
-색인 대상 문서는 `data/catalog.toml`에 적는다. `.env`에 `EMBEDDING_MODEL`(예: `BAAI/bge-m3`)을 넣고 `make index`를 실행한다(사용법: [scripts/README](../scripts/README.md)).
+색인 대상 문서는 `data/catalog.toml`(git)에 적고, 화면에서 올린 문서는 `storage/uploads/`(git 밖)에 쌓인다. `.env`에 `EMBEDDING_MODEL`(예: `BAAI/bge-m3`)을 넣고 `make index`를 실행하면 둘을 합쳐 색인한다(사용법: [scripts/README](../scripts/README.md)). 업로드 API(`POST /documents`)도 같은 Indexer·저장소를 쓴다.
 
 | | Qdrant 로컬 모드 (기본) | Qdrant 서버 모드 |
 |---|---|---|

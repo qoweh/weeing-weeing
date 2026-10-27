@@ -10,7 +10,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 DocType = Literal["manual", "rule", "sop", "report"]
 DocStatus = Literal["approved", "draft"]
@@ -29,8 +29,35 @@ class CatalogEntry(BaseModel):
     doc_version: str = Field(pattern=_ID)
     doc_type: DocType
     status: DocStatus
-    path: str = Field(min_length=1)  # catalog.toml이 있는 폴더 기준
+    path: str = Field(min_length=1)  # catalog.toml이 있는 폴더 기준(업로드는 절대 경로)
     title: str = Field(min_length=1)
+    # 청크 메타데이터에 함께 넣을 값(업로드의 asset_id·upload_id 등). 표준 키는 덮어쓰지 않는다.
+    extra: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("extra")
+    @classmethod
+    def _extra_keys(cls, value: dict[str, str]) -> dict[str, str]:
+        """표준·파생·저장소 키는 extra로 넣을 수 없다(청크 값을 덮어쓰거나 저장이 거부됨)."""
+        reserved = {
+            "doc_id",
+            "doc_version",
+            "doc_type",
+            "status",
+            "title",
+            "source_path",
+            "source_sha256",
+            "page",
+            "section",
+            "codes",
+            "citation",
+            "chunk_id",
+            "text",
+            "chunk_total",
+        }
+        bad = sorted(set(value) & reserved)
+        if bad:
+            raise ValueError(f"extra에 쓸 수 없는 키: {bad}")
+        return value
 
 
 class Catalog(BaseModel):
@@ -59,7 +86,12 @@ def load_catalog(path: str | Path) -> Catalog:
         catalog = Catalog(root=path.parent, documents=raw.get("documents", []))
     except (OSError, tomllib.TOMLDecodeError, ValidationError) as exc:
         raise CatalogError(f"{path}: {exc}") from exc
+    validate_catalog(catalog, label=str(path))
+    return catalog
 
+
+def validate_catalog(catalog: Catalog, *, label: str) -> None:
+    """doc_id 중복, 파일 없음, 서로 다른 항목의 같은 파일 내용을 한 번에 모아 알린다."""
     problems: list[str] = []
     counts = Counter(e.doc_id for e in catalog.documents)
     problems += [f"doc_id 중복: {d}" for d, n in counts.items() if n > 1]
@@ -78,5 +110,4 @@ def load_catalog(path: str | Path) -> Catalog:
         if len(ids) > 1
     ]
     if problems:
-        raise CatalogError(f"{path}:\n  " + "\n  ".join(problems))
-    return catalog
+        raise CatalogError(f"{label}:\n  " + "\n  ".join(problems))

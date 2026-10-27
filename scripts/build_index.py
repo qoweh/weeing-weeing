@@ -1,6 +1,7 @@
-"""카탈로그(data/catalog.toml)와 벡터 DB를 맞춘다. 바뀐 문서만 다시 색인한다.
+"""문서 목록(카탈로그 + 업로드)과 벡터 DB를 맞춘다. 바뀐 문서만 다시 색인한다.
 
-입력: data/catalog.toml과 그 문서들, .env(VECTOR_STORE·EMBEDDING_MODEL·QDRANT_* 등)
+입력: RAG_CATALOG(data/catalog.toml)의 문서 + UPLOAD_DIR(storage/uploads)의 완료된 업로드,
+      .env(VECTOR_STORE·EMBEDDING_MODEL·QDRANT_* 등)
 출력: 벡터 DB(QDRANT_PATH 폴더·Qdrant 서버·CHROMA_DIR), 터미널에 결과 표
 종료 코드: 0 성공 / 1 실패한 문서 있음 / 2 설정·잠금·Indexer 문제로 시작 못 함
 
@@ -14,13 +15,11 @@ import argparse
 import sys
 from pathlib import Path
 
-from weeing_weeing.config import get_settings
+from weeing_weeing.config import from_root, get_settings
 from weeing_weeing.rag import factory
-from weeing_weeing.rag.catalog import load_catalog
+from weeing_weeing.rag.registry import load_registry
 from weeing_weeing.rag.store import StoreMismatchError
 from weeing_weeing.rag.sync import SyncReport, sync
-
-DEFAULT_CATALOG = Path("data/catalog.toml")
 
 
 def format_report(report: SyncReport) -> str:
@@ -43,7 +42,9 @@ def _cannot_start(exc: object) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
+    parser.add_argument(
+        "--catalog", type=Path, help="카탈로그 파일(기본: .env의 RAG_CATALOG)"
+    )
     parser.add_argument("--dry-run", action="store_true", help="바뀔 내용만 출력")
     parser.add_argument("--force", action="store_true", help="모든 문서 다시 색인")
     parser.add_argument(
@@ -55,7 +56,12 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         settings = get_settings()  # QDRANT_TIMEOUT_S=abc 같은 값도 여기서 걸린다
-        catalog = load_catalog(args.catalog)
+        warnings: list[str] = []
+        catalog = load_registry(
+            args.catalog or from_root(settings.rag_catalog),
+            from_root(settings.upload_dir),
+            warnings=warnings,
+        )
         make_indexer = None if args.dry_run else factory.indexer_class()
         # 모델은 첫 임베딩 때 올라온다(LazyEmbedder). dry-run은 모델을 올리지 않는다.
         store = factory.build_store(settings, recreate=args.recreate)
@@ -69,6 +75,8 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as exc:  # 서버 연결 실패·타임아웃 등
         return _cannot_start(f"저장소에 연결하지 못함({type(exc).__name__}): {exc}")
 
+    for warning in warnings:  # 업로드 문제는 건너뛰고 알리기만 한다
+        print(f"경고: {warning}", file=sys.stderr)
     try:
         indexer = make_indexer(store) if make_indexer else None
         server = settings.vector_store == "qdrant" and settings.qdrant_url

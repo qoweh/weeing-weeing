@@ -28,6 +28,7 @@ function TextField({
   label,
   name,
   defaultValue = "",
+  placeholder,
   required = true,
 }) {
   return (
@@ -36,6 +37,7 @@ function TextField({
       <input
         name={name}
         defaultValue={defaultValue}
+        placeholder={placeholder}
         required={required}
       />
     </label>
@@ -272,20 +274,20 @@ export default function App() {
                   <TextField
                     label="문서 ID"
                     name="doc_id"
-                    defaultValue="BTT-MANUAL"
+                    placeholder="예: BLDC-001-MANUAL (카탈로그 문서 ID는 쓸 수 없음)"
                   />
                   <TextField
                     label="문서 버전"
                     name="doc_version"
-                    defaultValue="v2.0"
+                    defaultValue="1.0"
                   />
 
                   <label>
                     문서 종류
                     <select name="doc_type" defaultValue="manual">
                       <option value="manual">매뉴얼</option>
-                      <option value="regulation">규정·SOP</option>
-                      <option value="rulebook">룰베이스</option>
+                      <option value="sop">규정·SOP</option>
+                      <option value="rule">룰베이스</option>
                     </select>
                   </label>
 
