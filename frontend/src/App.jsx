@@ -13,12 +13,30 @@ function initialTheme() {
 
 export default function App() {
   const [theme, setTheme] = useState(initialTheme)
-  const [page, setPage] = useState('dashboard')
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState(() => {
+    try { return localStorage.getItem('weeing-demo-login') === 'true' ? { name: '사용자 1' } : null } catch { return null }
+  })
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     try { localStorage.setItem('weeing-theme', theme) } catch { /* Theme still works for this session. */ }
   }, [theme])
-  if (page === 'login') return <LoginPage onCancel={() => setPage('dashboard')} onLogin={() => { setUser({ name: '사용자 1' }); setPage('dashboard') }} />
-  return <AppShell user={user} onLogin={() => setPage('login')} onLogout={() => setUser(null)} theme={theme} onToggleTheme={() => setTheme((current) => current === 'light' ? 'dark' : 'light')}><DashboardPage /></AppShell>
+  useEffect(() => {
+    function syncLogin(event) {
+      if (event.key === 'weeing-demo-login' || event.key === null) {
+        setUser(event.key === 'weeing-demo-login' && event.newValue === 'true' ? { name: '사용자 1' } : null)
+      }
+    }
+    window.addEventListener('storage', syncLogin)
+    return () => window.removeEventListener('storage', syncLogin)
+  }, [])
+  function login() {
+    try { localStorage.setItem('weeing-demo-login', 'true') } catch { /* Login remains active until the page is reloaded. */ }
+    setUser({ name: '사용자 1' })
+  }
+  function logout() {
+    try { localStorage.removeItem('weeing-demo-login') } catch { /* Storage may be unavailable. */ }
+    setUser(null)
+  }
+  if (!user) return <LoginPage onLogin={login} />
+  return <AppShell user={user} onLogout={logout} theme={theme} onToggleTheme={() => setTheme((current) => current === 'light' ? 'dark' : 'light')}><DashboardPage /></AppShell>
 }
