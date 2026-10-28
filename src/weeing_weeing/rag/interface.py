@@ -11,7 +11,12 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Protocol
 
-from weeing_weeing.contracts import DocumentRecord, Evidence, Incident
+from weeing_weeing.contracts import (
+    DocumentRecord,
+    Evidence,
+    Incident,
+    MaintenanceReport,
+)
 
 # 기존 호출자가 공개 인터페이스에서 구현 클래스를 가져갈 수 있도록 다시 노출한다.
 from weeing_weeing.rag.retriever import HybridRetriever as HybridRetriever
@@ -40,6 +45,10 @@ class Indexer(Protocol):
         그대로 넣는다. 청크 ID는 이 doc_id·doc_version으로 만든다. 값을 바꾸면 변경 감지가
         깨져서 sync가 그 문서를 failed로 보고한다.
         """
+        ...
+
+    def index_report(self, report: MaintenanceReport) -> int:
+        """승인 보고서의 사람 작성 칸만 한 사례로 색인하고 이전 판을 교체한다."""
         ...
 
 

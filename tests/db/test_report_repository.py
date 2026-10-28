@@ -1,9 +1,12 @@
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+from threading import Event
+from time import sleep
 
 import pytest
 from sqlalchemy import event, select, update
 
+from weeing_weeing.api.report_index import process_pending_reports
 from weeing_weeing.contracts import (
     Incident,
     ReportDraft,
@@ -80,6 +83,68 @@ def approve(repo, doc):
     doc = step(repo, doc, "I1", "submit")
     doc = step(repo, doc, "L1", "review")
     return step(repo, doc, "C1", "approve")
+
+
+def test_index_job_result_and_failed_retry(setup_reports):
+    repo = setup_reports
+    first = approve(repo, repo.create_draft("I1", ready_draft()))
+    assert first.index_status == "pending"
+    assert [r.report_id for r in repo.pending_index_reports()] == [first.report_id]
+    repo.record_index_result(first.report_id, first.report_version, success=True)
+    repo.record_index_result(first.report_id, first.report_version, success=True)
+    repo.record_index_result(first.report_id, first.report_version, success=False)
+    assert repo.get_report("I1", first.report_id).index_status == "indexed"
+    assert repo.pending_index_reports(include_failed=True) == []
+
+    second = approve(repo, repo.create_draft("I1", ready_draft()))
+    repo.record_index_result(second.report_id, second.report_version, success=False)
+    assert repo.get_report("I1", second.report_id).index_status == "failed"
+    assert repo.pending_index_reports() == []
+    assert [r.report_id for r in repo.pending_index_reports(include_failed=True)] == [
+        second.report_id
+    ]
+    repo.record_index_result(second.report_id, second.report_version, success=True)
+    assert repo.get_report("I1", second.report_id).index_status == "indexed"
+
+
+def test_approval_waits_for_vector_write_of_same_report(setup_reports):
+    repo = setup_reports
+    first = approve(repo, repo.create_draft("I1", ready_draft()))
+    writes = []
+    writing = Event()
+    release = Event()
+    revising = Event()
+
+    class PausingIndexer:
+        def index_report(self, report):
+            writes.append(report.report_version)
+            if report.report_version == 1:
+                writing.set()
+                assert release.wait(3)
+            return 1
+
+    def revise_and_approve():
+        revising.set()
+        revised = repo.revise("I1", first.report_id, expected_revision=first.revision)
+        return approve(repo, revised)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        worker = pool.submit(process_pending_reports, repo, PausingIndexer)
+        assert writing.wait(3)
+        revision = pool.submit(revise_and_approve)
+        assert revising.wait(3)
+        sleep(0.1)
+        assert not revision.done()
+        release.set()
+        assert worker.result(timeout=5).indexed == 1
+        second = revision.result(timeout=5)
+    assert second.report_version == 2
+    assert process_pending_reports(repo, PausingIndexer).indexed == 1
+    assert writes == [1, 2]
+    latest = repo.get_report("I1", first.report_id)
+    assert latest.report_version == 2
+    assert latest.index_status == "indexed"
+    assert repo.pending_index_reports() == []
 
 
 def test_draft_round_trip_owner_and_revision(setup_reports):

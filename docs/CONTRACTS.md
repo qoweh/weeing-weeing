@@ -19,6 +19,10 @@
 
 원본 문서는 `data/manuals/`, `data/rulebase/`, `data/regulations/`, `data/templates/`에 있다.
 
+`ReportDocument.index_status`는 최종 승인 판의 검색 등록 상태다. `pending`(대기),
+`indexed`(벡터 저장 완료), `failed`(실패·수동 재시도 대상), 승인 전 `None`을 사용한다.
+영향 모듈: db의 승인 outbox, api의 응답·백그라운드 처리, hmi/web의 상태 표시.
+
 ## 핵심 규칙
 
 - **Telemetry**: 15컬럼 순서 고정(`COLUMNS`). 전류·온도 빈 값은 0이 아니라 `None`. `timestamp`는 시간대 필수

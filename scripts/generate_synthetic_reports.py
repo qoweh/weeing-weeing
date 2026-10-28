@@ -305,7 +305,7 @@ def make_reports() -> list[MaintenanceReport]:
                 if assessment == "일치"
                 else category
                 if assessment == "부분 일치"
-                else cases[0][1]
+                else cases[case_index % len(cases)][1]
             )
             analysis = AnalysisResult(
                 incident_id=incident_id,

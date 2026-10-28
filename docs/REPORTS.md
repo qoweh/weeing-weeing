@@ -97,19 +97,40 @@ PUT 초안에는 expected_revision을 추가한다. 결재·개정은 expected_r
 미인증 401, 권한 없음 403, 보고서/버전 없음 404, 이전 revision/상태 충돌 409,
 입력 미완성 422, DB 연결·잠금 실패 503을 반환한다.
 
-## #29 경계
+## 승인 보고서 검색 등록 (#29)
 
-최종 승인은 검색 등록 완료가 아니다. 화면은 **검색 자료 등록 대기**로 표시한다.
-실제 텍스트 구성·임베딩·벡터 저장·작업 성공/실패 처리는 #29에서 연결한다.
-db.interface.get_reports().pending_index_reports()가 보고서별 최신 승인 판의
-검증된 MaintenanceReport를 반환하는 소비 지점이다. 새 초안·반려 판은 제외한다.
-개정 중에도 이전 승인 판은 유지하고, 새 승인 판이 생기면 최신 승인 판만 반환한다.
-이 메서드 자체는 대기 작업 완료나 벡터 저장을 수행하지 않는다.
+최종 승인 시 같은 DB 트랜잭션에서 `report_index_job`에 `pending`을 기록한다. API는
+응답 후 백그라운드에서 이 대기 작업을 처리한다. 임베딩·벡터 저장이 끝나면
+`indexed`, 실패하면 `failed`로 기록한다. 승인 자체는 검색 등록 실패와 무관하게
+보존된다. 보고서를 다시 열거나 **목록 새로고침** 뒤 열어 상태를 확인한다.
+
+기존 대기 작업은 서버 재시작 뒤에도 DB에 남는다. API가 꺼져 있을 때 아래 명령으로
+처리할 수 있다. 실패 작업은 원인(모델·벡터 DB 설정 등)을 해결한 뒤 명시적으로 재시도한다.
+
+```bash
+make index-reports
+make index-reports ARGS=--retry-failed
+```
+
+로컬 Qdrant 폴더 모드는 한 프로세스만 열 수 있으므로 CLI로 처리할 때 API를 먼저 끈다.
+Qdrant 서버 모드라면 API와 CLI가 같은 URL을 사용할 수 있다.
+
+색인에는 **APPROVED 판**의 사건 코드와 사람이 작성한 원인 분류·확정 원인·조치·교체
+부품·AI 의견 평가만 사용한다. AI가 만든 `ai_analysis`, 결재 이력, 비고·사번은
+본문과 메타데이터에서 제외한다. 보고서 한 건을 청크 하나로 저장하며,
+`report_id`를 문서 ID·인용 키로 사용한다. `SYNTHETIC`은 인용에 **가상 사례**라고
+표시한다. 새 개정판이 승인되면 같은 문서 ID의 이전 판 벡터를 교체한다.
+`pending_index_reports()`는 보고서별 최신 승인 판만 반환하고 초안·반려 판은 제외한다.
+
+`data/history/synthetic_reports_v1.jsonl`의 24건은 실제 사용자가 결재한 DB 기록이
+아니며 자동으로 운영 DB나 벡터 DB에 들어가지 않는다. 테스트에서 이 계약을 읽어
+메모리·임시 Qdrant·Chroma 저장소에 색인하고 검색한다. 운영 흐름은 DB의 실제 승인
+보고서와 outbox를 사용한다.
 
 ## 검사
 
 ```bash
-uv run --no-sync pytest tests/contracts/test_report_workflow.py tests/db/test_report_repository.py tests/api/test_reports.py
+uv run --no-sync pytest tests/contracts/test_report_workflow.py tests/db/test_report_repository.py tests/api/test_reports.py tests/rag/test_report_indexer.py tests/data/test_synthetic_reports.py
 make check
 cd hmi/web
 npm run lint

@@ -257,7 +257,7 @@ class ApprovalRow(Base):
 
 
 class ReportIndexJobRow(Base):
-    """#29용 승인 outbox. #62는 대기 기록만 만들고 벡터 색인을 실행하지 않는다."""
+    """승인 outbox. pending → indexed 또는 failed, 실패는 명시적 재시도."""
 
     __tablename__ = "report_index_job"
 

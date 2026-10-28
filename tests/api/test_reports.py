@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from weeing_weeing.api.app import app
+from weeing_weeing.api.report_index import process_pending_reports
 from weeing_weeing.contracts import Incident, Role, UserAccount
 from weeing_weeing.db import interface as db
 
@@ -12,9 +13,11 @@ PASSWORD = "report-test-password"
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
+    from weeing_weeing.api import reports as report_api
     from weeing_weeing.db import users
 
     monkeypatch.setattr(users, "SCRYPT_N", 2**10)
+    monkeypatch.setattr(report_api, "run_pending_reports", lambda: None)
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'reports.db'}")
     for employee, role in (
         ("I1", Role.INSPECTOR),
@@ -164,3 +167,49 @@ def test_incomplete_submission_and_unknown_incident_are_422(client):
     )
     assert response.status_code == 422
     assert client.get("/reports/missing", headers=auth(client)).status_code == 404
+
+
+def test_final_approval_background_indexes_and_failure_can_be_retried(
+    client, monkeypatch
+):
+    from weeing_weeing.api import reports as report_api
+
+    indexed = []
+
+    class FakeIndexer:
+        def index_report(self, report):
+            indexed.append(report.report_id)
+            return 1
+
+    def index_now():
+        return process_pending_reports(db.get_reports(), FakeIndexer)
+
+    monkeypatch.setattr(report_api, "run_pending_reports", index_now)
+    doc = create(client)
+    for verb, actor in (("submit", "I1"), ("review", "L1"), ("approve", "C1")):
+        response = action(client, doc, verb, actor)
+        assert response.status_code == 200, response.text
+        doc = response.json()
+    assert indexed == [doc["report_id"]]
+    refreshed = client.get(f"/reports/{doc['report_id']}", headers=auth(client)).json()
+    assert refreshed["index_status"] == "indexed"
+
+    class BrokenIndexer:
+        def index_report(self, report):
+            raise RuntimeError("벡터 저장 실패")
+
+    monkeypatch.setattr(
+        report_api,
+        "run_pending_reports",
+        lambda: process_pending_reports(db.get_reports(), BrokenIndexer),
+    )
+    other = create(client)
+    for verb, actor in (("submit", "I1"), ("review", "L1"), ("approve", "C1")):
+        response = action(client, other, verb, actor)
+        assert response.status_code == 200, response.text
+        other = response.json()
+    failed = client.get(f"/reports/{other['report_id']}", headers=auth(client)).json()
+    assert failed["index_status"] == "failed"
+    result = process_pending_reports(db.get_reports(), FakeIndexer, retry_failed=True)
+    assert result.indexed == 1 and result.failed == 0
+    assert indexed == [doc["report_id"], other["report_id"]]

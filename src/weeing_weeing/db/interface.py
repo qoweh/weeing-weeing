@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import lru_cache
 from threading import Lock
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, ContextManager, Protocol
 
 from weeing_weeing.contracts import (
     AnalysisResult,
@@ -23,6 +23,7 @@ from weeing_weeing.db.incidents import UnknownIncidentError
 from weeing_weeing.db.reports import (
     ReportConflictError,
     ReportForbiddenError,
+    ReportIndexWork,
     ReportNotFoundError,
 )
 from weeing_weeing.db.session import DatabaseUnavailableError
@@ -49,6 +50,7 @@ __all__ = [
     "UnknownUserError",
     "UserRepository",
     "ReportRepository",
+    "ReportIndexWork",
     "ReportConflictError",
     "ReportForbiddenError",
     "ReportNotFoundError",
@@ -247,8 +249,26 @@ class ReportRepository(Protocol):
         expected_revision: int,
     ) -> ReportDocument: ...
 
-    def pending_index_reports(self, *, limit: int = 100) -> list[MaintenanceReport]:
-        """#29가 소비할 최신 승인 판. 이 메서드는 벡터 색인을 실행하지 않는다."""
+    def pending_index_reports(
+        self,
+        *,
+        limit: int = 100,
+        include_failed: bool = False,
+        exclude_report_ids: frozenset[str] = frozenset(),
+    ) -> list[MaintenanceReport]:
+        """색인 대기 중인 최신 승인 판. exclude_report_ids는 한 실행 내 중복을 막는다."""
+        ...
+
+    def locked_index_job(
+        self, report_id: str, *, include_failed: bool = False
+    ) -> ContextManager[ReportIndexWork | None]:
+        """승인 전환과 같은 보고서 행을 잠근 채 최신 판을 읽고 벡터 결과를 기록한다."""
+        ...
+
+    def record_index_result(
+        self, report_id: str, version: int, *, success: bool
+    ) -> None:
+        """색인기 준비 실패 같은 벡터 쓰기 전 오류를 기록한다."""
         ...
 
 

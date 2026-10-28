@@ -2,10 +2,11 @@
 
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 
 from weeing_weeing.api.auth import CurrentUser
+from weeing_weeing.api.report_index import run_pending_reports
 from weeing_weeing.contracts import Incident, ReportDocument, ReportDraft, ReportSummary
 from weeing_weeing.db import interface as db
 
@@ -119,8 +120,9 @@ def transition(
     body: ReportAction,
     user: CurrentUser,
     repo: Reports,
+    background_tasks: BackgroundTasks,
 ) -> ReportDocument:
-    return _call(
+    result = _call(
         repo.transition,
         user.employee_no,
         report_id,
@@ -128,3 +130,6 @@ def transition(
         expected_revision=body.expected_revision,
         comment=body.comment,
     )
+    if action == "approve":
+        background_tasks.add_task(run_pending_reports)
+    return result

@@ -20,10 +20,12 @@ from typing import Any
 
 from langchain_core.documents import Document
 
+from weeing_weeing.contracts import MaintenanceReport
 from weeing_weeing.rag.chunker import ChunkerConfig, chunk_documents
 from weeing_weeing.rag.interface import InvalidDocumentError, ProgressCallback
 from weeing_weeing.rag.parsers import parser_for
 from weeing_weeing.rag.pdf_parser import save_markdown
+from weeing_weeing.rag.report import report_chunk
 from weeing_weeing.rag.sparse import extract_codes
 from weeing_weeing.rag.store import Chunk, VectorStore, make_chunk_id
 
@@ -83,6 +85,12 @@ class DocumentIndexer:
             return self._index(
                 Path(path), metadata, on_progress or (lambda stage: None)
             )
+
+    def index_report(self, report: MaintenanceReport) -> int:
+        """전체 사례를 청크 하나로 저장한다. doc_id가 같으면 이전 승인 판을 교체한다."""
+        chunk = report_chunk(report)
+        with _INDEX_LOCK:
+            return self.store.replace_document(report.report_id, [chunk])
 
     def _index(self, path: Path, metadata: Mapping[str, Any], report) -> int:
         doc_id, version = metadata["doc_id"], metadata["doc_version"]

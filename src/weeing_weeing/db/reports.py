@@ -1,9 +1,12 @@
 """보고서 저장·결재(#62). 권한·상태·revision 검사와 기록은 같은 트랜잭션에서 처리한다."""
 
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from copy import deepcopy
+from dataclasses import dataclass
 from uuid import uuid4
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, text, update
 
 from weeing_weeing.contracts import (
     AnalysisResult,
@@ -46,6 +49,14 @@ class ReportForbiddenError(PermissionError):
 
 class ReportConflictError(ValueError):
     """이전 revision 또는 잘못된 상태 전환. 자동 재전송하지 않는다."""
+
+
+@dataclass(frozen=True)
+class ReportIndexWork:
+    """보고서 행 잠금을 유지하는 동안 벡터 저장 결과를 같은 DB 거래에 기록한다."""
+
+    report: MaintenanceReport
+    finish: Callable[[bool], None]
 
 
 def _actor(session, employee_no: str, role: Role | None = None) -> UserRow:
@@ -508,8 +519,14 @@ class SqlReports(Repository):
             session.flush()
             return _view(session, row, version)
 
-    def pending_index_reports(self, *, limit: int = 100) -> list[MaintenanceReport]:
-        """#29의 소비 지점. 보고서별 가장 최근 승인 판만 반환한다(이전 승인 판은 보존)."""
+    def pending_index_reports(
+        self,
+        *,
+        limit: int = 100,
+        include_failed: bool = False,
+        exclude_report_ids: frozenset[str] = frozenset(),
+    ) -> list[MaintenanceReport]:
+        """보고서별 최신 승인 판의 대기 작업만 반환한다(실패 판은 명시적 재시도)."""
         latest = (
             select(
                 ReportVersionRow.report_id,
@@ -532,11 +549,83 @@ class SqlReports(Repository):
                     (ReportIndexJobRow.report_id == ReportVersionRow.report_id)
                     & (ReportIndexJobRow.version_no == ReportVersionRow.version_no),
                 )
-                .where(ReportIndexJobRow.status == "pending")
+                .where(
+                    ReportIndexJobRow.status.in_(
+                        ["pending", "failed"] if include_failed else ["pending"]
+                    )
+                )
                 .order_by(ReportIndexJobRow.created_at, ReportIndexJobRow.report_id)
                 .limit(min(max(limit, 1), 200))
             )
+            if exclude_report_ids:
+                query = query.where(
+                    ReportIndexJobRow.report_id.not_in(exclude_report_ids)
+                )
             return [
                 MaintenanceReport.model_validate(v.data["report"])
                 for v in session.scalars(query)
             ]
+
+    @contextmanager
+    def locked_index_job(
+        self, report_id: str, *, include_failed: bool = False
+    ) -> Iterator[ReportIndexWork | None]:
+        """보고서별로 승인·벡터 쓰기를 직렬화한다(외부 프로세스도 같은 DB 잠금)."""
+        with self._transaction() as session:
+            if self._engine.dialect.name == "sqlite":
+                session.execute(text("BEGIN IMMEDIATE"))
+            row = session.scalar(
+                select(ReportRow)
+                .where(ReportRow.report_id == report_id)
+                .with_for_update()
+            )
+            if row is None:
+                yield None
+                return
+            version = session.scalar(
+                select(ReportVersionRow)
+                .where(
+                    ReportVersionRow.report_id == report_id,
+                    ReportVersionRow.report_status == ReportStatus.APPROVED,
+                )
+                .order_by(ReportVersionRow.version_no.desc())
+                .limit(1)
+            )
+            if version is None:
+                yield None
+                return
+            job = session.get(ReportIndexJobRow, (report_id, version.version_no))
+            allowed = ("pending", "failed") if include_failed else ("pending",)
+            if job is None or job.status not in allowed:
+                yield None
+                return
+
+            def finish(success: bool) -> None:
+                job.status = "indexed" if success else "failed"
+                session.flush()
+
+            yield ReportIndexWork(
+                report=MaintenanceReport.model_validate(version.data["report"]),
+                finish=finish,
+            )
+
+    def record_index_result(
+        self, report_id: str, version: int, *, success: bool
+    ) -> None:
+        """벡터 저장 뒤 결과를 기록한다. 재실행 성공은 멱등적으로 처리한다."""
+        with self._transaction() as session:
+            job = session.scalar(
+                select(ReportIndexJobRow)
+                .where(
+                    ReportIndexJobRow.report_id == report_id,
+                    ReportIndexJobRow.version_no == version,
+                )
+                .with_for_update()
+            )
+            if job is None:
+                raise ReportNotFoundError("검색 등록 작업을 찾을 수 없습니다.")
+            if job.status == "indexed":
+                return
+            if job.status not in ("pending", "failed"):
+                raise ReportConflictError("이미 완료된 검색 등록 작업입니다.")
+            job.status = "indexed" if success else "failed"

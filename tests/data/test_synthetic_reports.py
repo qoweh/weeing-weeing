@@ -42,6 +42,15 @@ def test_synthetic_history_has_varied_valid_approved_cases():
         assert report.ai_analysis.model == "synthetic/example"
         assert report.maintenance is not None
         assert report.maintenance.confirmed_cause
+        ai_guess = report.ai_analysis.suspected_causes[0].cause
+        assessment = report.maintenance.ai_assessment
+        if assessment == "일치":
+            assert ai_guess == report.maintenance.confirmed_cause
+        elif assessment == "부분 일치":
+            assert ai_guess == report.maintenance.cause_category
+        else:
+            assert assessment == "불일치"
+            assert ai_guess != report.maintenance.confirmed_cause
         assert report.maintenance.actions_taken
         assert report.maintenance.test_run.result == "정상"
         assert [step.decision for step in report.approval] == ["제출", "승인", "승인"]

@@ -86,7 +86,7 @@ class ReportDocument(BaseModel):
     form_data: ReportFormData
     approval: list[ApprovalStep]
     report: MaintenanceReport | None
-    index_status: Literal["pending"] | None = None
+    index_status: Literal["pending", "indexed", "failed"] | None = None
     created_at: AwareDatetime
     updated_at: AwareDatetime
 

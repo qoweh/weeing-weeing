@@ -160,7 +160,7 @@ export default function ReportWorkspace() {
       selectDocument(changed);
       setReload((value) => value + 1);
       setMessage(action === "approve"
-        ? "최종 승인됐습니다. 검색 자료 등록은 대기 중입니다."
+        ? "최종 승인됐습니다. 검색 자료 등록을 시작합니다. 잠시 뒤 목록을 새로고침해 상태를 확인하세요."
         : action === "revise" ? "새 개정판을 만들었습니다. 이전 버전과 결재 이력은 보존됩니다."
           : "결재 결과를 저장했습니다.");
     });
@@ -241,6 +241,8 @@ export default function ReportWorkspace() {
           </div>
           {document.approval.length > 0 && <ol>{document.approval.map((item) => <li key={item.step}>{item.role} · {item.user} · {item.decision} · {new Date(item.at).toLocaleString("ko-KR")} {item.comment && `— ${item.comment}`}</li>)}</ol>}
           {document.index_status === "pending" && <p>최종 승인된 보고서입니다. 검색 자료 등록 대기 중입니다.</p>}
+          {document.index_status === "indexed" && <p>검색 자료 등록이 완료됐습니다.</p>}
+          {document.index_status === "failed" && <p>검색 자료 등록에 실패했습니다. 관리자에게 재처리를 요청하세요.</p>}
         </>}
       </section>
       <ReportForm
