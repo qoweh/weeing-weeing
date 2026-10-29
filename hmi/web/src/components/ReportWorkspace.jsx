@@ -1,22 +1,18 @@
 import { useEffect, useState } from "react";
 
 import {
-  actOnReport, currentUser, getReport, listIncidents, listReports, loginUser,
-  logoutUser, saveReport, setAccessToken,
+  actOnReport, getReport, listIncidents, listReports, saveReport,
 } from "../api/client";
 import ReportForm from "./ReportForm";
 import { draftValues, formValues } from "./reportValues";
 import "./ReportWorkspace.css";
 
-const sessionKey = "weeing-report-session";
 const statuses = { DRAFT: "작성 중", SUBMITTED: "제출됨", REVIEWED: "검토 승인", APPROVED: "최종 승인", REJECTED: "반려" };
 const inspector = "현장 점검자";
 const lead = "보전 팀장";
 const control = "관제 담당자";
 
-export default function ReportWorkspace() {
-  const [user, setUser] = useState(null);
-  const [checking, setChecking] = useState(() => Boolean(sessionStorage.getItem(sessionKey)));
+export default function ReportWorkspace({ user, onSessionExpired, onBusyChange }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -29,37 +25,6 @@ export default function ReportWorkspace() {
   const [comment, setComment] = useState("");
   const [reload, setReload] = useState(0);
   const [newReport, setNewReport] = useState(0);
-
-  function forgetSession() {
-    setAccessToken("");
-    sessionStorage.removeItem(sessionKey);
-    setUser(null);
-    setDocument(null);
-    setMine([]);
-    setQueue([]);
-    setIncidents([]);
-    setComment("");
-    setIncidentId("");
-    setOrigin("LIVE");
-  }
-
-  useEffect(() => {
-    const token = sessionStorage.getItem(sessionKey);
-    if (!token) return;
-    let cancelled = false;
-    setAccessToken(token);
-    currentUser().then((account) => {
-      if (!cancelled) setUser(account);
-    }).catch((failure) => {
-      if (cancelled) return;
-      if (failure.status === 401) {
-        setAccessToken("");
-        sessionStorage.removeItem(sessionKey);
-      }
-      setError(failure.message);
-    }).finally(() => { if (!cancelled) setChecking(false); });
-    return () => { cancelled = true; };
-  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -74,29 +39,26 @@ export default function ReportWorkspace() {
       }).catch((failure) => {
         if (cancelled) return;
         setError(failure.message);
-        if (failure.status === 401) {
-          setAccessToken("");
-          sessionStorage.removeItem(sessionKey);
-          setUser(null);
-          setDocument(null);
-        }
+        if (failure.status === 401) onSessionExpired();
       });
     return () => { cancelled = true; };
-  }, [user, reload]);
+  }, [user, reload, onSessionExpired]);
 
   async function run(operation) {
     if (busy) return null;
     setBusy(true);
+    onBusyChange(true);
     setError("");
     setMessage("");
     try {
       return await operation();
     } catch (failure) {
-      if (failure.status === 401) forgetSession();
+      if (failure.status === 401) onSessionExpired();
       setError(failure.message);
       return null;
     } finally {
       setBusy(false);
+      onBusyChange(false);
     }
   }
 
@@ -105,19 +67,6 @@ export default function ReportWorkspace() {
     setIncidentId(value?.incident_id ?? "");
     setOrigin(value?.data_origin ?? "LIVE");
     setComment("");
-  }
-
-  async function signIn(event) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const data = new FormData(form);
-    await run(async () => {
-      const session = await loginUser(String(data.get("employee_no")), String(data.get("password")));
-      setAccessToken(session.access_token);
-      sessionStorage.setItem(sessionKey, session.access_token);
-      setUser(session.user);
-      form.reset();
-    });
   }
 
   async function persist(values) {
@@ -166,21 +115,6 @@ export default function ReportWorkspace() {
     });
   }
 
-  if (checking) return <p role="status">로그인 상태를 확인하고 있습니다.</p>;
-
-  if (!user) return (
-    <section className="panel report-login">
-      <h2>보고서 로그인</h2>
-      <p>등록된 사번으로 로그인하면 내 보고서와 직책에 맞는 결재 대기 목록을 볼 수 있습니다.</p>
-      <form onSubmit={signIn}>
-        <label>사번<input name="employee_no" autoComplete="username" required /></label>
-        <label>비밀번호<input name="password" type="password" autoComplete="current-password" required /></label>
-        <button type="submit" disabled={busy}>로그인</button>
-      </form>
-      {error && <p className="error" role="alert">{error}</p>}
-    </section>
-  );
-
   const own = !document || document.author_id === user.employee_no;
   const current = !document || document.current_version === document.report_version;
   const editable = own && current && user.role === inspector && (!document || document.report_status === "DRAFT");
@@ -208,7 +142,6 @@ export default function ReportWorkspace() {
   return <section className="report-workspace">
     <header className="report-session">
       <p>{user.name} · {user.employee_no} · {user.role}</p>
-      <button type="button" disabled={busy} onClick={() => void run(async () => { await logoutUser(); forgetSession(); })}>로그아웃</button>
       <button type="button" disabled={busy} onClick={() => setReload((value) => value + 1)}>목록 새로고침</button>
       {user.role === inspector && <button type="button" disabled={busy} onClick={() => { selectDocument(null); setNewReport((value) => value + 1); }}>새 보고서</button>}
     </header>
