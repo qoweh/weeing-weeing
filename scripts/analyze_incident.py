@@ -4,7 +4,7 @@ Claude가 근거 검색 도구를 골라 부르고 원인 후보를 제출한다
 도구 호출 기록이다. DB에는 저장하지 않는다(탐지 결과 저장 연결은 #61).
 
 입력: --incident Incident JSON 파일(기본 data/eval/incident_p03_demo.json),
-      .env(ANTHROPIC_API_KEY·LLM_MODEL·LLM_EFFORT·AGENT_MAX_TURNS), 색인된 벡터 DB(make index)
+      .env(ANTHROPIC_API_KEY·LLM_MODEL·LLM_EFFORT·AGENT_MAX_TURNS), 웹에서 문서를 등록한 벡터 DB
       LANGFUSE_* 설정이 있으면 사용량이 Langfuse에 남는다(태그 analyze)
 --sensor-window: DB 센서 구간 조회·수치 검증 도구도 제공한다(#105, Claude 유료 호출).
 출력: 터미널에 결과 JSON·도구 호출·토큰 수

@@ -1,7 +1,7 @@
 """DATABASE_URL → SQLAlchemy 엔진. 연결 타임아웃을 건다.
 
 - postgresql://… 는 psycopg 3 드라이버로 연다(SQLAlchemy 기본값은 psycopg2).
-- sqlite:///상대경로 는 레포 루트 기준으로 푼다(make index·make api 어디서 실행해도 같은 파일).
+- sqlite:///상대경로 는 레포 루트 기준으로 푼다(API를 어디서 실행해도 같은 파일).
 """
 
 from pathlib import Path
@@ -38,7 +38,7 @@ def make_engine(url: str, *, timeout_s: float) -> Engine:
         event.listen(engine, "connect", _sqlite_pragmas)
         return engine
     # 연결·잠금·커넥션 풀 대기를 모두 timeout_s로 묶는다. 넘으면 OperationalError
-    # → DatabaseUnavailableError(API 503, make index 종료 코드 2).
+    # → DatabaseUnavailableError(API 503).
     lock_ms = max(1, int(timeout_s * 1000))
     return create_engine(
         url,

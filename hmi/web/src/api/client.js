@@ -159,3 +159,19 @@ export function actOnReport(id, action, revision, comment = "") {
     method: "POST", body: { expected_revision: revision, comment },
   });
 }
+
+export function listDocuments(query = "") {
+  const params = new URLSearchParams({ q: query });
+  return request(query ? `/documents?${params}` : "/documents");
+}
+
+export function deleteDocument(document) {
+  return request(`/documents/${encodeURIComponent(document.doc_id)}`, {
+    method: "DELETE",
+    body: {
+      doc_version: document.doc_version,
+      source_sha256: document.source_sha256,
+      upload_id: document.upload_id,
+    },
+  });
+}

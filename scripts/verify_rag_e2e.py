@@ -1,6 +1,6 @@
-"""실제 문서 E2E 검증(#28). 카탈로그 문서를 백엔드마다 새 저장소에 색인하고 비교한다.
+"""실제 문서 E2E 검증(#28). 평가 자료 목록 문서를 백엔드마다 새 저장소에 색인하고 비교한다.
 
-입력: data/catalog.toml과 그 문서들, data/eval/rag_queries_v1.toml(샘플 질의), .env(EMBEDDING_MODEL 등)
+입력: data/eval/rag_documents_v1.toml과 그 문서들, data/eval/rag_queries_v1.toml(샘플 질의), .env(EMBEDDING_MODEL 등)
 출력: 터미널 요약, outputs/rag_e2e/report-<시각>.md(검색 비교표·색인·갱신·질의별 상위 결과)
 종료 코드: 0 모든 검사 통과 / 1 색인·멱등·갱신 검사 실패 / 2 설정·연결·실행 오류
 
@@ -28,13 +28,13 @@ from pathlib import Path
 
 from weeing_weeing.config import get_settings
 from weeing_weeing.rag import factory
-from weeing_weeing.rag.catalog import load_catalog
 from weeing_weeing.rag.e2e import (
     EvaluationEmbedder,
     format_markdown,
     load_queries,
     run_backend,
 )
+from weeing_weeing.rag.eval_corpus import load_corpus
 
 BACKENDS = ("qdrant", "chroma", "qdrant-server")
 
@@ -89,7 +89,9 @@ def _temporary_store(backend: str) -> Iterator[Path]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--catalog", type=Path, default=Path("data/catalog.toml"))
+    parser.add_argument(
+        "--documents", type=Path, default=Path("data/eval/rag_documents_v1.toml")
+    )
     parser.add_argument(
         "--queries", type=Path, default=Path("data/eval/rag_queries_v1.toml")
     )
@@ -111,7 +113,7 @@ def main(argv: list[str] | None = None) -> int:
         settings = get_settings()
         if "qdrant-server" in backends and not settings.qdrant_url:
             raise ValueError("qdrant-server는 QDRANT_URL이 필요하다(make qdrant-up)")
-        catalog = load_catalog(args.catalog)
+        corpus = load_corpus(args.documents)
         queries = load_queries(args.queries)
         make_indexer = factory.indexer_class()
         reranker = factory.build_reranker(settings)
@@ -142,7 +144,7 @@ def main(argv: list[str] | None = None) -> int:
                     run_backend(
                         backend,
                         store,
-                        catalog,
+                        corpus,
                         make_indexer,
                         queries,
                         k=args.k,

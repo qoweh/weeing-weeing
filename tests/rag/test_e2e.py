@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 from fakes import FakeEmbedder, TextIndexer
-from test_catalog_sync import Workspace
+from test_eval_corpus import Workspace
 
 from weeing_weeing.rag import factory
 from weeing_weeing.rag.e2e import (
@@ -44,7 +44,7 @@ def ws(tmp_path):
 
 
 def run(store, ws, indexer=TextIndexer, k=2):
-    return run_backend("test", store, ws.catalog(), indexer, QUERIES, k=k)
+    return run_backend("test", store, ws.corpus(), indexer, QUERIES, k=k)
 
 
 def test_embedding_cache_separates_document_and_query_and_protects_vectors():
@@ -89,7 +89,7 @@ def test_cached_evaluation_preserves_rankings_and_update_checks(ws, store_factor
     before = run_backend(
         "test",
         store,
-        ws.catalog(),
+        ws.corpus(),
         TextIndexer,
         queries,
         k=1,
@@ -101,7 +101,7 @@ def test_cached_evaluation_preserves_rankings_and_update_checks(ws, store_factor
     after = run_backend(
         "test",
         store,
-        ws.catalog(),
+        ws.corpus(),
         TextIndexer,
         queries,
         k=1,
@@ -127,7 +127,7 @@ def test_progress_is_emitted_before_search_and_after_completion(ws, store):
     result = run_backend(
         "test",
         store,
-        ws.catalog(),
+        ws.corpus(),
         TextIndexer,
         [QUERIES[0]],
         retriever=SimpleNamespace(search=search),
@@ -272,7 +272,7 @@ def test_missing_metadata_is_counted(ws, store):
 
 
 def test_failed_indexing_marks_run_not_ok(ws, store):
-    class Forgetful(TextIndexer):  # 카탈로그 metadata를 청크에 안 넣는다
+    class Forgetful(TextIndexer):  # 평가 자료 목록 metadata를 청크에 안 넣는다
         def index_file(self, path, metadata):
             return super().index_file(
                 path, {k: metadata[k] for k in ("doc_id", "doc_version")}
@@ -299,7 +299,7 @@ def test_no_evidence_rejection_is_separate_from_ranking(ws, store, rejected):
     result = run_backend(
         "test",
         store,
-        ws.catalog(),
+        ws.corpus(),
         TextIndexer,
         [QUERIES[0], query],
         k=2,
@@ -333,7 +333,7 @@ def test_report_shows_measured_relevance_and_negative_outcomes(ws, store):
     result = run_backend(
         "test",
         store,
-        ws.catalog(),
+        ws.corpus(),
         TextIndexer,
         [QUERIES[0], outside],
         k=1,
@@ -354,7 +354,7 @@ def test_only_negative_queries_have_no_ranking_denominator(ws, store):
     result = run_backend(
         "test",
         store,
-        ws.catalog(),
+        ws.corpus(),
         TextIndexer,
         [outside],
         retriever=SimpleNamespace(search=lambda *args, **kwargs: []),
@@ -382,7 +382,7 @@ def test_e2e_evaluates_public_retriever_and_writes_reranked_results(ws, store):
     query = EvalQuery(id="restart", query="승인", doc_id="SOP", any_of=("재가동",))
     retriever = HybridRetriever(store, reranker=KeywordReranker(), candidate_k=10)
     result = run_backend(
-        "test", store, ws.catalog(), TextIndexer, [query], k=1, retriever=retriever
+        "test", store, ws.corpus(), TextIndexer, [query], k=1, retriever=retriever
     )
     reranked = next(r for r in result.results if r.mode == "reranked")
     assert reranked.rank == 1
@@ -408,7 +408,7 @@ def _load_script():
 @pytest.fixture
 def cli(ws, tmp_path, monkeypatch):
     script = _load_script()
-    ws.catalog()  # catalog.toml 쓰기
+    ws.corpus()  # corpus.toml 쓰기
     queries = tmp_path / "queries.toml"
     queries.write_text(
         '[[queries]]\nid = "q1"\nquery = "입구 장기 점유"\ndoc_id = "MAN"\n'
@@ -425,8 +425,8 @@ def cli(ws, tmp_path, monkeypatch):
     def run_cli(*args):
         return script.main(
             [
-                "--catalog",
-                str(tmp_path / "catalog.toml"),
+                "--documents",
+                str(tmp_path / "corpus.toml"),
                 "--queries",
                 str(queries),
                 "--out",
@@ -539,6 +539,6 @@ def test_query_needs_exactly_one_of_text_or_codes(tmp_path, body):
 
 def test_code_query_is_searched_with_generated_text(ws, store):
     coded = EvalQuery(id="c1", codes=("BTT2-P03",), doc_id="MAN", any_of=("점유",))
-    result = run_backend("test", store, ws.catalog(), TextIndexer, [coded], k=2)
+    result = run_backend("test", store, ws.corpus(), TextIndexer, [coded], k=2)
     by = {r.mode: r for r in result.results}
     assert by["hybrid"].rank == 1  # "입구 장기 점유"가 MAN 본문과 맞는다

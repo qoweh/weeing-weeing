@@ -51,3 +51,9 @@ def test_record_is_immutable():
     record = DocumentRecord(**BASE)
     with pytest.raises(ValidationError):
         record.status = "failed"
+
+
+@pytest.mark.parametrize("status", ["deleting", "delete_failed"])
+def test_document_deletion_states_are_serializable(status):
+    record = DocumentRecord(**BASE, status=status)
+    assert DocumentRecord.model_validate_json(record.model_dump_json()).status == status

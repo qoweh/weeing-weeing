@@ -21,7 +21,6 @@ class Settings:
     embedding_model: str
     vector_store: str  # qdrant | chroma
     rag_collection: str
-    rag_catalog: Path  # git이 관리하는 기준 문서 목록
     upload_dir: Path  # 업로드 문서(git 밖)
     qdrant_path: Path
     qdrant_url: str  # 비어 있으면 로컬 모드(qdrant_path)
@@ -57,7 +56,6 @@ def get_settings() -> Settings:
         embedding_model=env("EMBEDDING_MODEL", "BAAI/bge-m3"),
         vector_store=env("VECTOR_STORE", "qdrant"),
         rag_collection=env("RAG_COLLECTION", "knowledge"),
-        rag_catalog=Path(env("RAG_CATALOG", "data/catalog.toml")),
         upload_dir=Path(env("UPLOAD_DIR", "storage/uploads")),
         qdrant_path=Path(env("QDRANT_PATH", "storage/qdrant")),
         qdrant_url=env("QDRANT_URL", ""),

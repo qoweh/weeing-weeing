@@ -2,7 +2,7 @@
 
 책임: 매뉴얼·룰 정의서·SOP·승인된 보고서를 파싱·청킹·임베딩해 저장하고(Indexer),
       Incident 정보로 근거를 찾아 출처와 함께 돌려준다(Retriever).
-입력: data/catalog.toml에 적힌 문서, 승인된 MaintenanceReport의 사람 작성 칸
+입력: 웹에서 업로드한 PDF, 승인된 MaintenanceReport의 사람 작성 칸
 출력: list[Evidence]
 의존 가능: contracts
 담당 메모: 전처리·인덱싱 승민 / Vector DB 민우 / 검색·Reranking 동인 (1차 분담)
@@ -15,9 +15,8 @@
 - sparse.py: Kiwi 형태소 BM25 인코더와 메모리 BM25. hybrid_query의 키워드 쪽 (#25)
 - retriever.py: HybridRetriever. 후보 검색·선택적 리랭킹·상위 k개 Evidence 변환
 - reranker.py: 로컬 CrossEncoder 리랭킹. 청크·출처·RRF 점수는 보존하고 순서만 변경
-- catalog.py, sync.py: 문서 목록 검증과 저장소 동기화(변경 감지·교체·삭제) (#26)
-- factory.py: 설정으로 저장소를 한 번 조립(build_store), make index 진입점 (#27)
-- parsers.py, indexer.py: 형식별 파서 등록과 범용 Indexer. 업로드 API·make index 공용 (#6·#7)
-- registry.py: DB 문서 레지스트리(DocumentRecord) ↔ 색인 목록, catalog.toml → seed (#60)
+- eval_corpus.py, eval_sync.py: 검색 평가 전용 자료 목록·임시 저장소 구성
+- factory.py: 설정으로 저장소를 한 번 조립(build_store) (#27)
+- parsers.py, indexer.py: 형식별 파서 등록과 범용 Indexer. 웹 업로드·검색 평가 공용 (#6·#7)
 - e2e.py: 실제 문서 E2E 검증(색인·멱등·갱신·검색 비교), make rag-e2e (#28)
 """

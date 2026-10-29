@@ -33,6 +33,8 @@ export default function App() {
     setPage('dashboard')
   }, [])
 
+  useEffect(() => { window.scrollTo(0, 0) }, [page])
+
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     try { localStorage.setItem('weeing-theme', theme) } catch { /* Theme still works for this session. */ }
@@ -86,7 +88,7 @@ export default function App() {
     {error && <p className="workspace-error" role="alert">{error}</p>}
     <div hidden={page !== 'dashboard'}><DashboardPage /></div>
     <div hidden={page === 'dashboard'}>
-      <RagWorkspace tab={page} user={user} onSessionExpired={forgetSession} onBusyChange={setBusy} workspaceBusy={busy} />
+      <RagWorkspace tab={page} user={user} onSessionExpired={forgetSession} onBusyChange={setBusy} workspaceBusy={busy} onNavigate={setPage} />
     </div>
   </AppShell>
 }

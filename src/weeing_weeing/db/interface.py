@@ -19,7 +19,10 @@ from weeing_weeing.contracts import (
     UserAccount,
 )
 from weeing_weeing.db.analysis_jobs import AnalysisConflictError, SqlAnalysisJobs
-from weeing_weeing.db.documents import SeedResult
+from weeing_weeing.db.documents import (
+    DocumentConflictError,
+    DocumentNotFoundError,
+)
 from weeing_weeing.db.incidents import UnknownIncidentError
 from weeing_weeing.db.reports import (
     ReportConflictError,
@@ -45,11 +48,12 @@ __all__ = [
     "open_analysis_jobs",
     "DatabaseUnavailableError",
     "DocumentRepository",
+    "DocumentConflictError",
+    "DocumentNotFoundError",
     "MIN_PASSWORD_LENGTH",
     "DuplicateUserError",
     "IncidentRepository",
     "LastAdminError",
-    "SeedResult",
     "TelemetryRepository",
     "UnknownIncidentError",
     "UnknownUserError",
@@ -75,12 +79,29 @@ __all__ = [
 class DocumentRepository(Protocol):
     """문서 레지스트리(document 테이블). 연결 실패는 DatabaseUnavailableError."""
 
-    def listed(self) -> list[DocumentRecord]:
-        """색인 목록: 카탈로그 문서(seed) + 완료된 업로드. doc_id마다 하나."""
+    def lock_document(
+        self, doc_id: str, *, source_sha256: str | None = None
+    ) -> ContextManager[None]:
+        """같은 문서의 등록·삭제·재색인을 직렬화한다."""
         ...
 
-    def sync_seed(self, records: Iterable[DocumentRecord]) -> SeedResult:
-        """카탈로그 문서를 DB에 맞춘다(추가·수정·빠진 seed 삭제, doc_id가 겹친 업로드는 대체)."""
+    def managed_documents(self) -> list[DocumentRecord]:
+        """등록 문서와 삭제 재시도 대상. 삭제 완료 이력·승인 보고서는 제외한다."""
+        ...
+
+    def begin_delete(
+        self,
+        doc_id: str,
+        *,
+        doc_version: str,
+        source_sha256: str,
+        upload_id: str | None,
+    ) -> DocumentRecord: ...
+
+    def finish_delete(self, doc_id: str, *, error: str | None = None) -> None: ...
+
+    def listed(self) -> list[DocumentRecord]:
+        """현재 등록된 문서. doc_id마다 completed 한 건만 반환한다."""
         ...
 
     def record_index_results(
@@ -88,7 +109,7 @@ class DocumentRepository(Protocol):
     ) -> None: ...
 
     def upload_conflict(self, doc_id: str, sha256: str) -> str | None:
-        """새 업로드가 카탈로그·다른 문서와 부딪히면 이유를 돌려준다."""
+        """현재 등록된 다른 문서와 해시가 겹치거나 삭제 중이면 이유를 돌려준다."""
         ...
 
     def add_upload(self, record: DocumentRecord) -> DocumentRecord: ...

@@ -1,33 +1,41 @@
 """문서 PDF 업로드와 색인 API.
 
     POST /documents  원본을 UPLOAD_DIR/<upload_id>/에 저장(git 밖) → 충돌 검사 → DB에 기록 → 202
-                     이후 백그라운드에서 make index와 같은 Indexer·저장소로 색인
-    GET  /documents/{upload_id}  처리 상태(DB document 행)
+                     이후 백그라운드에서 PDF 파싱·청킹·임베딩·벡터 저장
+    GET  /documents              등록 문서 목록(로그인)
+    GET  /documents/{upload_id}  처리 상태(DB document 행, 로그인)
+    DELETE /documents/{doc_id}   관제 담당자가 문서·검색 청크 삭제
 
-업로드 상태와 문서 목록은 DB(document 테이블)가 원본이다. 완료된 업로드는 make index가
-카탈로그 문서와 함께 관리한다(모델 교체 시 재색인 등). DB에 연결하지 못하면 503.
+문서 목록과 처리 상태는 DB(document 테이블)로 관리한다. 별도 기본 문서 목록은 읽지 않는다.
+DB에 연결하지 못하면 503.
 """
 
 import hashlib
 import logging
+import re
 import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import Lock
 from typing import Annotated, Any, Literal
+from unicodedata import normalize
 from uuid import UUID, uuid4
 
 from fastapi import (
     APIRouter,
     BackgroundTasks,
+    Depends,
     File,
     Form,
     HTTPException,
+    Query,
     UploadFile,
 )
+from pydantic import BaseModel
 
+from weeing_weeing.api.auth import current_user, require_roles
 from weeing_weeing.config import from_root, get_settings
-from weeing_weeing.contracts import DocumentRecord
+from weeing_weeing.contracts import DocumentRecord, Role
 from weeing_weeing.contracts.document import DOC_ID_PATTERN
 from weeing_weeing.db import interface as db
 from weeing_weeing.rag import interface
@@ -38,10 +46,20 @@ logger = logging.getLogger(__name__)
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 ID_PATTERN = DOC_ID_PATTERN  # 청크 ID 구분자 ':'와 공백은 쓸 수 없다
+FILENAME_VERSION = re.compile(
+    r"(?:^|[^A-Za-z0-9])v([0-9]+\.[0-9]+(?:\.[0-9]+)*)(?![A-Za-z0-9.])",
+    re.IGNORECASE,
+)
+
+
+def _version_from_filename(filename: str) -> str:
+    """파일명의 마지막 v숫자.숫자 표기를 사용한다. 없으면 1.0."""
+    versions = FILENAME_VERSION.findall(Path(filename).stem)
+    return versions[-1] if versions else "1.0"
 
 
 def upload_dir() -> Path:
-    """make index와 같은 기준(레포 루트)으로 푼 업로드 폴더."""
+    """레포 루트 기준으로 푼 업로드 폴더."""
     return from_root(get_settings().upload_dir)
 
 
@@ -124,14 +142,12 @@ def _doc_lock(doc_id: str) -> Lock:
 
 
 def _blocker(repo: db.DocumentRepository, record: DocumentRecord) -> str | None:
-    """이 업로드를 색인하면 안 되는 이유(더 늦게 올린 업로드나 카탈로그 문서가 있음)."""
+    """더 늦게 접수된 업로드가 있으면 해당 ID를 돌려준다."""
     newer = repo.newer_upload(
         record.doc_id, record.uploaded_at, exclude=record.upload_id
     )
     if newer:
         return newer
-    if any(r.origin == "seed" and r.doc_id == record.doc_id for r in repo.listed()):
-        return "seed"
     return None
 
 
@@ -139,12 +155,13 @@ def _index(repo: db.DocumentRepository, upload_id: str) -> None:
     record = repo.get_upload(upload_id)
     if record is None:
         return
-    with _doc_lock(record.doc_id):
+    with _doc_lock(record.doc_id), repo.lock_document(record.doc_id):
+        record = repo.get_upload(upload_id)
+        if record is None or record.status not in ("queued", "processing"):
+            return
         # 잠금을 기다리는 동안 더 새 업로드가 끝났을 수 있어 잠근 뒤에 판단한다.
         blocker = _blocker(repo, record)
-        if (
-            blocker
-        ):  # 먼저 올린 것이 최신(또는 카탈로그 문서)을 덮지 않게 색인하지 않는다
+        if blocker:  # 먼저 올린 것이 최신 문서를 덮지 않게 색인하지 않는다
             repo.update_upload(
                 upload_id,
                 status="superseded",
@@ -193,13 +210,11 @@ def _index_locked(repo: db.DocumentRepository, record: DocumentRecord) -> None:
         _fail(repo, upload_id, exc)
         return
     if done.status == "superseded":
-        # 그사이 다른 프로세스(make index 등)가 이 doc_id의 승자를 정했다. 저장소에는 이
-        # 업로드의 청크가 들어갔으므로 승자를 다시 색인해야 한다. make index가 내용
-        # 차이(sha)로 알아채고 고치지만, 그때까지 화면·로그에서 보이게 남긴다.
+        # 저장 도중 다른 호출자가 승자를 바꿨다면 현재 등록 문서에 확인 필요 표시를 남긴다.
         repo.record_index_results(
             [],
             {
-                record.doc_id: f"업로드 {upload_id}가 색인을 덮어씀. make index로 다시 맞춘다"
+                record.doc_id: f"업로드 {upload_id}가 색인을 덮어씀. 최신 문서를 웹에서 다시 등록하세요."
             },
         )
 
@@ -216,26 +231,13 @@ def _fail(repo: db.DocumentRepository, upload_id: str, exc: Exception) -> None:
     )
 
 
-def _catalog_conflict(
-    seeds: list[DocumentRecord], doc_id: str, sha256: str
-) -> str | None:
-    """카탈로그(data/catalog.toml)와의 충돌. DB에 쓰지 않고 파일 기준으로 본다."""
-    for seed in seeds:
-        if seed.doc_id == doc_id:
-            return f"{doc_id}는 카탈로그(data/catalog.toml)가 관리하는 문서다. 다른 doc_id를 쓴다"
-        if seed.source_sha256 == sha256:
-            return (
-                f"{seed.doc_id}와 같은 내용의 파일이다. 같은 문서가 두 번 검색·인용된다"
-            )
-    return None
-
-
-@router.post("/documents", status_code=202)
+@router.post(
+    "/documents", status_code=202, dependencies=[Depends(require_roles(Role.CONTROL))]
+)
 def upload_document(
     background_tasks: BackgroundTasks,
     file: Annotated[UploadFile, File()],
     doc_id: Annotated[str, Form(min_length=1, max_length=128, pattern=ID_PATTERN)],
-    doc_version: Annotated[str, Form(min_length=1, max_length=128, pattern=ID_PATTERN)],
     asset_id: Annotated[str, Form(min_length=1, max_length=128)],
     doc_type: Annotated[Literal["manual", "rule", "sop"], Form()] = "manual",
 ) -> dict[str, Any]:
@@ -243,14 +245,15 @@ def upload_document(
     try:
         values = {
             "doc_id": doc_id.strip(),
-            "doc_version": doc_version.strip(),
             "asset_id": asset_id.strip(),
         }
         if not all(values.values()):
             raise HTTPException(
                 status_code=422,
-                detail="문서 ID·버전·설비 ID는 비워 둘 수 없습니다.",
+                detail="문서 ID·설비 ID는 비워 둘 수 없습니다.",
             )
+        if values["doc_id"].upper().startswith("RPT-"):
+            raise HTTPException(status_code=422, detail="RPT-는 보고서 전용 ID입니다.")
 
         original_name = Path((file.filename or "").replace("\\", "/")).name
         if Path(original_name).suffix.lower() != ".pdf":
@@ -259,23 +262,22 @@ def upload_document(
                 detail="PDF 파일만 업로드할 수 있습니다.",
             )
 
+        doc_version = _version_from_filename(original_name)
+        if len(doc_version) > 128:
+            raise HTTPException(
+                status_code=422, detail="파일명의 문서 버전이 너무 깁니다."
+            )
+
         upload_id = uuid4().hex
         folder = upload_dir() / upload_id
         folder.mkdir(parents=True, exist_ok=False)
 
         try:
             file_size, sha256 = _save_pdf(file, folder / original_name)
-            try:
-                seeds = interface.seed_records(from_root(get_settings().rag_catalog))
-            except ValueError as exc:  # 카탈로그 파일이 깨짐(CatalogError)
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"문서 목록(카탈로그)을 읽지 못했습니다: {exc}",
-                ) from exc
             repo = documents()
             record = DocumentRecord(
                 doc_id=values["doc_id"],
-                doc_version=values["doc_version"],
+                doc_version=doc_version,
                 doc_type=doc_type,
                 origin="upload",
                 upload_id=upload_id,
@@ -289,12 +291,11 @@ def upload_document(
                 stage="queued",
             )
             try:
-                conflict = _catalog_conflict(
-                    seeds, record.doc_id, sha256
-                ) or repo.upload_conflict(record.doc_id, sha256)
-                if conflict:
-                    raise HTTPException(status_code=409, detail=conflict)
-                repo.add_upload(record)
+                with repo.lock_document(record.doc_id, source_sha256=sha256):
+                    conflict = repo.upload_conflict(record.doc_id, sha256)
+                    if conflict:
+                        raise HTTPException(status_code=409, detail=conflict)
+                    repo.add_upload(record)
             except db.DatabaseUnavailableError as exc:
                 raise _db_unavailable(exc) from exc
         except Exception:
@@ -310,7 +311,127 @@ def upload_document(
         file.file.close()
 
 
-@router.get("/documents/{upload_id}")
+def _search_text(value: str) -> str:
+    return " ".join(normalize("NFC", value).split())
+
+
+def _body_excerpt(record: DocumentRecord, term: str) -> dict[str, str] | None:
+    """현재 업로드의 추출 본문만 검색한다. 보관된 이전 판·삭제 문서는 읽지 않는다."""
+    if record.origin != "upload" or not record.upload_id:
+        return None
+    root = upload_dir().resolve()
+    try:
+        path = (root / record.upload_id / "parsed.md").resolve()
+        if not path.is_relative_to(root):
+            return None
+        body = _search_text(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError):
+        # 추출 파일이 없는 문서도 제목·ID로는 조회할 수 있다.
+        return None
+    match = re.search(re.escape(term), body, re.IGNORECASE)
+    if not match:
+        return None
+    start, end = match.span()
+    left, right = max(0, start - 70), min(len(body), end + 70)
+    return {
+        "before": ("…" if left else "") + body[left:start],
+        "match": body[start:end],
+        "after": body[end:right] + ("…" if right < len(body) else ""),
+    }
+
+
+@router.get("/documents", dependencies=[Depends(current_user)])
+def list_documents(
+    q: Annotated[str, Query(max_length=200)] = "",
+) -> list[dict[str, Any]]:
+    """등록 문서를 조회하고, 검색어가 있으면 제목·ID·설비 ID·추출 본문을 검색한다."""
+    try:
+        records = documents().managed_documents()
+    except db.DatabaseUnavailableError as exc:
+        raise _db_unavailable(exc) from exc
+    fields = {
+        "doc_id",
+        "doc_version",
+        "doc_type",
+        "title",
+        "origin",
+        "upload_id",
+        "source_sha256",
+        "status",
+        "error",
+        "index_error",
+        "chunk_count",
+        "uploaded_at",
+        "indexed_at",
+    }
+    term = _search_text(q)
+    result = []
+    for record in records:
+        item = {
+            **record.model_dump(mode="json", include=fields),
+            "asset_id": record.extra.get("asset_id"),
+        }
+        if term:
+            metadata_match = any(
+                term.casefold() in _search_text(str(value or "")).casefold()
+                for value in (record.title, record.doc_id, item["asset_id"])
+            )
+            excerpt = _body_excerpt(record, term)
+            if not metadata_match and excerpt is None:
+                continue
+            if excerpt is not None:
+                item["search_excerpt"] = excerpt
+        result.append(item)
+    return result
+
+
+class DeleteDocument(BaseModel):
+    doc_version: str
+    source_sha256: str
+    upload_id: str | None = None
+
+
+@router.delete(
+    "/documents/{doc_id:path}", dependencies=[Depends(require_roles(Role.CONTROL))]
+)
+def delete_document(doc_id: str, body: DeleteDocument) -> dict[str, Any]:
+    """검색 청크를 지운 뒤 문서의 모든 판을 DB에서 실제 삭제한다. 원본 파일은 보관한다."""
+    failure = None
+    try:
+        repo = documents()
+        with repo.lock_document(doc_id):
+            repo.begin_delete(doc_id, **body.model_dump())
+            try:
+                removed = interface.get_indexer().delete_document(doc_id)
+            except Exception as exc:
+                failure = type(exc).__name__
+                logger.error(
+                    "문서 삭제 실패: doc_id=%s, error_type=%s", doc_id, failure
+                )
+                repo.finish_delete(
+                    doc_id,
+                    error="검색 자료 삭제에 실패했습니다. 삭제를 다시 시도하세요.",
+                )
+            else:
+                repo.finish_delete(doc_id)
+    except db.DocumentNotFoundError as exc:
+        raise HTTPException(
+            status_code=404, detail="등록된 문서를 찾을 수 없습니다."
+        ) from exc
+    except db.DocumentConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except db.DatabaseUnavailableError as exc:
+        raise _db_unavailable(exc) from exc
+    # 잠금 트랜잭션을 커밋한 뒤 오류를 돌려줘야 재시도 상태가 보존된다.
+    if failure:
+        raise HTTPException(
+            status_code=503,
+            detail="검색 자료 삭제에 실패했습니다. 목록에서 삭제를 다시 시도하세요.",
+        )
+    return {"doc_id": doc_id, "status": "deleted", "removed_chunks": removed}
+
+
+@router.get("/documents/{upload_id}", dependencies=[Depends(current_user)])
 def get_document_status(upload_id: UUID) -> dict[str, Any]:
     """업로드 건의 현재 처리 상태를 반환한다."""
     try:

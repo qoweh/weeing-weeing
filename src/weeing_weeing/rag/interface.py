@@ -2,7 +2,7 @@
 
 Indexer·Retriever Protocol은 구현체가 제공할 메서드 형태를 정의한다.
 get_indexer()·get_retriever()는 설정에 맞는 실제 구현체를 만들어 재사용한다.
-문서 레지스트리 관련 함수도 여기서 노출하므로 외부 모듈은 rag 내부 파일 대신
+웹 업로드 메타데이터 구성도 여기서 노출하므로 외부 모듈은 rag 내부 파일 대신
 이 interface.py와 공통 contracts를 import해 기능을 연결한다.
 """
 
@@ -40,11 +40,15 @@ class Indexer(Protocol):
 
         같은 문서는 교체하고, on_progress가 있으면 처리 단계를 알린다.
         metadata에는 최소 doc_id, doc_version을 넣는다(인용 문자열 생성에 필요).
-        카탈로그 동기화(rag/sync.py)는 doc_id·doc_version·doc_type·status·title·
+        웹 업로드는 doc_id·doc_version·doc_type·status·title·
         source_path·source_sha256을 넘긴다. 이 값을 바꾸지 말고 모든 청크의 메타데이터에
         그대로 넣는다. 청크 ID는 이 doc_id·doc_version으로 만든다. 값을 바꾸면 변경 감지가
-        깨져서 sync가 그 문서를 failed로 보고한다.
+        깨져서 검색 자료와 등록 정보를 일치시킬 수 없다.
         """
+        ...
+
+    def delete_document(self, doc_id: str) -> int:
+        """해당 문서의 모든 청크를 삭제한다. 반복 호출해도 안전하다."""
         ...
 
     def index_report(self, report: MaintenanceReport) -> int:
@@ -116,7 +120,7 @@ def get_retriever() -> Retriever:
 def get_indexer() -> Indexer:
     """API 서버용 Indexer. 저장소(.env의 VECTOR_STORE 등)는 프로세스당 한 번만 조립한다.
 
-    make index와 같은 Indexer·저장소 설정을 쓴다. 업로드 원본 옆에 검토용 미리보기를 남긴다.
+    웹 업로드와 승인 보고서가 같은 저장소 설정을 쓴다. 업로드 원본 옆에 검토용 미리보기를 남긴다.
     임베딩 모델은 첫 색인 때 올라온다.
     lru_cache가 색인기 객체를 재사용하며, 저장소는 get_retriever()와 공유한다.
     """
@@ -125,32 +129,21 @@ def get_indexer() -> Indexer:
     return DocumentIndexer(_get_store(), write_previews=True)
 
 
-# 문서 레지스트리(DB의 document 행) ↔ 색인. 구현은 rag/registry.py.
-# DB를 읽고 쓰는 일은 api·실행 스크립트가 db.interface로 한다.
-def seed_records(catalog_path: Path) -> list[DocumentRecord]:
-    """카탈로그의 기준 문서 목록을 DB에 반영할 DocumentRecord 목록으로 변환한다.
-
-    실제 변환은 registry.seed_records()에 위임한다. 이 함수가 DB에 직접 저장하지는
-    않으며 호출자가 db.interface로 반영한다. 잘못된 카탈로그는 ValueError로 알린다.
-    """
-    from weeing_weeing.rag.registry import seed_records as load
-
-    return load(catalog_path)
-
-
 def upload_index_metadata(record: DocumentRecord, upload_dir: Path) -> dict[str, str]:
-    """업로드 문서 기록으로부터 index_file()에 전달할 색인 메타데이터를 만든다.
-
-    entry_from_record()가 원본 경로와 문서 정보를 정리하고, file_sha256()이 현재
-    파일의 내용 해시를 구한다. index_metadata()는 make index와 동일한 형식으로
-    조립해 업로드 색인과 재색인의 변경 감지 기준을 맞춘다.
-    """
-    from weeing_weeing.rag.catalog import file_sha256
-    from weeing_weeing.rag.registry import entry_from_record
-    from weeing_weeing.rag.sync import index_metadata
-
-    entry = entry_from_record(record, upload_dir)
-    return index_metadata(entry, file_sha256(Path(entry.path)))
+    """DB에 접수한 업로드 정보로 파싱·청킹·저장에 사용할 메타데이터를 만든다."""
+    path = (upload_dir / record.source).resolve()
+    standard = {
+        "doc_id": record.doc_id,
+        "doc_version": record.doc_version,
+        "doc_type": record.doc_type,
+        "status": record.doc_status,
+        "title": record.title,
+        "source_path": str(path),
+        "source_sha256": record.source_sha256,
+    }
+    if record.upload_id:
+        standard["upload_id"] = record.upload_id
+    return {**record.extra, **standard}
 
 
 def incident_query(incident: Incident) -> str:

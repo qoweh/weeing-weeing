@@ -24,7 +24,7 @@
 | 항목 | 값 |
 |---|---|
 | 코드 | `feat/28-e2e-verification` 커밋 `65d2ebc`(dev `d36e6cf` 포함, PR #58 색인 경로 통합 반영) |
-| 문서 | `data/catalog.toml` 3종: BTT-MANUAL 2.0, BTT-RULE 2.0, BTT-SOP-001 1.1(draft) |
+| 문서 | 현재 평가 입력 `data/eval/rag_documents_v1.toml`의 PDF 3종(운영 등록과 분리): BTT-MANUAL 2.0, BTT-RULE 2.0, BTT-SOP-001 1.1(draft) |
 | 임베딩 | `BAAI/bge-m3`(정규화), 키워드 `kiwi-bm25-v2` |
 | 백엔드 | Qdrant 로컬 모드 · Chroma 내장 모드 · **Qdrant 서버(Docker `qdrant/qdrant:v1.20.0`)** |
 | 질의 | `data/eval/rag_queries_v1.toml` 12개(정답 = 기대 문서 + 기대 키워드) |

@@ -1,4 +1,4 @@
-"""스키마를 최신(head)으로 올린다. make db-migrate·make index·API 시작 때 쓴다.
+"""스키마를 최신(head)으로 올린다. make db-migrate·API 시작 때 쓴다.
 
 마이그레이션 파일은 db/migrations/versions/. 새 마이그레이션 만들기(models.py를 고친 뒤):
     PYTHONPATH=src uv run --no-sync alembic revision --autogenerate -m "설명"

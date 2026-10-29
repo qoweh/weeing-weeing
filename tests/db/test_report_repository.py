@@ -107,6 +107,14 @@ def test_index_job_result_and_failed_retry(setup_reports):
     assert repo.get_report("I1", second.report_id).index_status == "indexed"
 
 
+def test_document_upload_rejects_an_existing_report_id(setup_reports):
+    from weeing_weeing.db.documents import SqlDocuments
+
+    report = setup_reports.create_draft("I1", ready_draft())
+    documents = SqlDocuments(setup_reports._engine)
+    assert "보고서" in documents.upload_conflict(report.report_id, "pdf-sha")
+
+
 def test_approval_waits_for_vector_write_of_same_report(setup_reports):
     repo = setup_reports
     first = approve(repo, repo.create_draft("I1", ready_draft()))

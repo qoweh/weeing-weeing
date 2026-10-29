@@ -1,10 +1,10 @@
 """실제 문서 E2E 검증(#28). 저장소 하나에 대해 색인·멱등·갱신·검색 품질을 확인한다.
 
-    run_backend(이름, store, catalog, Indexer 만드는 함수, 질의들)
-      1. 색인      sync(catalog) → 문서별 청크 수, 걸린 시간
+    run_backend(이름, store, corpus, Indexer 만드는 함수, 질의들)
+      1. 색인      sync(corpus) → 문서별 청크 수, 걸린 시간
       2. 멱등      한 번 더 sync → 전부 unchanged여야 한다
       3. 검색      dense·hybrid, retriever 주입 시 reranked 상위 k개와 정답 순위
-      4. 갱신      첫 문서의 버전만 올린 카탈로그로 sync → 그 문서만 updated,
+      4. 갱신      첫 문서의 버전만 올린 평가 자료 목록로 sync → 그 문서만 updated,
                    청크가 모두 새 버전이고 수는 같아야 한다(#7 완료 조건)
       5. 메타데이터 #6이 채울 키(section·page·codes·citation)가 빠진 청크 수
 
@@ -23,11 +23,11 @@ from pathlib import Path
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from weeing_weeing.contracts import CODES, Evidence
-from weeing_weeing.rag.catalog import Catalog
+from weeing_weeing.rag.eval_corpus import EvalCorpus
+from weeing_weeing.rag.eval_sync import SyncReport, sync
 from weeing_weeing.rag.interface import Indexer, Retriever
 from weeing_weeing.rag.query import codes_query
 from weeing_weeing.rag.store import Chunk, Embedder, Hit, VectorStore
-from weeing_weeing.rag.sync import SyncReport, sync
 
 MODES = ("dense", "hybrid")
 # #6 Indexer가 파싱해서 채울 메타데이터. 없으면 #8의 인용·필터가 약해진다.
@@ -204,16 +204,16 @@ def _search(
 
 
 def _check_update(
-    store: VectorStore, catalog: Catalog, indexer: Indexer, before: dict[str, int]
+    store: VectorStore, corpus: EvalCorpus, indexer: Indexer, before: dict[str, int]
 ) -> tuple[bool, str]:
-    """첫 문서의 버전만 올린 카탈로그로 sync한다. 파일은 그대로 쓴다."""
-    target = catalog.documents[0]
+    """첫 문서의 버전만 올린 평가 자료 목록로 sync한다. 파일은 그대로 쓴다."""
+    target = corpus.documents[0]
     new_version = target.doc_version + UPDATE_SUFFIX
-    bumped = catalog.model_copy(
+    bumped = corpus.model_copy(
         update={
             "documents": [
                 e.model_copy(update={"doc_version": new_version}) if e is target else e
-                for e in catalog.documents
+                for e in corpus.documents
             ]
         }
     )
@@ -236,7 +236,7 @@ def _check_update(
 def run_backend(
     name: str,
     store: VectorStore,
-    catalog: Catalog,
+    corpus: EvalCorpus,
     make_indexer: Callable[[VectorStore], Indexer],
     queries: Sequence[EvalQuery],
     *,
@@ -248,8 +248,8 @@ def run_backend(
     indexer = make_indexer(store)
     started = time.perf_counter()
     if progress is not None:
-        progress(f"[{name}] 색인 시작: 문서 {len(catalog.documents)}개")
-    indexed = sync(catalog, indexer, store)
+        progress(f"[{name}] 색인 시작: 문서 {len(corpus.documents)}개")
+    indexed = sync(corpus, indexer, store)
     seconds = time.perf_counter() - started
     counts = {d: info.chunk_count for d, info in store.documents().items()}
     if progress is not None:
@@ -258,7 +258,7 @@ def run_backend(
             f"청크 {sum(counts.values())}개, 실패 {len(indexed.failed)}개"
         )
         progress(f"[{name}] 멱등·메타데이터 검사 시작")
-    rerun = sync(catalog, indexer, store)
+    rerun = sync(corpus, indexer, store)
     all_chunks = store.chunks()
     missing = {
         key: sum(key not in c.metadata for c in all_chunks) for key in PARSED_KEYS
@@ -282,7 +282,7 @@ def run_backend(
             f"[{name}] 갱신 검사 시작" if indexed.ok else f"[{name}] 초기 색인 실패"
         )
     update_ok, detail = (
-        _check_update(store, catalog, indexer, counts)
+        _check_update(store, corpus, indexer, counts)
         if indexed.ok
         else (False, "초기 색인 실패: 검색 품질·갱신 미측정")
     )

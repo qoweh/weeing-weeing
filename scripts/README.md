@@ -8,7 +8,7 @@ PowerShell 명령과 실제 유료 연결은 [AUTO_ANALYSIS](../docs/AUTO_ANALYS
 
 ## 모델 받기 (`download_models.py`)
 
-`.env`의 `EMBEDDING_MODEL`·`RERANKER_MODEL`을 Hugging Face 캐시에 받는다. LLM은 상용 API라 받을 것이 없다. 검색·리랭킹은 실행 중에 모델을 내려받지 않으므로 새 PC에서 `make index` 전에 한 번 실행한다. 이미 받은 모델은 확인만 하고 넘어간다.
+`.env`의 `EMBEDDING_MODEL`·`RERANKER_MODEL`을 Hugging Face 캐시에 받는다. LLM은 상용 API라 받을 것이 없다. 검색·리랭킹은 실행 중에 모델을 내려받지 않으므로 새 PC에서 웹 문서를 등록하기 전에 한 번 실행한다. 이미 받은 모델은 확인만 하고 넘어간다.
 
 ```bash
 make models                     # = PYTHONPATH=src uv run --no-sync python scripts/download_models.py
@@ -27,32 +27,21 @@ make seed-users ARGS=--ask-password     # 모든 시연 계정을 같은 비밀�
 
 종료 코드는 0 성공, 2 DB 연결 실패·비밀번호 규칙 위반.
 
-## RAG 색인 (`build_index.py`)
+## 웹 문서 등록·관리
 
-DB의 문서 목록(`document` 테이블)과 벡터 DB를 맞춘다. 순서는
-`data/catalog.toml`(git)을 DB에 seed로 반영 → DB 목록(seed + 화면에서 올린 완료된 업로드) 색인 → 결과를 DB에 기록.
-바뀐 문서만 다시 색인하고, 목록에서 빠진 문서는 지운다. 업로드 API도 같은 Indexer·저장소를 쓴다.
-설정은 `.env`(`DATABASE_URL`, `VECTOR_STORE`, `EMBEDDING_MODEL`, `QDRANT_*`, `CHROMA_DIR`, `RAG_CATALOG`, `UPLOAD_DIR`)를 읽는다.
-**DB가 필요하다**: `make db-up`, 또는 Docker 없이 `.env`에 `DATABASE_URL=sqlite:///storage/dev.db`([LOCAL_SETUP 3절](../docs/LOCAL_SETUP.md)).
+문서는 HMI의 **문서 등록 / 문서 목록**에서 관리한다. 관제 담당자가 PDF를 등록하면 DB에 접수 정보를 저장하고 파싱·청킹·임베딩·벡터 저장까지 자동으로 진행한다. 다른 문서 ID에 같은 파일 해시가 있으면 중복 등록을 거부한다.
 
-언제 쓰나: 서비스 기능이 아니라 관리 명령이다. 새 PC·서버를 처음 세팅할 때, 기준 문서를 바꿨을 때, 임베딩 모델을 바꿨을 때(`--recreate`), 배포할 때.
+문서 버전은 PDF 파일명의 `v1.0`, `v2.0` 같은 표기에서 자동으로 정한다(대문자 `V`도 지원). 표기가 없으면 `1.0`이다. 화면에서는 읽기 전용으로 표시하며 서버도 파일명으로 결정하므로 별도로 전송한 버전 값은 사용하지 않는다. 예: `BTT-MANUAL_v2.0.pdf` → `2.0`, `설비 매뉴얼.pdf` → `1.0`.
 
-```bash
-make index                  # = PYTHONPATH=src uv run --no-sync python scripts/build_index.py
-make index ARGS=--dry-run   # 무엇이 바뀔지만 출력. 모델을 올리지 않고 DB 내용도 바꾸지 않는다(스키마만 최신으로)
-make index ARGS=--force     # 바뀌지 않은 문서도 다시 색인 (청킹·파서를 바꿨을 때)
-make index ARGS=--recreate  # 컬렉션을 새로 만들고 전부 색인 (임베딩 모델·차원·토크나이저를 바꿨을 때)
-```
+문서 목록 검색은 제목·문서 ID·설비 ID와 PDF에서 추출된 본문을 함께 검색한다(`GET /documents?q=검색어`, 최대 200자). 본문에 일치하면 주변 문장 일부를 표시한다. 서버가 현재 등록된 업로드의 `parsed.md`를 읽는 키워드 검색이며, LLM·임베딩·벡터 DB 연결은 필요 없다. 줄바꿈 등 연속 공백을 정리하고 영문 대소문자를 구분하지 않는다. 이전 판·삭제된 문서는 검색 대상에서 제외하며, 추출 파일이 없거나 읽을 수 없으면 해당 문서는 제목·ID·설비 ID로만 검색된다. 현재 방식은 요청마다 본문 파일을 읽으므로 문서가 많아지면 별도 본문 검색 색인으로 전환한다.
 
-결과는 added/updated/unchanged/removed/failed 표로 나온다. 종료 코드는 0 성공, 1 실패한 문서 있음, 2 설정·DB 연결·잠금·Indexer 문제로 시작 못 함.
-업로드 항목에 문제가 있으면(파일 없음, 카탈로그와 doc_id·내용이 겹침) 그 항목만 건너뛰고 `경고:`로 알린다. 카탈로그에 새로 넣은 문서와 doc_id가 같은 업로드는 대체(superseded)된다. 카탈로그(`data/catalog.toml`) 문제는 종료 코드 2로 멈춘다.
-#58 이전 방식의 업로드(`storage/uploads/<id>/metadata.json`)는 첫 `make index`가 DB로 옮기고 파일 이름을 `metadata.json.imported`로 바꾼다.
-`--recreate`는 업로드 문서도 목록에 있으므로 함께 다시 색인한다. 목록 밖에서 들어온 문서(승인 보고서, #29)는 지워지므로 다시 넣어야 한다.
-API 서버가 Qdrant 로컬 폴더를 열고 있으면 `make index`는 잠금 오류로 멈춘다(종료 코드 2). API를 끄거나 `QDRANT_URL` 서버 모드를 쓴다.
+삭제 확인 후 벡터 청크를 제거하고 PostgreSQL 문서 행도 실제 삭제한다. 실패 시 재시도 상태를 남긴다. 삭제한 PDF가 필요해지면 웹에서 다시 올린다. 원본 파일은 업로드 폴더에 보관한다.
+
+운영 카탈로그와 `make index`·일괄 색인 스크립트는 제거했다. `make rag-e2e`는 평가용 문서 목록으로 임시 저장소만 만들어 검색 품질을 검사하며 실제 DB에 문서를 등록하지 않는다.
 
 ## RAG E2E 검증 (`verify_rag_e2e.py`, #28)
 
-카탈로그 문서를 백엔드마다 **새 임시 저장소**에 색인하고 아래를 확인한다. `storage/`의 실제 색인은 건드리지 않는다.
+`data/eval/rag_documents_v1.toml`의 평가 문서를 백엔드마다 **새 임시 저장소**에 색인하고 아래를 확인한다. `storage/`의 실제 색인은 건드리지 않는다.
 
 | 검사 | 통과 조건 |
 |---|---|
@@ -85,7 +74,7 @@ make llm-check ARGS="--effort low"                            # 생각 깊이 �
 
 ## 사건 분석 에이전트 (`analyze_incident.py`, #102)
 
-사건 JSON 하나를 사건 분석 에이전트로 분석한다. Claude가 `search_evidence` 도구로 근거를 찾고 `submit_analysis`로 결과를 낸다. 색인(`make index`)과 API 키가 필요하다. DB에는 저장하지 않는다.
+사건 JSON 하나를 사건 분석 에이전트로 분석한다. Claude가 `search_evidence` 도구로 근거를 찾고 `submit_analysis`로 결과를 낸다. 웹에서 등록한 검색 자료와 API 키가 필요하다. DB에는 저장하지 않는다.
 
 ```bash
 make analyze                                     # data/eval/incident_p03_demo.json

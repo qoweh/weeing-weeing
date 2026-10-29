@@ -7,7 +7,7 @@
 
 | 테이블 | 무엇 | 계약 | 쓰는 쪽 | 이슈 |
 |---|---|---|---|---|
-| `document` | 색인 대상 문서 목록(기준 문서·업로드·승인 보고서) | `DocumentRecord` | rag(`make index`), api(업로드) | #60 |
+| `document` | 웹 등록 문서와 이전 기본 문서의 등록 정보 | `DocumentRecord` | api(웹 등록·목록·삭제) | #60 |
 | `incident` | 이상 사건. 같은 `incident_id`는 갱신 | `Incident` | detector → api | #61 |
 | `analysis` | AI 분석 결과. 한 사건에 여러 건(재분석·모델 비교) | `AnalysisResult` | agent → api | #61 |
 | `telemetry` | 센서 1초 데이터(v3 15컬럼) | `TelemetryRecord` | ingest → api, HMI 그래프 | #63 |
@@ -59,6 +59,8 @@ telemetry.between("BLDC-001", start, end)
 | 수신한 센서 줄을 `save_many`로 저장(배치 권장) | `api/telemetry.py`·CSV 재생 | ingest·api |
 
 ## 스키마 바꾸기
+
+공식 `0005`는 사건 자동 분석의 `analysis_job`을 생성하고, `0006`은 과거에 삭제 완료된 문서 행을 정리한다. 미공유 문서 정리 `0005`를 먼저 적용했던 개발 DB는 `make db-migrate`로 `0006`까지 올리면 누락된 `analysis_job`도 보완된다. 버전 테이블을 수동으로 고치거나 기존 DB를 초기화할 필요는 없다. `0006`만 되돌려도 `analysis_job`과 기존 작업 데이터는 유지하며, 이미 실제 삭제된 문서 행은 복원하지 않는다.
 
 1. `db/models.py`를 고친다
 2. `PYTHONPATH=src uv run --no-sync alembic revision --autogenerate -m "설명"`으로 초안을 만들고, `db/migrations/versions/`의 파일을 0001·0002처럼 손으로 정리한다(SQLite에서도 돌아야 함)

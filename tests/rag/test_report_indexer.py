@@ -7,10 +7,11 @@ import pytest
 from fakes import FakeEmbedder, MemoryVectorStore
 
 from weeing_weeing.contracts import MaintenanceReport
-from weeing_weeing.rag.indexer import DocumentIndexer
+from weeing_weeing.rag.indexer import DocumentIndexer, InvalidDocumentError
 from weeing_weeing.rag.report import report_chunk
 from weeing_weeing.rag.retriever import HybridRetriever
 from weeing_weeing.rag.sparse import KiwiBm25Encoder
+from weeing_weeing.rag.store import Chunk
 
 DATA = Path(__file__).resolve().parents[2] / "data/history/synthetic_reports_v1.jsonl"
 
@@ -89,6 +90,22 @@ def test_revision_replaces_previous_chunk_and_search_cites_report():
     assert report.report_id in found[0].citation
     assert "가상 사례" in found[0].citation
     assert "개정판에서 확인한 가이드 간섭" in found[0].text
+
+
+def test_report_cannot_overwrite_an_existing_manual():
+    report = reports()[0]
+    store = memory()
+    original = Chunk(
+        chunk_id=f"{report.report_id}:1:0000",
+        doc_id=report.report_id,
+        doc_version="1",
+        text="기존 문서 본문",
+        metadata={"doc_type": "manual"},
+    )
+    store.replace_document(report.report_id, [original])
+    with pytest.raises(InvalidDocumentError, match="등록 문서"):
+        DocumentIndexer(store).index_report(report)
+    assert store.chunks() == [original]
 
 
 def test_all_24_synthetic_cases_are_searchable_by_code():

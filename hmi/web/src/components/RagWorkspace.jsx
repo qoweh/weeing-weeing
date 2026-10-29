@@ -7,11 +7,14 @@ import {
   uploadDocument,
 } from "../api/client";
 
+import ManualListPage from "../pages/ManualListPage.jsx";
 import ReportWorkspace from "./ReportWorkspace.jsx";
+import { documentVersionFromFilename } from "./documentVersion.js";
 import "../styles/workspace.scss";
 
 const tabs = [
   { id: "documents", label: "문서 등록" },
+  { id: "manual-list", label: "문서 목록" },
   { id: "report-write", label: "보고서·결재" },
   { id: "analysis", label: "에러 분석" },
 ];
@@ -44,6 +47,51 @@ function TextField({
         required={required}
       />
     </label>
+  );
+}
+
+function DocumentUploadFields() {
+  const [version, setVersion] = useState("1.0");
+
+  return (
+    <>
+      <label className="full-width">
+        PDF 파일
+        <input
+          type="file"
+          name="file"
+          accept=".pdf,application/pdf"
+          required
+          onChange={(event) =>
+            setVersion(documentVersionFromFilename(event.target.files?.[0]?.name ?? ""))
+          }
+        />
+      </label>
+      <TextField label="문서 ID" name="doc_id" placeholder="예: BLDC-001-MANUAL" />
+      <div className="document-version">
+        <label>
+          문서 버전
+          <input
+            name="doc_version"
+            value={version}
+            readOnly
+            aria-describedby="document-version-help"
+          />
+        </label>
+        <small id="document-version-help">
+          파일명에서 자동 설정됩니다. v1.0 같은 표기가 없으면 1.0을 사용합니다.
+        </small>
+      </div>
+      <label>
+        문서 종류
+        <select name="doc_type" defaultValue="manual">
+          <option value="manual">매뉴얼</option>
+          <option value="sop">규정·SOP</option>
+          <option value="rule">룰베이스</option>
+        </select>
+      </label>
+      <TextField label="적용 설비 ID" name="asset_id" defaultValue="BLDC-001" />
+    </>
   );
 }
 
@@ -133,7 +181,9 @@ function ResultPanel({ result }) {
   );
 }
 
-export default function RagWorkspace({ tab, user, onSessionExpired, onBusyChange, workspaceBusy }) {
+export default function RagWorkspace({ tab, user, onSessionExpired, onBusyChange, workspaceBusy, onNavigate }) {
+  const canManageManuals = user.role === "관제 담당자";
+  const registrationRestricted = tab === "documents" && !canManageManuals;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
@@ -167,6 +217,7 @@ export default function RagWorkspace({ tab, user, onSessionExpired, onBusyChange
     const value = (name) => String(form.get(name) ?? "").trim();
 
     if (tab === "documents") {
+      if (!canManageManuals) return;
       void execute(() =>
         uploadDocument(form, (stage) => {
           setProgressMessage(
@@ -214,23 +265,38 @@ export default function RagWorkspace({ tab, user, onSessionExpired, onBusyChange
         <div>
           <div className="eyebrow">WORKSPACE</div>
           <h1>{tabs.find((item) => item.id === tab)?.label}</h1>
-          <p>문서 등록과 보고서·결재, 검색·분석을 관리하세요.</p>
+          <p>{tab === "manual-list" ? "등록된 문서와 검색 자료의 상태를 확인하세요." : tab === "documents" ? "PDF 문서를 등록해 검색과 분석의 근거로 활용하세요." : "보고서·결재와 검색·분석을 관리하세요."}</p>
         </div>
 
-        <button
+        {tab !== "manual-list" && !registrationRestricted && <button
           type="button"
           disabled={workspaceBusy}
           onClick={() => void execute(checkHealth)}
         >
           서버 연결 확인
-        </button>
+        </button>}
       </header>
 
       <div hidden={tab !== "report-write"}>
         <ReportWorkspace user={user} onSessionExpired={onSessionExpired} onBusyChange={onBusyChange} />
       </div>
 
-      <section className="panel" hidden={tab === "report-write"}>
+      {tab === "manual-list" && <ManualListPage user={user} onSessionExpired={onSessionExpired}
+        onBusyChange={onBusyChange} onNavigate={onNavigate} />}
+
+      {registrationRestricted && <section className="panel document-access" aria-labelledby="document-access-title">
+        <div className="document-access__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="5" y="10" width="14" height="11" rx="2" />
+            <path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" />
+          </svg>
+        </div>
+        <h2 id="document-access-title">문서 등록은 관제 담당자만 가능합니다</h2>
+        <p>등록된 문서는 문서 목록에서 확인할 수 있습니다.</p>
+        <button className="primary" type="button" disabled={workspaceBusy} onClick={() => onNavigate("manual-list")}>문서 목록 보기 →</button>
+      </section>}
+
+      {!registrationRestricted && <section className="panel" hidden={tab === "report-write" || tab === "manual-list"}>
         <h2>{tabs.find((item) => item.id === tab)?.label}</h2>
 
         {tab === "reports" && (
@@ -249,45 +315,7 @@ export default function RagWorkspace({ tab, user, onSessionExpired, onBusyChange
         <form key={tab} onSubmit={handleSubmit}>
           <fieldset disabled={workspaceBusy}>
             <div className="fields">
-              {tab === "documents" && (
-                <>
-                  <label className="full-width">
-                    PDF 파일
-                    <input
-                      type="file"
-                      name="file"
-                      accept=".pdf,application/pdf"
-                      required
-                    />
-                  </label>
-
-                  <TextField
-                    label="문서 ID"
-                    name="doc_id"
-                    placeholder="예: BLDC-001-MANUAL (카탈로그 문서 ID는 쓸 수 없음)"
-                  />
-                  <TextField
-                    label="문서 버전"
-                    name="doc_version"
-                    defaultValue="1.0"
-                  />
-
-                  <label>
-                    문서 종류
-                    <select name="doc_type" defaultValue="manual">
-                      <option value="manual">매뉴얼</option>
-                      <option value="sop">규정·SOP</option>
-                      <option value="rule">룰베이스</option>
-                    </select>
-                  </label>
-
-                  <TextField
-                    label="적용 설비 ID"
-                    name="asset_id"
-                    defaultValue="BLDC-001"
-                  />
-                </>
-              )}
+              {tab === "documents" && <DocumentUploadFields />}
 
               {tab === "reports" && (
                 <>
@@ -345,20 +373,25 @@ export default function RagWorkspace({ tab, user, onSessionExpired, onBusyChange
               )}
             </div>
 
-            <button className="primary" type="submit">
+            {(tab !== "documents" || canManageManuals) && <button className="primary" type="submit">
               {tab === "documents"
                 ? "문서 등록 실행"
                 : tab === "reports"
                   ? "가상 보고서 승인·등록"
                   : "검색·분석 실행"}
-            </button>
+            </button>}
           </fieldset>
         </form>
-      </section>
+      </section>}
 
       {busy && <p role="status">{progressMessage}</p>}
-      {error?.page === tab && <p className="error" role="alert">{error.message}</p>}
-      {result?.page === tab && <ResultPanel result={result.value} />}
+      {!registrationRestricted && error?.page === tab && <p className="error" role="alert">{error.message}</p>}
+      {!registrationRestricted && result?.page === tab && tab === "documents" && result.value?.status === "completed"
+        ? <div className="panel"><h2>문서 등록이 완료됐습니다</h2>
+            <p>{result.value.title} · {result.value.chunk_count}개 검색 자료가 등록됐습니다.</p>
+            <button type="button" onClick={() => onNavigate("manual-list")}>문서 목록 보기</button>
+          </div>
+        : !registrationRestricted && result?.page === tab && <ResultPanel result={result.value} />}
     </div>
   );
 }

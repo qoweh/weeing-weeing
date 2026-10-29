@@ -38,3 +38,6 @@ button.nav-item--active { color: var(--sidebar-active-text); background: var(--b
 button.nav-item:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
 button.nav-item:disabled, .button:disabled { opacity: .6; cursor: wait; }
 .workspace-error { padding: 16px; margin-bottom: 20px; border-radius: 10px; color: var(--danger); background: var(--danger-bg); }
+
+.sidebar__section { margin: 22px 22px 8px; opacity: .7; font-size: .7rem; font-weight: 700; }
+@media (max-width: 900px) { .sidebar__section { display: none; } }

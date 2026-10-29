@@ -50,16 +50,16 @@ http://localhost:8000/health 와 http://localhost:8000/docs 에서 확인한다.
 
 ## 3. DB (PostgreSQL)
 
-문서 목록(`document` 테이블)이 DB에 있어서 `make index`와 업로드 API에 DB가 필요하다. 테이블과 사용법은 [DB.md](DB.md). 로그인할 시연 계정은 `make seed-users`([AUTH.md](AUTH.md)).
+문서 목록(`document` 테이블)이 DB에 있어서 웹 문서 관리 API에 DB가 필요하다. 테이블과 사용법은 [DB.md](DB.md). 로그인할 시연 계정은 `make seed-users`([AUTH.md](AUTH.md)).
 
 ```bash
 docker compose up -d postgres     # 또는 make db-up
 docker compose ps                 # postgres 가 healthy 인지 확인
 ```
 
-접속 정보는 `.env`의 `DATABASE_URL`. 데이터는 docker 볼륨 `postgres_data`에 남는다. 스키마는 `make index`·API가 시작할 때 최신으로 올린다(직접 올리려면 `make db-migrate`).
+접속 정보는 `.env`의 `DATABASE_URL`. 데이터는 docker 볼륨 `postgres_data`에 남는다. 스키마는 API가 시작할 때 최신으로 올린다(직접 올리려면 `make db-migrate`).
 
-**Docker 없이 개발할 때**: `.env`에 `DATABASE_URL=sqlite:///storage/dev.db`. 같은 코드가 파일 하나(`storage/dev.db`, git 밖)로 동작한다. 지우면 처음 상태로 돌아가고, 다음 `make index`가 카탈로그 문서를 다시 넣는다(업로드 기록은 사라진다). 통합 시험·시연은 PostgreSQL로 한다.
+**Docker 없이 개발할 때**: `.env`에 `DATABASE_URL=sqlite:///storage/dev.db`. 같은 코드가 파일 하나(`storage/dev.db`, git 밖)로 동작한다. 지우면 등록 기록도 사라지므로 필요한 문서를 웹에서 다시 등록한다. 통합 시험·시연은 PostgreSQL로 한다.
 
 DB 테스트는 SQLite로 항상 돌고, PostgreSQL에서도 확인하려면:
 ```bash
@@ -82,7 +82,7 @@ TEST_DATABASE_URL=postgresql://weeing:weeing@localhost:5432/weeing uv run --no-s
 
 ## 5. RAG 색인 (벡터 DB)
 
-문서 목록은 DB `document` 테이블이 원본이다(3절). 기준 문서는 `data/catalog.toml`(git)에 적으면 `make index`가 DB에 반영(seed)하고, 화면에서 올린 문서는 원본 PDF가 `storage/uploads/`(git 밖)에, 상태는 DB에 쌓인다. 처음 한 번 `make models`로 임베딩(`BAAI/bge-m3`)·리랭커(`BAAI/bge-reranker-v2-m3`) 모델을 받고(`.env.example` 기본값, 검색 중에는 내려받지 않는다), `make index`를 실행하면 DB 목록 전체를 색인한다. 리랭커를 끄려면 `.env`에 `RERANKER_MODEL=`(빈 값)(사용법: [scripts/README](../scripts/README.md)). 업로드 API(`POST /documents`)도 같은 Indexer·저장소를 쓴다.
+문서 목록은 DB `document` 테이블이 원본이다(3절). 먼저 `make models`로 임베딩(`BAAI/bge-m3`)·리랭커(`BAAI/bge-reranker-v2-m3`)를 준비하고, 관제 담당자로 로그인해 HMI의 **문서 등록**에서 PDF를 올린다. 파싱·청킹·임베딩·벡터 저장은 자동으로 진행한다. 원본 PDF는 `storage/uploads/`, 문서 정보와 상태는 DB에 저장한다. 운영 카탈로그나 별도 일괄 색인 명령은 사용하지 않는다. 리랭커를 끄려면 `.env`에 `RERANKER_MODEL=`(빈 값)을 둔다.
 
 | | Qdrant 로컬 모드 (기본) | Qdrant 서버 모드 |
 |---|---|---|
@@ -92,8 +92,8 @@ TEST_DATABASE_URL=postgresql://weeing:weeing@localhost:5432/weeing uv run --no-s
 | 동시 접근 | **한 폴더를 한 프로세스만** 연다 | 여러 프로세스 가능 |
 | 용도 | 개발·단위 테스트 | 통합 시험·시연·운영 |
 
-- **한 프로세스만 쓰기**: Qdrant 로컬 모드는 폴더를 한 프로세스만 열 수 있다. API 서버가 떠 있는 동안 `make index`를 실행하면 "다른 프로세스가 사용 중" 오류로 멈춘다(종료 코드 2). API를 끄거나 서버 모드를 쓴다. Chroma 내장 모드는 **잠금이 없어 오류 없이 열리지만** 여러 프로세스가 같은 폴더에 쓰면 손상될 수 있으므로, 동시에 쓰지 않도록 직접 주의한다.
-- **다시 색인해야 할 때**: 청킹·파서를 바꿨으면 `make index ARGS=--force`. 임베딩 모델·벡터 차원·sparse 토크나이저를 바꿨으면 `make index ARGS=--recreate`(컬렉션을 새로 만든다). 다른 모델로 기존 컬렉션을 열면 `StoreMismatchError`로 멈춘다.
+- **한 프로세스만 쓰기**: Qdrant 로컬 모드는 같은 폴더를 한 프로세스만 열 수 있다. API가 로컬 폴더를 사용 중이면 별도 점검 프로그램에서 같은 폴더를 열지 않는다. 동시 접속·대시보드 확인이 필요하면 `QDRANT_URL` 서버 모드를 쓴다. Chroma 내장 모드도 같은 폴더에 여러 프로세스가 동시에 쓰지 않는다.
+- **임베딩 모델·청킹 변경**: 운영 일괄 재구축 명령은 제공하지 않는다. 모델·차원·sparse 토크나이저를 바꾸면 기존 컬렉션과 호환되지 않으므로 새 컬렉션을 준비하고 필요한 문서를 웹에서 재등록한다. 모델 변경 전 기존 DB·원본·컬렉션을 보관한다.
 - **Chroma로 바꾸기**: `.env`에 `VECTOR_STORE=chroma`. 데이터는 `CHROMA_DIR`에 저장되고 텔레메트리는 꺼져 있다. 하이브리드 검색은 같은 결과를 파이썬에서 계산한다.
 - **Chroma 자원 종료**: `build_store()`가 만든 저장소는 자기 클라이언트를 소유하므로 작업이 끝나면 `store.close()`로 닫는다. 임시 폴더 삭제 전에 닫아야 Windows 파일 잠금을 해제할 수 있다. `ChromaVectorStore`에 외부 클라이언트를 직접 주입한 경우 기본은 빌린 객체(`owns_client=False`)이며, 종료는 클라이언트를 만든 쪽에서 담당한다. 이 기본값은 같은 클라이언트를 공유하는 기존 코드의 동작을 유지한다.
 - **서버 모드 계약 테스트**: `make qdrant-up` 후 `QDRANT_URL=http://localhost:6333 uv run --no-sync pytest tests/rag`. 로컬 모드는 엔진이 달라 주기적으로 서버 모드로도 돌린다.

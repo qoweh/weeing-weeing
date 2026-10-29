@@ -17,8 +17,8 @@
 | `src/weeing_weeing/db/` | 문서 레지스트리와 상태 관리. rag는 DB 구현을 import하지 않는다 |
 | `src/weeing_weeing/plc/` | 독립 보호 제어. rag를 import하지 않는다 |
 | `src/weeing_weeing/scripts/` | 기존 청크 미리보기·색인 보조 코드 |
-| `data/manuals/`, `rulebase/`, `regulations/` | 매뉴얼·룰 정의서·SOP 원본. `data/catalog.toml`이 기준 목록이다 |
-| `data/parsed/`, `chunked/` | 파싱 결과·청크 검토용 Markdown. 현재 색인 원본은 카탈로그에 적힌 PDF다 |
+| `data/manuals/`, `rulebase/`, `regulations/` | 매뉴얼·룰 정의서·SOP 원본. 운영 문서는 웹에서 등록하고 DB에서 관리한다 |
+| `data/parsed/`, `chunked/` | 파싱 결과·청크 검토용 Markdown. 운영 색인 원본은 웹에 업로드한 PDF다 |
 | `data/eval/` | 검색 평가 질의. 현재 정답은 기대 문서와 본문 키워드로 판정한다 |
 | `data/telemetry/` | 센서 CSV와 시연 그래프 |
 | `data/templates/`, `report/` | 보고서 양식. 승인 보고서의 사람 작성 칸 색인은 별도 기능이다 |
@@ -38,7 +38,7 @@
 
 ```mermaid
 flowchart LR
-    C[카탈로그·완료된 업로드] --> I[DocumentIndexer]
+    C[웹 업로드·승인 보고서] --> I[DocumentIndexer]
     I --> S[VectorStore]
     Q[질문·필터] --> R[HybridRetriever]
     R --> H[dense + BM25 + RRF]
@@ -55,7 +55,7 @@ flowchart LR
 | `rag/retriever.py` | 입력 검증 → 필터 변환 → 후보 검색 → 리랭킹 → 상위 k개 선택 → Evidence·인용 생성 |
 | `rag/factory.py` | 설정으로 검색기를 조립한다. 주입받은 저장소의 종료는 호출자가 담당한다 |
 | `rag/interface.py` | 외부용 Retriever.search와 get_retriever. API 색인·검색은 프로세스 안에서 저장소 하나를 공유한다 |
-| `rag/registry.py` | DB에서 받은 DocumentRecord를 색인 목록으로 변환. 검색 순위를 계산하지 않는다 |
+| `rag/eval_corpus.py`, `eval_sync.py` | 검색 평가용 입력·임시 색인 구성. 운영 DB 등록에는 사용하지 않는다 |
 | `rag/e2e.py`, `scripts/verify_rag_e2e.py` | dense·hybrid와 공개 검색기의 reranked 결과를 비교한다 |
 
 ## 후보·점수·실패 규칙
@@ -212,7 +212,7 @@ Markdown 보고서로 남긴다. 없으면 기존 두 방식만 평가한다. �
 - 전체 pytest 최종 실행: 656개 통과, 9개 실패, 4개 건너뜀.
 - 남은 실패는 이번에 수정하지 않은 코드의 Windows 호환성 문제다.
   `tests/db/test_document_repository.py`의 SQLite 경로 URL 표기 비교 1개,
-  `tests/rag/test_catalog_sync.py`의 기본 인코딩으로 작성한 파일을 UTF-8로 읽는 검사 8개다.
+  `tests/rag/test_eval_corpus.py`의 기본 인코딩으로 작성한 파일을 UTF-8로 읽는 검사 8개다.
 - Ruff 검사·포맷 검사와 `git diff --check`를 실행했다.
 - 스킬 동기화 검사는 작업 전부터 있던 `.claude/skills/README.md` 불일치로 실패한다.
   검색 범위 밖의 스킬 파일은 변경하지 않았다.
@@ -225,3 +225,19 @@ Markdown 보고서로 남긴다. 없으면 기존 두 방식만 평가한다. �
 - Incident → 질의문은 `interface.incident_query(incident)`(`rag/query.py`)가 만든다. 형식과 근거(질의문 형태별 실측)는 `rag/query.py` 주석과 DECISIONS D-22.
 - 평가 질의 파일은 문장(`query`) 대신 Incident 코드(`codes`)로도 쓸 수 있다(`data/eval/rag_queries_v1.toml`의 i01~i06).
 - Incident로 검색할 때는 `retriever.search(incident_query(incident), k=5)`처럼 코드 필터 없이 쓰는 것을 기본으로 한다. `filters={"code": ...}`를 걸면 코드가 없는 SOP 절차 조각(정지·격리·재가동)이 빠진다(D-22). 위 예시의 코드 필터는 코드 관련 조각만 볼 때의 선택 사항이다.
+
+
+## 문서 목록·등록·삭제 (#110)
+
+운영 문서는 HMI의 **자료 관리 → 문서 목록 / 문서 등록**에서 관리하며 PostgreSQL의 `document` 테이블이 기준 목록이다. 새 문서는 별도 파일 목록에서 자동으로 들어오지 않는다.
+
+- 로그인한 사용자는 `GET /documents`로 매뉴얼·SOP·룰의 제목(업로드 PDF 파일명), 버전·검색 등록 상태를 조회한다. 승인 보고서는 목록·삭제 대상에서 제외한다.
+- 관제 담당자만 `POST /documents`로 등록하거나 `DELETE /documents/{doc_id}`로 삭제한다. 관리자 표시만으로는 허용되지 않는다.
+- 웹 등록은 원본·DB 접수 정보 저장 → 파싱 → 청킹 → 임베딩 → 벡터 저장 → 완료 순서다. 중복 검사는 현재 DB의 완료된 문서와 최근 처리 중인 문서의 파일 해시를 기준으로 한다. 같은 문서 ID는 개정판으로 허용한다.
+- DELETE 본문은 목록에서 받은 `doc_version`, `source_sha256`, `upload_id`다. 그사이 새 판이 등록되면 409로 거절하므로 목록을 새로고침한다.
+- 삭제는 해당 문서 ID의 벡터 청크 제거 후 DB 모든 판의 행을 실제 삭제한다. 원본 PDF·검토 파일은 보관한다. 필요하면 웹에서 재업로드한다.
+- 삭제 중에는 `deleting`, 실패하면 `delete_failed`로 남겨 재시도한다. 벡터 삭제 후 DB 처리가 실패해도 다음 삭제 요청에서 청크 0건 삭제를 허용하고 DB 정리를 마친다. 성공한 문서의 DB 행은 남기지 않는다.
+- 마이그레이션 `0005`는 이전 구현에서 `deleted`로 남긴 매뉴얼·SOP·룰 행만 정리한다. 활성 문서와 삭제 진행·실패 문서는 유지한다.
+- 문서 ID별 PostgreSQL 세션 advisory lock으로 등록·삭제를 직렬화하고 진행률을 커밋한다. 개발용 SQLite는 `BEGIN IMMEDIATE`를 사용한다.
+- 운영 카탈로그·자동 seed 동기화·`make index`는 제거했다. 이미 등록된 기존 `origin=seed` 문서는 일반 문서처럼 조회·삭제·새 업로드로 대체할 수 있다. 평가용 목록 `data/eval/rag_documents_v1.toml`은 운영 DB와 별개다.
+- 영향 모듈: contracts·db·rag·api·HMI. 승인 보고서의 자동 검색 등록과 `make index-reports`는 유지한다.

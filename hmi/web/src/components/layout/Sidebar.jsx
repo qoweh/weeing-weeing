@@ -3,13 +3,17 @@ const navigation = [
   { icon: '◉', label: '이상 사건', id: 'incidents', pending: true },
   { icon: '▤', label: '정비 보고서', id: 'report-write' },
   { icon: '⌕', label: '문서 검색', id: 'search', pending: true },
-  { icon: '↥', label: '문서 등록', id: 'documents' },
   { icon: '✦', label: '에러 분석', id: 'analysis' },
+  { section: '자료 관리', id: 'manual-section' },
+  { icon: '▤', label: '문서 목록', id: 'manual-list' },
+  { icon: '↥', label: '문서 등록', id: 'documents', role: '관제 담당자' },
 ]
 
-export default function Sidebar({ page, onNavigate, busy }) {
+export default function Sidebar({ user, page, onNavigate, busy }) {
   return <aside className="sidebar"><div className="sidebar__label">WORKSPACE</div>
-    <nav aria-label="주 메뉴">{navigation.map(({ icon, label, id, pending }) => pending
+    <nav aria-label="주 메뉴">{navigation.filter((item) => !item.role || item.role === user?.role).map(({ icon, label, id, pending, section }) => section
+      ? <div className="sidebar__section" key={id}>{section}</div>
+      : pending
       ? <span key={id} className="nav-item nav-item--disabled" title="준비 중"><span aria-hidden="true">{icon}</span>{label}<small>준비 중</small></span>
       : <button key={id} type="button" className={`nav-item ${page === id ? 'nav-item--active' : ''}`}
           aria-current={page === id ? 'page' : undefined} disabled={busy} onClick={() => onNavigate(id)}>

@@ -1,4 +1,4 @@
-"""범용 Indexer(rag/interface.py의 Indexer 구현). 업로드 API와 make index가 같이 쓴다.
+"""범용 Indexer(rag/interface.py의 Indexer 구현). 웹 업로드와 격리된 검색 평가가 같이 쓴다.
 
     index_file(path, metadata)
       1. 파싱    parser_for(path) → 페이지별 Document           (#6 pdf_parser)
@@ -8,7 +8,7 @@
                 page·section·codes·citation
       5. 저장    store.replace_document(doc_id, chunks)   임베딩·키워드 벡터는 저장소가 계산(#7)
 
-받은 metadata(카탈로그·업로드 값)는 바꾸지 않는다. 동기화가 이 값으로 변경을 감지한다.
+받은 metadata(문서 등록 정보)는 바꾸지 않는다. 동기화가 이 값으로 변경을 감지한다.
 """
 
 import json
@@ -82,14 +82,37 @@ class DocumentIndexer:
         if not all(isinstance(v, str) and v.strip() for v in (doc_id, version)):
             raise InvalidDocumentError("metadata에 doc_id와 doc_version이 필요하다")
         with _INDEX_LOCK:
+            existing = self.store.documents(where={"doc_id": doc_id})
+            if any(
+                info.metadata.get("doc_type") == "report" for info in existing.values()
+            ):
+                raise InvalidDocumentError(
+                    "승인 보고서와 같은 문서 ID로 등록할 수 없습니다."
+                )
             return self._index(
                 Path(path), metadata, on_progress or (lambda stage: None)
             )
+
+    def delete_document(self, doc_id: str) -> int:
+        with _INDEX_LOCK:
+            documents = self.store.documents(where={"doc_id": doc_id})
+            if any(
+                info.metadata.get("doc_type") == "report" for info in documents.values()
+            ):
+                raise InvalidDocumentError("승인 보고서는 매뉴얼 삭제 대상이 아닙니다.")
+            return self.store.delete_document(doc_id)
 
     def index_report(self, report: MaintenanceReport) -> int:
         """전체 사례를 청크 하나로 저장한다. doc_id가 같으면 이전 승인 판을 교체한다."""
         chunk = report_chunk(report)
         with _INDEX_LOCK:
+            existing = self.store.documents(where={"doc_id": report.report_id})
+            if any(
+                info.metadata.get("doc_type") != "report" for info in existing.values()
+            ):
+                raise InvalidDocumentError(
+                    "등록 문서와 같은 ID로 보고서를 색인할 수 없습니다."
+                )
             return self.store.replace_document(report.report_id, [chunk])
 
     def _index(self, path: Path, metadata: Mapping[str, Any], report) -> int:

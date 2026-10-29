@@ -186,9 +186,10 @@ RAG를 켤 때(임베딩 bge-m3 약 2.2GB, 볼륨 `hf_models`에 남아 다음 �
 cd ~/weeing-weeing
 echo 'HF_HUB_OFFLINE=0' >> .env
 docker compose run --rm api python scripts/download_models.py   # 임베딩 약 2.2GB, 5분 안팎
-docker compose run --rm api python scripts/build_index.py       # catalog.toml 반영 + 색인
 docker compose up -d api
 ```
+
+모델을 준비한 뒤 일반 문서는 웹의 **문서 등록**에서 올린다. 등록 시 파싱·청킹·임베딩·벡터 저장이 자동으로 진행된다. 운영 카탈로그와 `scripts/build_index.py`·`make index`는 사용하지 않는다.
 
 ### 확인
 

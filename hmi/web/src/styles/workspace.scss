@@ -113,6 +113,21 @@ textarea {
   resize: vertical;
 }
 
+.document-version {
+  input[readonly] {
+    background: var(--background, #f3f4f6);
+    color: var(--muted, #667085);
+  }
+
+  small {
+    display: block;
+    margin-top: 8px;
+    color: var(--muted, #667085);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+}
+
 .full-width {
   grid-column: 1 / -1;
 }
@@ -160,3 +175,30 @@ pre {
   }
 }
 }
+
+.rag-workspace .document-access {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: clamp(28px, 5vw, 56px) 24px;
+  text-align: center;
+}
+.rag-workspace .document-access__icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+.rag-workspace .document-access h2 {
+  max-width: 520px;
+  margin: 0;
+  font-size: clamp(1.05rem, 2vw, 1.25rem);
+  font-weight: 700;
+  line-height: 1.6;
+}
+.rag-workspace .document-access p { max-width: 520px; color: var(--muted); }
+.rag-workspace .document-access .primary { margin-top: 8px; color: var(--surface); }

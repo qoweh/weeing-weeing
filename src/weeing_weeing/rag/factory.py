@@ -127,8 +127,7 @@ def build_store(
 def indexer_class() -> Callable[[VectorStore], Indexer]:
     """문서 파싱·청킹 Indexer. store를 받아 Indexer를 만드는 것을 돌려준다.
 
-    색인 명령은 저장소를 열기 전에 이 함수로 Indexer가 있는지 먼저 확인한다
-    (--recreate가 컬렉션을 지운 뒤에 Indexer가 없다고 멈추지 않게).
+    웹 업로드와 격리된 검색 평가에서 같은 구현체를 사용한다.
     """
     from weeing_weeing.rag.indexer import DocumentIndexer
 

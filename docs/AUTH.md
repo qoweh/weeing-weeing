@@ -62,7 +62,9 @@ def review(report_id: str): ...
 
 결재 기록(`ApprovalStep.user`)·조치 기록(`ActionTaken.by`)에는 `user.employee_no`를 넣는다. 요청 본문으로 받은 사번을 믿지 않는다.
 
-**아직 걸지 않은 곳**: 문서 업로드(`POST /documents`)와 센서 WebSocket. 지금 걸면 송신기·기존 테스트가 깨지므로 HMI를 붙일 때 담당자가 건다.
+**매뉴얼 관리**: 문서 목록(`GET /documents`)과 업로드 상태 조회는 로그인한 사용자가 할 수 있다. 등록(`POST /documents`)과 삭제(`DELETE /documents/{doc_id}`)는 관제 담당자(`Role.CONTROL`)만 할 수 있다. `is_admin=True`여도 다른 직책이면 등록·삭제할 수 없다. 화면에서는 관제 담당자에게만 문서 등록 메뉴를 표시하고, 다른 직책이 등록 화면에 접근하면 폼 대신 권한 안내와 문서 목록 이동 버튼을 제공한다.
+
+**아직 걸지 않은 곳**: 센서 WebSocket.
 
 ## 직책별 권한표 (제안, 미확정)
 

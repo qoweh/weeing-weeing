@@ -31,7 +31,7 @@ STORE_SCHEMA = "1"
 MetaValue = str | int | float | bool | list[str]
 Where = Mapping[str, str | int | float | bool | Sequence[str]]
 
-# 표준 메타데이터 키. 색인 쪽(#6, 카탈로그)이 채운다.
+# 표준 메타데이터 키. 웹 색인기와 검색 평가가 채운다.
 STANDARD_KEYS = (
     "doc_type",  # manual | rule | sop | report
     "status",  # approved | draft
@@ -74,7 +74,7 @@ class Hit:
 
 @dataclass(frozen=True)
 class DocInfo:
-    """저장된 문서 하나의 요약. 카탈로그 동기화가 변경 감지에 쓴다."""
+    """저장된 문서 하나의 요약. 문서 조회와 검색 평가의 변경 감지에 쓴다."""
 
     doc_id: str
     doc_version: str
@@ -328,5 +328,5 @@ def check_collection_meta(
         if have != want:
             raise StoreMismatchError(
                 f"컬렉션 '{collection}'의 {key}: 기록={have!r}, 현재={want!r}. "
-                "컬렉션을 새로 만들어 전체 재색인(make index ARGS=--recreate)해야 한다"
+                "새 컬렉션을 준비하고 웹에서 문서를 재등록해야 한다"
             )

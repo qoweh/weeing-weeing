@@ -7,7 +7,7 @@ ENV_FILE := $(if $(wildcard .env),--env-file .env,)
 # 의존성이 바뀌면(pull 후 등) make setup을 다시 실행한다.
 RUN := uv run --no-sync
 
-.PHONY: help setup lint fmt test check skills db-up db-migrate qdrant-up down api models index index-reports seed-users rag-e2e llm-check analyze
+.PHONY: help setup lint fmt test check skills db-up db-migrate qdrant-up down api models index-reports seed-users rag-e2e llm-check analyze
 
 help: ## 명령 목록
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -35,7 +35,7 @@ skills: ## 스킬 원본(.agents/skills)을 Claude Code용 사본(.claude/skills
 db-up: ## PostgreSQL 기동
 	docker compose up -d postgres
 
-db-migrate: ## DB 스키마를 최신으로 (make index·API도 시작할 때 자동으로 올린다)
+db-migrate: ## DB 스키마를 최신으로 (API도 시작할 때 자동으로 올린다)
 	PYTHONPATH=src $(RUN) $(ENV_FILE) alembic upgrade head
 
 qdrant-up: ## Qdrant 서버 기동 (서버 모드, .env에 QDRANT_URL=http://localhost:6333)
@@ -46,9 +46,6 @@ down: ## 보조 서비스 정지
 
 models: ## 임베딩·리랭커 모델 미리 받기 (새 PC에서 한 번, 약 4.5GB)
 	PYTHONPATH=src $(RUN) $(ENV_FILE) python scripts/download_models.py $(ARGS)
-
-index: ## RAG 색인: catalog.toml을 DB에 반영 → DB 문서 목록과 벡터 DB 동기화 (DB 필요, ARGS=--dry-run|--force|--recreate)
-	PYTHONPATH=src $(RUN) $(ENV_FILE) python scripts/build_index.py $(ARGS)
 
 index-reports: ## 승인 보고서 검색 등록 대기 처리 (실패 재시도: ARGS=--retry-failed)
 	PYTHONPATH=src $(RUN) $(ENV_FILE) python scripts/index_reports.py $(ARGS)

@@ -7,11 +7,11 @@ import pytest
 from fakes import FakeEmbedder, MemoryVectorStore
 
 from weeing_weeing.rag import factory
-from weeing_weeing.rag.catalog import load_catalog
+from weeing_weeing.rag.eval_corpus import load_corpus
+from weeing_weeing.rag.eval_sync import index_metadata, sync
 from weeing_weeing.rag.indexer import DocumentIndexer, InvalidDocumentError
 from weeing_weeing.rag.parsers import parser_for
 from weeing_weeing.rag.sparse import extract_codes
-from weeing_weeing.rag.sync import index_metadata, sync
 
 DATA = Path(__file__).resolve().parents[2] / "data"
 MANUAL = DATA / "manuals/BTT-MANUAL_v2.0.pdf"
@@ -137,18 +137,40 @@ def test_factory_connects_document_indexer(memory):
 
 
 def test_sync_with_real_catalog_is_idempotent(memory):
-    """make index와 같은 경로: 실제 카탈로그 3종을 색인하고 다시 돌리면 전부 unchanged."""
-    catalog = load_catalog(DATA / "catalog.toml")
+    """make index와 같은 경로: 실제 평가 자료 목록 3종을 색인하고 다시 돌리면 전부 unchanged."""
+    corpus = load_corpus(DATA / "eval/rag_documents_v1.toml")
     indexer = DocumentIndexer(memory)
 
-    first = sync(catalog, indexer, memory)
+    first = sync(corpus, indexer, memory)
     assert first.added == ["BTT-MANUAL", "BTT-RULE", "BTT-SOP-001"]
     assert first.ok, first.failed
-    second = sync(catalog, indexer, memory)
+    second = sync(corpus, indexer, memory)
     assert second.unchanged == ["BTT-MANUAL", "BTT-RULE", "BTT-SOP-001"]
 
-    for entry in catalog.documents:  # 변경 감지에 쓰는 값이 모든 청크에 그대로 있다
+    for entry in corpus.documents:  # 변경 감지에 쓰는 값이 모든 청크에 그대로 있다
         expected = index_metadata(entry, "x")
         for chunk in memory.chunks(where={"doc_id": entry.doc_id}):
             assert chunk.metadata["status"] == expected["status"]
             assert chunk.metadata["source_path"] == expected["source_path"]
+
+
+def test_manual_deletion_does_not_delete_report_vectors(memory):
+    from weeing_weeing.rag.store import Chunk
+
+    memory.replace_document(
+        "REPORT",
+        [
+            Chunk(
+                chunk_id="REPORT:1:0001",
+                doc_id="REPORT",
+                doc_version="1",
+                text="확정 정비 이력",
+                metadata={"doc_type": "report", "status": "approved"},
+            )
+        ],
+    )
+    with pytest.raises(InvalidDocumentError, match="보고서"):
+        DocumentIndexer(memory).delete_document("REPORT")
+    with pytest.raises(InvalidDocumentError, match="보고서"):
+        DocumentIndexer(memory).index_file(MANUAL, {**META, "doc_id": "REPORT"})
+    assert memory.chunks(where={"doc_id": "REPORT"})
