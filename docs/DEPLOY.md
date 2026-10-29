@@ -103,19 +103,40 @@ ssh-keygen -t ed25519 -C "github-actions-deploy" -f ~/.ssh/ww-team/deploy_ed2551
 ssh-copy-id -i ~/.ssh/ww-team/deploy_ed25519.pub ww-team1
 ```
 
-### 2. Secrets 등록 (레포 Settings → Secrets and variables → Actions)
+### 2. Environment `production`에 Secrets 등록
 
-| 이름 | 값 |
-|---|---|
-| `EC2_HOST` | 서버 고정 IP |
-| `EC2_SSH_KEY` | 배포 전용 개인 키 내용(`deploy_ed25519`, `.pub` 아님) |
-| `EC2_KNOWN_HOSTS` | 서버 호스트 키. 한 번 접속한 PC에서 `ssh-keygen -F <서버 IP>` 출력, 또는 `ssh-keyscan <서버 IP>` |
-| `EC2_USER` | (선택) 기본값 `ubuntu` |
+접속 정보는 레포 Secrets가 아니라 **Environment `production`**에 둔다. Environment가 허용한 브랜치에서 `environment: production`을 선언한 job(deploy)만 값을 받는다. 다른 브랜치에 워크플로를 만들어 push해도 서버 키를 꺼낼 수 없다.
 
-`gh` CLI로 등록할 때:
+레포 Settings → Environments → `production`:
+
+1. **Deployment branches and tags** → Selected branches and tags → `main`, `dev` 추가
+2. **Environment secrets**
+
+   | 이름 | 값 |
+   |---|---|
+   | `EC2_HOST` | 서버 고정 IP |
+   | `EC2_SSH_KEY` | 배포 전용 개인 키 내용(`deploy_ed25519`, `.pub` 아님) |
+   | `EC2_KNOWN_HOSTS` | 서버 ED25519 호스트 키 한 줄(아래 명령으로 확인 후 등록) |
+
+3. **Environment variables**(선택): `EC2_USER`. 없으면 `ubuntu`. 비밀이 아니므로 Secret에 넣지 않는다(Secret에 넣으면 로그의 같은 글자가 모두 `***`로 가려진다)
+4. 같은 이름의 **레포 Secrets는 지운다**(Settings → Secrets and variables → Actions). 남아 있으면 다른 브랜치의 워크플로가 계속 읽을 수 있다
+
+`gh` CLI로 등록할 때(`--env production`):
 
 ```bash
-gh secret set EC2_SSH_KEY -R qoweh/weeing-weeing < ~/.ssh/ww-team/deploy_ed25519
+gh secret set EC2_SSH_KEY --env production -R qoweh/weeing-weeing < ~/.ssh/ww-team/deploy_ed25519
+```
+
+`EC2_KNOWN_HOSTS`는 서버에서 읽은 지문과 인터넷으로 받은 지문이 같은지 확인한 뒤 등록한다.
+
+```bash
+ssh ww-team1 'ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub'
+```
+```bash
+ssh-keyscan -t ed25519 <서버 IP> 2>/dev/null | ssh-keygen -lf -
+```
+```bash
+ssh-keyscan -t ed25519 <서버 IP> 2>/dev/null | gh secret set EC2_KNOWN_HOSTS --env production -R qoweh/weeing-weeing
 ```
 
 ### 3. 서버 .env
@@ -139,7 +160,7 @@ chmod 600 .env
 ## 배포
 
 - **자동:** release PR(dev → main)이 머지되면 `Deploy (EC2)` 워크플로가 돈다
-- **수동:** Actions → Deploy (EC2) → Run workflow → 브랜치 선택. dev나 작업 브랜치를 서버에 올려 볼 때 쓴다
+- **수동:** Actions → Deploy (EC2) → Run workflow → `dev` 선택. Environment가 main·dev만 허용하므로 작업 브랜치는 빌드까지만 되고 배포 단계에서 막힌다
 - 워크플로 파일이 기본 브랜치(dev)에 있어야 Run workflow 버튼이 보인다
 
 ### 첫 배포 뒤 한 번: 모델 받기·색인·계정
@@ -192,10 +213,10 @@ scp 'ww-team1:~/weeing-weeing/backup-*.sql' 'ww-team1:~/weeing-weeing/files-*.tg
 
 | 증상 | 확인 |
 |---|---|
-| 워크플로가 `Secret이 필요합니다`로 실패 | Secrets 4개 이름 확인 |
-| `Host key verification failed` | `EC2_KNOWN_HOSTS`가 서버 IP와 맞는지. 서버를 새로 받았으면 다시 등록 |
+| 워크플로가 `Secret이 필요합니다`로 실패 | Environment `production`의 Secrets 3개 이름 확인. 허용 브랜치(main·dev)가 아닌 곳에서 실행하면 값이 비어 이 오류가 난다 |
+| `Host key verification failed` / `No ED25519 host key is known` | `EC2_KNOWN_HOSTS`에 서버 ED25519 지문이 없음. [위 명령](#2-environment-production에-secrets-등록)으로 다시 등록. 이때 접속 실패가 `.env가 없습니다`로 함께 표시된다 |
 | `Connection timed out`(SSH) | 서버가 꺼져 있거나 보안그룹 22번이 닫혀 있음 |
 | `.env가 없습니다` | [서버 .env](#3-서버-env) 작성 |
 | API가 healthy가 안 됨 | `docker compose logs api`. DB 비밀번호 불일치(처음 값과 다름)가 흔하다 |
-| 디스크 부족 | `docker system df`, `docker image prune -a`(쓰지 않는 이미지 전부 삭제) |
+| 디스크 부족 | `docker system df`. 배포 때마다 쓰지 않는 이미지를 지운다(`prune -af`). 그래도 차면 모델·볼륨 크기 확인 |
 | 메모리 부족(OOM) | `docker stats`. 임베딩 모델이 약 1.5GB를 쓴다. 필요하면 강사에게 16GB 요청 |
