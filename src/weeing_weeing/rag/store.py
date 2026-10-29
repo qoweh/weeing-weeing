@@ -69,6 +69,7 @@ class Chunk:
 class Hit:
     chunk: Chunk
     score: float  # 클수록 관련. 순위만 의미 있음(모듈 docstring)
+    relevance: float | None = None  # 리랭커가 채운 모델 점수. 저장소는 None을 반환
 
 
 @dataclass(frozen=True)

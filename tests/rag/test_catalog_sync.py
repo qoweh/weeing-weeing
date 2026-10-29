@@ -197,41 +197,44 @@ def test_failed_update_keeps_previous_index(ws, store_factory):
 # --- 카탈로그 검증 ---
 
 
-def test_duplicate_doc_id_is_rejected(tmp_path):
-    (tmp_path / "a.txt").write_text("a")
-    (tmp_path / "b.txt").write_text("b")
+@pytest.mark.parametrize("catalog_encoding", ["utf-8", "cp949"])
+def test_duplicate_doc_id_is_rejected(catalog_encoding, tmp_path):
+    (tmp_path / "a.txt").write_text("a", encoding="utf-8")
+    (tmp_path / "b.txt").write_text("b", encoding="utf-8")
     body = ENTRY.format(
         doc_id="A", version="1", doc_type="manual", status="draft", path="a.txt"
     )
     body += ENTRY.format(
         doc_id="A", version="1", doc_type="manual", status="draft", path="b.txt"
     )
-    (tmp_path / "catalog.toml").write_text(body)
+    (tmp_path / "catalog.toml").write_text(body, encoding=catalog_encoding)
 
     with pytest.raises(CatalogError, match="doc_id 중복: A"):
         load_catalog(tmp_path / "catalog.toml")
 
 
-def test_same_file_content_under_two_ids_is_rejected(tmp_path):
-    (tmp_path / "a.txt").write_text("같은 내용")
-    (tmp_path / "b.txt").write_text("같은 내용")
+@pytest.mark.parametrize("catalog_encoding", ["utf-8", "cp949"])
+def test_same_file_content_under_two_ids_is_rejected(catalog_encoding, tmp_path):
+    (tmp_path / "a.txt").write_text("같은 내용", encoding="utf-8")
+    (tmp_path / "b.txt").write_text("같은 내용", encoding="utf-8")
     body = ENTRY.format(
         doc_id="A", version="1", doc_type="manual", status="draft", path="a.txt"
     )
     body += ENTRY.format(
         doc_id="B", version="1", doc_type="manual", status="draft", path="b.txt"
     )
-    (tmp_path / "catalog.toml").write_text(body)
+    (tmp_path / "catalog.toml").write_text(body, encoding=catalog_encoding)
 
     with pytest.raises(CatalogError, match="내용이 같은 파일.*A, B"):
         load_catalog(tmp_path / "catalog.toml")
 
 
-def test_missing_file_is_rejected(tmp_path):
+@pytest.mark.parametrize("catalog_encoding", ["utf-8", "cp949"])
+def test_missing_file_is_rejected(catalog_encoding, tmp_path):
     body = ENTRY.format(
         doc_id="A", version="1", doc_type="manual", status="draft", path="x.pdf"
     )
-    (tmp_path / "catalog.toml").write_text(body)
+    (tmp_path / "catalog.toml").write_text(body, encoding=catalog_encoding)
 
     with pytest.raises(CatalogError, match="파일 없음 x.pdf"):
         load_catalog(tmp_path / "catalog.toml")
@@ -246,24 +249,30 @@ def test_missing_file_is_rejected(tmp_path):
         ("version", "1 0"),
     ],
 )
-def test_invalid_values_are_rejected(tmp_path, field, value):
-    (tmp_path / "a.txt").write_text("a")
+@pytest.mark.parametrize("catalog_encoding", ["utf-8", "cp949"])
+def test_invalid_values_are_rejected(catalog_encoding, tmp_path, field, value):
+    (tmp_path / "a.txt").write_text("a", encoding="utf-8")
     values = dict(
         doc_id="A", version="1", doc_type="manual", status="draft", path="a.txt"
     )
     values[field] = value
-    (tmp_path / "catalog.toml").write_text(ENTRY.format(**values))
+    (tmp_path / "catalog.toml").write_text(
+        ENTRY.format(**values), encoding=catalog_encoding
+    )
 
     with pytest.raises(CatalogError):
         load_catalog(tmp_path / "catalog.toml")
 
 
-def test_unknown_key_is_rejected(tmp_path):
-    (tmp_path / "a.txt").write_text("a")
+@pytest.mark.parametrize("catalog_encoding", ["utf-8", "cp949"])
+def test_unknown_key_is_rejected(catalog_encoding, tmp_path):
+    (tmp_path / "a.txt").write_text("a", encoding="utf-8")
     body = ENTRY.format(
         doc_id="A", version="1", doc_type="manual", status="draft", path="a.txt"
     )
-    (tmp_path / "catalog.toml").write_text(body + 'vresion = "2"\n')
+    (tmp_path / "catalog.toml").write_text(
+        body + 'vresion = "2"\n', encoding=catalog_encoding
+    )
 
     with pytest.raises(CatalogError, match="vresion"):
         load_catalog(tmp_path / "catalog.toml")
@@ -284,3 +293,27 @@ def test_interrupted_write_is_reindexed_next_run(ws):
     report = sync(ws.catalog(), indexer, store)
     assert report.updated == ["MAN"]
     assert store.documents()["MAN"].complete
+
+
+@pytest.mark.parametrize("catalog_encoding", ["utf-8", "cp949"])
+def test_catalog_preserves_korean_title(tmp_path, catalog_encoding):
+    (tmp_path / "a.txt").write_text("document", encoding="utf-8")
+    body = ENTRY.format(
+        doc_id="A", version="1", doc_type="manual", status="draft", path="a.txt"
+    )
+    path = tmp_path / "catalog.toml"
+    path.write_text(body, encoding=catalog_encoding)
+
+    catalog = load_catalog(path)
+
+    assert catalog.documents[0].title == "A \ubb38\uc11c"
+
+
+def test_catalog_rejects_unsupported_encoding(tmp_path):
+    path = tmp_path / "catalog.toml"
+    path.write_bytes(b"\xff")
+
+    with pytest.raises(CatalogError) as error:
+        load_catalog(path)
+
+    assert isinstance(error.value.__cause__, UnicodeDecodeError)

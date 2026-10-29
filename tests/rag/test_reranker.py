@@ -31,8 +31,11 @@ def test_lazy_model_reused_and_rrf_scores_preserved(monkeypatch):
 
     for _ in range(2):
         found = ranker.rerank("센서 오염", candidates)
-        assert found == [candidates[1], candidates[2], candidates[0]]
-        assert found[0] is candidates[1]  # 원본 청크·RRF 점수·인용을 통째로 보존
+        assert [h.chunk for h in found] == [candidates[i].chunk for i in (1, 2, 0)]
+        assert [h.score for h in found] == [candidates[i].score for i in (1, 2, 0)]
+        assert [h.relevance for h in found] == [5.0, 0.0, -1.0]
+        assert found[0].chunk is candidates[1].chunk
+        assert all(h.relevance is None for h in candidates)  # 원본 후보는 수정하지 않음
     load.assert_called_once_with("local-model")
     model.predict.assert_called_with(
         [("센서 오염", hit.chunk.text) for hit in candidates],
@@ -46,7 +49,9 @@ def test_tied_scores_keep_hybrid_order(monkeypatch):
     model.predict.return_value = [0.0, 0.0, 0.0]
     monkeypatch.setattr(reranker, "_load_model", lambda _: model)
     candidates = hits()
-    assert CrossEncoderReranker("local").rerank("질문", candidates) == candidates
+    found = CrossEncoderReranker("local").rerank("질문", candidates)
+    assert [h.chunk for h in found] == [h.chunk for h in candidates]
+    assert [h.relevance for h in found] == [0.0, 0.0, 0.0]
 
 
 def test_no_candidates_does_not_load_model(monkeypatch):

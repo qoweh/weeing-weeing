@@ -118,7 +118,7 @@ def test_search_then_submit_gives_cited_result():
 
     assert result.status == "OK"
     assert result.model == "fake/llm"
-    assert result.prompt_version == "incident-analyst-v1"
+    assert result.prompt_version == "incident-analyst-v2"
     assert [e.evidence_id for e in result.evidence] == [EV.evidence_id]  # 인용한 것만
     assert retriever.queries == [("P03 입구 장기 점유", 5, {"code": "BTT2-P03"})]
     assert a.last_memory.turns == 2
@@ -130,6 +130,7 @@ def test_search_then_submit_gives_cited_result():
     # 검색 결과가 모델에게 돌아간다
     returned = json.loads(last_tool_results(llm)[0]["content"])
     assert returned[0]["evidence_id"] == EV.evidence_id
+    assert returned[0]["relevance"] is None
 
 
 def test_citing_unsearched_id_is_sent_back_and_corrected():
@@ -152,6 +153,61 @@ def test_no_evidence_gives_insufficient():
     assert result.status == "INSUFFICIENT_EVIDENCE"
     assert result.suspected_causes == [] and result.evidence == []
     assert last_tool_results(llm)[0]["content"] == "검색 결과 없음"
+
+
+def test_relevance_is_preserved_in_tool_memory_and_final_result():
+    evidence = EV.model_copy(update={"score": 0.033, "relevance": 0.82})
+    llm = FakeLlm(reply(search()), reply(submit()))
+    a = analyzer(llm, FakeRetriever([evidence]))
+    result = a.analyze(INCIDENT)
+    returned = json.loads(last_tool_results(llm)[0]["content"])
+    assert returned[0]["relevance"] == 0.82
+    assert a.last_memory.evidence[EV.evidence_id].relevance == 0.82
+    assert result.evidence[0].score == 0.033
+    assert result.evidence[0].relevance == 0.82
+
+
+def test_filtered_rag_evidence_cannot_be_cited_by_agent():
+    from weeing_weeing.rag.interface import HybridRetriever
+
+    chunk = SimpleNamespace(
+        chunk_id=EV.evidence_id,
+        doc_id=EV.doc_id,
+        doc_version=EV.doc_version,
+        text=EV.text,
+        metadata={"citation": EV.citation},
+    )
+    hit = SimpleNamespace(chunk=chunk, score=0.033, relevance=0.1)
+    store = SimpleNamespace(hybrid_query=lambda *args, **kwargs: [hit])
+    reranker = SimpleNamespace(rerank=lambda query, hits: hits)
+    retriever = HybridRetriever(store, reranker=reranker, min_relevance=0.5)
+    # 모델이 필터로 제외된 실제 ID를 써도 실행 기억에 없으므로 거부한다.
+    llm = FakeLlm(
+        reply(search()), reply(submit()), reply(submit("INSUFFICIENT_EVIDENCE"))
+    )
+    a = analyzer(llm, retriever)
+    result = a.analyze(INCIDENT)
+    assert result.status == "INSUFFICIENT_EVIDENCE"
+    assert result.evidence == [] and a.last_memory.evidence == {}
+    assert last_tool_results(llm)[0]["is_error"] is True
+
+
+def test_invalid_reranker_output_is_failed_not_correctable_tool_input():
+    llm = FakeLlm(reply(search()))
+    result = analyzer(llm, FakeRetriever(ValueError("관련도 NaN"))).analyze(INCIDENT)
+    assert result.status == "FAILED"
+    assert "근거 검색 실패" in result.limitations
+    assert len(llm.calls) == 1
+
+
+@pytest.mark.parametrize("bad_filter", [{"code": "BTT2-Z99"}, {"doc_type": "other"}])
+def test_invalid_search_filters_remain_correctable(bad_filter):
+    llm = FakeLlm(reply(search(**bad_filter)), reply(search()), reply(submit()))
+    retriever = FakeRetriever([EV])
+    result = analyzer(llm, retriever).analyze(INCIDENT)
+    assert result.status == "OK"
+    assert len(retriever.queries) == 1
+    assert last_tool_results(llm, call=1)[0]["is_error"] is True
 
 
 def test_k_is_clamped_and_filters_passed():

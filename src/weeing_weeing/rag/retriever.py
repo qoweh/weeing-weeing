@@ -6,6 +6,7 @@
 Incident를 검색어로 바꾸는 처리는 interface.incident_query(rag/query.py)가 맡는다.
 """
 
+import math
 from typing import Any
 
 from weeing_weeing.contracts import Evidence
@@ -92,6 +93,7 @@ def _evidence(hit: Hit) -> Evidence:
         text=chunk.text,
         score=hit.score,
         citation=_citation(hit),
+        relevance=hit.relevance,
     )
 
 
@@ -101,6 +103,7 @@ class HybridRetriever:
     dense 검색, BM25 검색, RRF 순위 결합은 VectorStore에서 처리한다.
     reranker가 있으면 후보를 넓혀 검색한 뒤 재정렬하고 최종 k개를 선택한다.
     Evidence.score는 재정렬 후에도 저장소의 RRF 점수를 유지한다.
+    모델 점수는 Evidence.relevance로 전달하고 min_relevance가 있으면 미달 근거를 뺀다.
     VectorStore의 생성과 종료는 이 클래스를 사용하는 호출자가 담당한다.
     """
 
@@ -110,18 +113,31 @@ class HybridRetriever:
         *,
         reranker: Reranker | None = None,
         candidate_k: int = 30,
+        min_relevance: float | None = None,
     ) -> None:
         """저장소와 선택적 리랭커를 주입받고 리랭킹 후보 수를 검증한다.
 
         store는 이미 조립된 저장소 객체다. reranker=None이면 RRF 순위를 사용한다.
         candidate_k는 리랭킹에 넘길 최소 후보 수이며 search()의 최종 k와 구분한다.
+        min_relevance=None이면 거르지 않는다. 하한을 지정하려면 reranker가 필요하다.
+        하한은 모델별 평가로 정하며, 모델 출력이 하한과 같으면 포함한다.
         """
         if isinstance(candidate_k, bool) or not isinstance(candidate_k, int):
             raise TypeError("candidate_k는 정수여야 합니다.")
         check_k(candidate_k)
+        if min_relevance is not None:
+            if isinstance(min_relevance, bool) or not isinstance(
+                min_relevance, (int, float)
+            ):
+                raise TypeError("min_relevance는 유한한 숫자 또는 None이어야 합니다.")
+            if not math.isfinite(min_relevance):
+                raise ValueError("min_relevance에 NaN 또는 무한대를 넣을 수 없습니다.")
+            if reranker is None:
+                raise ValueError("min_relevance를 사용하려면 리랭커가 필요합니다.")
         self._store = store
         self._reranker = reranker
         self._candidate_k = candidate_k
+        self._min_relevance = min_relevance
 
     def search(
         self,
@@ -162,6 +178,17 @@ class HybridRetriever:
         # 빈 결과에서는 모델을 로드하지 않는다. 리랭킹 실패는 호출자에게 예외로 전달된다.
         if hits and self._reranker is not None:
             hits = self._reranker.rerank(query, hits)
+
+        if self._min_relevance is not None:
+            # 점수 누락·오류를 근거 없음으로 숨기거나 RRF로 대신 판정하지 않는다.
+            if any(
+                hit.relevance is None or not math.isfinite(hit.relevance)
+                for hit in hits
+            ):
+                raise ValueError(
+                    "관련도 필터에 필요한 리랭커 점수가 없습니다/유효하지 않습니다."
+                )
+            hits = [hit for hit in hits if hit.relevance >= self._min_relevance]
 
         # 최종 순위에서 k개만 고른 뒤 공통 근거 형식으로 변환한다.
         return [_evidence(hit) for hit in hits[:k]]

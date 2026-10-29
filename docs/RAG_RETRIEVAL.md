@@ -51,7 +51,7 @@ flowchart LR
 | 파일 | 역할 |
 |---|---|
 | `rag/store.py`, `qdrant_store.py`, `chroma_store.py`, `sparse.py` | 기존 dense·BM25·RRF 구현. D-12에 따라 저장 계층에서 끝낸다 |
-| `rag/reranker.py` | 내부 Reranker Protocol과 로컬 CrossEncoderReranker. 질문·청크 본문 쌍을 채점한다 |
+| `rag/reranker.py` | 내부 Reranker Protocol과 로컬 CrossEncoderReranker. 질문·청크 본문 쌍을 채점하고 Hit.relevance로 전달한다 |
 | `rag/retriever.py` | 입력 검증 → 필터 변환 → 후보 검색 → 리랭킹 → 상위 k개 선택 → Evidence·인용 생성 |
 | `rag/factory.py` | 설정으로 검색기를 조립한다. 주입받은 저장소의 종료는 호출자가 담당한다 |
 | `rag/interface.py` | 외부용 Retriever.search와 get_retriever. API 색인·검색은 프로세스 안에서 저장소 하나를 공유한다 |
@@ -64,9 +64,11 @@ flowchart LR
   저장소 내부 dense·BM25 prefetch는 기존처럼 이 후보 수의 4배다.
 - 리랭킹을 끄면 기존대로 저장소에 `k`를 전달한다. 후보 수 기본값 30은 조정 시작값이다.
 - 필터는 후보 검색 전에 적용한다. `code`는 `codes` 별칭이며 두 키를 함께 쓰면 오류다.
-- 리랭커는 원래 Hit 객체를 재배열한다. ID·버전·본문·출처·RRF 점수는 보존한다.
+- 리랭커는 모델 점수를 `Hit.relevance`에 담은 새 Hit를 관련도순으로 반환한다. 원본 후보를 수정하지 않고 ID·버전·본문·출처·RRF 점수는 보존한다.
 - 반환 목록의 순서가 최종 관련도다. `Evidence.score`는 원래 RRF 점수이므로 다시 score로 정렬하지 않는다.
   모델 점수와 RRF 점수를 합산하거나, RRF 점수를 확률·근거 충분성 임계값으로 사용하지 않는다.
+- `Evidence.relevance`는 모델 출력 점수다. 리랭커를 끄면 `None`(미측정)이다. 0점·관련 없음으로 간주하지 않는다. 점수 범위는 모델에 따라 다르며 확률로 해석하지 않는다.
+- `HybridRetriever(..., min_relevance=값)` 또는 `RAG_MIN_RELEVANCE`를 지정하면 모델 점수가 하한 **이상**인 후보만 남긴 뒤 k개를 고른다. 전부 미달하면 `[]`다. 빈 값/None은 필터를 끄며, 리랭커 없이 하한을 지정하면 설정 오류다. 점수 누락·비정상 값도 오류로 전달한다.
 - 동점이면 입력 순서를 유지한다. 점수 개수 불일치·NaN·무한대는 오류다.
 - 빈 검색 결과는 `[]`다. 검색·모델 로드·추론 실패는 예외로 전달한다. 실패를 근거 없음으로 바꾸거나 조용히 RRF로 대체하지 않는다.
 - Agent는 근거가 없으면 `INSUFFICIENT_EVIDENCE`로 멈춘다. 검색 결과가 있다는 사실만으로 근거가 충분하다고 판단하지 않는다.
@@ -80,6 +82,8 @@ flowchart LR
 ```dotenv
 RERANKER_MODEL=C:/models/selected-reranker
 RAG_CANDIDATE_K=30
+# 기본은 빈 값(필터 끔). #75에서 모델별로 측정한 기준값을 지정한다.
+RAG_MIN_RELEVANCE=
 ```
 
 후보가 있는 첫 검색에서 모델을 한 번 올려 재사용한다. 추론 중 다운로드하지 않도록
@@ -104,6 +108,77 @@ evidence = retriever.search(
 만들거나 공유 저장소를 닫지 않는다. 설정은 시작 전에 지정하고 변경 시 프로세스를 재시작한다.
 위 예시의 승인 필터는 호출자가 선택하는 정책이다. 초안 포함 여부는 명시적으로 결정한다.
 Agent 구현·HTTP 검색 API·화면 연결은 이번 검색 담당 구현 범위에 포함하지 않는다.
+
+## #8·#74·#75 본문·댓글과 코드 비교 (2026-10-28)
+
+`gh issue view --json body,comments`로 확인했다. [#8](https://github.com/qoweh/weeing-weeing/issues/8)은 댓글 2개, [#74](https://github.com/qoweh/weeing-weeing/issues/74)·[#75](https://github.com/qoweh/weeing-weeing/issues/75)는 댓글이 없었다.
+
+| 이슈 | 구현된 부분 | 남은 작업 |
+|---|---|---|
+| #8 검색 및 Reranking | `incident_query`, 저장소 hybrid 검색·필터, CrossEncoder 정렬, Evidence·출처 반환, 공개 factory 연결. 기존 실측은 질의 18개·reranked MRR 0.917 | 담당자의 완료 조건 확인·종료 판단. 평가셋·근거 부족 판정 후속은 #74·#75 |
+| #74 관련도 전달·근거 거르기 | B+C 조합: RRF를 보존한 선택 필드 `Evidence.relevance`, Retriever의 `min_relevance`, 환경변수·factory 연결, 미사용·오류 정책과 테스트 | #75 분포 실측으로 운영 기준값 선정. 그 전에는 자동 필터를 기본 적용하지 않음 |
+| #75 평가셋 확대 | `query`/`codes` 형식의 기존 18개 질의, dense·hybrid·reranked 비교 도구 | 질의 30개 이상·범위 밖 5개 이상, 정답 청크 보강, 근거 없음 평가 형식, 점수 분포·기준값 제안과 리포트 |
+
+#8 댓글의 저장 계층/검색기 경계를 유지한다. 오래된 댓글의 코드 필터 제안은 후속 실측 D-22에 따라 선택 사항이며 기본 적용하지 않는다.
+
+### #74 Agent 연결과 #75 평가 확대 (2026-10-29)
+
+- Claude 사건 분석기의 `search_evidence`도 `Evidence.relevance`를 전달한다. 원본 RRF는
+  유지하며, 미측정 `None`을 0이나 확률로 바꾸지 않는다.
+- 관련도 필터를 통과한 근거만 실행 기억에 등록한다. 제외된 ID는 제출 시 인용할 수
+  없다. 근거가 없으면 재검색하거나 `INSUFFICIENT_EVIDENCE`로 제출한다.
+- 잘못된 검색 필터는 모델에게 수정 요청하고, 검색·리랭커의 비정상 출력은 `FAILED`다.
+- 평가셋은 정답 질의 30개(서술형·SOP 18개, 코드 12개)와 범위 밖 6개, 총 36개다.
+  `expect_no_evidence=true`인 질의에는 가짜 `doc_id`·키워드를 넣지 않는다.
+- hit@1·hit@k·MRR은 정답 질의만 집계한다. 범위 밖 질의는 실제 빈 결과일 때만
+  거절 성공으로 세고 오반환 수를 별도로 보고한다.
+- 보고서에는 반환 1위 관련도의 종류별 최소·평균·최대와 질의별 관련도, 모델·후보 수·하한을
+  기록한다. 색인 실패 시 검색 품질은 측정하지 않는다.
+
+실제 모델을 준비한 뒤 PowerShell에서 필터를 끈 기준 실행을 한다.
+임시 벡터 저장소를 사용하므로 기존 운영 색인은 바꾸지 않는다.
+
+```powershell
+$env:PYTHONPATH = "src"
+$env:HF_HUB_OFFLINE = "1"
+$env:RAG_MIN_RELEVANCE = ""
+uv run --no-sync python -X utf8 scripts/verify_rag_e2e.py --backends qdrant,chroma --out docs/rag_e2e/report-2026-10-29-relevance-baseline.md
+```
+
+로컬 CPU에서 먼저 확인하려면 `--backends qdrant`로 한 저장소부터 실행한다.
+문서 색인·멱등·갱신 단계와 각 질의의 시작·완료·소요 시간을 즉시 출력한다.
+질의 번호는 검색 평가의 진행 상황이며 전체 실행의 완료율은 아니다.
+
+평가 스크립트는 같은 질문과 같은 문서 배치의 임베딩을 실행 중 메모리에서 재사용한다.
+문서와 질문의 캐시는 분리하고 모델·입력·후보 수·필터·검색 및 저장소 갱신 검사는
+유지한다. 프로세스를 종료하면 캐시도 사라지며 중단한 평가를 이어받지는 않는다.
+캐시 사용 여부는 보고서에 기록한다. 캐시 사용 시 색인·질의 시간에는 재사용 효과가
+포함되므로 순수 모델 추론 속도나 백엔드 간 공정한 속도 비교로 해석하지 않는다.
+캐시 없는 처리 시간 측정에는 `--no-embedding-cache`를 추가한다.
+
+범위 밖 오반환과 정상 질의의 관련도 분포로 후보 하한을 정하고 `RAG_MIN_RELEVANCE`에
+지정해 같은 평가를 다른 출력 파일로 재실행한다. 정상 질의의 hit@k·MRR 손실과
+범위 밖 거절 수를 함께 비교한다. 분포가 겹치면 무손실 기준값이 없다고 기록하고,
+임의로 운영 필터를 켜지 않는다. 코드·모델·문서·평가셋이 바뀌면 다시 측정한다.
+이 작은 평가셋의 결과를 전체 운영 정확도로 해석하지 않는다.
+
+최초 구현 검증에서는 기본 모델 가중치가 준비되지 않아 실제 품질과 기준값을 측정하지
+못했다. 이후 2026-10-29 Qdrant·Chroma 실제 모델 재실행에서 하한 `0.02`가 Hit@1 23/30,
+Hit@5 30/30, MRR 0.869를 유지하고 범위 밖 질의 5/6개를 거절했다.
+[실측 비교와 남은 문제](rag_e2e/report-2026-10-29-relevance-comparison.md)를 참고한다.
+가짜 모델 자동 테스트는 전달·필터·집계 검증이며 품질 실측과 구분한다.
+
+검증(2026-10-29): 잠금 파일 기준 환경 동기화, 전체 Ruff·포맷·스킬 동기화 검사 통과.
+Windows에 make가 없어 `make check`의 구성 명령을 개별 실행했고,
+`PYTHONUTF8=1`의 전체 pytest 결과는 **936개 통과, 4개 건너뜀, 기존 경고 3개**다.
+이번 검증에서는 실제 Claude API 호출·모델 다운로드·검색 품질 실측을 하지 않았다.
+
+### #74 검증 기록
+
+- 관련 회귀 테스트: `uv run --no-sync pytest tests/rag/test_reranker.py tests/rag/test_retriever.py tests/rag/test_factory.py tests/rag/test_e2e.py tests/contracts tests/test_config.py` → 183개 통과. 가짜 모델을 사용하며 메모리·Qdrant 메모리/로컬·Chroma에서 관련도 전달·필터·출처/RRF 보존을 확인했다.
+- Windows에 make가 없어 README의 동등 명령을 실행했다. 전체 Ruff·포맷 검사, 스킬 동기화 검사는 통과했다. 기본 인코딩의 전체 pytest는 834개 통과·13개 실패·4개 건너뜀. 실패는 미수정 테스트(`tests/api/test_websocket_telemetry.py` 2개, `tests/rag/test_catalog_sync.py` 8개, `tests/scripts/test_send_csv_websocket.py` 3개)의 cp949/UTF-8 읽기·쓰기 불일치다.
+- 같은 전체 테스트를 PowerShell에서 `$env:PYTHONUTF8 = '1'; uv run --no-sync pytest --tb=short`로 다시 실행해 847개 통과·4개 건너뜀을 확인했다. 이 실행 환경 설정은 저장소나 사용자의 `.env`에 기록하지 않았다.
+- 실제 문서 E2E: `HF_HUB_OFFLINE=1`로 `scripts/verify_rag_e2e.py --backends qdrant,chroma --out outputs/rag_e2e/report-2026-10-28-issue74.md` 실행 → 종료 코드 1. 필요한 임베딩 모델 파일이 로컬 캐시에 없어 문서 3종 색인이 두 백엔드 모두 실패했다. 보고서의 0/18은 빈 색인에서 나온 값이며 품질 측정값으로 해석하지 않는다. 모델 준비 후 기존 코드 질의 품질 유지 여부를 다시 확인해야 한다.
 
 ## 검증과 품질 평가
 

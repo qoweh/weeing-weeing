@@ -81,9 +81,20 @@ def load_catalog(path: str | Path) -> Catalog:
     """읽고 검증한다: 형식, doc_id 중복, 파일 존재, 서로 다른 항목의 같은 파일 내용."""
     path = Path(path)
     try:
-        raw = tomllib.loads(path.read_text(encoding="utf-8"))
+        # Prefer UTF-8; also accept legacy Korean Windows catalogs.
+        data = path.read_bytes()
+        try:
+            text = data.decode("utf-8")
+        except UnicodeDecodeError:
+            text = data.decode("cp949")
+        raw = tomllib.loads(text)
         catalog = Catalog(root=path.parent, documents=raw.get("documents", []))
-    except (OSError, tomllib.TOMLDecodeError, ValidationError) as exc:
+    except (
+        OSError,
+        UnicodeDecodeError,
+        tomllib.TOMLDecodeError,
+        ValidationError,
+    ) as exc:
         raise CatalogError(f"{path}: {exc}") from exc
     validate_catalog(catalog, label=str(path))
     return catalog

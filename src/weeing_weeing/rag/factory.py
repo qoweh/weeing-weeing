@@ -154,4 +154,5 @@ def build_retriever(
         store,
         reranker=reranker if reranker is not None else build_reranker(settings),
         candidate_k=settings.rag_candidate_k,
+        min_relevance=settings.rag_min_relevance,
     )

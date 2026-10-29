@@ -1,6 +1,8 @@
 from dataclasses import fields
 from pathlib import Path
 
+import pytest
+
 from weeing_weeing.config import get_settings
 
 ENV_EXAMPLE = Path(__file__).resolve().parents[1] / ".env.example"
@@ -32,5 +34,21 @@ def test_defaults_match_env_example(monkeypatch):
         actual = getattr(settings, key.lower())
         if isinstance(actual, bool):  # bool("false")는 True라 문자열로 비교한다
             assert actual == (value.lower() in ("1", "true", "yes")), key
+        elif actual is None:
+            assert value == "", key
         else:
             assert actual == type(actual)(value), key
+
+
+@pytest.mark.parametrize(
+    "value, expected", [("", None), ("  ", None), ("0", 0.0), ("0.5", 0.5)]
+)
+def test_min_relevance_from_environment(monkeypatch, value, expected):
+    monkeypatch.setenv("RAG_MIN_RELEVANCE", value)
+    assert get_settings().rag_min_relevance == expected
+
+
+def test_invalid_min_relevance_from_environment(monkeypatch):
+    monkeypatch.setenv("RAG_MIN_RELEVANCE", "low")
+    with pytest.raises(ValueError):
+        get_settings()

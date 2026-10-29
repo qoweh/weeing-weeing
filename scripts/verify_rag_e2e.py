@@ -10,6 +10,7 @@
 - 저장소는 백엔드마다 임시 폴더(서버는 임시 컬렉션)에 새로 만들고 끝나면 지운다.
   storage/의 실제 색인은 건드리지 않는다.
 - 임베딩 모델은 한 번만 올려 모든 백엔드가 같이 쓴다.
+- 같은 입력의 임베딩을 실행 중 재사용한다. 순수 처리 시간 측정은 --no-embedding-cache.
 - RERANKER_MODEL이 있으면 로컬 리랭커도 한 번만 올려 reranked 결과를 비교한다.
 - 실제 색인에는 #6 Indexer가 rag/factory.py의 indexer_class()에 연결돼 있어야 한다.
 """
@@ -28,7 +29,12 @@ from pathlib import Path
 from weeing_weeing.config import get_settings
 from weeing_weeing.rag import factory
 from weeing_weeing.rag.catalog import load_catalog
-from weeing_weeing.rag.e2e import format_markdown, load_queries, run_backend
+from weeing_weeing.rag.e2e import (
+    EvaluationEmbedder,
+    format_markdown,
+    load_queries,
+    run_backend,
+)
 
 BACKENDS = ("qdrant", "chroma", "qdrant-server")
 
@@ -90,6 +96,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--backends", default="qdrant,chroma", help=",".join(BACKENDS))
     parser.add_argument("-k", type=int, default=5, help="상위 몇 개를 볼지")
     parser.add_argument("--out", type=Path, help="결과 파일(기본 outputs/rag_e2e/)")
+    parser.add_argument(
+        "--no-embedding-cache",
+        action="store_true",
+        help="같은 입력도 다시 임베딩한다(캐시 없는 처리 시간 측정)",
+    )
     args = parser.parse_args(argv)
 
     backends = [b.strip() for b in args.backends.split(",") if b.strip()]
@@ -112,6 +123,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cannot_start(exc)
 
     embedder = factory.LazyEmbedder(settings.embedding_model)  # 모델은 한 번만
+    if not args.no_embedding_cache:
+        embedder = EvaluationEmbedder(embedder)
     runs = []
     skipped: dict[str, str] = {}  # 시작하지 못한 백엔드 → 이유. 나머지는 계속 돈다
     for backend in backends:
@@ -138,6 +151,7 @@ def main(argv: list[str] | None = None) -> int:
                         )
                         if reranker is not None
                         else None,
+                        progress=lambda message: print(message, flush=True),
                     )
                 )
             except Exception as exc:
@@ -149,6 +163,16 @@ def main(argv: list[str] | None = None) -> int:
                     _drop_server_collection(run_settings)
 
     report = format_markdown(runs, k=args.k)
+    report += (
+        "\n## 실행 설정\n\n"
+        f"- 질의 파일: `{args.queries}` ({len(queries)}개)\n"
+        f"- 임베딩: `{settings.embedding_model}`\n"
+        f"- 리랭커: `{settings.reranker_model or '미사용'}`\n"
+        f"- 후보 수: {settings.rag_candidate_k}, 최종 k: {args.k}\n"
+        f"- 관련도 하한: {settings.rag_min_relevance}\n"
+        f"- 실행 중 임베딩 캐시: {'미사용' if args.no_embedding_cache else '사용'}\n"
+        "- 처리 시간은 위 캐시 설정을 포함한다. 캐시 사용 결과는 순수 추론 속도가 아니다.\n"
+    )
     if skipped:
         report += "\n## 시작하지 못한 백엔드·검증 실패\n\n" + "".join(
             f"- {b}: {why}\n" for b, why in skipped.items()

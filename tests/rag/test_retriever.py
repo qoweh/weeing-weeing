@@ -194,3 +194,80 @@ def test_reranking_with_each_store_backend(store):
         "센서", k=1, filters={"code": "BTT2-P01"}
     )
     assert [e.evidence_id for e in found] == [candidates[-1].chunk.chunk_id]
+
+
+@pytest.mark.parametrize(
+    "minimum, expected", [(None, [0, 1, 2]), (0.5, [0, 1]), (1, [])]
+)
+def test_relevance_reaches_evidence_and_filter_runs_before_final_k(minimum, expected):
+    store = Mock(spec=VectorStore)
+    # 후순위의 관련 근거도 k를 고르기 전에 검사한다. RRF 크기는 판단에 쓰지 않는다.
+    candidates = [Hit(chunk(i), score) for i, score in enumerate([0.01, 0.02, 0.03])]
+    store.hybrid_query.return_value = candidates
+    reranker = Mock()
+    reranker.rerank.return_value = [
+        Hit(candidates[i].chunk, candidates[i].score, relevance)
+        for i, relevance in enumerate([0.9, 0.5, 0.1])
+    ]
+    found = HybridRetriever(store, reranker=reranker, min_relevance=minimum).search(
+        "센서", k=2
+    )
+    assert [e.evidence_id for e in found] == [
+        candidates[i].chunk.chunk_id for i in expected[:2]
+    ]
+    assert [e.score for e in found] == [candidates[i].score for i in expected[:2]]
+    assert [e.relevance for e in found] == [[0.9, 0.5, 0.1][i] for i in expected[:2]]
+
+
+def test_unranked_results_have_unknown_relevance():
+    store = Mock(spec=VectorStore)
+    store.hybrid_query.return_value = [Hit(chunk(), 0.03)]
+    assert HybridRetriever(store).search("센서")[0].relevance is None
+
+
+@pytest.mark.parametrize(
+    "minimum", [True, "0.5", float("nan"), float("inf"), -float("inf")]
+)
+def test_invalid_relevance_threshold_is_rejected(minimum):
+    with pytest.raises((ValueError, TypeError)):
+        HybridRetriever(Mock(spec=VectorStore), reranker=Mock(), min_relevance=minimum)
+
+
+def test_relevance_filter_requires_reranker_even_with_zero_threshold():
+    with pytest.raises(ValueError, match="리랭커가 필요"):
+        HybridRetriever(Mock(spec=VectorStore), min_relevance=0)
+
+
+@pytest.mark.parametrize("relevance", [None, float("nan"), float("inf")])
+def test_filter_rejects_missing_or_invalid_model_score(relevance):
+    store = Mock(spec=VectorStore)
+    store.hybrid_query.return_value = [Hit(chunk(), 0.03)]
+    reranker = Mock()
+    reranker.rerank.return_value = [Hit(chunk(), 0.03, relevance)]
+    with pytest.raises(ValueError, match="리랭커 점수"):
+        HybridRetriever(store, reranker=reranker, min_relevance=0.5).search("센서")
+
+
+def test_relevance_filter_with_model_and_each_store_backend(store, monkeypatch):
+    from weeing_weeing.rag import reranker
+    from weeing_weeing.rag.reranker import CrossEncoderReranker
+
+    store.replace_document(
+        "BTT-MANUAL", [chunk(i, citation=f"인용 {i}") for i in range(3)]
+    )
+    candidates = store.hybrid_query("센서", k=30)
+    model = Mock()
+    model.predict.return_value = [0.01, 0.9, 0.5]
+    monkeypatch.setattr(reranker, "_load_model", lambda _: model)
+    retriever = HybridRetriever(
+        store, reranker=CrossEncoderReranker("local"), min_relevance=0.5
+    )
+    found = retriever.search("센서", k=1)
+    assert len(found) == 1
+    assert found[0].evidence_id == candidates[1].chunk.chunk_id
+    assert found[0].relevance == 0.9
+    assert found[0].score == candidates[1].score
+    assert found[0].citation == candidates[1].chunk.metadata["citation"]
+    model.predict.return_value = [0.01, 0.02, 0.03]
+    assert retriever.search("용접 로봇", k=2) == []
+    assert retriever.search("센서", filters={"doc_id": "없는 문서"}) == []

@@ -126,7 +126,9 @@ def test_failure_closes_poisoned_history_and_releases_slot(client, sample_rows):
         with pytest.raises(WebSocketDisconnect) as error:
             ws.receive_json()
         assert error.value.code == 1011
-    manifest = json.loads((Path(ready["run_path"]) / "manifest.json").read_text())
+    manifest = json.loads(
+        (Path(ready["run_path"]) / "manifest.json").read_text(encoding="utf-8")
+    )
     assert manifest["status"] == "failed"
     with client.websocket_connect("/ws/telemetry") as ws:
         assert ws.receive_json()["run_id"] != ready["run_id"]
@@ -223,7 +225,9 @@ def test_storage_failure_is_not_acked_or_retried(client, sample_rows, monkeypatc
     assert calls == [1]
     # Previous durable running manifest remains visibly incomplete when even the
     # failed-state write cannot be saved.
-    manifest = json.loads((Path(ready["run_path"]) / "manifest.json").read_text())
+    manifest = json.loads(
+        (Path(ready["run_path"]) / "manifest.json").read_text(encoding="utf-8")
+    )
     assert not manifest["completed"]
 
 

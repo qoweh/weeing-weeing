@@ -28,6 +28,7 @@
 - **Telemetry**: 15컬럼 순서 고정(`COLUMNS`). 전류·온도 빈 값은 0이 아니라 `None`. `timestamp`는 시간대 필수
 - **Incident**: 같은 현상이 이어지면 새로 만들지 않고 갱신. 묶인 원시 코드를 `codes`에 전부 보존. 회복(`RECOVERED`)과 종결(`CLOSED`)은 다르다
 - **AnalysisResult**: `status=OK`이면 근거(`evidence`)가 1개 이상 있어야 하고, 원인 후보마다 근거를 1개 이상 인용해야 하며, 인용한 `evidence_ids`는 실제 근거 목록에 있어야 한다. 검증기가 이를 강제한다
+- **Evidence 관련도(#74)**: `score`는 기존 검색 점수(RRF)를 유지하고, 선택 필드 `relevance`로 유한한 리랭커 모델 점수를 전달한다. 미측정은 `None`이며 측정된 0점과 구분한다. 이전 JSON에는 이 필드가 없어도 된다. 관련도는 확률이 아니고 모델별 값의 범위가 달라 음수도 허용한다. 기준값은 #75 평가로 결정한다. 영향 모듈: rag(생성·필터), agent(근거 판단), api·db·HMI(AnalysisResult·보고서 JSON 전달·저장·표시). 새 필드는 기본값 None이며 DB 스키마 변경은 없다.
 - **DocumentRecord**: 색인 대상 문서 한 줄(db `document` 테이블 ↔ rag 색인 목록 ↔ api 업로드 상태). `origin`은 seed(카탈로그)·upload·report. 색인 목록은 `status=completed` 행이고 같은 doc_id의 completed는 하나뿐이다. `origin=upload`면 `upload_id` 필수. `doc_id`·`doc_version`에는 `:`와 공백을 쓸 수 없다(청크 ID 구분자)
 - **UserAccount**: 사용자 한 명(사번 `employee_no`, 이름, 직책 `role`, `is_admin`, `is_active`). 비밀번호·세션 토큰은 계약에 없고 db 내부에만 있다. 직책은 업무 권한, `is_admin`은 계정 관리 권한으로 따로 준다. 사번은 보고서의 `ActionTaken.by`·`ApprovalStep.user`와 같은 값을 쓴다
 - **MaintenanceReport**: 칸마다 쓰는 주체가 정해져 있다. AI는 `maintenance`·`approval`을 쓰지 않는다. RAG에는 승인된 보고서의 사람 작성 칸만 넣는다
@@ -37,7 +38,8 @@
 
 코드: `contracts/chat.py`. 영향 모듈: agent(응답 생성),
 rag(검색 근거 변환), db(대화 저장), api(인증·조립), hmi/web(상태·출처 표시).
-기존 `Incident`, `Evidence`, `AnalysisResult`, `MaintenanceReport`는 변경하지 않는다.
+챗봇 계약 자체는 기존 `Incident`, `Evidence`, `AnalysisResult`, `MaintenanceReport`를
+변경하지 않는다. #74의 선택 필드 `Evidence.relevance` 확장은 위 공통 규칙을 따른다.
 
 | 계약 | 역할·검증 |
 |---|---|

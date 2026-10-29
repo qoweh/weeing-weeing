@@ -35,6 +35,9 @@ class Settings:
     reranker_model: str = ""  # 비어 있으면 RRF 순위, 지정하면 로컬 CrossEncoder
     rag_candidate_k: int = 30  # 리랭킹할 최소 후보 수. 최종 k보다 작으면 k까지 확장
     auth_session_hours: float = 12  # 로그인 세션 유효 시간(교대 근무 한 번)
+    rag_min_relevance: float | None = (
+        None  # #75 실측 전에는 관련도 필터를 기본 적용하지 않음
+    )
     # 사용량 기록(#113). 키는 SDK가 LANGFUSE_PUBLIC_KEY·LANGFUSE_SECRET_KEY에서 직접 읽는다
     llm_user: str = ""  # 사람별 집계 이름(GitHub 핸들)
     langfuse_base_url: str = ""  # 비어 있으면 기록하지 않는다
@@ -45,6 +48,7 @@ class Settings:
 
 def get_settings() -> Settings:
     env = os.environ.get
+    min_relevance = env("RAG_MIN_RELEVANCE", "").strip()
     return Settings(
         llm_model=env("LLM_MODEL", "claude-sonnet-5-5"),
         llm_effort=env("LLM_EFFORT", "medium"),
@@ -75,6 +79,7 @@ def get_settings() -> Settings:
         ),
         reranker_model=env("RERANKER_MODEL", "BAAI/bge-reranker-v2-m3"),
         rag_candidate_k=int(env("RAG_CANDIDATE_K", "30")),
+        rag_min_relevance=float(min_relevance) if min_relevance else None,
         auth_session_hours=float(env("AUTH_SESSION_HOURS", "12")),
         llm_user=env("LLM_USER", ""),
         langfuse_base_url=env("LANGFUSE_BASE_URL", ""),

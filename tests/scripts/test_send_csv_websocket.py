@@ -63,7 +63,7 @@ def finalized(output):
     while time.monotonic() < deadline:
         manifests = list(output.glob("run-*/manifest.json"))
         if manifests:
-            manifest = json.loads(manifests[0].read_text())
+            manifest = json.loads(manifests[0].read_text(encoding="utf-8"))
             if manifest["status"] != "running":
                 return manifests[0].parent, manifest
         time.sleep(0.01)

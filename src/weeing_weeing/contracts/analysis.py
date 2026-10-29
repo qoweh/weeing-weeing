@@ -21,6 +21,8 @@ class Evidence(BaseModel):
     text: str
     score: float | None = None
     citation: str  # 사람이 읽는 인용 문자열. 예: "BTT-MANUAL 2.0 3절 P01/P06"
+    # 리랭커 모델 출력. 미사용 시 None(0과 다름). 확률이 아니며 모델별 보정 필요.
+    relevance: float | None = Field(default=None, allow_inf_nan=False)
 
 
 class CauseCandidate(BaseModel):

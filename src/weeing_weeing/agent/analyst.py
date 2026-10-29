@@ -19,6 +19,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from weeing_weeing.agent.runtime import (
+    AgentError,
     AgentSpec,
     AgentTool,
     FinishTool,
@@ -38,7 +39,7 @@ from weeing_weeing.contracts.document import DocType
 
 logger = logging.getLogger(__name__)
 
-PROMPT_VERSION = "incident-analyst-v1"
+PROMPT_VERSION = "incident-analyst-v2"
 MAX_K = 8
 DOC_TYPES: tuple[DocType, ...] = ("manual", "rule", "sop", "report")
 
@@ -49,6 +50,8 @@ SYSTEM = """너는 배터리 트레이 이송 설비의 정비 보조 AI다. 한
 검색:
 - 사건 코드(예: BTT2-P03)와 증상으로 먼저 찾고, 부족하면 표현을 바꾸거나 문서 종류를 좁혀 다시 찾는다.
 - 과거 정비 사례는 doc_type=report로 찾는다. 사례는 참고이고 현재 원인의 확정이 아니다.
+- relevance는 리랭커 관련도이며 확률이 아니다. null이면 관련도를 측정하지 않은 것이다.
+  검색 결과의 존재나 관련도 수치만으로 사건의 원인을 확정하지 않는다.
 
 제출 규칙:
 1. 근거에 있는 내용만 쓴다. 근거에 없는 원인·수치·절차를 지어내지 않는다.
@@ -146,10 +149,18 @@ def search_tool(retriever: Any) -> AgentTool:
         k = min(max(k, 1), MAX_K) if isinstance(k, int) else 5
         filters: dict[str, Any] = {}
         if data.get("code"):
+            if data["code"] not in CODES:
+                raise ToolInputError("정의되지 않은 code")
             filters["code"] = data["code"]
         if data.get("doc_type"):
+            if data["doc_type"] not in DOC_TYPES:
+                raise ToolInputError("지원하지 않는 doc_type")
             filters["doc_type"] = data["doc_type"]
-        found = retriever.search(query, k=k, filters=filters or None)
+        try:
+            found = retriever.search(query, k=k, filters=filters or None)
+        except ValueError as exc:
+            # 검색·리랭커의 잘못된 출력은 모델이 고칠 도구 입력 오류가 아니다.
+            raise AgentError(f"근거 검색 실패: {exc}") from exc
         memory.remember(found)
         if not found:
             return "검색 결과 없음"
@@ -160,6 +171,7 @@ def search_tool(retriever: Any) -> AgentTool:
                     "citation": e.citation,
                     "section": e.section,
                     "text": e.text,
+                    "relevance": e.relevance,
                 }
                 for e in found
             ]

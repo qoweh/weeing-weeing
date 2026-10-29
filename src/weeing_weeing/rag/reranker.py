@@ -1,12 +1,13 @@
 """검색된 후보를 질문·본문의 관련도로 다시 정렬하는 rag 내부 구현.
 
 Retriever가 후보 Hit 목록을 넘기면 CrossEncoder가 질문·청크 본문 쌍마다 점수를 낸다.
-이 점수는 정렬에만 쓰고, 원래 Hit의 본문·출처·RRF 점수는 그대로 보존한다.
+이 점수는 Hit.relevance로 전달하고, 원래 Hit의 본문·출처·RRF 점수는 보존한다.
 최종 반환 개수 k를 선택하고 Evidence로 바꾸는 일은 retriever.py가 담당한다.
 """
 
 import math
 from collections.abc import Sequence
+from dataclasses import replace
 from typing import Protocol
 
 from weeing_weeing.rag.store import Hit
@@ -20,7 +21,7 @@ class Reranker(Protocol):
     """
 
     def rerank(self, query: str, hits: Sequence[Hit]) -> list[Hit]:
-        """모든 후보를 관련도 순으로 반환한다. 본문·출처·RRF 점수는 바꾸지 않는다."""
+        """관련도 순으로 반환하며 relevance에 모델 점수를 담는다. RRF는 보존한다."""
         ...
 
 
@@ -59,7 +60,7 @@ def _load_model(model_name: str) -> PairScorer:
 class CrossEncoderReranker:
     """로컬 CrossEncoder를 첫 리랭킹 때 로드하고 재사용한다.
 
-    점수는 재정렬에만 사용한다. 동점이면 입력의 RRF 순위를 유지하며,
+    점수는 relevance로 전달한다. 동점이면 입력의 RRF 순위를 유지하며,
     모델 로드·추론 실패는 예외로 전달한다(검색 결과 없음으로 숨기지 않는다).
     """
 
@@ -106,5 +107,5 @@ class CrossEncoderReranker:
             raise ValueError("리랭커 점수에 NaN 또는 무한대가 있습니다.")
         # 후보 자체 대신 인덱스를 정렬한다. Python의 안정 정렬은 동점의 입력 순서를 유지한다.
         order = sorted(range(len(hits)), key=lambda i: scores[i], reverse=True)
-        # 새 Hit를 만들지 않아 원래 청크·출처·RRF 점수가 유지된다.
-        return [hits[i] for i in order]
+        # 원본은 수정하지 않고 모델 점수만 덧붙인다. 청크·출처·RRF는 유지한다.
+        return [replace(hits[i], relevance=scores[i]) for i in order]

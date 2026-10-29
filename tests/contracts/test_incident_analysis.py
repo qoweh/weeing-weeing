@@ -108,3 +108,23 @@ def test_report_round_trips_as_json():
         ai_analysis=make_analysis(),
     )
     assert MaintenanceReport.model_validate_json(report.model_dump_json()) == report
+
+
+def test_evidence_relevance_is_optional_and_preserves_rrf_in_json():
+    # 기존 저장 JSON은 새 필드가 없어도 읽는다. None은 측정된 0점과 다르다.
+    legacy = EVIDENCE.model_dump(exclude={"relevance"})
+    assert Evidence.model_validate(legacy).relevance is None
+    for relevance in (0.0, 0.9, -2.0):
+        evidence = Evidence(**legacy, relevance=relevance).model_copy(
+            update={"score": 0.03}
+        )
+        result = make_analysis(evidence=[evidence])
+        restored = AnalysisResult.model_validate_json(result.model_dump_json())
+        assert restored.evidence[0].relevance == relevance
+        assert restored.evidence[0].score == 0.03
+
+
+@pytest.mark.parametrize("relevance", [float("nan"), float("inf"), -float("inf")])
+def test_evidence_rejects_nonfinite_relevance(relevance):
+    with pytest.raises(ValidationError):
+        Evidence(**EVIDENCE.model_dump(exclude={"relevance"}), relevance=relevance)

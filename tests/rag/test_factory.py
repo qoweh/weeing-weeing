@@ -296,11 +296,24 @@ def test_build_retriever_uses_configured_reranker(tmp_path, monkeypatch):
         for i, text in enumerate(["모터 점검", "광전 센서 점검"])
     ]
     retriever = factory.build_retriever(
-        settings(tmp_path, reranker_model="local", rag_candidate_k=12), store
+        settings(
+            tmp_path, reranker_model="local", rag_candidate_k=12, rag_min_relevance=0.5
+        ),
+        store,
     )
     load.assert_not_called()
-    assert retriever.search("센서", k=1)[0].text == "광전 센서 점검"
+    found = retriever.search("센서", k=2)
+    assert len(found) == 1
+    assert found[0].text == "광전 센서 점검"
+    assert found[0].relevance == 0.9
     store.hybrid_query.assert_called_once_with("센서", k=12, where=None)
+
+
+def test_factory_rejects_relevance_filter_without_reranker(tmp_path):
+    with pytest.raises(ValueError, match="리랭커가 필요"):
+        factory.build_retriever(
+            settings(tmp_path, reranker_model="", rag_min_relevance=0.5), None
+        )
 
 
 def test_public_indexer_and_retriever_share_one_store(tmp_path, monkeypatch):
