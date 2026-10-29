@@ -46,11 +46,13 @@ class RunMemory:
 
     - messages: LLM에 다시 보내는 대화 기록(응답 content를 그대로 쌓아 thinking 블록 보존)
     - evidence: 이번 실행에서 도구가 실제로 돌려준 근거. 인용은 여기 있는 ID만 허용한다
+    - sensor_windows: 이번 실행의 센서 요약. 통계 인용 대조용이며 원시 행은 보관하지 않는다
     - tool_calls: 도구 호출 기록(추적·평가용)
     """
 
     messages: list[dict[str, Any]] = field(default_factory=list)
     evidence: dict[str, Evidence] = field(default_factory=dict)
+    sensor_windows: dict[str, dict[str, Any]] = field(default_factory=dict)
     tool_calls: list[ToolCall] = field(default_factory=list)
     usage: LlmUsage = field(default_factory=lambda: LlmUsage(0, 0, 0.0))
     turns: int = 0

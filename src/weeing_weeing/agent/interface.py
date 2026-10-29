@@ -15,6 +15,7 @@ from weeing_weeing.agent.faq import (
     FaqVersionConflictError,
 )
 from weeing_weeing.agent.runtime import ToolInputError as InvalidChatQueryError
+from weeing_weeing.agent.sensor_window import SensorBatch, SensorReader
 from weeing_weeing.agent.tracing import Tracer
 from weeing_weeing.contracts import AnalysisResult, Incident
 from weeing_weeing.contracts.chat import (
@@ -34,6 +35,8 @@ if TYPE_CHECKING:
 
 __all__ = [
     "Analyzer",
+    "SensorBatch",
+    "SensorReader",
     "ChatService",
     "ChatKnowledge",
     "InvalidChatQueryError",
@@ -231,9 +234,13 @@ def get_analyzer(
     *,
     client: LlmClient | None = None,
     settings: "Settings | None" = None,
+    sensor_reader: SensorReader | None = None,
     entrypoint: str = "app",
 ) -> Analyzer:
-    """사건 분석 에이전트(#102). 검색기는 조립하는 쪽(api·스크립트)이 넘긴다."""
+    """사건 분석 에이전트. 검색기·선택적 센서 조회기(#105)는 조립자가 넘긴다.
+
+    sensor_reader 생략 시 기존 사건 원본 분석, 주입 시 구간 조회·수치 검증을 제공한다.
+    """
     from weeing_weeing.agent.analyst import IncidentAnalyzer
     from weeing_weeing.config import get_settings
 
@@ -243,4 +250,5 @@ def get_analyzer(
         retriever,
         timeout_s=settings.llm_timeout_s,
         max_turns=settings.agent_max_turns,
+        sensor_reader=sensor_reader,
     )

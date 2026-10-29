@@ -27,6 +27,12 @@ from weeing_weeing.agent.runtime import (
     run_agent,
     to_json,
 )
+from weeing_weeing.agent.sensor_window import (
+    SensorClaim,
+    SensorReader,
+    verified_facts,
+    window_tool,
+)
 from weeing_weeing.contracts import CODES, AnalysisResult, CauseCandidate, Incident
 from weeing_weeing.contracts.document import DocType
 
@@ -71,6 +77,21 @@ class AnalysisDraft(BaseModel):
     additional_checks: list[str] = Field(default_factory=list)
     limitations: str | None = None
     status: Literal["OK", "INSUFFICIENT_EVIDENCE"]
+
+
+class SensorAnalysisDraft(AnalysisDraft):
+    sensor_claims: list[SensorClaim] = Field(max_length=12)
+
+
+SENSOR_SYSTEM = """
+센서 조회:
+- 구간 관측이 필요하면 get_sensor_window를 호출한다. 기준은 현재 사건 마지막 감지 시각이다.
+- 센서 수치를 사용하려면 sensor_claims에 window_id·field·statistic·value를 조회 결과 그대로 넣는다.
+- observed_facts와 후보 basis의 최종 관측 문장은 서버가 사건 원본과 검증된 sensor_claims로 작성한다.
+  두 칸은 빈 문자열로 제출해도 된다. 조회하지 않은 수치, 물체 실제 유무, 연속 점유 시간을 추정하지 않는다.
+- 미수집·결측·표본 간격·상한 제한을 고려한다. 표본 true는 실제 물체 존재의 확정이 아니다.
+- 원인 후보와 점검·조치의 문장은 검색 근거로 작성한다. 관측 수치를 그 칸에 우회 기재하지 않는다.
+"""
 
 
 def check_draft(draft: AnalysisDraft, known_ids: set[str]) -> None:
@@ -171,27 +192,66 @@ def search_tool(retriever: Any) -> AgentTool:
     )
 
 
-def submit_tool() -> FinishTool[AnalysisDraft]:
+def submit_tool(incident: Incident | None = None) -> FinishTool[AnalysisDraft]:
     def parse(data: dict[str, Any], memory: RunMemory) -> AnalysisDraft:
-        draft = AnalysisDraft.model_validate(data)
+        if incident is None:
+            draft = AnalysisDraft.model_validate(data)
+        else:
+            submitted = SensorAnalysisDraft.model_validate(data)
+            lines = verified_facts(submitted.sensor_claims, memory)
+            facts = describe(incident)
+            if lines:
+                facts += "\n조회 검증된 표본 통계:\n" + "\n".join(lines)
+            values = submitted.model_dump(exclude={"sensor_claims"})
+            values["observed_facts"] = facts
+            # 자유 서술에 잘못된 센서 수치를 남기지 않는다. 후보 자체는 가설이다.
+            for cause in values["suspected_causes"]:
+                cause["basis"] = facts
+            notes = list(
+                dict.fromkeys(
+                    n for w in memory.sensor_windows.values() for n in w["notes"]
+                )
+            )
+            if notes:
+                values["limitations"] = "\n".join(
+                    filter(None, [submitted.limitations, *notes])
+                )
+            draft = AnalysisDraft.model_validate(values)
         check_draft(draft, set(memory.evidence))
+        if incident is not None:
+            logger.info(
+                "[센서 수치 검증 완료] incident=%s claims=%s",
+                incident.incident_id,
+                len(submitted.sensor_claims),
+            )
         return draft
 
     return FinishTool(
         name="submit_analysis",
         description="분석 결과를 제출한다. 제출하면 분석이 끝난다. 규칙에 어긋나면 오류를 돌려준다.",
-        input_schema=AnalysisDraft.model_json_schema(),
+        input_schema=(
+            SensorAnalysisDraft if incident is not None else AnalysisDraft
+        ).model_json_schema(),
         parse=parse,
     )
 
 
-def analyst_spec(retriever: Any, *, max_turns: int = 8) -> AgentSpec[AnalysisDraft]:
+def analyst_spec(
+    retriever: Any,
+    *,
+    max_turns: int = 8,
+    incident: Incident | None = None,
+    sensor_reader: SensorReader | None = None,
+) -> AgentSpec[AnalysisDraft]:
+    sensor_enabled = incident is not None and sensor_reader is not None
     return AgentSpec(
         name="incident-analyst",
-        system=SYSTEM,
-        tools=(search_tool(retriever),),
-        finish=submit_tool(),
-        prompt_version=PROMPT_VERSION,
+        system=SYSTEM + (SENSOR_SYSTEM if sensor_enabled else ""),
+        tools=(search_tool(retriever), window_tool(incident, sensor_reader))
+        if sensor_enabled
+        else (search_tool(retriever),),
+        finish=submit_tool(incident if sensor_enabled else None),
+        prompt_version="incident-analyst-v2" if sensor_enabled else PROMPT_VERSION,
         max_turns=max_turns,
     )
 
@@ -206,10 +266,13 @@ class IncidentAnalyzer:
         *,
         timeout_s: float,
         max_turns: int = 8,
+        sensor_reader: SensorReader | None = None,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self._client = client
         self._spec = analyst_spec(retriever, max_turns=max_turns)
+        self._retriever = retriever
+        self._sensor_reader = sensor_reader
         self._timeout_s = timeout_s
         self._clock = clock
         self.last_memory: RunMemory | None = None  # 추적·평가용(마지막 실행)
@@ -217,15 +280,25 @@ class IncidentAnalyzer:
     def analyze(self, incident: Incident) -> AnalysisResult:
         memory = RunMemory()
         self.last_memory = memory
+        spec = (
+            analyst_spec(
+                self._retriever,
+                max_turns=self._spec.max_turns,
+                incident=incident,
+                sensor_reader=self._sensor_reader,
+            )
+            if self._sensor_reader is not None
+            else self._spec
+        )
         base = {
             "incident_id": incident.incident_id,
             "model": f"{self._client.provider}/{self._client.model_name}",
-            "prompt_version": self._spec.prompt_version,
+            "prompt_version": spec.prompt_version,
         }
         try:
             draft, _ = run_agent(
                 self._client,
-                self._spec,
+                spec,
                 describe(incident),
                 timeout_s=self._timeout_s,
                 memory=memory,

@@ -53,6 +53,7 @@ tests/  scripts/  docs/
 | [JSON_INPUT](docs/JSON_INPUT.md) | 공통 JSON 입력 API, CSV 재생과 0.5초 주기 제한 |
 | [WEBSOCKET_TELEMETRY](docs/WEBSOCKET_TELEMETRY.md) | Unreal WebSocket 수신, CSV 테스트 송신기와 터미널 실행 방법 |
 | [AUTO_ANALYSIS](docs/AUTO_ANALYSIS.md) | Error 자동 분석·저장·조회·무과금 터미널 시연 (#104) |
+| [SENSOR_WINDOWS](docs/SENSOR_WINDOWS.md) | 사건 센서 구간 조회·수치 검증·무료 터미널 시연 (#105) |
 | [LOCAL_SETUP](docs/LOCAL_SETUP.md) | 개발 환경 설치, 실행, 문제 해결 |
 | [DEPLOY](docs/DEPLOY.md) | 운영 서버(EC2) 배포: 구조, Secrets, 첫 배포, 롤백, 백업 (#117) |
 | [CHANGE_WORKFLOW](docs/CHANGE_WORKFLOW.md) | 이슈·브랜치·커밋·PR·머지 규칙 |

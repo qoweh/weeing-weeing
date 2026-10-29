@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from weeing_weeing.agent.interface import get_analyzer
 from weeing_weeing.api.auth import CurrentUser, require_roles
+from weeing_weeing.api.sensor_window import sensor_reader
 from weeing_weeing.contracts import AnalysisResult, Role
 from weeing_weeing.db import interface as db
 from weeing_weeing.rag.interface import get_retriever
@@ -25,7 +26,11 @@ class AnalysisService:
         self, repository=db.get_analysis_jobs, analyzer=None, *, poll_seconds=0.5
     ):
         self.repository = repository
-        self.analyzer = analyzer or (lambda: get_analyzer(get_retriever()))
+        self.analyzer = analyzer or (
+            lambda: get_analyzer(
+                get_retriever(), sensor_reader=sensor_reader(db.get_telemetry())
+            )
+        )
         self.poll_seconds = poll_seconds
         self.stop_event = Event()
         self.wakeup = Event()
