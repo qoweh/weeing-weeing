@@ -76,10 +76,10 @@ npm install
 
 ### Environment Variables
 
-API 연동을 구현할 때 `frontend/.env.local`에 다음 값을 설정할 수 있습니다. 현재 화면은 이 값을 사용하지 않습니다.
+Next.js 서버가 `/api` 요청을 FastAPI로 전달합니다. 기본 주소는 `http://127.0.0.1:8000`이며, 다른 주소를 사용할 경우 `frontend/.env.local`에 설정한 뒤 서버를 다시 시작합니다.
 
 ```env
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+API_ORIGIN=http://127.0.0.1:8000
 ```
 
 ### Run
@@ -89,6 +89,8 @@ npm run dev
 ```
 
 Next.js 개발 서버: `http://localhost:3000`
+
+백엔드도 별도로 실행해야 로그인과 문서 등록, 분석, 보고서 기능을 사용할 수 있습니다. 화면은 `src/views`, 공통 UI는 `src/components`, API 연결은 `src/api`에서 관리하며 현재 단일 페이지에서 전환됩니다. 대시보드 수치는 예시입니다.
 
 ### Build
 
