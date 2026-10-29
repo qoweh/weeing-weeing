@@ -1,0 +1,27 @@
+# 서버 입구. 경로 규칙은 docs/DEPLOY.md 참고.
+# SITE_ADDRESS가 비어 있으면 :80(IP로 HTTP). 도메인을 넣으면 Caddy가 HTTPS 인증서를 자동으로 받는다.
+{
+	admin off
+}
+
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	# FastAPI: /api 접두사를 떼고 넘긴다(hmi/web의 vite 개발 프록시와 같은 규칙). WebSocket도 그대로 통과한다.
+	handle_path /api/* {
+		reverse_proxy api:8000
+	}
+
+	# hmi/web(Vite) 정적 빌드
+	redir /hmi /hmi/
+	handle_path /hmi/* {
+		root * /srv/hmi
+		try_files {path} /index.html
+		file_server
+	}
+
+	# 나머지는 frontend(Next.js)
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

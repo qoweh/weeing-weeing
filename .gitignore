@@ -65,3 +65,7 @@ node_modules
 frontend/next-env.d.ts
 frontend/*.tsbuildinfo
 .prettierrc.json
+
+# 서버 접속 키·AWS 콘솔 자격증명 (#117)
+*.pem
+*credentials*.csv

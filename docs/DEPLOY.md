@@ -1,0 +1,201 @@
+# 운영 서버(EC2) 배포
+
+팀 전용 AWS EC2 서버에 앱 전체를 올리고, GitHub Actions로 배포를 자동화한다(#117).
+
+- 서버: 서울 리전, Ubuntu 24.04, 메모리 8GB, 디스크 30GB, 고정 IP, 사용자 `ubuntu`
+- **서버는 11/14 00:00에 자동으로 꺼진다.** 서버에만 있는 데이터는 그 전에 [백업](#백업-1114-종료-전)한다
+- 서버 IP·키 파일·`.env`는 레포·이슈·PR에 적지 않는다(`.gitignore`에 `*.pem`, `*credentials*.csv`)
+
+## 구조
+
+```
+GitHub (main push 또는 Run workflow)
+  └─ Actions: 이미지 3개 빌드 → GHCR(ghcr.io/qoweh/weeing-weeing-*:<커밋 SHA>)
+       └─ SSH로 서버 접속 → docker compose pull && up -d → API 헬스체크
+
+EC2 ~/weeing-weeing/          (레포 clone 없음. 이 두 파일만 있다)
+  docker-compose.yml          ← deploy/docker-compose.prod.yml을 워크플로가 복사
+  .env                        ← 서버에서 직접 작성(비밀 값)
+
+web(Caddy :80/:443) ─┬─ /api/*  → api(FastAPI :8000)  ─┬─ postgres
+                     ├─ /hmi/*  → hmi/web 정적 파일     └─ qdrant
+                     └─ 그 외   → frontend(Next.js :3000)
+```
+
+| 서비스 | 이미지 | 데이터(볼륨) |
+|---|---|---|
+| web | `deploy/web.Dockerfile` (Caddy + hmi/web 빌드) | `caddy_data`(인증서) |
+| frontend | `deploy/frontend.Dockerfile` | - |
+| api | `deploy/api.Dockerfile` | `storage`(업로드), `outputs`(사건 이력), `hf_models`(임베딩 모델 2.2GB) |
+| postgres | `postgres:16-alpine` | `postgres_data` |
+| qdrant | `qdrant/qdrant:v1.20.0` | `qdrant_data` |
+
+- 서버는 빌드하지 않는다. 8GB에서 Next.js 빌드·의존성 설치를 피하고, 이미지 태그로 롤백하기 위해서다
+- 리눅스에서는 CPU판 torch를 쓴다(`pyproject.toml`의 `[tool.uv.sources]`). CUDA판은 nvidia 패키지만 약 5GB다
+- 모든 서비스가 `restart: unless-stopped`라 서버를 껐다 켜면 2~3분 뒤 저절로 다시 뜬다
+- 경로: `http://<서버 IP>/`(frontend), `/hmi/`(hmi/web), `/api/health`, `/api/docs`(API 문서)
+
+## 처음 한 번: 서버 초기 설정
+
+서버에 `ssh`로 접속해 실행한다. 이미 해 둔 상태다(#117). 서버를 새로 받았을 때만 다시 한다.
+
+```
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y git curl ca-certificates htop jq
+
+# 시간대 KST
+sudo timedatectl set-timezone Asia/Seoul
+
+# 스왑 2GB
+if [ ! -f /swapfile ]; then
+  sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile
+  sudo mkswap /swapfile && sudo swapon /swapfile
+  echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+fi
+echo 'vm.swappiness=10' | sudo tee /etc/sysctl.d/99-swap.conf && sudo sysctl --system > /dev/null
+
+# Docker (공식 저장소)
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo systemctl enable --now docker containerd
+sudo usermod -aG docker ubuntu
+
+# Docker 로그 용량 제한(없으면 디스크가 로그로 찬다)
+sudo tee /etc/docker/daemon.json > /dev/null <<'EOF'
+{ "log-driver": "json-file", "log-opts": { "max-size": "10m", "max-file": "3" } }
+EOF
+sudo systemctl restart docker
+```
+
+다시 로그인한 뒤 확인한다: `timedatectl`(Asia/Seoul), `free -h`(Swap 2.0Gi), `docker run --rm hello-world`, `groups`(docker 포함).
+
+`ufw`는 켜지 않는다. Docker가 ufw를 우회해 효과가 없고, 잘못 켜면 SSH까지 막힌다. 포트는 AWS 보안그룹에서 **22·80·443**만 연다. 22는 GitHub Actions가 접속하므로 IP를 제한할 수 없다(키 인증만 허용).
+
+## 접속 키 관리
+
+공용 `team1.pem`을 돌려 쓰지 않고, 사람마다 키를 따로 등록한다. 한 명만 막을 때는 서버 `~/.ssh/authorized_keys`에서 그 줄만 지운다. **처음부터 있던 강사 키 줄은 지우지 않는다.**
+
+`~/.ssh/config` 예시(팀원 각자):
+
+```
+Host ww-team1
+  HostName <서버 IP>
+  User ubuntu
+  IdentityFile ~/.ssh/<이름>_ed25519
+  IdentitiesOnly yes
+  ServerAliveInterval 60
+```
+
+## 처음 한 번: GitHub Secrets와 서버 .env
+
+### 1. 배포 전용 키
+
+사람 키와 따로 둔다. 유출되면 이 줄만 지우고 다시 만든다.
+
+```bash
+ssh-keygen -t ed25519 -C "github-actions-deploy" -f ~/.ssh/ww-team/deploy_ed25519 -N ""
+```
+```bash
+ssh-copy-id -i ~/.ssh/ww-team/deploy_ed25519.pub ww-team1
+```
+
+### 2. Secrets 등록 (레포 Settings → Secrets and variables → Actions)
+
+| 이름 | 값 |
+|---|---|
+| `EC2_HOST` | 서버 고정 IP |
+| `EC2_SSH_KEY` | 배포 전용 개인 키 내용(`deploy_ed25519`, `.pub` 아님) |
+| `EC2_KNOWN_HOSTS` | 서버 호스트 키. 한 번 접속한 PC에서 `ssh-keygen -F <서버 IP>` 출력, 또는 `ssh-keyscan <서버 IP>` |
+| `EC2_USER` | (선택) 기본값 `ubuntu` |
+
+`gh` CLI로 등록할 때:
+
+```bash
+gh secret set EC2_SSH_KEY -R qoweh/weeing-weeing < ~/.ssh/ww-team/deploy_ed25519
+```
+
+### 3. 서버 .env
+
+서버에서 `.env.example`을 기준으로 작성한다. 레포를 clone하지 않으므로 내용을 붙여 넣는다.
+
+```
+mkdir -p ~/weeing-weeing && cd ~/weeing-weeing
+nano .env          # .env.example 내용을 붙여 넣고 아래 항목을 바꾼다
+chmod 600 .env
+```
+
+- `ANTHROPIC_API_KEY=` 주석을 풀고 키를 넣는다. 콘솔에서 사용량 한도를 걸어 둔다
+- `POSTGRES_PASSWORD`는 새로 만든다(`openssl rand -hex 16`). URL에 들어가므로 영문·숫자만 쓴다. **DB를 처음 띄운 뒤에는 바꿔도 적용되지 않는다**(볼륨에 처음 값이 남는다)
+- `DATABASE_URL`·`QDRANT_URL`·`VECTOR_STORE`는 compose가 컨테이너 주소로 덮어쓰므로 그대로 둬도 된다
+- `RERANKER_MODEL=`(빈 값)으로 둔다. 리랭커를 끄고 임베딩 모델만 받는다([첫 배포 뒤 한 번](#첫-배포-뒤-한-번-모델-받기색인계정))
+- `ANALYSIS_AUTO_ENABLED=true`는 사건마다 Claude API를 호출한다(비용). 시연할 때만 켠다
+- 도메인이 생기면 `SITE_ADDRESS=example.com`을 추가한다. Caddy가 HTTPS 인증서를 자동으로 받는다(443 필요)
+- `IMAGE_TAG`·`IMAGE_PREFIX`는 배포 워크플로가 적는다. 직접 고치지 않는다
+
+## 배포
+
+- **자동:** release PR(dev → main)이 머지되면 `Deploy (EC2)` 워크플로가 돈다
+- **수동:** Actions → Deploy (EC2) → Run workflow → 브랜치 선택. dev나 작업 브랜치를 서버에 올려 볼 때 쓴다
+- 워크플로 파일이 기본 브랜치(dev)에 있어야 Run workflow 버튼이 보인다
+
+### 첫 배포 뒤 한 번: 모델 받기·색인·계정
+
+이미지에는 RAG 모델이 없다. 볼륨(`hf_models`)에 한 번 받으면 이후 배포에서도 남는다.
+
+운영 서버는 **리랭커를 끈다**(`.env`의 `RERANKER_MODEL=` 빈 값). 디스크·메모리 약 2GB를 아끼는 대신 검색은 RRF 순위를 쓴다(#8 실측 MRR 0.92 → 0.77). 다시 켜려면 값을 `BAAI/bge-reranker-v2-m3`로 되돌리고 `download_models.py`를 한 번 더 실행한 뒤 `docker compose up -d`를 한다.
+
+```
+cd ~/weeing-weeing
+docker compose run --rm api python scripts/download_models.py   # 임베딩(bge-m3) 약 2.2GB, 5분 안팎
+docker compose run --rm api python scripts/build_index.py       # catalog.toml 반영 + 색인
+docker compose run --rm api python scripts/seed_users.py        # 시연용 계정
+docker compose restart api
+```
+
+### 확인
+
+```
+docker compose ps                     # 모두 Up, api는 (healthy)
+curl -fsS localhost/api/health
+docker compose logs -f --tail 100 api
+df -h / && docker system df           # 디스크 30GB
+```
+
+## 롤백
+
+Actions에서 예전 `Deploy (EC2)` 실행을 열고 **Re-run all jobs**를 누른다. 그 실행의 커밋 SHA 이미지로 다시 배포된다.
+
+급할 때 서버에서 직접 바꿀 수도 있다. `.env`의 `IMAGE_TAG`를 예전 SHA로 바꾸고 `docker compose up -d`를 실행한다. 다만 private 레포라 GHCR 로그인이 필요하므로, 되도록 Re-run을 쓴다.
+
+## 백업 (11/14 종료 전)
+
+서버에만 있는 것: DB, 업로드 원본(`storage`), 사건 이력(`outputs`). Qdrant 색인과 모델은 다시 만들 수 있다.
+
+```
+cd ~/weeing-weeing && set -a && . ./.env && set +a
+docker compose exec -T postgres pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" > backup-$(date +%m%d).sql
+docker run --rm -v weeing-weeing_storage:/s -v weeing-weeing_outputs:/o -v "$PWD":/b alpine \
+  tar czf /b/files-$(date +%m%d).tgz -C / s o
+```
+
+내 PC로 가져온다. DB 덤프에는 계정·보고서가 들어 있으므로 레포에 올리지 않는다.
+
+```bash
+scp 'ww-team1:~/weeing-weeing/backup-*.sql' 'ww-team1:~/weeing-weeing/files-*.tgz' .
+```
+
+## 문제 해결
+
+| 증상 | 확인 |
+|---|---|
+| 워크플로가 `Secret이 필요합니다`로 실패 | Secrets 4개 이름 확인 |
+| `Host key verification failed` | `EC2_KNOWN_HOSTS`가 서버 IP와 맞는지. 서버를 새로 받았으면 다시 등록 |
+| `Connection timed out`(SSH) | 서버가 꺼져 있거나 보안그룹 22번이 닫혀 있음 |
+| `.env가 없습니다` | [서버 .env](#3-서버-env) 작성 |
+| API가 healthy가 안 됨 | `docker compose logs api`. DB 비밀번호 불일치(처음 값과 다름)가 흔하다 |
+| 디스크 부족 | `docker system df`, `docker image prune -a`(쓰지 않는 이미지 전부 삭제) |
+| 메모리 부족(OOM) | `docker stats`. 임베딩 모델이 약 1.5GB를 쓴다. 필요하면 강사에게 16GB 요청 |

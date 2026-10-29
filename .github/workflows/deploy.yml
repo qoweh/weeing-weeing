@@ -1,0 +1,119 @@
+name: Deploy (EC2)
+
+# 이미지를 빌드해 GHCR에 올리고, 서버(EC2)에서 받아 교체한다. 절차·Secrets는 docs/DEPLOY.md.
+# - main push(release PR 머지) 때 자동 실행. 다른 브랜치는 Actions → Run workflow로 수동 실행.
+# - 이미지 태그는 커밋 SHA. 롤백은 예전 실행의 Re-run jobs(같은 SHA를 다시 배포).
+# - 서버는 빌드하지 않는다(메모리 8GB). GHCR 로그인은 이 실행의 GITHUB_TOKEN으로 하고 끝나면 로그아웃한다.
+# 액션은 태그 대신 커밋 SHA로 고정한다(ci.yml과 같은 규칙).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+# 배포는 겹치지 않게 차례로 돈다. 진행 중인 배포는 취소하지 않는다(서버가 반쯤 바뀐 채 멈추지 않게).
+concurrency:
+  group: deploy-ec2
+  cancel-in-progress: false
+
+env:
+  IMAGE_PREFIX: ghcr.io/${{ github.repository }}
+
+jobs:
+  build:
+    name: Build ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        image: [api, frontend, web]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: deploy/${{ matrix.image }}.Dockerfile
+          platforms: linux/amd64
+          push: true
+          # latest = 마지막으로 배포한 이미지. 서버의 기본값이라 IMAGE_TAG가 없어도 최신이 뜬다.
+          tags: |
+            ${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ github.sha }}
+            ${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:latest
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,scope=${{ matrix.image }},mode=max
+
+  deploy:
+    name: Deploy to EC2
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      EC2: ${{ secrets.EC2_USER || 'ubuntu' }}@${{ secrets.EC2_HOST }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: SSH 준비 (호스트 키를 고정해 다른 서버에 접속하지 않게 한다)
+        env:
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
+        run: |
+          if [ -z "$SSH_KEY" ] || [ -z "$KNOWN_HOSTS" ] || [ "$EC2" = "ubuntu@" ] || [ "$EC2" = "@" ]; then
+            echo "::error::EC2_HOST·EC2_SSH_KEY·EC2_KNOWN_HOSTS Secret이 필요합니다(docs/DEPLOY.md)"; exit 1
+          fi
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf 'Host *\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n  StrictHostKeyChecking yes\n  ConnectTimeout 15\n' > ~/.ssh/config
+
+      - name: compose 파일 복사
+        run: |
+          ssh "$EC2" 'mkdir -p ~/weeing-weeing && test -f ~/weeing-weeing/.env' \
+            || { echo "::error::서버에 ~/weeing-weeing/.env가 없습니다(docs/DEPLOY.md 첫 배포)"; exit 1; }
+          scp deploy/docker-compose.prod.yml "$EC2":~/weeing-weeing/docker-compose.yml
+
+      - name: 이미지 받기·교체
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+          TAG: ${{ github.sha }}
+        run: |
+          # 토큰은 명령줄이 아니라 표준 입력으로 넘긴다(서버 프로세스 목록에 남지 않게).
+          printf '%s' "$TOKEN" | ssh "$EC2" "docker login ghcr.io -u '$ACTOR' --password-stdin"
+          ssh "$EC2" "IMAGE_PREFIX='$IMAGE_PREFIX' TAG='$TAG' bash -s" <<'EOF'
+          set -euo pipefail
+          cd ~/weeing-weeing
+          trap 'docker logout ghcr.io >/dev/null' EXIT
+          # 지금 배포한 태그를 .env에 남겨 서버 재시작·수동 up에서도 같은 이미지가 뜨게 한다.
+          sed -i '/^IMAGE_TAG=/d;/^IMAGE_PREFIX=/d' .env
+          printf 'IMAGE_PREFIX=%s\nIMAGE_TAG=%s\n' "$IMAGE_PREFIX" "$TAG" >> .env
+          docker compose pull --quiet
+          docker compose up -d --remove-orphans
+          docker image prune -f >/dev/null
+          EOF
+
+      - name: 헬스체크
+        run: |
+          ssh "$EC2" bash -s <<'EOF'
+          cd ~/weeing-weeing
+          for i in $(seq 1 30); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' "$(docker compose ps -q api)" 2>/dev/null || echo none)
+            if [ "$status" = healthy ]; then
+              docker compose ps --format 'table {{.Service}}\t{{.Status}}'
+              echo "API healthy"; exit 0
+            fi
+            sleep 5
+          done
+          docker compose ps
+          docker compose logs --tail 80 api
+          echo "::error::API가 150초 안에 healthy가 되지 않았습니다"; exit 1
+          EOF

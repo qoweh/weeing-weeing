@@ -24,6 +24,7 @@ dependencies = [
     "qdrant-client>=1.20.0",
     "sentence-transformers>=6.1.0",
     "sqlalchemy>=2.0",
+    "torch>=2.14.1",
     "uvicorn[standard]>=0.54.0",
     "websockets>=17.2",
 ]
@@ -65,3 +66,13 @@ indent-style = "space"
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-q"
+
+# 리눅스(EC2·CI)는 GPU가 없으므로 CPU판 torch를 받는다(#117). CUDA판은 nvidia 패키지만 약 5GB다.
+# 맥·윈도우는 PyPI의 torch를 그대로 쓴다. 참고: https://docs.astral.sh/uv/guides/integration/pytorch/
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
