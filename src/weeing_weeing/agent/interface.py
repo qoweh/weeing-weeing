@@ -15,6 +15,7 @@ from weeing_weeing.agent.faq import (
     FaqVersionConflictError,
 )
 from weeing_weeing.agent.runtime import ToolInputError as InvalidChatQueryError
+from weeing_weeing.agent.tracing import Tracer
 from weeing_weeing.contracts import AnalysisResult, Incident
 from weeing_weeing.contracts.chat import (
     ChatContext,
@@ -49,6 +50,7 @@ __all__ = [
     "LlmTimeoutError",
     "LlmUnavailableError",
     "LlmUsage",
+    "Tracer",
     "get_analyzer",
     "get_llm_client",
 ]
@@ -60,6 +62,7 @@ class LlmClient(Protocol):
     provider: str  # 예: anthropic. AnalysisResult.model은 "<provider>/<model_name>"
     model_name: str
     last_usage: LlmUsage | None  # 마지막 호출의 토큰·시간
+    tracer: Tracer  # 사용량 기록(#113). 설정이 없으면 아무것도 안 하는 기록기
 
     def generate_json(
         self,
@@ -202,16 +205,25 @@ def load_faq_catalog(path: Path | None = None) -> FaqCatalog:
     return FileFaqCatalog(path if path is not None else DEFAULT_FAQ_PATH)
 
 
-def get_llm_client(settings: "Settings | None" = None) -> LlmClient:
+def get_llm_client(
+    settings: "Settings | None" = None, *, entrypoint: str = "app"
+) -> LlmClient:
     """.env 설정(LLM_MODEL·LLM_EFFORT)으로 만든 Claude 클라이언트.
 
     API 키는 여기서 읽지 않는다. 첫 호출 때 SDK가 ANTHROPIC_API_KEY에서 읽는다.
+    entrypoint는 사용량 기록의 기능 태그다(예: analyze, llm-check, api, chatbot).
+    LANGFUSE_* 설정이 있으면 호출이 Langfuse에 남는다(docs/USAGE_TRACKING.md).
     """
     from weeing_weeing.agent.claude import ClaudeClient
+    from weeing_weeing.agent.tracing import build_tracer
     from weeing_weeing.config import get_settings
 
     settings = settings or get_settings()
-    return ClaudeClient(settings.llm_model, effort=settings.llm_effort)
+    return ClaudeClient(
+        settings.llm_model,
+        effort=settings.llm_effort,
+        tracer=build_tracer(settings, entrypoint=entrypoint),
+    )
 
 
 def get_analyzer(
@@ -219,6 +231,7 @@ def get_analyzer(
     *,
     client: LlmClient | None = None,
     settings: "Settings | None" = None,
+    entrypoint: str = "app",
 ) -> Analyzer:
     """사건 분석 에이전트(#102). 검색기는 조립하는 쪽(api·스크립트)이 넘긴다."""
     from weeing_weeing.agent.analyst import IncidentAnalyzer
@@ -226,7 +239,7 @@ def get_analyzer(
 
     settings = settings or get_settings()
     return IncidentAnalyzer(
-        client or get_llm_client(settings),
+        client or get_llm_client(settings, entrypoint=entrypoint),
         retriever,
         timeout_s=settings.llm_timeout_s,
         max_turns=settings.agent_max_turns,

@@ -19,6 +19,12 @@ make api                                # FastAPI 개발 서버
 
 자세한 설치(uv·Docker·Claude API 키)와 문제 해결: [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md)
 
+## 팀 공지
+
+팀원이 해야 할 일(환경 설정 변경 등)은 [`announcement` 라벨 이슈](https://github.com/qoweh/weeing-weeing/issues?q=is%3Aissue%20is%3Aopen%20label%3Aannouncement)로 알리고 이슈 목록 맨 위에 고정합니다. 이슈의 체크리스트에서 본인 줄을 체크하고, 막히면 그 이슈에 댓글을 남깁니다.
+
+- 지금 진행 중: **LLM 사용량 기록(Langfuse) 도입**: `.env`에 `LLM_USER`와 개별로 받은 Langfuse 키를 넣는다([공지 #115](https://github.com/qoweh/weeing-weeing/issues/115), [USAGE_TRACKING](docs/USAGE_TRACKING.md))
+
 ## 구조
 
 ```
@@ -52,6 +58,7 @@ tests/  scripts/  docs/
 | [CHANGE_WORKFLOW](docs/CHANGE_WORKFLOW.md) | 이슈·브랜치·커밋·PR·머지 규칙 |
 | [DECISIONS](docs/DECISIONS.md) | 기술 결정 기록 |
 | [AGENT](docs/AGENT.md) | 에이전트 구조(싱글), 도구·검사, 멀티 에이전트·메모리 확장 계획 |
+| [USAGE_TRACKING](docs/USAGE_TRACKING.md) | LLM 사용량 기록(Langfuse): 무엇을 남기는지, 팀원 설정 |
 | [DIRECTION_CHANGES](docs/DIRECTION_CHANGES.md) | 방향 전환 때 없앤 것·바꾼 것 기록(로컬 LLM 폐지 등) |
 | [RAG_RETRIEVAL](docs/RAG_RETRIEVAL.md) | 폴더별 역할, 검색·리랭킹 구조, 공개 연결 방법과 평가 |
 | [REPORTS](docs/REPORTS.md) | 보고서 로그인·임시 저장·내 보고서·결재·개정판과 #29 연결 지점 |

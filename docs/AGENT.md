@@ -57,6 +57,8 @@ make analyze                               # 예시 사건 분석 (색인·API �
 make llm-check                             # 근거를 고정한 LLM 판단 점검
 ```
 
+실행 1번은 사용량 기록(Langfuse)에 trace 하나로 남는다. 사건 ID가 `session_id`, LLM 호출과 도구 호출이 그 아래 기록이다. 멀티 에이전트로 넓히면 역할마다 agent 기록이 같은 사건 ID 아래 쌓인다([USAGE_TRACKING](USAGE_TRACKING.md)).
+
 ## 3. 아직 안 한 것 (싱글 범위)
 
 - #104의 탐지→DB→분석→결과 저장 연결은 [AUTO_ANALYSIS](AUTO_ANALYSIS.md)를 따른다.

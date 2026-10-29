@@ -8,6 +8,7 @@
 - 도구 입력이 잘못됐거나 제출 내용이 검사에 걸리면 is_error 결과로 돌려줘 모델이 고치게 한다.
 - 검색 장애처럼 모델이 고칠 수 없는 실패는 예외로 올려 호출한 쪽이 FAILED로 바꾼다.
 - 반복 상한(max_turns)을 넘거나 제출 없이 두 번 끝나면 AgentError.
+- 실행 1번을 client.tracer에 agent 기록으로, 도구 호출을 tool 기록으로 남긴다(#113).
 """
 
 import json
@@ -17,6 +18,7 @@ from typing import Any, Generic, TypeVar
 
 from weeing_weeing.agent.claude import strict_schema
 from weeing_weeing.agent.errors import LlmError, LlmUsage
+from weeing_weeing.agent.tracing import NULL_TRACER, Tracer
 from weeing_weeing.contracts import Evidence
 
 T = TypeVar("T")
@@ -111,8 +113,39 @@ def run_agent(
     *,
     timeout_s: float,
     memory: RunMemory | None = None,
+    session_id: str | None = None,
 ) -> tuple[T, RunMemory]:
+    """session_id: 사용량 기록에서 실행을 묶는 값(사건 ID). 멀티 에이전트도 같은 값을 쓴다."""
     memory = memory or RunMemory()
+    tracer: Tracer = getattr(client, "tracer", NULL_TRACER)
+    with tracer.observe(
+        spec.name,
+        as_type="agent",
+        input=task,
+        session_id=session_id,
+        tags=[spec.prompt_version],
+    ) as observation:
+        output = _loop(client, spec, task, timeout_s, memory, tracer)
+        observation.update(
+            output=output.model_dump() if hasattr(output, "model_dump") else output,
+            metadata={
+                "turns": memory.turns,
+                "tool_calls": len(memory.tool_calls),
+                "input_tokens": memory.usage.input_tokens,
+                "output_tokens": memory.usage.output_tokens,
+            },
+        )
+    return output, memory
+
+
+def _loop(
+    client: Any,
+    spec: AgentSpec[T],
+    task: str,
+    timeout_s: float,
+    memory: RunMemory,
+    tracer: Tracer,
+) -> T:
     tools = {tool.name: tool for tool in spec.tools}
     api_tools = [tool.to_api() for tool in spec.tools] + [spec.finish.to_api()]
     memory.messages.append({"role": "user", "content": task})
@@ -146,7 +179,12 @@ def run_agent(
 
         results, output, finished = [], None, False
         for block in uses:
-            content, is_error = _run_tool(block, tools, spec.finish, memory)
+            with tracer.observe(block.name, as_type="tool", input=block.input) as obs:
+                content, is_error = _run_tool(block, tools, spec.finish, memory)
+                obs.update(
+                    output=content if isinstance(content, str) else None,
+                    level="WARNING" if is_error else None,
+                )
             if block.name == spec.finish.name and not is_error:
                 output, finished = content, True
                 content = "제출을 받았다."
@@ -161,7 +199,7 @@ def run_agent(
         # 같은 응답의 도구 결과는 한 메시지로 돌려준다(나눠 보내면 병렬 호출을 덜 쓰게 된다)
         memory.messages.append({"role": "user", "content": results})
         if finished:
-            return output, memory
+            return output
 
     raise AgentError(f"{spec.name}: {spec.max_turns}번 안에 결과를 내지 못함")
 

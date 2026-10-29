@@ -78,6 +78,7 @@ TEST_DATABASE_URL=postgresql://weeing:weeing@localhost:5432/weeing uv run --no-s
 - 모델 비교: `make llm-check ARGS="--model claude-sonnet-5-5 --repeat 3"`, `ARGS="--effort low"`. 보고서는 `outputs/llm_check/`
 - 에이전트 실행: 색인(5절)을 마친 뒤 `make analyze`. 예시 사건(`data/eval/incident_p03_demo.json`)을 분석해 결과 JSON과 도구 호출 기록을 보여 준다
 - 외부로 나가는 데이터: 사건 정보와 검색된 문서 조각만. 사번·결재 정보는 보내지 않는다([AGENT](AGENT.md))
+- 사용량 기록: `.env`에 `LLM_USER`(본인 GitHub 핸들)와 `LANGFUSE_*`(개별로 받은 키)를 넣으면 호출마다 토큰·비용이 홈서버 Langfuse에 남는다. 비어 있으면 기록하지 않고, 서버가 꺼져 있어도 호출은 그대로 된다([USAGE_TRACKING](USAGE_TRACKING.md))
 
 ## 5. RAG 색인 (벡터 DB)
 

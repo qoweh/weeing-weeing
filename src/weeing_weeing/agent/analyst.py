@@ -229,6 +229,7 @@ class IncidentAnalyzer:
                 describe(incident),
                 timeout_s=self._timeout_s,
                 memory=memory,
+                session_id=incident.incident_id,
             )
             cited = {i for c in draft.suspected_causes for i in c.evidence_ids}
             return AnalysisResult(

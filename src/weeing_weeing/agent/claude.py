@@ -8,6 +8,7 @@
 - 안전 정책 거부에 대비해 서버 측 대체 모델(fallbacks="default")을 켠다.
 - 실패는 LlmError 하위 예외로 알린다. 429·5xx·연결 오류는 SDK가 max_retries만큼 다시 보낸다.
 - API 키는 SDK가 ANTHROPIC_API_KEY(또는 ant auth login 프로필)에서 직접 읽는다.
+- 호출 1번을 tracer에 generation 1개로 남긴다(모델·토큰·오류, #113).
 """
 
 import json
@@ -24,6 +25,7 @@ from weeing_weeing.agent.errors import (
     LlmUnavailableError,
     LlmUsage,
 )
+from weeing_weeing.agent.tracing import NULL_TRACER, Tracer
 
 PROVIDER = "anthropic"
 # "default"는 거부 사유에 맞는 대체 모델을 서버가 고른다. 헤더는 이 형식 전용이다.
@@ -72,12 +74,14 @@ class ClaudeClient:
         *,
         effort: str = "medium",
         sdk: Any | None = None,
+        tracer: Tracer = NULL_TRACER,
     ) -> None:
         if not model:
             raise ValueError("LLM_MODEL이 비어 있다. .env에 모델 ID를 넣는다")
         self.model_name = model
         self._effort = effort
         self._sdk = sdk
+        self.tracer = tracer
         self.last_usage: LlmUsage | None = None
 
     def generate_json(
@@ -136,6 +140,23 @@ class ClaudeClient:
         return self._sdk
 
     def _call(self, timeout_s: float, **params: Any) -> Any:
+        with self.tracer.observe(
+            "claude",
+            as_type="generation",
+            input=params.get("messages"),
+            model=self.model_name,
+        ) as observation:
+            response = self._request(timeout_s, **params)
+            observation.update(
+                output=[_dump(b) for b in response.content],
+                usage_details=_usage_details(response),
+                metadata={"stop_reason": response.stop_reason, "effort": self._effort},
+                # 서버 측 대체 모델이 답했으면 실제 모델로 단가를 계산한다
+                model=getattr(response, "model", None) or self.model_name,
+            )
+            return self._check(response)
+
+    def _request(self, timeout_s: float, **params: Any) -> Any:
         started = time.perf_counter()
         try:
             response = (
@@ -181,8 +202,30 @@ class ClaudeClient:
             output_tokens=getattr(usage, "output_tokens", 0) or 0,
             total_s=time.perf_counter() - started,
         )
+        return response
+
+    def _check(self, response: Any) -> Any:
         if response.stop_reason == "refusal":
             raise LlmRefusedError(f"{self.model_name}: 안전 정책으로 응답 거부")
         if response.stop_reason == "max_tokens":
             raise LlmError(f"{self.model_name}: 출력이 {MAX_TOKENS}토큰에서 잘림")
         return response
+
+
+def _usage_details(response: Any) -> dict[str, int]:
+    """Langfuse 단가 등록 키와 같은 이름으로 토큰 수를 낸다(docs/USAGE_TRACKING.md)."""
+    usage = getattr(response, "usage", None)
+    names = (
+        ("input", "input_tokens"),
+        ("output", "output_tokens"),
+        ("cache_read_input_tokens", "cache_read_input_tokens"),
+        ("cache_creation_input_tokens", "cache_creation_input_tokens"),
+    )
+    return {key: getattr(usage, attr, 0) or 0 for key, attr in names}
+
+
+def _dump(block: Any) -> Any:
+    try:
+        return block.model_dump() if hasattr(block, "model_dump") else vars(block)
+    except TypeError:
+        return str(block)

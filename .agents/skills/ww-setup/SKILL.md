@@ -57,6 +57,7 @@ docker compose exec postgres pg_isready -U weeing -d weeing
 - 로컬 LLM(Ollama)은 쓰지 않는다. 받을 LLM 모델이 없다.
 - `.env`에 `ANTHROPIC_API_KEY` 값이 들어 있는지만 확인한다(값은 출력하지 않는다). 빈 값 줄(`ANTHROPIC_API_KEY=`)은 `ant auth login` 프로필을 가리므로 주석 처리를 안내한다. 키는 사용자가 직접 넣는다.
 - 키가 있으면 사용자 동의를 받아 `make llm-check`(API 비용 발생)로 확인한다.
+- 사용량 기록(`docs/USAGE_TRACKING.md`): `LLM_USER`(본인 GitHub 핸들)와 `LANGFUSE_BASE_URL`·`LANGFUSE_PUBLIC_KEY`·`LANGFUSE_SECRET_KEY`가 들어 있는지만 확인한다(값 출력 금지). 키는 김민우에게 개별로 받는다. 없어도 개발은 되므로 막지 않고 보고에 적는다.
 
 ## 보고
 
@@ -72,5 +73,6 @@ docker compose exec postgres pg_isready -U weeing -d weeing
 | API /health | | |
 | PostgreSQL | | 건너뛰었으면 이유 |
 | Claude API 키 | | 있음/없음(값 출력 금지) |
+| 사용량 기록 | | LLM_USER·LANGFUSE_* 있음/없음(값 출력 금지) |
 
 실패한 단계는 숨기지 않고 오류 메시지와 다음 할 일을 적는다.

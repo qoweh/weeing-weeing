@@ -53,7 +53,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.effort:
             overrides["llm_effort"] = args.effort
         settings = dataclasses.replace(settings, **overrides)
-        client = get_llm_client(settings)
+        client = get_llm_client(settings, entrypoint="llm-check")
         cases = load_cases(args.cases)
         if not cases:
             raise ValueError(f"{args.cases}에 사례가 없다")
@@ -61,6 +61,7 @@ def main(argv: list[str] | None = None) -> int:
         report = run_check(
             client, cases, timeout_s=settings.llm_timeout_s, repeat=args.repeat
         )
+        client.tracer.flush()  # 사용량 기록(LANGFUSE_* 설정 시)을 끝나기 전에 보낸다
     except (LlmError, ValueError, OSError) as exc:
         print(f"시작하지 못함: {exc}", file=sys.stderr)
         return 2

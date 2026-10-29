@@ -20,6 +20,7 @@ from weeing_weeing.agent.llm_check import (
     run_check,
     user_prompt,
 )
+from weeing_weeing.agent.tracing import NULL_TRACER
 
 ROOT = Path(__file__).resolve().parents[2]
 CASES = ROOT / "data/eval/llm_cases_v1.toml"
@@ -62,6 +63,7 @@ class FakeLlm:
     provider = "fake"
     model_name = "llm"
     last_usage = None
+    tracer = NULL_TRACER
 
     def __init__(self, *answers):
         self.answers = list(answers)
@@ -190,7 +192,9 @@ def test_cli_exit_codes(monkeypatch, tmp_path, answers, code):
         "[[cases.evidence]]\n" + "".join(f'{k} = "{v}"\n' for k, v in EVIDENCE.items()),
         encoding="utf-8",
     )
-    monkeypatch.setattr(script, "get_llm_client", lambda settings: FakeLlm(*answers))
+    monkeypatch.setattr(
+        script, "get_llm_client", lambda settings, **_: FakeLlm(*answers)
+    )
     out = tmp_path / "report.md"
     assert script.main(["--cases", str(cases), "--out", str(out)]) == code
     assert out.is_file()
@@ -199,7 +203,7 @@ def test_cli_exit_codes(monkeypatch, tmp_path, answers, code):
 def test_cli_cannot_start_without_server(monkeypatch, capsys):
     script = _script()
 
-    def down(settings):
+    def down(settings, **_):
         return FakeLlm(LlmUnavailableError("Claude API에 연결하지 못함"))
 
     monkeypatch.setattr(script, "get_llm_client", down)
@@ -211,7 +215,7 @@ def test_cli_model_option_overrides_setting(monkeypatch, tmp_path):
     script = _script()
     seen = {}
 
-    def capture(settings):
+    def capture(settings, **_):
         seen["model"], seen["effort"] = settings.llm_model, settings.llm_effort
         return FakeLlm(LlmUnavailableError("stop"))
 
@@ -227,5 +231,5 @@ def test_cli_rejects_zero_repeat_and_empty_cases(tmp_path, monkeypatch):
     assert info.value.code == 2
     empty = tmp_path / "empty.toml"
     empty.write_text("", encoding="utf-8")
-    monkeypatch.setattr(script, "get_llm_client", lambda settings: FakeLlm())
+    monkeypatch.setattr(script, "get_llm_client", lambda settings, **_: FakeLlm())
     assert script.main(["--cases", str(empty)]) == 2
