@@ -9,6 +9,7 @@ from weeing_weeing.agent.errors import (
     LlmUsage,
 )
 from weeing_weeing.contracts import AnalysisResult, Incident
+from weeing_weeing.contracts.chat import ChatContext, ChatQuestion, ChatResponse
 
 if TYPE_CHECKING:
     from weeing_weeing.config import Settings
@@ -16,6 +17,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "Analyzer",
+    "ChatService",
     "LlmClient",
     "LlmError",
     "LlmModelMissingError",
@@ -66,6 +68,23 @@ class LlmClient(Protocol):
 class Analyzer(Protocol):
     def analyze(self, incident: Incident) -> AnalysisResult:
         """실패해도 예외 대신 status=FAILED 결과를 돌려준다(HMI에 '관리자 호출' 표시)."""
+        ...
+
+
+class ChatService(Protocol):
+    def reply(
+        self,
+        question: ChatQuestion,
+        *,
+        context: ChatContext,
+        timeout_s: float,
+    ) -> ChatResponse:
+        """권한 검증된 문맥으로 응답한다. 장애는 FAILED, 근거 부족은 별도 상태다.
+
+        API가 인증·소유권을 검사하고 허용 범위로 제한한 검색기·공용 LLM을 주입한다.
+        저장소 조립·응답 저장도 API 책임이다. 동기 경계이므로 API는 작업 스레드에서
+        실행하고 timeout_s 전체 예산을 검색·LLM에 나누어 적용한다(#91).
+        """
         ...
 
 

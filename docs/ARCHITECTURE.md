@@ -62,7 +62,22 @@ flowchart LR
 
 이 규칙을 지키면 나중에 모듈 하나를 별도 서비스로 떼어낼 때, `interface.py` 구현을 HTTP 클라이언트로 바꾸기만 하면 된다. 이때 `contracts` 모델이 그대로 요청·응답 JSON 스키마가 된다.
 
-## 폴더
+## 챗봇 경계 (#86)
+
+`contracts/chat.py`의 질문·응답·출처 계약과 `agent/interface.py`의 `ChatService`를
+추가한다. 기존 `Analyzer.analyze(Incident)`는 유지한다. `ChatService.reply()`는
+질문·권한 검사를 마친 최근 문맥·전체 시간 예산을 받아 `ChatResponse`를 반환하는
+동기 경계다. API가 인증·대화 소유권을 검사하고 허용된 검색 범위의 RAG와 공용 LLM을
+주입하며 저장소 접근도 조립한다. agent가 db나 api 내부를 직접 import하지 않는다.
+
+공용 상용 API는 #101/#107에서 구현된 `LlmClient`·`ClaudeClient`를 재사용한다.
+`generate_json()`·`create()`·공급자·모델·`last_usage` 경계를 유지한다.
+챗봇 생성·호출별 사용량 수집과 동시 호출 격리는 #89, 검색은 #88, 저장은 #90,
+API 조립은 #91이다. 사용량 수집 시 공유 클라이언트의 `last_usage` 경합을 방지해야 한다.
+보고서 정비·결재 작성이나 PLC 제어 도구는 챗봇에 제공하지 않는다.
+API 경로·스레드 실행·타임아웃은 [CHATBOT](CHATBOT.md)의 제안이며 아직 실행되지 않는다.
+
+## 폴더 구조
 
 ```
 src/weeing_weeing/   파이썬 패키지 (모듈별 하위 폴더)

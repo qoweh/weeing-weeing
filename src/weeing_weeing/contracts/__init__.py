@@ -15,6 +15,22 @@
 """
 
 from weeing_weeing.contracts.analysis import AnalysisResult, CauseCandidate, Evidence
+from weeing_weeing.contracts.chat import (
+    ChatAnswerPart,
+    ChatContext,
+    ChatConversation,
+    ChatDocumentSource,
+    ChatFailure,
+    ChatFaqSource,
+    ChatIntent,
+    ChatQuestion,
+    ChatReportSource,
+    ChatResponse,
+    ChatSearchConditions,
+    ChatSource,
+    ChatStatus,
+    ChatTurn,
+)
 from weeing_weeing.contracts.codes import CODES, RULE_VERSION, Severity
 from weeing_weeing.contracts.document import DocumentRecord
 from weeing_weeing.contracts.incident import Incident, IncidentStatus, SensorEvidence
@@ -34,6 +50,20 @@ __all__ = [
     "SCHEMA_VERSION",
     "AnalysisResult",
     "CauseCandidate",
+    "ChatAnswerPart",
+    "ChatContext",
+    "ChatConversation",
+    "ChatDocumentSource",
+    "ChatFailure",
+    "ChatFaqSource",
+    "ChatIntent",
+    "ChatQuestion",
+    "ChatReportSource",
+    "ChatResponse",
+    "ChatSearchConditions",
+    "ChatSource",
+    "ChatStatus",
+    "ChatTurn",
     "DocumentRecord",
     "Evidence",
     "Incident",
