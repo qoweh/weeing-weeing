@@ -33,6 +33,7 @@ from weeing_weeing.contracts.chat import (
 )
 from weeing_weeing.contracts.codes import CODES, RULE_VERSION, Severity
 from weeing_weeing.contracts.document import DocumentRecord
+from weeing_weeing.contracts.faq import FaqAnswer, FaqQuestion, FaqSelection, FaqTopic
 from weeing_weeing.contracts.incident import Incident, IncidentStatus, SensorEvidence
 from weeing_weeing.contracts.report import MaintenanceReport, ReportStatus, Role
 from weeing_weeing.contracts.report_workflow import (
@@ -66,6 +67,10 @@ __all__ = [
     "ChatTurn",
     "DocumentRecord",
     "Evidence",
+    "FaqAnswer",
+    "FaqQuestion",
+    "FaqSelection",
+    "FaqTopic",
     "Incident",
     "IncidentStatus",
     "MaintenanceReport",

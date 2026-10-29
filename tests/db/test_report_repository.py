@@ -152,10 +152,12 @@ def test_draft_round_trip_owner_and_revision(setup_reports):
     doc = repo.create_draft("I1", ReportDraft())
     assert repo.get_report("I1", doc.report_id) == doc
     assert repo.list_reports("I2") == []
+    assert repo.get_report("I2", doc.report_id) == doc
+    assert repo.get_report("L1", doc.report_id) == doc
     with pytest.raises(db.ReportForbiddenError):
-        repo.get_report("I2", doc.report_id)
-    with pytest.raises(db.ReportForbiddenError):
-        repo.get_report("L1", doc.report_id)
+        repo.save_draft(
+            "I2", doc.report_id, ready_draft(), expected_revision=doc.revision
+        )
     changed = repo.save_draft(
         "I1", doc.report_id, ready_draft(), expected_revision=doc.revision
     )
@@ -226,8 +228,43 @@ def test_rejection_reason_revision_and_history(setup_reports):
     new = repo.revise("I1", old.report_id, expected_revision=old.revision)
     assert new.report_version == 2 and new.approval == [] and new.report is None
     assert repo.get_report("I1", old.report_id, version=1).report == old.report
+    assert repo.get_report("I2", old.report_id, version=1).report == old.report
+    assert repo.get_report("I2", old.report_id).report_version == 2
     with pytest.raises(db.ReportForbiddenError):
         repo.revise("I2", old.report_id, expected_revision=new.revision)
+
+
+@pytest.mark.parametrize("actor", ["I2", "L1", "C1", "S1"])
+@pytest.mark.parametrize(
+    "state", ["DRAFT", "SUBMITTED", "REVIEWED", "APPROVED", "REJECTED"]
+)
+def test_all_active_roles_can_read_and_list_every_report_state(
+    setup_reports, actor, state
+):
+    repo = setup_reports
+    doc = repo.create_draft("I1", ready_draft())
+    if state != "DRAFT":
+        doc = step(repo, doc, "I1", "submit")
+    if state == "REJECTED":
+        doc = step(repo, doc, "L1", "reject", comment="내용 보완")
+    elif state in {"REVIEWED", "APPROVED"}:
+        doc = step(repo, doc, "L1", "review")
+        if state == "APPROVED":
+            doc = step(repo, doc, "C1", "approve")
+    assert repo.get_report(actor, doc.report_id) == doc
+    assert [row.report_id for row in repo.list_reports(actor, all_reports=True)] == [
+        doc.report_id
+    ]
+    assert repo.list_reports(actor) == []  # 내 보고서 필터는 계속 본인 것만
+    with pytest.raises(db.ReportForbiddenError):
+        repo.save_draft(
+            actor, doc.report_id, ready_draft(), expected_revision=doc.revision
+        )
+
+
+def test_all_reports_cannot_bypass_review_queue_role(setup_reports):
+    with pytest.raises(ValueError):
+        setup_reports.list_reports("I2", review=True, all_reports=True)
 
 
 def test_new_approved_version_replaces_pending_selection_only(setup_reports):

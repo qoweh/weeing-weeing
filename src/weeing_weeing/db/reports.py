@@ -85,16 +85,6 @@ def _owner(row: ReportRow, user: UserRow) -> None:
         raise ReportForbiddenError("작성자만 수정·제출·개정할 수 있습니다.")
 
 
-def _readable(row: ReportRow, version: ReportVersionRow, user: UserRow) -> None:
-    if row.author_id == user.employee_no:
-        return
-    if user.role in (Role.MAINT_LEAD.value, Role.CONTROL.value) and (
-        version.report_status != ReportStatus.DRAFT
-    ):
-        return
-    raise ReportForbiddenError("이 보고서를 조회할 수 없습니다.")
-
-
 def _claim(session, row: ReportRow, expected: int, **changes) -> None:
     if expected != row.revision:
         raise ReportConflictError(
@@ -330,14 +320,20 @@ class SqlReports(Repository):
         self, actor_id: str, report_id: str, *, version: int | None = None
     ) -> ReportDocument:
         with self._transaction() as session:
-            user = _actor(session, actor_id)
+            _actor(session, actor_id)
             row, content = _load(session, report_id, version)
-            _readable(row, content, user)
             return _view(session, row, content)
 
     def list_reports(
-        self, actor_id: str, *, review: bool = False, limit: int = 100
+        self,
+        actor_id: str,
+        *,
+        review: bool = False,
+        all_reports: bool = False,
+        limit: int = 100,
     ) -> list[ReportSummary]:
+        if review and all_reports:
+            raise ValueError("전체 보고서와 내 결재 대기는 동시에 조회할 수 없습니다.")
         with self._transaction() as session:
             user = _actor(session, actor_id)
             query = select(ReportRow, ReportVersionRow).join(
@@ -358,7 +354,7 @@ class SqlReports(Repository):
                     ReportRow.report_status == statuses[user.role],
                     ReportRow.author_id != actor_id,
                 )
-            else:
+            elif not all_reports:
                 query = query.where(ReportRow.author_id == actor_id)
             return [
                 ReportSummary(

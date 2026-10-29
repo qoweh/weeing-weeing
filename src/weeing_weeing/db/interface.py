@@ -233,6 +233,7 @@ class ReportRepository(Protocol):
         actor_id: str,
         *,
         review: bool = False,
+        all_reports: bool = False,
         limit: int = 100,
     ) -> list[ReportSummary]: ...
 

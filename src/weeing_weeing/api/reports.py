@@ -1,4 +1,4 @@
-"""로그인한 작성자의 보고서와 직책별 결재 API(#62)."""
+"""로그인 사용자 공통 보고서 조회와 작성자 수정·직책별 결재 API(#62)."""
 
 from typing import Annotated, Literal
 
@@ -67,11 +67,15 @@ def create_report(
 def list_reports(
     user: CurrentUser,
     repo: Reports,
-    scope: Literal["mine", "review"] = "mine",
+    scope: Literal["mine", "review", "all"] = "mine",
     limit: int = Query(default=100, ge=1, le=200),
 ) -> list[ReportSummary]:
     return _call(
-        repo.list_reports, user.employee_no, review=scope == "review", limit=limit
+        repo.list_reports,
+        user.employee_no,
+        review=scope == "review",
+        all_reports=scope == "all",
+        limit=limit,
     )
 
 

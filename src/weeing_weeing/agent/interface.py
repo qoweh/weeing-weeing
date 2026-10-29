@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 from weeing_weeing.agent.errors import (
@@ -8,8 +9,23 @@ from weeing_weeing.agent.errors import (
     LlmUnavailableError,
     LlmUsage,
 )
+from weeing_weeing.agent.faq import (
+    FaqCatalogError,
+    FaqNotFoundError,
+    FaqVersionConflictError,
+)
+from weeing_weeing.agent.runtime import ToolInputError as InvalidChatQueryError
 from weeing_weeing.contracts import AnalysisResult, Incident
-from weeing_weeing.contracts.chat import ChatContext, ChatQuestion, ChatResponse
+from weeing_weeing.contracts.chat import (
+    ChatContext,
+    ChatDocumentSource,
+    ChatQuestion,
+    ChatReportSource,
+    ChatResponse,
+    ChatSearchConditions,
+)
+from weeing_weeing.contracts.chat_tools import ChatSearchHit, ChatSearchQuery
+from weeing_weeing.contracts.faq import FaqAnswer, FaqQuestion, FaqSelection, FaqTopic
 
 if TYPE_CHECKING:
     from weeing_weeing.config import Settings
@@ -18,6 +34,14 @@ if TYPE_CHECKING:
 __all__ = [
     "Analyzer",
     "ChatService",
+    "ChatKnowledge",
+    "InvalidChatQueryError",
+    "get_chat_service",
+    "FaqCatalog",
+    "FaqCatalogError",
+    "FaqNotFoundError",
+    "FaqVersionConflictError",
+    "load_faq_catalog",
     "LlmClient",
     "LlmError",
     "LlmModelMissingError",
@@ -81,11 +105,101 @@ class ChatService(Protocol):
     ) -> ChatResponse:
         """권한 검증된 문맥으로 응답한다. 장애는 FAILED, 근거 부족은 별도 상태다.
 
-        API가 인증·소유권을 검사하고 허용 범위로 제한한 검색기·공용 LLM을 주입한다.
+        API가 인증·대화 소유권을 검사하고 조건 검증 검색기·공용 LLM을 주입한다.
         저장소 조립·응답 저장도 API 책임이다. 동기 경계이므로 API는 작업 스레드에서
         실행하고 timeout_s 전체 예산을 검색·LLM에 나누어 적용한다(#91).
         """
         ...
+
+
+class ChatKnowledge(Protocol):
+    """직책에 따른 문서 ACL 없이 사용하는 공통 검색 경계(#88·#91).
+
+    원시 Retriever를 직접 주입하지 않는다. 사용자 ID/권한은 도구 입력에 포함하지 않는다.
+    구현체는 DB 공개 인터페이스로 검색 대상의 최신 판·승인 상태를 확인한다.
+    사번·결재·AI 분석을 제거한 최소 본문만 반환하며 기간·설비 조건을 무시하지 않는다.
+    """
+
+    def validate_query(self, query: ChatSearchQuery, *, timeout_s: float) -> None:
+        """설비·모델 실재 여부와 필터 지원·기간을 검증한다. 변경 없이 수락하거나 거부한다.
+
+        미지원/모호한 조건은 InvalidChatQueryError(안전한 설명만)다.
+        직책·작성자로 문서 검색을 제한하지 않는다. 정확한 집계는 DB 경로를 사용한다.
+        """
+        ...
+
+    def search(
+        self, query: ChatSearchQuery, *, timeout_s: float
+    ) -> list[ChatSearchHit]:
+        """조건·검색 대상 정책을 적용한 공통 근거와 서버 출처를 반환한다. 장애는 예외다."""
+        ...
+
+    def is_searchable(
+        self, source: ChatDocumentSource | ChatReportSource, *, timeout_s: float
+    ) -> bool:
+        """삭제·개정·승인 상태를 재확인한다. 사용자별 열람 권한을 검사하지 않는다."""
+        ...
+
+
+def get_chat_service(
+    knowledge: ChatKnowledge,
+    *,
+    faq: "FaqCatalog | None" = None,
+    client: LlmClient | None = None,
+    settings: "Settings | None" = None,
+) -> ChatService:
+    """기존 Claude를 쓰는 자유 대화. 조건·출처 상태 검증 검색기를 API가 주입한다."""
+    from weeing_weeing.agent.chat import ToolChatService
+    from weeing_weeing.config import get_settings
+
+    settings = settings or get_settings()
+    return ToolChatService(
+        client if client is not None else get_llm_client(settings),
+        knowledge,
+        faq if faq is not None else load_faq_catalog(),
+        max_turns=min(settings.agent_max_turns, 12),
+    )
+
+
+class FaqCatalog(Protocol):
+    """일반 이용 안내 FAQ 조회 경계. 인증·대화 저장은 API에서 조립한다."""
+
+    def list_topics(self) -> list[FaqTopic]:
+        """활성·검토 완료 질문이 있는 주제만 정렬해 반환한다."""
+        ...
+
+    def list_questions(self, topic_id: str) -> list[FaqQuestion]:
+        """공개 주제의 질문 목록. 조회 불가 주제는 FaqNotFoundError다."""
+        ...
+
+    def get_answer(self, faq_id: str) -> FaqAnswer:
+        """서버에 있는 검토 답변 스냅샷. 조회 불가 FAQ는 FaqNotFoundError다."""
+        ...
+
+    def answer(
+        self,
+        selection: FaqSelection,
+        *,
+        conditions: ChatSearchConditions | None = None,
+    ) -> ChatResponse:
+        """선택 답변을 챗봇 응답으로 반환한다. 오래된 버전은 FaqVersionConflictError다.
+
+        LLM·임베딩·검색·DB를 호출하지 않는다. 예외를 LLM 자동 호출로 처리하지 않는다.
+        저장할 대표 질문·답변은 get_answer()에서 서버 데이터로 얻는다.
+        """
+        ...
+
+
+def load_faq_catalog(path: Path | None = None) -> FaqCatalog:
+    """TOML 파일을 검증해 새 스냅샷을 만든다. 실패는 FaqCatalogError다.
+
+    경로 생략 시 저장소 data/faq/service_v1.toml을 읽는다. API는 앱 수명주기에
+    로드한 인스턴스를 재사용하고 데이터 변경 시 새 인스턴스를 주입한다(#91).
+    기존 인스턴스의 파일을 요청마다 다시 읽거나 자동 갱신하지 않는다.
+    """
+    from weeing_weeing.agent.faq import DEFAULT_FAQ_PATH, FileFaqCatalog
+
+    return FileFaqCatalog(path if path is not None else DEFAULT_FAQ_PATH)
 
 
 def get_llm_client(settings: "Settings | None" = None) -> LlmClient:

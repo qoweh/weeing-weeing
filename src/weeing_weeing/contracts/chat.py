@@ -25,7 +25,7 @@ class ChatModel(BaseModel):
 
 
 class ChatSearchConditions(ChatModel):
-    """요청 검색 조건. 권한을 부여하는 조건이 아니며 서버가 허용 범위와 교차한다.
+    """공통 열람 문서의 검색 조건. 서버가 실제 값과 필터 지원을 검증한다.
 
     기간은 보고서의 실제 조치일 기준, 양 끝 날짜 포함. 정확한 집계는 DB로 처리한다.
     """
@@ -92,7 +92,7 @@ ChatSource = Annotated[
 
 class ChatFailure(ChatModel):
     code: Literal[
-        "ACCESS_DENIED",  # 해당 대화·문서·보고서를 열람할 권한 없음
+        "ACCESS_DENIED",  # 타인의 대화 조회·수정 등 접근 권한 없음(문서는 공통 열람)
         "TIMEOUT",  # 검색·응답 생성 등이 제한 시간 안에 완료되지 않음
         "LLM_AUTHENTICATION",  # LLM 공급자 인증 실패(API 키·권한 문제)
         "RATE_LIMITED",  # 서비스 또는 LLM 공급자의 호출 제한 초과

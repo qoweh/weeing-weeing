@@ -83,8 +83,9 @@ AI 코드가 maintenance·approval을 작성하지 않는다.
 | POST /reports | 현장 점검자의 새 초안 |
 | GET /reports?scope=mine | 본인이 작성한 보고서 |
 | GET /reports?scope=review | 해당 직책의 결재 대기 |
-| GET /reports/{id} | 현재 판. 작성자 또는 제출 이후 결재 직책만 조회 |
-| GET /reports/{id}/versions/{n} | 특정 판과 결재 이력(같은 조회 권한) |
+| GET /reports?scope=all | 직책·작성자와 무관한 전체 보고서 목록(초안·반려 포함) |
+| GET /reports/{id} | 현재 판. 모든 로그인 사용자 조회 가능 |
+| GET /reports/{id}/versions/{n} | 특정 판과 결재 이력. 모든 로그인 사용자 조회 가능 |
 | PUT /reports/{id}/draft | 작성자만 현재 DRAFT 저장 |
 | POST /reports/{id}/submit | 작성자·현장 점검자 제출 |
 | POST /reports/{id}/review | 보전 팀장 검토 승인 |

@@ -88,12 +88,41 @@ def test_login_draft_reload_and_ownership(client):
         client.get(
             f"/reports/{doc['report_id']}", headers=auth(client, "I2")
         ).status_code
-        == 403
+        == 200
     )
     assert client.get("/reports?scope=review", headers=auth(client)).status_code == 403
     assert (
         client.get("/incidents", headers=auth(client)).json()[0]["incident_id"]
         == "INC-1"
+    )
+
+
+def test_common_read_includes_drafts_rejections_and_old_versions_but_not_write(client):
+    doc = create(client)
+    path = f"/reports/{doc['report_id']}"
+    other = auth(client, "I2")
+    assert client.get(path).status_code == 401
+    assert client.get("/reports?scope=all").status_code == 401
+    assert client.get(path, headers=other).status_code == 200
+    assert [
+        r["report_id"] for r in client.get("/reports?scope=all", headers=other).json()
+    ] == [doc["report_id"]]
+    assert (
+        client.put(
+            path + "/draft", headers=other, json={"expected_revision": doc["revision"]}
+        ).status_code
+        == 403
+    )
+    doc = action(client, doc, "submit").json()
+    rejected = action(client, doc, "reject", "L1", comment="보완 필요").json()
+    assert client.get(path, headers=other).json()["report_status"] == "REJECTED"
+    assert action(client, rejected, "revise", "I2").status_code == 403
+    revised = action(client, rejected, "revise").json()
+    assert revised["report_version"] == 2
+    assert client.get(path, headers=other).json()["report_status"] == "DRAFT"
+    assert (
+        client.get(path + "/versions/1", headers=other).json()["report_status"]
+        == "REJECTED"
     )
 
 
