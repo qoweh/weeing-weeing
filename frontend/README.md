@@ -11,14 +11,14 @@
 <br />
 
 <img src="https://img.shields.io/badge/React-149ECA?style=for-the-badge&logo=react&logoColor=white" alt="React" />
-<img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black" alt="JavaScript" />
-<img src="https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite" />
+<img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
+<img src="https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js" />
 <img src="https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind CSS" />
 <img src="https://img.shields.io/badge/Sass-CC6699?style=for-the-badge&logo=sass&logoColor=white" alt="Sass" />
 
 <br />
 
-**Frontend** · React + JavaScript (JSX) · **Backend API** · FastAPI
+**Frontend** · Next.js + React + TypeScript (TSX) · **Backend API** · FastAPI
 
 </div>
 
@@ -43,15 +43,15 @@ RAG(Retrieval-Augmented Generation) 시스템과 연동하여 정비 문서 기�
 
 | Category | Stack |
 | :--- | :--- |
-| **Core** | React, JavaScript (JSX), Vite |
+| **Core** | Next.js, React, TypeScript (TSX) |
 | **Styling** | Tailwind CSS, Sass (SCSS) |
-| **Routing** | React Router |
+| **Routing** | Next.js App Router |
 | **State** | Redux *(도입 예정)* |
 | **API** | FastAPI (REST API 연동) |
-| **Quality** | ESLint, Prettier |
+| **Quality** | 설정 예정 |
 | **UI** | Custom Components |
 
-> TypeScript는 사용하지 않습니다.
+
 
 ## 📸 Preview
 
@@ -70,16 +70,16 @@ RAG(Retrieval-Augmented Generation) 시스템과 연동하여 정비 문서 기�
 
 ```bash
 git clone <YOUR_REPOSITORY_URL>
-cd weeing-weeing
+cd weeing-weeing/frontend
 npm install
 ```
 
 ### Environment Variables
 
-프로젝트 루트에 `.env` 파일을 생성합니다.
+API 연동을 구현할 때 `frontend/.env.local`에 다음 값을 설정할 수 있습니다. 현재 화면은 이 값을 사용하지 않습니다.
 
 ```env
-VITE_API_BASE_URL=http://localhost:8000
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 ```
 
 ### Run
@@ -88,24 +88,14 @@ VITE_API_BASE_URL=http://localhost:8000
 npm run dev
 ```
 
-기본 Vite 개발 서버: `http://localhost:5173`
+Next.js 개발 서버: `http://localhost:3000`
 
 ### Build
 
 ```bash
 npm run build
-npm run preview
+npm run start
 ```
-
-### Lint & Format
-
-```bash
-npm run lint
-npx prettier --write .
-```
-
-> 명령어는 `package.json`의 스크립트 및 관련 패키지 설치 상태에 따라 조정해야 합니다.
-
 
 ## 🌐 Deployment
 
@@ -114,5 +104,5 @@ npx prettier --write .
 ---
 
 <div align="center">
-  <sub>Built with React · JavaScript · Vite</sub>
+  <sub>Built with Next.js · React · TypeScript</sub>
 </div>

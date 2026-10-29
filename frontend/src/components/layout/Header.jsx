@@ -1,4 +1,0 @@
-import Button from '../ui/Button.jsx'
-export default function Header({ theme, onToggleTheme, user, onLogin, onLogout }) {
-  return <header className="header"><a className="brand" href="#main-content"><span className="brand__mark">W</span><span>위잉위잉<small>Equipment AI</small></span></a><div className="header__main"><div className="header__search"><span aria-hidden="true">⌕</span><span>문서 검색 준비 중</span></div><div className="header__actions"><Button iconOnly onClick={onToggleTheme} aria-label={theme === 'light' ? '다크 모드로 전환' : '라이트 모드로 전환'} title={theme === 'light' ? '다크 모드로 전환' : '라이트 모드로 전환'}><span aria-hidden="true">{theme === 'light' ? '☾' : '☀'}</span></Button>{user ? <><div className="header__profile"><span className="header__avatar" aria-hidden="true">W</span><span>{user.name}<small>임시 프로필</small></span></div><Button onClick={onLogout}>로그아웃</Button></> : <Button variant="primary" onClick={onLogin}>로그인</Button>}</div></div></header>
-}

@@ -59,3 +59,9 @@ wheels/
 
 # frontend
 node_modules
+
+.next/
+
+frontend/next-env.d.ts
+frontend/*.tsbuildinfo
+.prettierrc.json
