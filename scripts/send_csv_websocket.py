@@ -51,6 +51,7 @@ def send_csv(csv_path, url, *, context="NONE", interval=0.5, timeout=10.0):
             print("[주의] 선택한 운전 문맥은 시뮬레이션 가정입니다.", flush=True)
         count = 0
         seen = {}
+        seen_jobs = {}
 
         def send(message):
             nonlocal count
@@ -83,7 +84,19 @@ def send_csv(csv_path, url, *, context="NONE", interval=0.5, timeout=10.0):
             for incident in response["error_entries"]:
                 print(
                     f"  [Error 진입] {','.join(incident['codes'])} "
-                    "분석 대상 확인 (Agent 미연결)",
+                    f"분석 대상 확인 (Agent {response.get('agent_status', 'not_connected')})",
+                    flush=True,
+                )
+            if response.get("db_status") == "failed":
+                raise RuntimeError(
+                    "DB 저장 실패: 탐지 이력은 로컬에 남지만 DB에는 저장되지 않았습니다. 자동 재전송하지 않습니다"
+                )
+            for job in response.get("analysis_jobs", []):
+                if seen_jobs.get(job["job_id"]) == job["status"]:
+                    continue
+                seen_jobs[job["job_id"]] = job["status"]
+                print(
+                    f"  [분석 작업] incident={job['incident_id']} job={job['job_id']} state={job['status']}",
                     flush=True,
                 )
 

@@ -46,6 +46,7 @@ tests/  scripts/  docs/
 | [CONTRACTS](docs/CONTRACTS.md) | 데이터 계약 요약, 근거 자료, 미결 사항 |
 | [JSON_INPUT](docs/JSON_INPUT.md) | 공통 JSON 입력 API, CSV 재생과 0.5초 주기 제한 |
 | [WEBSOCKET_TELEMETRY](docs/WEBSOCKET_TELEMETRY.md) | Unreal WebSocket 수신, CSV 테스트 송신기와 터미널 실행 방법 |
+| [AUTO_ANALYSIS](docs/AUTO_ANALYSIS.md) | Error 자동 분석·저장·조회·무과금 터미널 시연 (#104) |
 | [LOCAL_SETUP](docs/LOCAL_SETUP.md) | 개발 환경 설치, 실행, 문제 해결 |
 | [CHANGE_WORKFLOW](docs/CHANGE_WORKFLOW.md) | 이슈·브랜치·커밋·PR·머지 규칙 |
 | [DECISIONS](docs/DECISIONS.md) | 기술 결정 기록 |

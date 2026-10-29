@@ -8,7 +8,7 @@ CSV 송신기 / Unreal
   → JsonTelemetryInput (parse_telemetry_json)
   → 같은 HistoryDetector에 순차 전달
   → 이력 저장 후 처리 응답
-  → Error 최초 진입 표시 (Agent/RAG는 미연결)
+  → Error 최초 진입 표시 → 선택적 Agent 자동 분석·DB 저장 (#104)
 ```
 
 ## 실행: 터미널 두 개
@@ -59,7 +59,8 @@ CSV의 record_id·timestamp·값은 바꾸지 않는다. 1초 간격 CSV를 0.5�
 송신기 화면에는 행별 처리 확인, RPM·온도·입출구 센서, 사건의 신규/등급/상태 변화,
 Error 최초 진입이 표시된다. 사건의 같은 등급/상태 반복 갱신은 화면에서 생략한다.
 이력에는 모든 기존 사건 변화가 저장된다. `Error 진입`은 분석 대상을 확인했다는 뜻이며
-Agent를 호출하거나 분석 큐에 등록했다는 뜻이 아니다.
+자동 분석을 끈 기본 모드에서는 Agent를 호출하지 않는다. #104를 켰으면 ACK의
+`analysis_jobs`에 등록된 작업 ID·상태를 함께 표시한다([자동 분석](AUTO_ANALYSIS.md)).
 
 ## Unreal 연결 규격
 
@@ -77,10 +78,12 @@ JSON 고유 타입·시간대 있는 시각·버전·빈 식별자·중복 키·
 | rejected | 형식 오류/다른 설비 입력은 invalid_telemetry. 다음 유효 입력 가능 |
 | failed | 탐지·저장 실패. processing_failed 응답 후 1011로 종료. 같은 탐지기 재사용 금지 |
 
-`agent_status`는 `not_connected`다. `error_entries`에는 회복/종결이 아닌 최초 Error
+`agent_status`는 기본 `not_connected`, 자동 분석을 켰으면 `connected`, DB 저장 실패면
+`storage_failed`다. 탐지 이력 저장과 DB 저장을 구분하려면 `db_status`도 확인한다.
+`error_entries`에는 회복/종결이 아닌 최초 Error
 사건 또는 Warning에서 Error로 상승한 사건의 Incident 스냅샷이 한 번만 담긴다.
 코드만 추출한 메시지가 아니라 센서 근거·설비·시간·사건 ID가 포함된다.
-후속 Agent 연결 위치는 이력 처리 성공 후이며 실제 Agent 호출·작업 큐는 이번 범위 밖이다.
+Agent 작업 등록은 이력 처리 성공 후이며 실제 유료 분석은 별도 백그라운드 실행기에서 한다.
 
 `rejected`는 검증기에서 거부한 메시지이며 Detector에 도달하지 않는다. 입력 거부만으로
 새 품질 사건을 만들지는 않는다. 시간 공백·연속성 정책은 기존 Detector 정책을 유지한다.
@@ -110,7 +113,8 @@ JSON 고유 타입·시간대 있는 시각·버전·빈 식별자·중복 키·
 manifest 정리까지 확인한 최종 무결성 검증을 대신하지 않는다. 재조회에는 HistoryReader.validate()를 쓴다.
 
 LAN 시연은 서버를 --host 0.0.0.0으로 실행하고 송신기의 --url에 서버 IP를 지정한다.
-현재 인증·TLS·다중 worker 상태 공유·수신 무응답 3초 watchdog·실제 Agent/RAG는 구현하지 않았다.
+현재 인증·TLS·다중 worker 상태 공유·수신 무응답 3초 watchdog은 구현하지 않았다.
+실제 Agent/RAG 자동 연결은 [AUTO_ANALYSIS](AUTO_ANALYSIS.md)의 명시적 설정으로 켠다.
 외부 공개 서비스가 아닌 로컬/통제된 시연용 수신부다.
 
 ## 자동 검증

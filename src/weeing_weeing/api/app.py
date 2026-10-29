@@ -1,15 +1,41 @@
+import logging
+from contextlib import asynccontextmanager
+
+import anyio
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from weeing_weeing import __version__
+from weeing_weeing.api.analysis import AnalysisService
+from weeing_weeing.api.analysis import router as analysis_router
 from weeing_weeing.api.auth import router as auth_router
 from weeing_weeing.api.documents import router as documents_router
 from weeing_weeing.api.reports import router as reports_router
 from weeing_weeing.api.telemetry import router as telemetry_router
+from weeing_weeing.config import get_settings
 from weeing_weeing.contracts import RULE_VERSION, SCHEMA_VERSION
 from weeing_weeing.db.interface import DatabaseUnavailableError
 
-app = FastAPI(title="weeing-weeing", version=__version__)
+
+@asynccontextmanager
+async def lifespan(app):
+    service = AnalysisService() if get_settings().analysis_auto_enabled else None
+    app.state.analysis_service = service
+    if service:
+        service.start()
+    else:
+        logging.getLogger("uvicorn.error.analysis").info(
+            "[분석 비활성] ANALYSIS_AUTO_ENABLED=true로 자동 호출 활성화(비용 발생)"
+        )
+    try:
+        yield
+    finally:
+        if service:
+            await anyio.to_thread.run_sync(service.stop)
+
+
+app = FastAPI(title="weeing-weeing", version=__version__, lifespan=lifespan)
+app.include_router(analysis_router)
 app.include_router(auth_router)
 app.include_router(documents_router)
 app.include_router(telemetry_router)

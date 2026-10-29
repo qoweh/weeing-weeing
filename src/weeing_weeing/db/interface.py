@@ -18,6 +18,7 @@ from weeing_weeing.contracts import (
     TelemetryRecord,
     UserAccount,
 )
+from weeing_weeing.db.analysis_jobs import AnalysisConflictError, SqlAnalysisJobs
 from weeing_weeing.db.documents import SeedResult
 from weeing_weeing.db.incidents import UnknownIncidentError
 from weeing_weeing.db.reports import (
@@ -38,6 +39,10 @@ if TYPE_CHECKING:
     from sqlalchemy import Engine
 
 __all__ = [
+    "AnalysisConflictError",
+    "SqlAnalysisJobs",
+    "get_analysis_jobs",
+    "open_analysis_jobs",
     "DatabaseUnavailableError",
     "DocumentRepository",
     "MIN_PASSWORD_LENGTH",
@@ -326,6 +331,7 @@ class _Shared:
     telemetry: TelemetryRepository
     users: UserRepository
     reports: ReportRepository
+    analysis_jobs: SqlAnalysisJobs
 
 
 @lru_cache(maxsize=4)
@@ -343,6 +349,7 @@ def _cached(url: str, timeout_s: float) -> _Shared:
         SqlTelemetry(engine),
         SqlUsers(engine),
         SqlReports(engine),
+        SqlAnalysisJobs(engine),
     )
 
 
@@ -385,3 +392,13 @@ def get_users() -> UserRepository:
 def get_reports() -> ReportRepository:
     """.env의 DATABASE_URL로 연 보고서·결재 저장소."""
     return _shared().reports
+
+
+def get_analysis_jobs() -> SqlAnalysisJobs:
+    """사건·센서·분석 작업을 함께 저장하는 #104 공개 진입점."""
+    return _shared().analysis_jobs
+
+
+def open_analysis_jobs(url: str, *, timeout_s: float = 5) -> SqlAnalysisJobs:
+    """독립 환경·시연용 작업 저장소. 호출자가 엔진 수명을 관리한다."""
+    return SqlAnalysisJobs(open_engine(url, timeout_s=timeout_s))

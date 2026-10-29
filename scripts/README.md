@@ -1,5 +1,11 @@
 # scripts
 
+## Error 자동 분석 시연 (#104)
+
+`PYTHONPATH=src uv run --no-sync python scripts/demo_auto_analysis.py`는 실제 WebSocket과
+SQLite·가짜 Analyzer로 입력→Error→작업 등록→분석→저장을 시연한다. Claude 비용은 없다.
+PowerShell 명령과 실제 유료 연결은 [AUTO_ANALYSIS](../docs/AUTO_ANALYSIS.md)를 따른다.
+
 ## 모델 받기 (`download_models.py`)
 
 `.env`의 `EMBEDDING_MODEL`·`RERANKER_MODEL`을 Hugging Face 캐시에 받는다. LLM은 상용 API라 받을 것이 없다. 검색·리랭킹은 실행 중에 모델을 내려받지 않으므로 새 PC에서 `make index` 전에 한 번 실행한다. 이미 받은 모델은 확인만 하고 넘어간다.

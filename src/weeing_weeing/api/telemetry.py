@@ -1,4 +1,4 @@
-"""Sequential telemetry WebSocket. No LLM calls or PLC control live here."""
+"""순차 센서 처리와 선택적 DB 작업 등록. LLM은 별도 실행기에서만 호출한다."""
 
 import asyncio
 import logging
@@ -42,6 +42,7 @@ class TelemetrySession:
         self.error_ids = set()
         self.failed = False
         self.processed_count = 0
+        self.analysis_service = None
         self.history = HistoryDetector(
             output,
             source={
@@ -99,18 +100,24 @@ class TelemetrySession:
         )
         for incident in entries:
             logger.info(
-                "[Error 진입] run=%s codes=%s incident_id=%s (Agent 미연결)",
+                "[Error 진입] run=%s codes=%s incident_id=%s agent=%s",
                 self.history.run_path.name,
                 ",".join(incident["codes"]),
                 incident["incident_id"],
+                "등록 시도" if self.analysis_service else "미연결",
             )
+        analysis = (
+            self.analysis_service.ingest(record, changes)
+            if self.analysis_service
+            else {"agent_status": "not_connected"}
+        )
         return {
             "status": "processed",
             "record_id": record.record_id,
             "timestamp": record.timestamp.isoformat(),
             "incidents": [item.model_dump(mode="json") for item in changes],
             "error_entries": entries,
-            "agent_status": "not_connected",
+            **analysis,
         }
 
     def receive(self, message):
@@ -157,6 +164,11 @@ async def telemetry_socket(websocket: WebSocket, context: str = "NONE"):
         session = await run_worker(
             TelemetrySession, get_settings().telemetry_history_dir, context
         )
+        session.analysis_service = getattr(
+            getattr(getattr(websocket, "app", None), "state", None),
+            "analysis_service",
+            None,
+        )
         logger.info(
             "[센서 연결] run=%s context=%s",
             session.history.run_path.name,
@@ -168,7 +180,9 @@ async def telemetry_socket(websocket: WebSocket, context: str = "NONE"):
                 "run_id": session.history.run_path.name,
                 "run_path": str(session.history.run_path.resolve()),
                 "context_preset": context,
-                "agent_status": "not_connected",
+                "agent_status": "connected"
+                if session.analysis_service
+                else "not_connected",
             }
         )
         while True:

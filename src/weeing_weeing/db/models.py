@@ -117,6 +117,36 @@ class AnalysisRow(Base):
     data: Mapped[dict] = mapped_column(JsonColumn)
 
 
+class AnalysisJobRow(Base):
+    """자동 호출 1회/사건, 실행별 입력 스냅샷과 명시적 재시도 기록."""
+
+    __tablename__ = "analysis_job"
+    job_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    incident_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("incident.incident_id", ondelete="CASCADE"), index=True
+    )
+    request_key: Mapped[str] = mapped_column(String(160), unique=True)
+    status: Mapped[str] = mapped_column(String(16), index=True)
+    snapshot: Mapped[dict] = mapped_column(JsonColumn)
+    analysis_id: Mapped[int | None] = mapped_column(ForeignKey("analysis.id"))
+    error_code: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('PENDING','RUNNING','COMPLETED','FAILED')",
+            name="ck_analysis_job_status",
+        ),
+        Index(
+            "uq_analysis_job_active",
+            "incident_id",
+            unique=True,
+            sqlite_where=text("status IN ('PENDING','RUNNING')"),
+            postgresql_where=text("status IN ('PENDING','RUNNING')"),
+        ),
+    )
+
+
 class TelemetryRow(Base):
     """센서 1초 집계 한 줄(contracts/telemetry.py, v3 15컬럼). 칼럼 이름은 계약과 같다.
 
