@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import AppShell from './components/layout/AppShell.jsx'
 import DashboardPage from './pages/DashboardPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
+import SignupPage from './pages/SignupPage.jsx'
 
 function initialTheme() {
   try {
@@ -13,6 +14,7 @@ function initialTheme() {
 
 export default function App() {
   const [theme, setTheme] = useState(initialTheme)
+  const [authPage, setAuthPage] = useState('login')
   const [user, setUser] = useState(() => {
     try { return localStorage.getItem('weeing-demo-login') === 'true' ? { name: '사용자 1' } : null } catch { return null }
   })
@@ -35,8 +37,9 @@ export default function App() {
   }
   function logout() {
     try { localStorage.removeItem('weeing-demo-login') } catch { /* Storage may be unavailable. */ }
+    setAuthPage('login')
     setUser(null)
   }
-  if (!user) return <LoginPage onLogin={login} />
+  if (!user) return authPage === 'signup' ? <SignupPage onLogin={() => setAuthPage('login')} /> : <LoginPage onLogin={login} onSignup={() => setAuthPage('signup')} />
   return <AppShell user={user} onLogout={logout} theme={theme} onToggleTheme={() => setTheme((current) => current === 'light' ? 'dark' : 'light')}><DashboardPage /></AppShell>
 }
