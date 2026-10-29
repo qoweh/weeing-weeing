@@ -13,9 +13,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# job마다 필요한 권한만 준다. 서버로 넘기는 deploy job의 토큰은 이미지를 받기만 한다.
 permissions:
   contents: read
-  packages: write
 
 # 배포는 겹치지 않게 차례로 돈다. 진행 중인 배포는 취소하지 않는다(서버가 반쯤 바뀐 채 멈추지 않게).
 concurrency:
@@ -30,6 +30,9 @@ jobs:
     name: Build ${{ matrix.image }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
     strategy:
       matrix:
         image: [api, frontend, web]
@@ -60,6 +63,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: production
+    permissions:
+      contents: read
+      packages: read
     env:
       # 사용자 이름은 비밀이 아니므로 Variable로 둔다(Secret이면 로그의 'ubuntu'가 모두 ***로 가려진다).
       EC2: ${{ vars.EC2_USER || 'ubuntu' }}@${{ secrets.EC2_HOST }}
@@ -79,10 +85,16 @@ jobs:
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           printf 'Host *\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n  StrictHostKeyChecking yes\n  ConnectTimeout 15\n' > ~/.ssh/config
 
+      - name: 서버 접속 확인
+        run: |
+          # 접속 실패와 .env 없음을 나눠서 알린다.
+          ssh "$EC2" true \
+            || { echo "::error::서버에 SSH로 접속하지 못했습니다. 위 메시지가 Host key verification이면 EC2_KNOWN_HOSTS, Permission denied면 EC2_SSH_KEY, timed out이면 서버 전원·보안그룹 22번을 확인하세요(docs/DEPLOY.md)"; exit 1; }
+          ssh "$EC2" 'mkdir -p ~/weeing-weeing && test -f ~/weeing-weeing/.env' \
+            || { echo "::error::서버에 ~/weeing-weeing/.env가 없습니다(docs/DEPLOY.md 서버 .env)"; exit 1; }
+
       - name: compose 파일 복사
         run: |
-          ssh "$EC2" 'mkdir -p ~/weeing-weeing && test -f ~/weeing-weeing/.env' \
-            || { echo "::error::서버에 ~/weeing-weeing/.env가 없습니다(docs/DEPLOY.md 첫 배포)"; exit 1; }
           scp deploy/docker-compose.prod.yml "$EC2":~/weeing-weeing/docker-compose.yml
 
       - name: 이미지 받기·교체

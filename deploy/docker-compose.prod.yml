@@ -38,6 +38,9 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       VECTOR_STORE: qdrant
       QDRANT_URL: http://qdrant:6333
+      # 1이면 Hugging Face에서 모델을 받지 않는다(지금은 RAG 모델 없이 운영). 받은 모델만 쓰고,
+      # 없으면 색인·검색이 실패로 기록된다. RAG를 켤 때 .env에 HF_HUB_OFFLINE=0(docs/DEPLOY.md).
+      HF_HUB_OFFLINE: ${HF_HUB_OFFLINE:-1}
     volumes:
       - storage:/app/storage
       - outputs:/app/outputs

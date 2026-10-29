@@ -26,7 +26,7 @@ web(Caddy :80/:443) ─┬─ /api/*  → api(FastAPI :8000)  ─┬─ postgres
 |---|---|---|
 | web | `deploy/web.Dockerfile` (Caddy + hmi/web 빌드) | `caddy_data`(인증서) |
 | frontend | `deploy/frontend.Dockerfile` | - |
-| api | `deploy/api.Dockerfile` | `storage`(업로드), `outputs`(사건 이력), `hf_models`(임베딩 모델 2.2GB) |
+| api | `deploy/api.Dockerfile` | `storage`(업로드), `outputs`(사건 이력), `hf_models`(RAG 모델, 지금은 비어 있음) |
 | postgres | `postgres:16-alpine` | `postgres_data` |
 | qdrant | `qdrant/qdrant:v1.20.0` | `qdrant_data` |
 
@@ -152,7 +152,7 @@ chmod 600 .env
 - `ANTHROPIC_API_KEY=` 주석을 풀고 키를 넣는다. 콘솔에서 사용량 한도를 걸어 둔다
 - `POSTGRES_PASSWORD`는 새로 만든다(`openssl rand -hex 16`). URL에 들어가므로 영문·숫자만 쓴다. **DB를 처음 띄운 뒤에는 바꿔도 적용되지 않는다**(볼륨에 처음 값이 남는다)
 - `DATABASE_URL`·`QDRANT_URL`·`VECTOR_STORE`는 compose가 컨테이너 주소로 덮어쓰므로 그대로 둬도 된다
-- `RERANKER_MODEL=`(빈 값)으로 둔다. 리랭커를 끄고 임베딩 모델만 받는다([첫 배포 뒤 한 번](#첫-배포-뒤-한-번-모델-받기색인계정))
+- `RERANKER_MODEL=`(빈 값)으로 둔다. RAG 모델은 지금 받지 않는다([RAG 모델](#rag-모델-지금은-받지-않는다))
 - `ANALYSIS_AUTO_ENABLED=true`는 사건마다 Claude API를 호출한다(비용). 시연할 때만 켠다
 - 도메인이 생기면 `SITE_ADDRESS=example.com`을 추가한다. Caddy가 HTTPS 인증서를 자동으로 받는다(443 필요)
 - `IMAGE_TAG`·`IMAGE_PREFIX`는 배포 워크플로가 적는다. 직접 고치지 않는다
@@ -163,18 +163,31 @@ chmod 600 .env
 - **수동:** Actions → Deploy (EC2) → Run workflow → `dev` 선택. Environment가 main·dev만 허용하므로 작업 브랜치는 빌드까지만 되고 배포 단계에서 막힌다
 - 워크플로 파일이 기본 브랜치(dev)에 있어야 Run workflow 버튼이 보인다
 
-### 첫 배포 뒤 한 번: 모델 받기·색인·계정
+### 첫 배포 뒤 한 번: 시연 계정
 
-이미지에는 RAG 모델이 없다. 볼륨(`hf_models`)에 한 번 받으면 이후 배포에서도 남는다.
-
-운영 서버는 **리랭커를 끈다**(`.env`의 `RERANKER_MODEL=` 빈 값). 디스크·메모리 약 2GB를 아끼는 대신 검색은 RRF 순위를 쓴다(#8 실측 MRR 0.92 → 0.77). 다시 켜려면 값을 `BAAI/bge-reranker-v2-m3`로 되돌리고 `download_models.py`를 한 번 더 실행한 뒤 `docker compose up -d`를 한다.
+로그인할 계정을 DB에 만든다. 비밀번호는 계정마다 임의로 만들어 **한 번만** 화면에 출력하므로 바로 보관한다(같은 비밀번호로 하려면 `--ask-password`). 이미 있는 사번은 건드리지 않는다. DB 테이블은 API가 처음 DB에 접근할 때 자동으로 만든다.
 
 ```
 cd ~/weeing-weeing
-docker compose run --rm api python scripts/download_models.py   # 임베딩(bge-m3) 약 2.2GB, 5분 안팎
+docker compose run --rm api python scripts/seed_users.py
+```
+
+### RAG 모델 (지금은 받지 않는다)
+
+LLM은 Claude API지만, 문서 검색(RAG)은 서버에서 도는 별도 모델을 쓴다. 지금은 디스크·메모리를 아끼려고 **받지 않는다.**
+
+- compose가 `HF_HUB_OFFLINE=1`로 띄워 실행 중에도 모델을 자동으로 받지 않는다
+- 그동안 문서 업로드 색인·근거 검색·자동 분석은 실패로 기록된다(API·로그인·화면은 정상)
+- RAG를 켜도 리랭커는 끈 채로 둔다(`.env`의 `RERANKER_MODEL=` 빈 값). 검색 정확도는 #8 실측 MRR 0.92 → 0.77
+
+RAG를 켤 때(임베딩 bge-m3 약 2.2GB, 볼륨 `hf_models`에 남아 다음 배포에도 유지):
+
+```
+cd ~/weeing-weeing
+echo 'HF_HUB_OFFLINE=0' >> .env
+docker compose run --rm api python scripts/download_models.py   # 임베딩 약 2.2GB, 5분 안팎
 docker compose run --rm api python scripts/build_index.py       # catalog.toml 반영 + 색인
-docker compose run --rm api python scripts/seed_users.py        # 시연용 계정
-docker compose restart api
+docker compose up -d api
 ```
 
 ### 확인
