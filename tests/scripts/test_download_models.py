@@ -15,10 +15,9 @@ def _script():
     return module
 
 
-def _env(monkeypatch, *, embedding="emb/model", reranker="", ollama="llm:1b"):
+def _env(monkeypatch, *, embedding="emb/model", reranker=""):
     monkeypatch.setenv("EMBEDDING_MODEL", embedding)
     monkeypatch.setenv("RERANKER_MODEL", reranker)
-    monkeypatch.setenv("OLLAMA_MODEL", ollama)
 
 
 def test_downloads_configured_models(monkeypatch, tmp_path):
@@ -26,20 +25,18 @@ def test_downloads_configured_models(monkeypatch, tmp_path):
     _env(monkeypatch, reranker="rr/model")
     got = []
     monkeypatch.setattr(script, "download_hf", lambda m: got.append(m) or tmp_path)
-    monkeypatch.setattr(script, "pull_ollama", lambda m: got.append(m) or True)
 
     assert script.main([]) == 0
-    assert got == ["emb/model", "rr/model", "llm:1b"]
+    assert got == ["emb/model", "rr/model"]
 
 
-def test_empty_reranker_and_skip_ollama(monkeypatch, tmp_path):
+def test_empty_reranker_is_skipped(monkeypatch, tmp_path):
     script = _script()
     _env(monkeypatch)
     got = []
     monkeypatch.setattr(script, "download_hf", lambda m: got.append(m) or tmp_path)
-    monkeypatch.setattr(script, "pull_ollama", lambda m: got.append(m) or True)
 
-    assert script.main(["--skip-ollama"]) == 0
+    assert script.main([]) == 0
     assert got == ["emb/model"]
 
 
@@ -50,18 +47,17 @@ def test_local_path_is_not_downloaded(monkeypatch, tmp_path):
         script, "download_hf", lambda m: (_ for _ in ()).throw(AssertionError)
     )
 
-    assert script.main(["--skip-ollama"]) == 0
+    assert script.main([]) == 0
 
 
 def test_failure_exit_code(monkeypatch, capsys):
     script = _script()
-    _env(monkeypatch)
+    _env(monkeypatch, reranker="rr/model")
 
     def boom(_model):
         raise OSError("network down")
 
     monkeypatch.setattr(script, "download_hf", boom)
-    monkeypatch.setattr(script, "pull_ollama", lambda m: False)
 
     assert script.main([]) == 1
-    assert "받지 못함: emb/model, llm:1b" in capsys.readouterr().out
+    assert "받지 못함: emb/model, rr/model" in capsys.readouterr().out

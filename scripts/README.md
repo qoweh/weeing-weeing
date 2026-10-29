@@ -2,11 +2,10 @@
 
 ## 모델 받기 (`download_models.py`)
 
-`.env`의 `EMBEDDING_MODEL`·`RERANKER_MODEL`(Hugging Face 캐시)과 `OLLAMA_MODEL`(`ollama pull`)을 받는다. 검색·리랭킹은 실행 중에 모델을 내려받지 않으므로 새 PC에서 `make index` 전에 한 번 실행한다. 이미 받은 모델은 확인만 하고 넘어간다.
+`.env`의 `EMBEDDING_MODEL`·`RERANKER_MODEL`을 Hugging Face 캐시에 받는다. LLM은 상용 API라 받을 것이 없다. 검색·리랭킹은 실행 중에 모델을 내려받지 않으므로 새 PC에서 `make index` 전에 한 번 실행한다. 이미 받은 모델은 확인만 하고 넘어간다.
 
 ```bash
 make models                     # = PYTHONPATH=src uv run --no-sync python scripts/download_models.py
-make models ARGS=--skip-ollama  # Hugging Face 모델만
 ```
 
 종료 코드는 0 모두 받음, 1 받지 못한 모델 있음.
@@ -64,20 +63,31 @@ make rag-e2e ARGS="--backends qdrant,chroma,qdrant-server"      # 서버도 (mak
 결과는 `outputs/rag_e2e/report-<시각>.md`에 남는다. 공식 측정 결과와 해석은 [docs/RAG_E2E.md](../docs/RAG_E2E.md)에 날짜별로 남긴다. 종료 코드는 0 통과, 1 검사 실패, 2 시작 못 함(설정·Indexer).
 #6 Indexer가 `rag/factory.py`의 `indexer_class()`에 연결돼야 실행된다. 그 전에는 종료 코드 2로 안내한다.
 
-## LLM 점검 (`check_llm.py`, #10)
+## LLM 점검 (`check_llm.py`, #101)
 
-Ollama 모델이 로컬에서 돌고 구조화 출력(JSON 스키마)을 지키는지 `data/eval/llm_cases_v1.toml` 사례로 점검한다.
+Claude가 구조화 출력(JSON 스키마)과 근거 인용 규칙을 지키는지 `data/eval/llm_cases_v1.toml` 사례로 점검한다. 근거를 고정하므로 검색 품질과 무관하게 LLM 판단만 잰다. `ANTHROPIC_API_KEY`가 필요하고 사례마다 API를 한 번 부른다.
 
 ```bash
-make llm-check                                        # .env의 OLLAMA_MODEL
-make llm-check ARGS="--model qwen3:8b --repeat 3"     # 모델 비교
-make llm-check ARGS="--think"                         # 생각 단계 켜고 비교
+make llm-check                                                # .env의 LLM_MODEL
+make llm-check ARGS="--model claude-sonnet-5-5 --repeat 3"    # 모델 비교
+make llm-check ARGS="--effort low"                            # 생각 깊이 비교
 ```
 
-- 반드시 통과: JSON → 분석 초안 스키마 → `AnalysisResult` 계약(원인 후보는 실제 근거만 인용)
-- 숫자로 기록: 기대 상태(OK / INSUFFICIENT_EVIDENCE) 일치, 사례당 시간, 초당 토큰
-- 보고서: `outputs/llm_check/report-<시각>.md`. 종료 코드 0 통과 / 1 실패 사례 있음 / 2 서버·모델·설정 문제
-- 프롬프트는 점검용 최소본(`agent/llm_check.py`)이다. 실제 분석 프롬프트·워크플로는 #11~#13
+- 반드시 통과: JSON → 분석 초안 스키마 → 제출 검사(`analyst.check_draft`) → `AnalysisResult` 계약
+- 숫자로 기록: 기대 상태(OK / INSUFFICIENT_EVIDENCE) 일치, 사례당 시간, 토큰 수
+- 보고서: `outputs/llm_check/report-<시각>.md`. 종료 코드 0 통과 / 1 실패 사례 있음 / 2 키·모델·설정 문제
+
+## 사건 분석 에이전트 (`analyze_incident.py`, #102)
+
+사건 JSON 하나를 사건 분석 에이전트로 분석한다. Claude가 `search_evidence` 도구로 근거를 찾고 `submit_analysis`로 결과를 낸다. 색인(`make index`)과 API 키가 필요하다. DB에는 저장하지 않는다.
+
+```bash
+make analyze                                     # data/eval/incident_p03_demo.json
+make analyze ARGS="--incident 사건.json"
+```
+
+- 출력: `AnalysisResult` JSON, 도구 호출 기록, 토큰 수
+- 종료 코드 0 OK·INSUFFICIENT_EVIDENCE / 1 FAILED / 2 입력·설정 문제
 
 ## 사건 센서 이력 저장
 

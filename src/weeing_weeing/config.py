@@ -14,11 +14,10 @@ def from_root(path: Path) -> Path:
 
 @dataclass(frozen=True)
 class Settings:
-    ollama_base_url: str
-    ollama_model: str
-    ollama_think: bool  # qwen3 등 생각 단계가 있는 모델의 생각 출력
-    ollama_keep_alive: str  # 마지막 호출 뒤 모델을 메모리에 남길 시간
-    llm_timeout_s: float
+    llm_model: str  # Claude 모델 ID. API 키는 SDK가 ANTHROPIC_API_KEY에서 직접 읽는다
+    llm_effort: str  # 생각 깊이: low | medium | high | xhigh | max
+    llm_timeout_s: float  # API 호출 한 번의 제한 시간
+    agent_max_turns: int  # 사건 하나 분석에서 LLM 호출 상한
     embedding_model: str
     vector_store: str  # qdrant | chroma
     rag_collection: str
@@ -41,11 +40,10 @@ class Settings:
 def get_settings() -> Settings:
     env = os.environ.get
     return Settings(
-        ollama_base_url=env("OLLAMA_BASE_URL", "http://localhost:11434"),
-        ollama_model=env("OLLAMA_MODEL", "qwen3:8b"),
-        ollama_think=env("OLLAMA_THINK", "false").lower() in ("1", "true", "yes"),
-        ollama_keep_alive=env("OLLAMA_KEEP_ALIVE", "10m"),
-        llm_timeout_s=float(env("LLM_TIMEOUT_S", "60")),
+        llm_model=env("LLM_MODEL", "claude-opus-5-5"),
+        llm_effort=env("LLM_EFFORT", "medium"),
+        llm_timeout_s=float(env("LLM_TIMEOUT_S", "120")),
+        agent_max_turns=int(env("AGENT_MAX_TURNS", "8")),
         embedding_model=env("EMBEDDING_MODEL", "BAAI/bge-m3"),
         vector_store=env("VECTOR_STORE", "qdrant"),
         rag_collection=env("RAG_COLLECTION", "knowledge"),

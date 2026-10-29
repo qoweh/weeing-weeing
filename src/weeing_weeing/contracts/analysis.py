@@ -41,7 +41,7 @@ class AnalysisResult(BaseModel):
     additional_checks: list[str] = Field(default_factory=list)  # 근거 부족 시 확인할 것
     evidence: list[Evidence] = Field(default_factory=list)
     limitations: str | None = None
-    model: str  # 예: "ollama/<모델명>"
+    model: str  # 예: "anthropic/claude-opus-5-5" (공급자/모델 ID)
     prompt_version: str | None = None
     generated_at: AwareDatetime
 

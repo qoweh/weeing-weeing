@@ -1,12 +1,11 @@
-"""LLM 구조화 출력 점검 (#10, make llm-check).
+"""LLM 구조화 출력 점검 (#10에서 시작, #101에서 Claude로 전환, make llm-check).
 
 사례(data/eval/llm_cases_v1.toml)마다 사건 설명과 근거를 주고, 모델이 JSON 스키마대로
-분석 초안을 내는지 확인한다. 모델 선정·비교(양자화·크기)에 같은 사례를 쓴다.
+분석 초안을 내는지 확인한다. 모델·effort 비교에 같은 사례를 쓴다. 검색은 하지 않는다
+(근거를 고정해 LLM 판단만 잰다). 검색까지 포함한 실행은 make analyze(analyst.py).
 
-    반드시 통과: JSON 파싱 → AnalysisDraft 스키마 → AnalysisResult 계약(인용은 실제 근거만)
-    숫자로 기록: 기대 상태(OK / INSUFFICIENT_EVIDENCE) 일치율, 응답 시간, 초당 토큰
-
-프롬프트는 점검용 최소본이다. 실제 분석 프롬프트와 워크플로는 #11~#13에서 만든다.
+    반드시 통과: JSON 파싱 → AnalysisDraft 스키마 → 제출 검사(check_draft) → AnalysisResult 계약
+    숫자로 기록: 기대 상태(OK / INSUFFICIENT_EVIDENCE) 일치율, 응답 시간, 토큰 수
 """
 
 import json
@@ -19,15 +18,16 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from weeing_weeing.agent.analyst import AnalysisDraft, check_draft
 from weeing_weeing.agent.errors import (
     LlmError,
     LlmModelMissingError,
     LlmUnavailableError,
     LlmUsage,
 )
-from weeing_weeing.contracts import AnalysisResult, CauseCandidate, Evidence
+from weeing_weeing.contracts import AnalysisResult, Evidence
 
-PROMPT_VERSION = "llm-check-v3"
+PROMPT_VERSION = "llm-check-v4"
 
 SYSTEM = """너는 배터리 트레이 이송 설비의 정비 보조 AI다. 한국어로 답한다.
 할 일: 사건과 근거(evidence)를 읽고, 근거에 적힌 내용으로 원인 후보와 점검 순서를 제안한다.
@@ -47,22 +47,6 @@ SYSTEM = """너는 배터리 트레이 이송 설비의 정비 보조 AI다. 한
 6. 지정한 JSON 형식으로만 답한다. status는 다른 칸을 모두 쓴 뒤 마지막에 정한다."""
 
 
-class AnalysisDraft(BaseModel):
-    """LLM이 채우는 칸. incident_id·근거 목록·모델명·시각은 시스템이 붙인다.
-
-    칸 순서가 곧 생성 순서다. status를 맨 뒤에 두어 근거를 정리한 다음 판단하게 한다.
-    """
-
-    observed_facts: str
-    suspected_causes: list[CauseCandidate] = Field(default_factory=list)
-    recommended_checks: list[str] = Field(default_factory=list)
-    recommended_actions: list[str] = Field(default_factory=list)
-    actions_requiring_approval: list[str] = Field(default_factory=list)
-    additional_checks: list[str] = Field(default_factory=list)
-    limitations: str | None = None
-    status: Literal["OK", "INSUFFICIENT_EVIDENCE"]
-
-
 class CheckCase(BaseModel):
     id: str
     incident: str
@@ -71,14 +55,11 @@ class CheckCase(BaseModel):
 
 
 def draft_schema(evidence_ids: list[str]) -> dict:
-    """사례마다 만드는 출력 스키마. Ollama가 이 모양으로만 생성한다(문법 제약).
+    """사례마다 만드는 출력 스키마. 모델은 이 모양으로만 생성한다(구조화 출력).
 
-    - 원인 후보의 evidence_ids는 필수이고 최소 1개, 값은 주어진 근거 ID 중에서만 고른다.
-      (기본값이 있는 칸은 모델이 건너뛸 수 있어서, 근거 ID를 basis에 적고 빠뜨린 적이 있다)
+    - 원인 후보의 evidence_ids 값은 주어진 근거 ID 중에서만 고른다(enum).
     - 근거가 없으면 원인 후보를 낼 수 없다(빈 목록만 허용).
-    - 모든 칸을 required로 둔다. Ollama(llama.cpp)는 required 칸을 먼저, 나머지를 뒤에
-      생성하고 required가 아닌 칸은 건너뛸 수 있다. 전부 required여야 정의한 순서대로
-      쓰고 status를 마지막에 정한다.
+    - minItems·maxItems는 API가 강제하지 않아(claude.strict_schema가 뺌) check_draft가 대신 본다.
     """
     schema = AnalysisDraft.model_json_schema()
     cause = schema["$defs"]["CauseCandidate"]
@@ -135,17 +116,16 @@ def check_case(client, case: CheckCase, *, timeout_s: float) -> CaseResult:
         )
         draft = AnalysisDraft.model_validate(json.loads(text))
         status = draft.status
+        # 스키마로 표현할 수 없는 규칙(근거 부족이면 원인 후보 없음 등)은 생성 뒤 확인한다
+        check_draft(draft, {e.evidence_id for e in case.evidence})
         result = AnalysisResult(
             incident_id=case.id,
             evidence=case.evidence,
-            model=f"ollama/{client.model_name}",
+            model=f"{client.provider}/{client.model_name}",
             prompt_version=PROMPT_VERSION,
             generated_at=datetime.now(UTC),
             **draft.model_dump(),
         )
-        if draft.status != "OK" and draft.suspected_causes:
-            # 스키마로는 "근거 부족이면 원인 후보 없음"을 표현할 수 없어 생성 뒤 확인한다
-            raise ValueError("INSUFFICIENT_EVIDENCE인데 원인 후보가 있음")
     except (LlmUnavailableError, LlmModelMissingError):
         raise  # 서버·모델이 없으면 다른 사례도 못 한다: 점검을 시작할 수 없는 상황
     except (LlmError, json.JSONDecodeError, ValueError) as exc:
@@ -195,15 +175,16 @@ def format_markdown(report: CheckReport) -> str:
     results = report.results
     valid = sum(r.valid for r in results)
     match = sum(r.status_match for r in results)
-    usages = [r.usage for r in results if r.usage and r.usage.eval_s]
-    speed = sum(u.tokens_per_s for u in usages) / len(usages) if usages else 0.0
+    usages = [r.usage for r in results if r.usage]
+    tokens_in = sum(u.input_tokens for u in usages)
+    tokens_out = sum(u.output_tokens for u in usages)
     lines = [
         f"# LLM 구조화 출력 점검 — {report.model}",
         "",
         f"- 프롬프트: `{PROMPT_VERSION}`, 실행 {len(results)}회",
         f"- 스키마·계약 통과: **{valid}/{len(results)}**",
         f"- 기대 상태 일치: **{match}/{len(results)}**",
-        f"- 생성 속도(출력 생성 구간 평균): {speed:.1f} 토큰/초",
+        f"- 토큰 합계: 입력 {tokens_in} / 출력 {tokens_out}",
         "",
         "| 사례 | 통과 | 상태(기대) | 원인 후보 | 초 | 출력 토큰 | 오류 |",
         "|---|---|---|---|---|---|---|",

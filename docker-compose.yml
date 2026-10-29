@@ -1,9 +1,7 @@
 # 로컬 개발용 보조 서비스. 앱(FastAPI·Streamlit)은 컨테이너 없이 uv run으로 띄운다.
 #   DB만:          docker compose up -d postgres
-#   Ollama까지:     docker compose --profile ollama up -d
 #   Qdrant 서버:    docker compose --profile qdrant up -d qdrant  (.env에 QDRANT_URL=http://localhost:6333)
-# macOS는 컨테이너 안에서 GPU(Metal)를 못 써서 Ollama가 느리다. Mac에서는 Ollama 앱을
-# 직접 설치해 쓰고(OLLAMA_BASE_URL 기본값 그대로), 이 ollama 서비스는 Linux 서버용으로 쓴다.
+# LLM은 상용 API(Claude)를 쓰므로 LLM 컨테이너는 없다(docs/DIRECTION_CHANGES.md).
 
 services:
   postgres:
@@ -22,14 +20,6 @@ services:
       timeout: 3s
       retries: 10
 
-  ollama:
-    image: ollama/ollama:latest
-    profiles: ["ollama"]
-    ports:
-      - "127.0.0.1:11434:11434"
-    volumes:
-      - ollama_models:/root/.ollama
-
   qdrant:
     # 클라이언트(qdrant-client 1.20)와 같은 minor 버전으로 고정한다. latest를 쓰지 않는다.
     image: qdrant/qdrant:v1.20.0
@@ -41,5 +31,4 @@ services:
 
 volumes:
   postgres_data:
-  ollama_models:
   qdrant_data:

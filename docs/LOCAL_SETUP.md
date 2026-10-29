@@ -9,7 +9,7 @@
 | [uv](https://docs.astral.sh/uv/) | Python·패키지 관리 | `uv --version` |
 | Git | 협업 | `git --version` |
 | Docker Desktop | PostgreSQL (2차부터), Qdrant 서버 모드(선택) | `docker compose version` |
-| [Ollama](https://ollama.com) | 로컬 LLM (Agent 담당은 1차부터) | `ollama --version` |
+| Claude API 키 | 에이전트·LLM 점검(Agent·챗봇 담당) | `.env`의 `ANTHROPIC_API_KEY` |
 
 uv 설치:
 
@@ -68,14 +68,16 @@ TEST_DATABASE_URL=postgresql://weeing:weeing@localhost:5432/weeing uv run --no-s
 ```
 테스트는 모든 테이블을 비우므로 실제 데이터가 있는 DB를 가리키지 않는다(CI는 별도 DB `weeing_test`).
 
-## 4. Ollama
+## 4. LLM (Claude API)
 
-- **macOS**: Ollama 앱을 설치해 쓴다. 컨테이너 안에서는 GPU를 못 써서 느리다
-- **Linux 서버**: `docker compose --profile ollama up -d ollama`
-- 모델 받기: `make models`가 LLM(`ollama pull qwen3:8b`, Q4_K_M 5.2GB)과 RAG 모델(5절)을 한 번에 받는다. 다른 모델은 받은 뒤 `.env`의 `OLLAMA_MODEL`에 기입
-- 확인: `make llm-check`. 모델이 로컬에서 돌고 JSON 스키마대로 답하는지 사례 4개로 점검한다(종료 코드 0 통과·1 실패 사례 있음·2 서버·모델 없음). 사례 하나가 시간 초과되면 그 사례만 실패로 남긴다
-- 모델 비교: `make llm-check ARGS="--model <모델> --repeat 3"`. 보고서는 `outputs/llm_check/`
-- 생각 단계(`OLLAMA_THINK`)는 기본으로 끈다. 켜면 판단이 더 정확하지만 2~4배 느리다(실측은 DECISIONS D-21). 켤 때는 `LLM_TIMEOUT_S=120`도 함께. `OLLAMA_KEEP_ALIVE`는 `10m`처럼 단위를 붙이거나 초 단위 숫자(`-1`은 계속 유지)
+로컬 LLM(Ollama)은 쓰지 않는다(2026-10-29 폐지, [DIRECTION_CHANGES](DIRECTION_CHANGES.md)). 받을 모델이 없고 API 키만 있으면 된다.
+
+- 키: `.env`의 `# ANTHROPIC_API_KEY=` 주석을 풀고 넣는다. 줄이 없으면 `ant auth login` 프로필을 쓴다(빈 값으로 두면 프로필보다 우선해 인증이 실패한다). 키는 커밋하지 않고 로그·이슈에 붙이지 않는다
+- 모델·깊이: `LLM_MODEL`(기본 `claude-opus-5-5`), `LLM_EFFORT`(기본 `medium`). 테스트(`make check`)는 가짜 클라이언트라 키 없이 돈다
+- 확인: `make llm-check`. 근거를 고정한 사례 4개로 JSON 스키마·인용 규칙을 지키는지 점검한다(종료 코드 0 통과·1 실패 사례 있음·2 키·모델 문제). 사례마다 API를 한 번 부르므로 비용이 든다
+- 모델 비교: `make llm-check ARGS="--model claude-sonnet-5-5 --repeat 3"`, `ARGS="--effort low"`. 보고서는 `outputs/llm_check/`
+- 에이전트 실행: 색인(5절)을 마친 뒤 `make analyze`. 예시 사건(`data/eval/incident_p03_demo.json`)을 분석해 결과 JSON과 도구 호출 기록을 보여 준다
+- 외부로 나가는 데이터: 사건 정보와 검색된 문서 조각만. 사번·결재 정보는 보내지 않는다([AGENT](AGENT.md))
 
 ## 5. RAG 색인 (벡터 DB)
 

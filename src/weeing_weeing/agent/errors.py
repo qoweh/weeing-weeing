@@ -1,4 +1,4 @@
-"""LLM 호출 결과 타입. 공급자(Ollama·상용 API)와 무관하게 쓴다."""
+"""LLM 호출 결과 타입. 공급자(현재 Claude)와 무관하게 쓴다."""
 
 from dataclasses import dataclass
 
@@ -8,28 +8,37 @@ class LlmError(RuntimeError):
 
 
 class LlmUnavailableError(LlmError):
-    """서버에 연결하지 못했다(꺼짐, 주소 오류 등)."""
+    """서버에 연결하지 못했거나 인증 정보(API 키)가 없다·틀렸다."""
 
 
 class LlmModelMissingError(LlmError):
-    """서버에 그 모델이 없다."""
+    """그 모델 ID를 쓸 수 없다(오타·권한 없음)."""
 
 
 class LlmTimeoutError(LlmError):
     """제한 시간 안에 응답이 오지 않았다."""
 
 
+class LlmRefusedError(LlmError):
+    """모델이 안전 정책으로 답하지 않았다(대체 모델까지 거부)."""
+
+
 @dataclass(frozen=True)
 class LlmUsage:
-    """마지막 호출의 토큰 수와 시간. 모델 비교·튜닝용."""
+    """호출 한 번(또는 여러 번 합친)의 토큰 수와 시간. 비용·속도 비교용."""
 
-    prompt_tokens: int
+    input_tokens: int
     output_tokens: int
-    total_s: float  # 요청 전체(모델 로딩·프롬프트 처리·생성)
-    load_s: float  # 모델 로딩
-    eval_s: float  # 출력 생성만
+    total_s: float  # 요청을 보내고 응답을 다 받기까지
 
     @property
     def tokens_per_s(self) -> float:
-        """생성 속도. 프롬프트 길이·로딩과 무관하게 모델끼리 비교할 수 있다."""
-        return self.output_tokens / self.eval_s if self.eval_s else 0.0
+        """출력 속도(대략). 네트워크·대기 시간이 포함된 값이다."""
+        return self.output_tokens / self.total_s if self.total_s else 0.0
+
+    def __add__(self, other: "LlmUsage") -> "LlmUsage":
+        return LlmUsage(
+            self.input_tokens + other.input_tokens,
+            self.output_tokens + other.output_tokens,
+            self.total_s + other.total_s,
+        )

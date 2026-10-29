@@ -1,12 +1,13 @@
-"""LLM이 로컬에서 돌고 구조화 출력(JSON 스키마)을 지키는지 점검한다 (#10).
+"""LLM(Claude)이 구조화 출력(JSON 스키마)과 근거 인용 규칙을 지키는지 점검한다 (#101).
 
-입력: data/eval/llm_cases_v1.toml, .env(OLLAMA_BASE_URL·OLLAMA_MODEL·OLLAMA_THINK·LLM_TIMEOUT_S)
+입력: data/eval/llm_cases_v1.toml, .env(ANTHROPIC_API_KEY·LLM_MODEL·LLM_EFFORT·LLM_TIMEOUT_S)
 출력: 터미널 요약, outputs/llm_check/report-<시각>.md
-종료 코드: 0 모든 사례가 스키마·계약 통과 / 1 통과 못 한 사례 있음 / 2 서버·모델·설정 문제로 시작 못 함
+종료 코드: 0 모든 사례가 스키마·계약 통과 / 1 통과 못 한 사례 있음 / 2 키·모델·설정 문제로 시작 못 함
+비용: 사례마다 API를 한 번 부른다(사례 4개 × 반복 횟수).
 
-    make llm-check                                   # .env의 모델
-    make llm-check ARGS="--model qwen3:8b --repeat 3"
-    make llm-check ARGS="--think"                    # 생각 단계 켜고 비교
+    make llm-check                                            # .env의 모델
+    make llm-check ARGS="--model claude-sonnet-5-5 --repeat 3"
+    make llm-check ARGS="--effort low"                        # 생각 깊이 비교
 """
 
 import argparse
@@ -31,11 +32,15 @@ def _positive(value: str) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--model", help="모델(기본: .env의 OLLAMA_MODEL)")
+    parser.add_argument("--model", help="모델(기본: .env의 LLM_MODEL)")
     parser.add_argument(
         "--repeat", type=_positive, default=1, help="사례마다 반복 횟수(1 이상)"
     )
-    parser.add_argument("--think", action="store_true", help="생각 단계 켜기")
+    parser.add_argument(
+        "--effort",
+        choices=["low", "medium", "high", "xhigh", "max"],
+        help="생각 깊이(기본: .env의 LLM_EFFORT)",
+    )
     parser.add_argument("--cases", type=Path, default=CASES)
     parser.add_argument("--out", type=Path, help="보고서 경로")
     args = parser.parse_args(argv)
@@ -44,9 +49,9 @@ def main(argv: list[str] | None = None) -> int:
         settings = get_settings()
         overrides = {}
         if args.model:
-            overrides["ollama_model"] = args.model
-        if args.think:
-            overrides["ollama_think"] = True
+            overrides["llm_model"] = args.model
+        if args.effort:
+            overrides["llm_effort"] = args.effort
         settings = dataclasses.replace(settings, **overrides)
         client = get_llm_client(settings)
         cases = load_cases(args.cases)

@@ -11,7 +11,7 @@ description: weeing-weeing 레포를 처음 받은 팀원(또는 새 머신)의 
 
 - 소스 코드(`src/`, `tests/`)는 고치지 않는다. 이 스킬은 환경만 만든다.
 - 이미 있는 `.env`는 덮어쓰지 않는다. `.env`의 값은 화면·로그에 출력하지 않는다.
-- 큰 다운로드(Ollama 모델, Docker 이미지)는 이름과 대략 크기를 말하고 사용자 동의를 받은 뒤 받는다.
+- 큰 다운로드(임베딩·리랭커 모델, Docker 이미지)는 이름과 대략 크기를 말하고 사용자 동의를 받은 뒤 받는다.
 - 볼륨 삭제(`docker compose down -v`)처럼 데이터를 지우는 명령은 쓰지 않는다.
 - 모든 단계는 다시 실행해도 안전해야 한다.
 
@@ -22,10 +22,10 @@ description: weeing-weeing 레포를 처음 받은 팀원(또는 새 머신)의 
 
 ### 1. 도구 점검
 ```bash
-echo "uv=$(uv --version 2>&1) | git=$(git --version 2>&1) | docker=$(docker compose version 2>&1 | head -1) | ollama=$(ollama --version 2>&1 | head -1)"
+echo "uv=$(uv --version 2>&1) | git=$(git --version 2>&1) | docker=$(docker compose version 2>&1 | head -1)"
 ```
 - uv가 없으면 설치 명령을 안내한다(`docs/LOCAL_SETUP.md` 0절). 설치는 사용자가 직접 한다.
-- docker·ollama는 담당 파트에 따라 나중에 필요하므로 없어도 계속 진행하고 결과 표에 표시한다.
+- docker는 담당 파트에 따라 나중에 필요하므로 없어도 계속 진행하고 결과 표에 표시한다.
 
 ### 2. 의존성 설치
 ```bash
@@ -53,10 +53,10 @@ docker compose exec postgres pg_isready -U weeing -d weeing
 ```
 5432 포트 충돌이면 `docs/LOCAL_SETUP.md` 문제 해결 표를 따른다.
 
-### 7. Ollama (Agent 담당 또는 사용자가 원할 때)
-- `ollama list`로 받은 모델을 확인한다.
-- `.env`의 `OLLAMA_MODEL`이 비어 있으면 Agent 담당이 정한 모델을 묻고, 동의를 받아 `ollama pull <모델>`.
-- macOS는 Ollama 앱을 쓰고 컨테이너는 쓰지 않는다(GPU 미사용으로 느림).
+### 7. Claude API 키 (Agent·챗봇 담당 또는 사용자가 원할 때)
+- 로컬 LLM(Ollama)은 쓰지 않는다. 받을 LLM 모델이 없다.
+- `.env`에 `ANTHROPIC_API_KEY` 값이 들어 있는지만 확인한다(값은 출력하지 않는다). 빈 값 줄(`ANTHROPIC_API_KEY=`)은 `ant auth login` 프로필을 가리므로 주석 처리를 안내한다. 키는 사용자가 직접 넣는다.
+- 키가 있으면 사용자 동의를 받아 `make llm-check`(API 비용 발생)로 확인한다.
 
 ## 보고
 
@@ -71,6 +71,6 @@ docker compose exec postgres pg_isready -U weeing -d weeing
 | pre-commit | | |
 | API /health | | |
 | PostgreSQL | | 건너뛰었으면 이유 |
-| Ollama | | 모델명 |
+| Claude API 키 | | 있음/없음(값 출력 금지) |
 
 실패한 단계는 숨기지 않고 오류 메시지와 다음 할 일을 적는다.

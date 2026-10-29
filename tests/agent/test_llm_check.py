@@ -59,7 +59,8 @@ def answer(status="OK", cited=("BTT-MANUAL:2.0:0007",)):
 
 
 class FakeLlm:
-    model_name = "fake"
+    provider = "fake"
+    model_name = "llm"
     last_usage = None
 
     def __init__(self, *answers):
@@ -87,15 +88,16 @@ def test_schema_requires_cited_ids_from_given_evidence():
     assert "evidence_ids" in cause["required"]
     ids = cause["properties"]["evidence_ids"]
     assert ids["items"]["enum"] == ["A:1:0001", "B:1:0002"]
-    assert ids["minItems"] == 1
-    # 전부 required여야 Ollama가 정의 순서대로 쓰고 칸을 건너뛰지 않는다
     assert schema["required"] == list(schema["properties"])
     assert schema["required"][-1] == "status"  # 판단은 마지막에
     assert cause["required"] == list(cause["properties"])
 
 
-def test_schema_without_evidence_allows_no_causes():
-    assert draft_schema([])["properties"]["suspected_causes"]["maxItems"] == 0
+def test_cause_without_evidence_is_invalid_even_if_api_ignores_min_items():
+    # minItems는 API가 강제하지 않으므로 check_draft가 잡아야 한다
+    result = check_case(FakeLlm(answer(cited=())), CASE, timeout_s=5)
+    assert not result.valid
+    assert "근거를 인용하지 않은" in result.error
 
 
 def test_prompt_lists_evidence_or_says_none():
@@ -108,7 +110,7 @@ def test_valid_answer_becomes_analysis_result():
     llm = FakeLlm(answer())
     result = check_case(llm, CASE, timeout_s=5)
     assert result.valid and result.status_match
-    assert result.result.model == "ollama/fake"
+    assert result.result.model == "fake/llm"
     assert result.result.evidence[0].evidence_id == "BTT-MANUAL:2.0:0007"
     assert llm.calls[0]["schema"]["$defs"]["CauseCandidate"]
 
@@ -198,7 +200,7 @@ def test_cli_cannot_start_without_server(monkeypatch, capsys):
     script = _script()
 
     def down(settings):
-        return FakeLlm(LlmUnavailableError("Ollama에 연결하지 못함"))
+        return FakeLlm(LlmUnavailableError("Claude API에 연결하지 못함"))
 
     monkeypatch.setattr(script, "get_llm_client", down)
     assert script.main([]) == 2
@@ -210,12 +212,12 @@ def test_cli_model_option_overrides_setting(monkeypatch, tmp_path):
     seen = {}
 
     def capture(settings):
-        seen["model"], seen["think"] = settings.ollama_model, settings.ollama_think
+        seen["model"], seen["effort"] = settings.llm_model, settings.llm_effort
         return FakeLlm(LlmUnavailableError("stop"))
 
     monkeypatch.setattr(script, "get_llm_client", capture)
-    script.main(["--model", "qwen3.8:27b-q4_K_M", "--think"])
-    assert seen == {"model": "qwen3.8:27b-q4_K_M", "think": True}
+    script.main(["--model", "claude-sonnet-5-5", "--effort", "low"])
+    assert seen == {"model": "claude-sonnet-5-5", "effort": "low"}
 
 
 def test_cli_rejects_zero_repeat_and_empty_cases(tmp_path, monkeypatch):

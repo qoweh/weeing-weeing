@@ -19,6 +19,7 @@ flowchart LR
 
 - Virtual PLC는 FastAPI·Agent가 멈춰도 혼자 정지 판단을 할 수 있어야 한다. 그래서 detector와 따로 둔다.
 - AI는 제안까지만 한다. 원인 확정, 정지 해제, 재가동은 사람이 HMI에서 한다.
+- agent는 Claude가 근거 검색 도구를 골라 부르는 싱글 에이전트다. 구조와 멀티 에이전트 확장 계획은 [AGENT](AGENT.md).
 
 ## 모듈 표
 

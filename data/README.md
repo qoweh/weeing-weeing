@@ -5,6 +5,7 @@
 | 경로 | 내용 | 출처 |
 |---|---|---|
 | `eval/llm_cases_v1.toml` | LLM 구조화 출력 점검 사례 4개(근거 있음 2·없음 1·관련 없음 1). 근거 문장은 `parsed/`의 매뉴얼·룰에서 줄여 옮김 | 직접 작성 (#10) |
+| `eval/incident_p03_demo.json` | 에이전트 실행 예시 사건(BTT2-P03 입구 장기 점유, 가상). `make analyze` 기본 입력 | 직접 작성 (#102) |
 | `eval/rag_queries_v1.toml` | RAG E2E 검증용 샘플 질의 12개(기대 문서 + 기대 키워드). 키워드는 `parsed/`에서 해당 문서에 있는지 확인함 | 직접 작성 (#28) |
 | `seed/demo_users_v1.toml` | 시연용 계정 5개(관리자 1 + 직책 4종). 가상 인물, 비밀번호 없음. `make seed-users`가 사용 | 직접 작성 (#62) |
 | `history/synthetic_reports_v1.jsonl` | 8개 주요 코드별 3건씩 총 24건의 승인된 가상 정비 이력. `MaintenanceReport` 계약을 따르며 #29 RAG 색인·검색과 Agent 사례 비교 시험에 사용. `scripts/generate_synthetic_reports.py`로 재생성 | BTT-MANUAL v2.0의 점검·조치 범위를 바탕으로 작성한 **합성 사례** (#30, 실측·실제 승인 아님) |

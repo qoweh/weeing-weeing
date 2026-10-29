@@ -52,7 +52,7 @@ def make_analysis(**overrides) -> AnalysisResult:
             )
         ],
         "evidence": [EVIDENCE],
-        "model": "ollama/test",
+        "model": "anthropic/test",
         "generated_at": T0,
     }
     return AnalysisResult(**(data | overrides))
@@ -111,7 +111,7 @@ def test_analyses_accumulate_and_latest_wins(incidents):
         status="INSUFFICIENT_EVIDENCE",
         suspected_causes=[],
         evidence=[],
-        model="ollama/other",
+        model="anthropic/other",
         generated_at=T0 + timedelta(minutes=1),
     )
     first_id = incidents.save_analysis(first)

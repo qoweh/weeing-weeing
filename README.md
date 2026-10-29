@@ -6,7 +6,7 @@
 
 - **근거 기반**: 모든 제안에 센서값·룰 코드·문서 인용을 붙이고, 근거가 없으면 멈춘다
 - **사람 우선**: AI는 제안까지. 원인 확정·정지 해제·재가동은 사람이 한다
-- **로컬 LLM**: Ollama로 설비 데이터를 외부로 내보내지 않는다
+- **에이전트**: 상용 LLM(Claude)이 검색 도구를 스스로 골라 근거를 모은다. 지금은 싱글 에이전트, 멀티 에이전트로 넓힐 수 있게 설계([docs/AGENT.md](docs/AGENT.md))
 
 ## 빠른 시작
 
@@ -17,7 +17,7 @@ uv run --no-sync pytest                 # 테스트 (= make test)
 make api                                # FastAPI 개발 서버
 ```
 
-자세한 설치(uv·Docker·Ollama)와 문제 해결: [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md)
+자세한 설치(uv·Docker·Claude API 키)와 문제 해결: [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md)
 
 ## 구조
 
@@ -27,7 +27,7 @@ src/weeing_weeing/
   ingest/      CSV·시뮬레이터 수집, 검증, 재생           ← 1차
   detector/    룰 판정, Incident 생성 (Main Engine)     ← 1차
   rag/         문서 색인, 근거 검색                      ← 1차
-  agent/       Ollama 원인 추론, 대응 제안               ← 1차
+  agent/       Claude 에이전트: 근거 검색·원인 추론·대응 제안 ← 1차
   api/  db/    FastAPI, PostgreSQL                       ← 2차
   plc/         Virtual PLC 상태·보호 제어                ← 3차
 hmi/           Streamlit 화면                            ← 5차
@@ -49,6 +49,8 @@ tests/  scripts/  docs/
 | [LOCAL_SETUP](docs/LOCAL_SETUP.md) | 개발 환경 설치, 실행, 문제 해결 |
 | [CHANGE_WORKFLOW](docs/CHANGE_WORKFLOW.md) | 이슈·브랜치·커밋·PR·머지 규칙 |
 | [DECISIONS](docs/DECISIONS.md) | 기술 결정 기록 |
+| [AGENT](docs/AGENT.md) | 에이전트 구조(싱글), 도구·검사, 멀티 에이전트·메모리 확장 계획 |
+| [DIRECTION_CHANGES](docs/DIRECTION_CHANGES.md) | 방향 전환 때 없앤 것·바꾼 것 기록(로컬 LLM 폐지 등) |
 | [RAG_RETRIEVAL](docs/RAG_RETRIEVAL.md) | 폴더별 역할, 검색·리랭킹 구조, 공개 연결 방법과 평가 |
 | [REPORTS](docs/REPORTS.md) | 보고서 로그인·임시 저장·내 보고서·결재·개정판과 #29 연결 지점 |
 | [data/README](data/README.md) | 데이터·문서 출처 |
