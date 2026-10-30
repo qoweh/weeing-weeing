@@ -87,6 +87,23 @@ def test_progress_stages(memory):
     assert stages == ["parsing", "chunking", "embedding"]
 
 
+def test_legacy_and_structured_indexing_are_selectable(memory):
+    DocumentIndexer(memory, chunking="legacy").index_file(MANUAL, dict(META))
+    legacy = memory.chunks()
+    assert any("P03 / P04 - 센서 장기 점유" in c.text for c in legacy)
+    assert not any("structural_heading" in c.metadata for c in legacy)
+
+    DocumentIndexer(memory, chunking="structured").index_file(MANUAL, dict(META))
+    structured = memory.chunks()
+    case = next(
+        c
+        for c in structured
+        if c.metadata.get("structural_heading") == "P03 / P04 - 센서 장기 점유"
+    )
+    assert "센서 앞 물체" in case.text
+    assert "P01 / P06 - 늦거나 나오지 않는 트레이" not in case.text
+
+
 def test_previews_are_written_next_to_file_when_enabled(memory, tmp_path):
     pdf = tmp_path / "manual.pdf"
     shutil.copy(MANUAL, pdf)

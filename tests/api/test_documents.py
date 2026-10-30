@@ -28,14 +28,15 @@ def env(tmp_path, monkeypatch):
     store = MemoryVectorStore({}, embedder=FakeEmbedder(), embedding_model="m")
     monkeypatch.setenv("UPLOAD_DIR", str(tmp_path / "uploads"))
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'test.db'}")
-    monkeypatch.setattr(
-        interface, "get_indexer", lambda: DocumentIndexer(store, write_previews=True)
-    )
+    real_get_indexer = interface.get_indexer
+    real_get_indexer.cache_clear()
+    monkeypatch.setattr(interface, "_get_store", lambda: store)
     prior = dict(app.dependency_overrides)
     app.dependency_overrides[current_user] = lambda: UserAccount(
         employee_no="CONTROL", name="관제", role=Role.CONTROL
     )
     yield store, tmp_path / "uploads"
+    real_get_indexer.cache_clear()
     app.dependency_overrides.clear()
     app.dependency_overrides.update(prior)
 
@@ -112,6 +113,16 @@ def test_upload_is_indexed_into_store_and_kept_outside_git(env):
     assert chunk.metadata["upload_id"] == upload_id
     assert chunk.metadata["status"] == "approved"
     assert "citation" in chunk.metadata
+    cases = [
+        c
+        for c in store.chunks(where={"doc_id": "UP-MANUAL"})
+        if c.metadata.get("structural_heading") == "P03 / P04 - 센서 장기 점유"
+    ]
+    assert len(cases) == 1
+    assert "센서 앞 물체" in cases[0].text
+    assert "BTT2-P03" in cases[0].metadata["codes"]
+    assert "문맥: UP-MANUAL" in cases[0].text
+    assert "P03 / P04 - 센서 장기 점유" in (folder / "chunks.md").read_text()
 
 
 def test_new_version_upload_replaces_previous(env):

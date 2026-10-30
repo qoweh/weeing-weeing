@@ -16,7 +16,7 @@ import re
 from collections.abc import Mapping
 from pathlib import Path
 from threading import Lock
-from typing import Any
+from typing import Any, Literal
 
 from langchain_core.documents import Document
 
@@ -28,6 +28,7 @@ from weeing_weeing.rag.pdf_parser import save_markdown
 from weeing_weeing.rag.report import report_chunk
 from weeing_weeing.rag.sparse import extract_codes
 from weeing_weeing.rag.store import Chunk, VectorStore, make_chunk_id
+from weeing_weeing.rag.structured_chunker import structured_chunk_documents
 
 __all__ = ["DocumentIndexer", "InvalidDocumentError"]
 
@@ -65,11 +66,15 @@ class DocumentIndexer:
         *,
         chunker: ChunkerConfig | None = None,
         write_previews: bool = False,
+        chunking: Literal["legacy", "structured"] = "legacy",
     ) -> None:
         """write_previews: 원본 옆에 parsed.md·chunks.md를 남긴다(업로드 검토용)."""
         self.store = store
         self._chunker = chunker or ChunkerConfig()
         self._write_previews = write_previews
+        if chunking not in ("legacy", "structured"):
+            raise ValueError(f"지원하지 않는 청킹 방식: {chunking}")
+        self._chunking = chunking
 
     def index_file(
         self,
@@ -139,7 +144,12 @@ class DocumentIndexer:
                 page.metadata["section"] = section
 
         report("chunking")
-        pieces = chunk_documents(pages, config=self._chunker)
+        split = (
+            structured_chunk_documents
+            if self._chunking == "structured"
+            else chunk_documents
+        )
+        pieces = split(pages, config=self._chunker)
         if not pieces:
             raise InvalidDocumentError("본문에서 청크를 만들지 못했다")
         chunks = [self._chunk(seq, piece, metadata) for seq, piece in enumerate(pieces)]
@@ -160,6 +170,8 @@ class DocumentIndexer:
             "codes": extract_codes(piece.page_content),
             "citation": _citation(doc_id, version, section, page),
         }
+        if piece.metadata.get("structural_heading"):
+            derived["structural_heading"] = piece.metadata["structural_heading"]
         return Chunk(
             chunk_id=make_chunk_id(doc_id, version, seq),
             doc_id=doc_id,

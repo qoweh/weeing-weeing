@@ -126,7 +126,7 @@ def get_indexer() -> Indexer:
     """
     from weeing_weeing.rag.indexer import DocumentIndexer
 
-    return DocumentIndexer(_get_store(), write_previews=True)
+    return DocumentIndexer(_get_store(), write_previews=True, chunking="structured")
 
 
 def upload_index_metadata(record: DocumentRecord, upload_dir: Path) -> dict[str, str]:
