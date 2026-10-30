@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import { alarmDescriptions, measurementSummary } from "./reportPresentation";
 import "./ReportForm.css";
 
 const initialValues = {
@@ -180,14 +181,6 @@ function PhotoField({ side, title, onEdit }) {
   );
 }
 
-function formatSensor(value) {
-  if (value == null) return "미수집";
-  if (typeof value === "boolean") {
-    return value ? "감지" : "미감지";
-  }
-  return String(value);
-}
-
 function formatTime(value) {
   if (!value) return "아직 연결되지 않았습니다.";
 
@@ -250,21 +243,7 @@ export default function ReportForm({
     clearFeedback();
   }
 
-  function getSensor(field) {
-    const item = incident?.evidence?.find(
-      (evidence) => evidence.field === field,
-    );
-
-    return item?.valid === false ? null : item?.value;
-  }
-
-  const sensors = [
-    ["회전속도 r/min", "rpm"],
-    ["DC 입력 전류 A", "dc_input_current_a"],
-    ["모터 하우징 온도 °C", "motor_housing_temp_c"],
-    ["입구 감지", "infeed_present"],
-    ["출구 감지", "outfeed_present"],
-  ];
+  const observations = alarmDescriptions(incident, linkedAnalysis);
 
   const hasDowntime =
     Boolean(values.downtimeStart) && Boolean(values.downtimeEnd);
@@ -357,22 +336,23 @@ export default function ReportForm({
               {incident?.codes?.join(", ") || "연결 사건 대기"}
             </ReadValue>
             <ReadValue label="관측 현상" wide>
-              {linkedAnalysis?.observed_facts || "관측 사실 연결 대기"}
+              {observations.length ? (
+                <>
+                  {observations.join("\n")}
+                  {"\n"}
+                  {incident.evidence?.length
+                    ? incident.evidence.map(measurementSummary).join("\n")
+                    : "판정 측정값 연결 대기"}
+                </>
+              ) : "관측 사실 연결 대기"}
+            </ReadValue>
+            <ReadValue label="최초 감지">
+              {formatTime(incident?.first_detected_at)}
+            </ReadValue>
+            <ReadValue label="마지막 감지">
+              {formatTime(incident?.last_detected_at)}
             </ReadValue>
           </dl>
-
-          <div className="report-sensors">
-            {sensors.map(([label, field]) => (
-              <div key={field}>
-                <strong>{label}</strong>
-                <span>{formatSensor(getSensor(field))}</span>
-              </div>
-            ))}
-          </div>
-          <p className="report-note">
-            사건에 기록된 센서 근거를 표시합니다.
-            수집되지 않은 값은 임의로 채우지 않습니다.
-          </p>
         </Section>
 
         <Section number="03" title="AI 분석 및 대응 권고">
@@ -385,7 +365,9 @@ export default function ReportForm({
                       <li key={index}>
                         <strong>{item.cause}</strong>
                         <br />
-                        {item.basis}
+                        설비: {incident.process_id} / {incident.asset_id}
+                        <br />
+                        코드: {incident.codes.join(", ")}
                         <br />
                         근거 ID: {item.evidence_ids.join(", ")}
                       </li>

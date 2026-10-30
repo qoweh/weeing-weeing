@@ -129,32 +129,6 @@
   font-weight: 400;
 }
 
-.report-sensors {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 1px;
-  padding: 1px;
-  background: var(--report-line);
-}
-
-.report-sensors > div {
-  display: flex;
-  flex-direction: column;
-  background: #fff;
-}
-
-.report-sensors strong,
-.report-sensors span {
-  padding: 10px;
-  font-size: 12px;
-}
-
-.report-sensors strong {
-  flex: 1;
-  background: var(--report-navy);
-  color: #fff;
-}
-
 .report-empty {
   padding: 16px;
   border: 1px dashed var(--report-line);
@@ -249,10 +223,6 @@
   .report-input-grid,
   .report-photo-grid {
     grid-template-columns: 1fr;
-  }
-
-  .report-sensors {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .report-read-value {
