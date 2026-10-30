@@ -19,6 +19,7 @@ wheels/
 # 실행 중 생기는 저장소·산출물
 /storage/
 /outputs/
+/data/chunked/
 *.log
 
 # 에디터·에이전트 로컬 상태

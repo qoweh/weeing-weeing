@@ -17,7 +17,7 @@
 | `regulations/BTT-SOP-001.pdf` | 사내 규정·SOP BTT-SOP-001 (조문형, 승인 전 초안) | 노션 1차 분담 최종 문서 |
 | `templates/maintenance_report_form_v1.2.pdf` | 정비 보고서 양식 CONV-MR-S-001 v1.2 | 노션 1차 분담 최종 문서 |
 
-- PDF는 `manuals/`, `rulebase/`, `regulations/`에 종류별로 분류한다. 현재 임시 색인 스크립트는 `manuals/BTT-MANUAL_v2.0.pdf`를 사용한다. 문서가 바뀌면 버전이 드러나는 새 파일 이름으로 넣는다(인용 문자열에 버전이 들어가기 때문).
+- 평가용 PDF는 `manuals/`, `rulebase/`, `regulations/`에 종류별로 분류한다. 운영 문서는 웹에서 등록하며, 청크 미리보기는 업로드 폴더의 `chunks.md`에서 확인한다. 기존 청킹과 구조 기반 청킹 비교 방법은 [청킹 비교 안내](../docs/CHUNKING_COMPARISON.md)를 참고한다.
 - 운영 문서는 사이트의 매뉴얼 등록·목록에서 관리한다. 등록된 다른 문서와 파일 해시가 같으면 중복 등록을 거부한다.
 - 화면(HMI)에서 올린 문서는 git 밖 `storage/uploads/`에 원본이, DB `document` 테이블에 정보와 상태가 저장된다. 웹 등록 시 검색 자료를 자동 생성한다. 여기에 보관한 팀 PDF 원본은 자동 등록되지 않는다.
 - 모든 수치는 시연용 합성·지정값이다. 실제 설비 진단 근거로 쓰지 않는다(정의서 1절).
