@@ -87,7 +87,13 @@ class FileFaqCatalog:
 
     def __init__(self, path: Path) -> None:
         try:
-            data = _CatalogData.model_validate(tomllib.loads(path.read_text("utf-8")))
+            raw = path.read_bytes()
+            try:
+                text = raw.decode("utf-8-sig")
+            except UnicodeDecodeError:
+                # 기존 Windows 편집기로 저장한 한글 FAQ도 읽는다.
+                text = raw.decode("cp949")
+            data = _CatalogData.model_validate(tomllib.loads(text))
         except (OSError, UnicodeError, tomllib.TOMLDecodeError, ValidationError) as exc:
             raise FaqCatalogError("FAQ 파일을 읽거나 검증하지 못했습니다.") from exc
         topics = {topic.topic_id: topic for topic in data.topics if topic.active}

@@ -61,12 +61,32 @@ def entry(
     )
 
 
-def write_catalog(tmp_path, faqs=None, topics=TOPICS):
+def write_catalog(tmp_path, faqs=None, topics=TOPICS, *, encoding="utf-8"):
     path = tmp_path / "faq.toml"
     path.write_text(
-        "schema_version = 1\n" + topics + (entry() if faqs is None else faqs)
+        "schema_version = 1\n" + topics + (entry() if faqs is None else faqs),
+        encoding=encoding,
     )
     return path
+
+
+@pytest.mark.parametrize("encoding", ["utf-8", "utf-8-sig", "cp949"])
+def test_catalog_encodings_preserve_korean_text(tmp_path, encoding):
+    catalog = load_faq_catalog(write_catalog(tmp_path, encoding=encoding))
+
+    assert catalog.list_topics()[0].title == "보고서"
+    answer = catalog.get_answer("FAQ-001")
+    assert answer.question.question == "질문"
+    assert answer.answer == "검토 답변"
+
+
+def test_undecodable_catalog_is_service_failure(tmp_path):
+    path = tmp_path / "bad.toml"
+    path.write_bytes(b"\xff")
+
+    with pytest.raises(FaqCatalogError) as error:
+        load_faq_catalog(path)
+    assert isinstance(error.value.__cause__, UnicodeDecodeError)
 
 
 def test_topics_and_questions_are_filtered_and_sorted(tmp_path):
@@ -141,7 +161,7 @@ def test_duplicate_topics_rejected(tmp_path):
 )
 def test_corrupt_or_unsupported_catalog_rejected(tmp_path, content):
     path = tmp_path / "bad.toml"
-    path.write_text(content)
+    path.write_text(content, encoding="utf-8")
     with pytest.raises(FaqCatalogError):
         load_faq_catalog(path)
 
@@ -220,7 +240,9 @@ def test_seed_evidence_points_to_existing_files_and_functions():
     import tomllib
 
     root = Path(__file__).resolve().parents[2]
-    data = tomllib.loads((root / "data/faq/service_v1.toml").read_text())
+    data = tomllib.loads(
+        (root / "data/faq/service_v1.toml").read_text(encoding="utf-8")
+    )
     for faq in data["faqs"]:
         if not faq.get("active"):
             continue
@@ -229,7 +251,7 @@ def test_seed_evidence_points_to_existing_files_and_functions():
             source = root / path.split("#", 1)[0]
             assert source.is_file(), reference
             if symbol:
-                assert f"def {symbol}(" in source.read_text(), reference
+                assert f"def {symbol}(" in source.read_text(encoding="utf-8"), reference
 
 
 def test_contact_guidance_is_published_without_removed_role():

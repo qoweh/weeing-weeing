@@ -27,10 +27,10 @@ test: ## 테스트
 	$(RUN) pytest
 
 check: lint test ## PR 올리기 전 전체 검사
-	python3 scripts/sync_skills.py --check
+	$(RUN) python scripts/sync_skills.py --check
 
 skills: ## 스킬 원본(.agents/skills)을 Claude Code용 사본(.claude/skills)으로 복사
-	python3 scripts/sync_skills.py
+	$(RUN) python scripts/sync_skills.py
 
 db-up: ## PostgreSQL 기동
 	docker compose up -d postgres

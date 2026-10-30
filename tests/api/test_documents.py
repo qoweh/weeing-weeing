@@ -422,7 +422,8 @@ def test_document_search_finds_korean_body_and_returns_only_short_excerpt(
     record = upload(other_pdf()).json()
     preview = env[1] / record["upload_id"] / "parsed.md"
     preview.write_text(
-        "앞부분 " * 100 + "담당자 이순신은 설비를 점검했다." + " 뒷부분" * 100
+        "앞부분 " * 100 + "담당자 이순신은 설비를 점검했다." + " 뒷부분" * 100,
+        encoding="utf-8",
     )
     monkeypatch.setattr(interface, "get_indexer", lambda: pytest.fail("벡터 DB 불필요"))
     client = TestClient(app)
@@ -439,7 +440,7 @@ def test_document_search_finds_korean_body_and_returns_only_short_excerpt(
 def test_document_search_normalizes_whitespace_case_and_treats_symbols_literally(env):
     record = upload(other_pdf()).json()
     preview = env[1] / record["upload_id"] / "parsed.md"
-    preview.write_text("이순신\n\n장군의 Motor-A+B[1] 점검")
+    preview.write_text("이순신\n\n장군의 Motor-A+B[1] 점검", encoding="utf-8")
     client = TestClient(app)
     for term in (" 이순신  장군 ", "motor-a+b[1]"):
         response = client.get("/documents", params={"q": term})
@@ -452,9 +453,13 @@ def test_document_search_normalizes_whitespace_case_and_treats_symbols_literally
 
 def test_document_search_excludes_old_versions_and_deleted_files(env):
     first = upload(other_pdf()).json()
-    (env[1] / first["upload_id"] / "parsed.md").write_text("이순신 구버전 전용 본문")
+    (env[1] / first["upload_id"] / "parsed.md").write_text(
+        "이순신 구버전 전용 본문", encoding="utf-8"
+    )
     second = replace_upload(other_pdf() + b"%new", name="manual_v2.0.pdf").json()
-    (env[1] / second["upload_id"] / "parsed.md").write_text("홍길동 현재 본문")
+    (env[1] / second["upload_id"] / "parsed.md").write_text(
+        "홍길동 현재 본문", encoding="utf-8"
+    )
     client = TestClient(app)
     assert client.get("/documents", params={"q": "이순신"}).json() == []
     [found] = client.get("/documents", params={"q": "홍길동"}).json()
@@ -476,7 +481,7 @@ def test_document_search_unavailable_preview_keeps_metadata_and_cannot_read_outs
         preview.write_bytes(b"\xff\xfe")
     elif file_state == "outside_symlink":
         outside = env[1].parent / "outside.md"
-        outside.write_text("외부기밀")
+        outside.write_text("외부기밀", encoding="utf-8")
         try:
             preview.symlink_to(outside)
         except OSError as exc:
@@ -488,6 +493,22 @@ def test_document_search_unavailable_preview_keeps_metadata_and_cannot_read_outs
     response = client.get("/documents", params={"q": "UP-MANUAL"})
     assert response.status_code == 200
     assert response.json()[0]["doc_id"] == "UP-MANUAL"
+
+
+@pytest.mark.parametrize("path_kind", ["relative", "absolute"])
+def test_document_search_rejects_upload_paths_outside_root(env, path_kind):
+    outside = env[1].parent / "outside"
+    outside.mkdir()
+    (outside / "parsed.md").write_text("외부기밀", encoding="utf-8")
+    upload_id = "../outside" if path_kind == "relative" else str(outside.resolve())
+    add_legacy(db.get_documents(), "UP-OUTSIDE", origin="upload", upload_id=upload_id)
+
+    client = TestClient(app)
+    assert client.get("/documents", params={"q": "외부기밀"}).json() == []
+    response = client.get("/documents", params={"q": "UP-OUTSIDE"})
+    assert response.status_code == 200
+    assert response.json()[0]["doc_id"] == "UP-OUTSIDE"
+    assert "search_excerpt" not in response.json()[0]
 
 
 @pytest.mark.parametrize("role", [Role.INSPECTOR, Role.MAINT_LEAD, Role.SITE_MANAGER])

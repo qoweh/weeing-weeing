@@ -36,6 +36,17 @@ uv run --no-sync pre-commit install     # 커밋 전 자동 검사 (1회)
 
 `make`가 있으면 위 명령을 `make setup`, `make check`로 줄여 쓸 수 있다(`make help`).
 
+파일 인코딩은 UTF-8을 기본으로 사용한다. Python 코드에서 텍스트 파일을 읽고 쓸 때는
+`encoding="utf-8"`을 명시해 Windows의 기본 인코딩(CP949)에 영향을 받지 않게 한다.
+FAQ 카탈로그 로더는 UTF-8(BOM 포함)을 먼저 시도하고, 디코딩이 실패한 경우 CP949로
+읽는다. 두 인코딩으로 모두 읽을 수 없거나 TOML·내용 검증에 실패하면 기존처럼
+`FaqCatalogError`를 반환한다. 기존 파일을 자동 변환하거나 덮어쓰지는 않는다.
+
+Windows에서 심볼릭 링크 생성 권한이 없으면 실제 링크를 만드는 문서 검색 테스트
+1개만 `WinError 1314` 사유로 건너뛴다. 다른 파일 오류는 테스트 실패로 보고한다.
+상대 경로(`../`)와 절대 경로로 업로드 폴더 밖의 본문을 읽을 수 없는지는 권한과
+무관하게 별도 테스트로 검사한다.
+
 > 프로젝트 자체는 설치하지 않는 것이 팀 규칙이다(`--no-install-project`). 옵션 없이 `uv run`을 쓰면 실행 전에 프로젝트를 설치하므로 `uv run --no-sync`로 실행한다. 대신 의존성이 바뀌면 `make setup`(또는 위 `uv sync` 명령)을 다시 실행한다. 패키지 import는 `pytest`의 `pythonpath`와 `uvicorn --app-dir src`가 맡는다.
 
 > ⚠️ `pip install` 대신 반드시 `uv add <패키지>`(개발용은 `uv add --dev`)를 쓴다. `pyproject.toml`과 `uv.lock`을 함께 커밋해야 팀원 환경이 같아진다. 다른 사람 변경을 pull 받은 뒤에는 `make setup`을 한 번 실행한다.
