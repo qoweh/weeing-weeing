@@ -17,7 +17,8 @@ uv run --no-sync python scripts/compare_llm.py
 ```
 
 기본은 계획만 출력하며 클라이언트도 만들지 않는다. 고정 4사례 × 3회 ×
-Sonnet medium / Opus medium / Opus low = 36개 애플리케이션 요청이다.
+Sonnet medium = 12개 애플리케이션 요청이다. 팀의 비용 합의(D-30)에 따라 Opus는
+프로젝트 사용·평가 범위에서 제외했고, 기본 계획에 포함하지 않는다.
 실제 실행은 유료이며 `--execute`를 명시한다. `--max-calls` 기본 40은 계획 요청 수의 상한이다.
 SDK 내부 통신 재시도와 토큰·금액의 강제 상한은 아니므로 실제 HTTP 요청 수가 더 많을 수 있다.
 
@@ -51,7 +52,7 @@ uv run --no-sync python scripts/compare_llm.py --setting claude-sonnet-5-5:mediu
 - 정답 ID 검사는 인용 문장의 의미, 임의 원인 확정, 부적절한 재가동/교체 지시를 자동 보증하지 않는다.
   이 항목은 사람의 검토표로 남긴다. 형식 통과율만으로 모델을 선정하지 않는다.
 
-32사례 확장의 계획을 먼저 확인한다(기본 반복·3설정이면 288회이므로 별도 실행 범위가 필요하다):
+32사례 확장의 계획을 먼저 확인한다(기본 반복 3회면 96요청이므로 별도 실행 범위가 필요하다):
 
 ```powershell
 uv run --no-sync python scripts/compare_llm.py --cases data/eval/llm_cases_v2.toml --repeat 1 --setting claude-sonnet-5-5:medium
@@ -102,6 +103,6 @@ Agent 전체 시간에는 검색·센서 조회·지연이 포함되고, `usage.
 
 ## 실측 기록
 
-[2026-10-30 결과](llm_evaluation/2026-10-30.md)를 참고한다. 기본 설정은 Sonnet medium을
-잠정 유지하며 Opus 비교는 HTTP 429 진단으로 미완료다. 첫 실측의 실제 응답 모델 ID 미기록과
+[2026-10-30 결과](llm_evaluation/2026-10-30.md)를 참고한다. 팀 합의로 Sonnet medium을
+사용하며 Opus 비교는 완료 조건에서 제외했다. 과거 HTTP 429 진단은 보존한다. 첫 실측의 실제 응답 모델 ID 미기록과
 사례 검토 범위도 결과 문서에 명시했다.

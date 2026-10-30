@@ -72,7 +72,13 @@ def test_dry_run_never_constructs_client(setup, monkeypatch, capsys):
     )
     assert module.main(["--cases", str(cases), "--out", str(output)]) == 0
     assert not output.exists()
-    assert "PRIVATE_REQUEST" not in capsys.readouterr().out
+    captured = capsys.readouterr().out
+    assert "PRIVATE_REQUEST" not in captured
+    plan = json.loads(captured.split("\n계획 확인 완료", 1)[0])
+    assert plan["settings"] == [{"model": "claude-sonnet-5-5", "effort": "medium"}]
+    assert (
+        plan["planned_calls"] == 3
+    )  # 단일 사례 × 기본 3회, Opus는 기본 계획에서 제외.
 
 
 @pytest.mark.parametrize(

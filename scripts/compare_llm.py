@@ -19,11 +19,8 @@ from weeing_weeing.agent.interface import (
 )
 from weeing_weeing.config import PROJECT_ROOT, get_settings
 
-DEFAULT_SETTINGS = [
-    "claude-sonnet-5-5:medium",
-    "claude-opus-5-5:medium",
-    "claude-opus-5-5:low",
-]
+# 팀 비용 합의: 기본 실행 계획에는 Opus를 포함하지 않는다(D-30).
+DEFAULT_SETTINGS = ["claude-sonnet-5-5:medium"]
 
 
 def positive(value):
