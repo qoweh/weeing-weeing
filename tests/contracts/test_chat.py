@@ -207,3 +207,31 @@ def test_conversation_requires_aware_ordered_timestamps():
     ChatConversation(**conversation)
     with pytest.raises(ValidationError):
         ChatConversation(**(conversation | {"updated_at": "2026-10-28T00:00:00Z"}))
+
+
+def test_history_count_source_is_only_compatible_with_maintenance_parts():
+    from weeing_weeing.contracts import ChatHistorySource
+
+    source = ChatHistorySource(
+        source_id="history:1",
+        title="DB 조회",
+        conditions={},
+        total=0,
+        synthetic_total=0,
+        snapshot="a" * 64,
+    )
+    data = response_data() | dict(
+        intent="MAINTENANCE_HISTORY",
+        sources=[source],
+        parts=[
+            dict(
+                kind="MAINTENANCE_HISTORY",
+                text="해당 승인 보고서 0건",
+                source_ids=[source.source_id],
+            )
+        ],
+    )
+    assert ChatResponse.model_validate(data).status == "OK"
+    data["intent"] = data["parts"][0]["kind"] = "MANUAL"
+    with pytest.raises(ValidationError):
+        ChatResponse.model_validate(data)

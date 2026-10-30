@@ -38,12 +38,18 @@ from weeing_weeing.contracts import AnalysisResult, Incident
 from weeing_weeing.contracts.chat import (
     ChatContext,
     ChatDocumentSource,
+    ChatHistorySource,
     ChatQuestion,
     ChatReportSource,
     ChatResponse,
     ChatSearchConditions,
 )
-from weeing_weeing.contracts.chat_tools import ChatSearchHit, ChatSearchQuery
+from weeing_weeing.contracts.chat_tools import (
+    ChatHistoryQuery,
+    ChatHistoryResult,
+    ChatSearchHit,
+    ChatSearchQuery,
+)
 from weeing_weeing.contracts.faq import FaqAnswer, FaqQuestion, FaqSelection, FaqTopic
 
 if TYPE_CHECKING:
@@ -164,8 +170,17 @@ class ChatKnowledge(Protocol):
         """조건·검색 대상 정책을 적용한 공통 근거와 서버 출처를 반환한다. 장애는 예외다."""
         ...
 
+    def query_history(
+        self, query: ChatHistoryQuery, *, timeout_s: float
+    ) -> ChatHistoryResult:
+        """DB의 전체 최신 승인 판으로 정확한 건수·제한된 목록·조회 출처를 반환한다."""
+        ...
+
     def is_searchable(
-        self, source: ChatDocumentSource | ChatReportSource, *, timeout_s: float
+        self,
+        source: ChatDocumentSource | ChatReportSource | ChatHistorySource,
+        *,
+        timeout_s: float,
     ) -> bool:
         """삭제·개정·승인 상태를 재확인한다. 사용자별 열람 권한을 검사하지 않는다."""
         ...

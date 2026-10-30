@@ -7,7 +7,7 @@ ENV_FILE := $(if $(wildcard .env),--env-file .env,)
 # 의존성이 바뀌면(pull 후 등) make setup을 다시 실행한다.
 RUN := uv run --no-sync
 
-.PHONY: help setup lint fmt test check skills db-up db-migrate qdrant-up down api models index-reports seed-users rag-e2e llm-check llm-eval analyze
+.PHONY: help setup lint fmt test check skills db-up db-migrate qdrant-up down api models index-reports seed-users rag-e2e llm-check llm-eval analyze chat
 
 help: ## 명령 목록
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -67,3 +67,10 @@ analyze: ## 사건 하나를 에이전트로 분석 (ANTHROPIC_API_KEY·색인 �
 
 api: ## FastAPI 개발 서버 (http://localhost:8000/docs)
 	$(RUN) $(ENV_FILE) uvicorn --app-dir src weeing_weeing.api.app:app --reload
+
+chat: ## 챗봇 질문 실행 (Claude API 비용 발생, DB·색인 필요, ARGS='"P03 점검 절차는?" --asset-id BLDC-001')
+	PYTHONPATH=src $(RUN) $(ENV_FILE) python scripts/chat.py $(ARGS)
+
+.PHONY: chat-check
+chat-check: ## Claude 없이 FAQ·검색·DB 조회 확인 (ARGS='faq' 또는 'search "P03 점검"' 또는 'history')
+	PYTHONPATH=src $(RUN) $(ENV_FILE) python scripts/check_chat.py $(ARGS)

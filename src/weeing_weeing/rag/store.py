@@ -46,9 +46,17 @@ STANDARD_KEYS = (
 # 필터에 쓰는 키. 서버 저장소는 이 키에 인덱스를 만든다.
 FILTER_KEYS = ("doc_id", "doc_type", "status", "codes")
 # 리스트 값을 담는 메타데이터 키. where의 스칼라 값을 "포함"으로 해석한다.
-LIST_KEYS = frozenset({"codes"})
+LIST_KEYS = frozenset({"codes", "action_dates"})
 # 문서 단위로 같은 값을 갖는 키. documents()가 변경 감지용으로 모은다.
-DOC_LEVEL_KEYS = ("doc_type", "status", "title", "source_path", "source_sha256")
+DOC_LEVEL_KEYS = (
+    "doc_type",
+    "status",
+    "title",
+    "source_path",
+    "source_sha256",
+    "asset_id",
+    "model",
+)
 # Chunk 필드와 같은 이름이라 메타데이터로 따로 저장하지 않는 키.
 RESERVED_KEYS = ("chunk_id", "doc_id", "doc_version", "text")
 # 저장소가 payload에 덧붙이는 키. 청크 메타데이터에 넣을 수 없고 조회 때 빠진다.

@@ -160,6 +160,17 @@ class HybridRetriever:
             ValueError: query가 비어 있거나 필터 또는 k 값이 유효하지 않은 경우.
             TypeError: k가 정수가 아닌 경우.
         """
+        return [_evidence(hit) for hit in self.search_hits(query, k=k, filters=filters)]
+
+    def search_hits(
+        self,
+        query: str,
+        *,
+        k: int = 5,
+        filters: dict[str, Any] | None = None,
+        versions: dict[str, str] | None = None,
+    ) -> list[Hit]:
+        """같은 검색·리랭킹을 사용하되 서버 출처 조립용 원본 메타데이터를 보존한다."""
         # 빈 문자열이나 공백만 있는 검색어는 허용하지 않는다.
         if not isinstance(query, str) or not query.strip():
             raise ValueError("query는 비어 있지 않은 문자열이어야 합니다.")
@@ -171,10 +182,35 @@ class HybridRetriever:
         # 결과 개수와 필터를 검증한 뒤 하이브리드 검색을 실행한다.
         check_k(k)
         where = _where(filters)
+        if versions is not None:
+            # DB가 지정한 판이 완전히 색인됐을 때만 검색한다. 구색인을 대신 사용하지 않는다.
+            if not versions:
+                return []
+            current = self._store.documents(where={"doc_id": list(versions)})
+            eligible = [
+                key
+                for key, info in current.items()
+                if info.complete and info.doc_version == versions.get(key)
+            ]
+            if where and "doc_id" in where:
+                requested = where["doc_id"]
+                requested = [requested] if isinstance(requested, str) else requested
+                eligible = [key for key in eligible if key in requested]
+            if not eligible:
+                return []
+            where = {**(where or {}), "doc_id": eligible}
         # 예: 최종 5개를 반환해도 후보 30개를 재정렬해야 하위 후보가 올라올 수 있다.
         # k가 후보 설정보다 크면 k개까지 확보하고, 리랭킹을 끄면 기존 k개만 검색한다.
         candidate_k = max(k, self._candidate_k) if self._reranker is not None else k
+        # 저장소가 의미 벡터 검색과 BM25 키워드 검색을 수행하고 RRF로 두 순위를 합친다.
         hits = self._store.hybrid_query(query, k=candidate_k, where=where)
+        if versions is not None:
+            # 색인 교체가 검색 중 일어나도 다른 버전을 반환하지 않는다.
+            hits = [
+                hit
+                for hit in hits
+                if versions.get(hit.chunk.doc_id) == hit.chunk.doc_version
+            ]
         # 빈 결과에서는 모델을 로드하지 않는다. 리랭킹 실패는 호출자에게 예외로 전달된다.
         if hits and self._reranker is not None:
             hits = self._reranker.rerank(query, hits)
@@ -191,4 +227,4 @@ class HybridRetriever:
             hits = [hit for hit in hits if hit.relevance >= self._min_relevance]
 
         # 최종 순위에서 k개만 고른 뒤 공통 근거 형식으로 변환한다.
-        return [_evidence(hit) for hit in hits[:k]]
+        return hits[:k]

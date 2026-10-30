@@ -7,6 +7,7 @@ doc_type = "manual"
 status = "approved"
 path = "../manuals/BTT-MANUAL_v2.0.pdf"
 title = "에러코드·대응 매뉴얼"
+extra = {asset_id = "BLDC-001"}
 
 [[documents]]
 doc_id = "BTT-RULE"
@@ -15,6 +16,7 @@ doc_type = "rule"
 status = "approved"
 path = "../rulebase/BTT-RULE_v2.0.pdf"
 title = "룰베이스 최종 정의서"
+extra = {asset_id = "BLDC-001"}
 
 [[documents]]
 doc_id = "BTT-SOP-001"
@@ -26,3 +28,4 @@ doc_type = "sop"
 status = "approved"
 path = "../regulations/BTT-SOP-001.pdf"
 title = "배터리 트레이 자동 이송 공정 사내 규정"
+extra = {asset_id = "BLDC-001"}

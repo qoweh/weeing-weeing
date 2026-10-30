@@ -31,7 +31,12 @@ from weeing_weeing.contracts.chat import (
     ChatResponse,
     ChatSource,
 )
-from weeing_weeing.contracts.chat_tools import ChatSearchHit, ChatSearchQuery
+from weeing_weeing.contracts.chat_tools import (
+    ChatHistoryQuery,
+    ChatHistoryResult,
+    ChatSearchHit,
+    ChatSearchQuery,
+)
 
 if TYPE_CHECKING:
     from weeing_weeing.agent.interface import ChatKnowledge, FaqCatalog, LlmClient
@@ -44,7 +49,9 @@ search_knowledge의 kind=MANUAL은 매뉴얼/SOP, MAINTENANCE_HISTORY는 과거 
 문서 조회는 직책·작성자에 따라 제한하지 않는다. 검색 대상의 승인·최신 판 정책은 지킨다.
 현재 질문의 명시 조건을 우선하고 최근 대화는 문맥으로만 참고한다. 조건이 불명확하면
 NEEDS_CLARIFICATION과 확인 질문을 제출한다. 상대 날짜는 제공된 기준 날짜·시간대로 해석한다.
-정확한 횟수·전체 목록은 유사 검색으로 답하지 말고 구조화 조회가 필요하다고 안내한다.
+정확한 건수·기간 목록은 query_history로 DB를 조회한다. 건수는 사건 횟수가 아니라 승인 보고서 수다.
+반환 total과 synthetic_total을 구분하고 truncated=true이면 전체 목록이라고 하지 않는다.
+search_knowledge의 top-k 개수를 총건수라고 말하지 않는다.
 FAQ가 필요하면 browse_faq로 주제/질문을 확인한 뒤 get_faq_answer로 검토 답변을 얻는다.
 OK의 답변은 parts에 쓰고, 해당 도구 실행에서 실제 반환된 source_id만 인용한다.
 매뉴얼 기준과 과거 사례를 구분하고 가상 사례는 본문에도 가상 사례라고 명시한다.
@@ -136,9 +143,11 @@ class ToolChatService:
     def reply(
         self, question: ChatQuestion, *, context: ChatContext, timeout_s: float
     ) -> ChatResponse:
+        """질문 한 건을 처리하고 시간 초과·검색·생성 실패를 공통 응답으로 변환한다."""
         deadline = _Deadline(timeout_s)
         acquired = False
         try:
+            # 클라이언트가 보관하는 호출별 사용량이 동시에 덮어써지지 않게 직렬화한다.
             acquired = self._lock.acquire(timeout=deadline.remaining())
             if not acquired:
                 raise LlmTimeoutError("대화 처리 대기 시간 초과")
@@ -173,28 +182,40 @@ class ToolChatService:
     def _reply(
         self, question: ChatQuestion, context: ChatContext, deadline: _Deadline
     ) -> ChatResponse:
+        """Claude의 도구 선택→서버 검색→근거 전달→답변 제출 흐름을 구성한다."""
+        # 이번 요청에서 실제로 얻은 근거만 보관한다. 이전 대화의 인용을 그대로 신뢰하지 않는다.
         sources: dict[str, ChatSource] = {}
         texts: dict[str, str] = {}
         hits: dict[str, ChatSearchHit] = {}
         applied = question.conditions
         search_count = 0
+        conditions_locked = False
+
+        def conditions_for(conditions):
+            """명시된 사용자 조건을 보존하고 서로 다른 조건의 근거가 섞이지 않게 한다."""
+            requested = conditions.model_dump()
+            for key in ("asset_id", "model", "date_from", "date_to"):
+                selected = getattr(question.conditions, key)
+                if selected is not None:
+                    if requested[key] is not None and requested[key] != selected:
+                        raise ToolInputError("사용자가 지정한 조건을 바꿀 수 없다")
+                    requested[key] = selected
+            requested["limit"] = min(requested["limit"], question.conditions.limit)
+            result = type(question.conditions)(**requested)
+            if conditions_locked and result != applied:
+                raise ToolInputError(
+                    "한 답변의 검색 조건은 같아야 한다. 비교 조건은 추가 질문으로 확인한다"
+                )
+            return result
 
         def search(data: dict[str, Any], memory: RunMemory) -> str:
-            nonlocal applied, search_count
+            """search_knowledge 도구: 모델 입력 검증 후 관련 문서·정비 사례를 찾는다."""
+            nonlocal applied, search_count, conditions_locked
             query = ChatSearchQuery.model_validate(data)
             if search_count >= 8:
                 raise ToolInputError("검색 호출은 최대 8회다")
             search_count += 1
-            requested = query.conditions.model_dump()
-            for key in ("asset_id", "model", "date_from", "date_to"):
-                if requested[key] is None:
-                    requested[key] = getattr(question.conditions, key)
-            requested["limit"] = min(requested["limit"], question.conditions.limit)
-            query.conditions = type(question.conditions)(**requested)
-            if hits and query.conditions != applied:
-                raise ToolInputError(
-                    "한 답변의 검색 조건은 같아야 한다. 비교 조건은 추가 질문으로 확인한다"
-                )
+            query.conditions = conditions_for(query.conditions)
             try:
                 # 미지원 필터·미등록 설비 등은 ToolInputError로 모델이 확인 질문하게 한다.
                 # 직책별 열람 제한은 없다. 필터·승인/개정 상태는 검증한다.
@@ -226,6 +247,8 @@ class ToolChatService:
             except Exception as exc:
                 raise _SearchUnavailableError("검색 처리 실패") from exc
             applied = query.conditions
+            # 빈 추가 검색이 앞서 확보한 근거의 조건 잠금을 해제해서는 안 된다.
+            conditions_locked = conditions_locked or bool(checked)
             combined = {**texts, **{hit.source.source_id: hit.text for hit in checked}}
             if len(combined) > 20 or sum(map(len, combined.values())) > 32000:
                 raise ToolInputError(
@@ -242,7 +265,62 @@ class ToolChatService:
                 hits[hit.source.source_id] = hit
             return to_json([hit.model_dump(mode="json") for hit in checked])
 
+        def history(data: dict[str, Any], memory: RunMemory) -> str:
+            """query_history 도구: top-k 검색 대신 DB에서 정확한 기간 목록·건수를 구한다."""
+            nonlocal applied, search_count, conditions_locked
+            query = ChatHistoryQuery.model_validate(data)
+            # 전체 근거 상한 20개 중 1개는 집계 출처로 예약한다. DB 직접 조회는 20건까지 가능하다.
+            query.conditions.limit = min(query.conditions.limit, 19)
+            query.conditions = conditions_for(query.conditions)
+            if search_count >= 8:
+                raise ToolInputError("조회 호출은 최대 8회다")
+            search_count += 1
+            try:
+                result = ChatHistoryResult.model_validate(
+                    self._knowledge.query_history(query, timeout_s=deadline.remaining())
+                )
+                deadline.remaining()
+                if (
+                    result.source.conditions != query.conditions
+                    or result.source.code != query.code
+                ):
+                    raise RuntimeError("조회 조건 불일치")
+                returned = [
+                    (result.source, to_json(result.source.model_dump(mode="json")))
+                ]
+                # 집계 자체의 출처와 개별 보고서 출처를 함께 등록해 0건도 인용할 수 있게 한다.
+                returned.extend((hit.source, hit.text) for hit in result.reports)
+                for source, _ in returned:
+                    if not self._knowledge.is_searchable(
+                        source, timeout_s=deadline.remaining()
+                    ):
+                        raise _SearchUnavailableError("조회 대상 상태가 변경됨")
+                    if (
+                        source.source_id in sources
+                        and sources[source.source_id] != source
+                    ):
+                        raise _SearchUnavailableError("출처 ID 충돌")
+            except (ToolInputError, LlmTimeoutError):
+                raise
+            except Exception as exc:
+                raise _SearchUnavailableError("구조화 조회 실패") from exc
+            combined = {
+                **texts,
+                **{source.source_id: text for source, text in returned},
+            }
+            if len(combined) > 20 or sum(map(len, combined.values())) > 32000:
+                raise ToolInputError("조회 근거 상한 초과: 목록 개수나 범위를 줄인다")
+            for source, text in returned:
+                sources[source.source_id] = source
+                texts[source.source_id] = text
+            for hit in result.reports:
+                hits[hit.source.source_id] = hit
+            applied = query.conditions
+            conditions_locked = True
+            return to_json(result.model_dump(mode="json"))
+
         def browse(data: dict[str, Any], memory: RunMemory) -> str:
+            """자유 질문 중 Claude가 참고할 FAQ 주제 또는 질문 목록을 반환한다."""
             deadline.remaining()
             topic = _BrowseFaq.model_validate(data).topic_id
             try:
@@ -256,6 +334,7 @@ class ToolChatService:
             return to_json([item.model_dump(mode="json") for item in items])
 
         def get_faq(data: dict[str, Any], memory: RunMemory) -> str:
+            """FAQ ID·버전으로 검토된 고정 답변을 가져와 이번 요청의 근거로 등록한다."""
             deadline.remaining()
             selection = _GetFaq.model_validate(data)
             try:
@@ -277,6 +356,7 @@ class ToolChatService:
             return to_json(faq.model_dump(mode="json"))
 
         def submit(data: dict[str, Any], memory: RunMemory) -> ChatResponse:
+            """모델의 최종 답변에서 인용 ID·가상 표시·출처 최신성을 검증한다."""
             deadline.remaining()
             draft = _Draft.model_validate(data)
             cited = {key for part in draft.parts for key in part.source_ids}
@@ -286,10 +366,12 @@ class ToolChatService:
                 for key in part.source_ids:
                     source = sources[key]
                     if (
-                        source.kind == "REPORT"
-                        and source.synthetic
-                        and "가상" not in part.text
-                    ):
+                        (source.kind == "REPORT" and source.synthetic)
+                        or (
+                            source.kind == "HISTORY_QUERY"
+                            and source.synthetic_total > 0
+                        )
+                    ) and "가상" not in part.text:
                         raise ToolInputError(
                             "가상 정비 사례는 답변에도 가상이라고 표시한다"
                         )
@@ -318,6 +400,7 @@ class ToolChatService:
                 generated_at=datetime.now(UTC),
             )
 
+        # 별도 분류용 LLM 호출은 없다. 같은 Claude 실행이 필요한 도구를 골라 반복 호출한다.
         spec = AgentSpec(
             name="chat-assistant",
             system=SYSTEM,
@@ -327,6 +410,12 @@ class ToolChatService:
                     "공통 열람 대상 매뉴얼/SOP·정비이력을 조건으로 검색한다.",
                     ChatSearchQuery.model_json_schema(),
                     search,
+                ),
+                AgentTool(
+                    "query_history",
+                    "DB의 최신 승인 보고서 수·기간 목록을 정확히 조회한다. 목록은 limit, 건수는 전체 기준. 사건 횟수와 다르다.",
+                    ChatHistoryQuery.model_json_schema(),
+                    history,
                 ),
                 AgentTool(
                     "browse_faq",
@@ -347,9 +436,11 @@ class ToolChatService:
                 _Draft.model_json_schema(),
                 submit,
             ),
-            prompt_version="chat-tools-v1",
+            prompt_version="chat-tools-v2",
             max_turns=self._max_turns,
         )
+        # '지난달' 같은 상대 날짜 해석을 위해 한국 시간 기준일과 사용자 조건을 함께 준다.
+        # 자연어 해석은 Claude 책임이며, 도구 입력의 유효성·필터 적용은 서버가 검사한다.
         task = to_json(
             {
                 "reference_date": datetime.now(ZoneInfo("Asia/Seoul"))

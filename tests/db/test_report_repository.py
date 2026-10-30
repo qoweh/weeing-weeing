@@ -365,3 +365,30 @@ def test_migration_matches_models(setup_reports):
             compare_metadata(MigrationContext.configure(connection), Base.metadata)
             == []
         )
+
+
+def test_approved_reports_are_complete_latest_approved_independent_of_index_state(
+    setup_reports,
+):
+    repo = setup_reports
+    first = approve(repo, repo.create_draft("I1", ready_draft()))
+    second = approve(repo, repo.create_draft("I1", ready_draft()))
+    repo.record_index_result(first.report_id, first.report_version, success=True)
+    repo.record_index_result(second.report_id, second.report_version, success=False)
+    draft = repo.revise("I1", first.report_id, expected_revision=first.revision)
+    rejected = step(
+        repo,
+        step(repo, repo.create_draft("I1", ready_draft()), "I1", "submit"),
+        "L1",
+        "reject",
+        comment="보완",
+    )
+    values = {r.report_id: r for r in repo.approved_reports()}
+    assert set(values) == {first.report_id, second.report_id}
+    assert (
+        values[first.report_id].report_version == 1
+    )  # 현재 초안이 승인 판을 가리지 않는다.
+    assert rejected.report_id not in values
+    revised = approve(repo, draft)
+    values = {r.report_id: r for r in repo.approved_reports()}
+    assert values[first.report_id].report_version == revised.report_version == 2

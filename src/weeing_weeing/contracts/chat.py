@@ -77,6 +77,25 @@ class ChatReportSource(ChatModel):
     synthetic: bool = Field(strict=True)
 
 
+class ChatHistorySource(ChatModel):
+    """유사 검색과 구분되는 DB 구조화 조회 출처. 0건도 근거로 표현한다."""
+
+    kind: Literal["HISTORY_QUERY"] = "HISTORY_QUERY"
+    source_id: NonEmpty
+    title: NonEmpty
+    conditions: ChatSearchConditions
+    code: NonEmpty | None = None
+    total: int = Field(ge=0, strict=True)
+    synthetic_total: int = Field(ge=0, strict=True)
+    snapshot: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+    @model_validator(mode="after")
+    def _counts(self) -> Self:
+        if self.synthetic_total > self.total:
+            raise ValueError("가상 사례 수는 전체 수보다 클 수 없음")
+        return self
+
+
 class ChatFaqSource(ChatModel):
     kind: Literal["FAQ"] = "FAQ"
     source_id: NonEmpty
@@ -86,7 +105,8 @@ class ChatFaqSource(ChatModel):
 
 
 ChatSource = Annotated[
-    ChatDocumentSource | ChatReportSource | ChatFaqSource, Field(discriminator="kind")
+    ChatDocumentSource | ChatReportSource | ChatFaqSource | ChatHistorySource,
+    Field(discriminator="kind"),
 ]
 
 
@@ -146,11 +166,17 @@ class ChatResponse(ChatModel):
             "FAILED",
         }:
             raise ValueError("범위 밖 의도에는 정상 답변을 생성하지 않음")
-        expected = {"MANUAL": "DOCUMENT", "MAINTENANCE_HISTORY": "REPORT", "FAQ": "FAQ"}
+        expected = {
+            "MANUAL": {"DOCUMENT"},
+            "MAINTENANCE_HISTORY": {"REPORT", "HISTORY_QUERY"},
+            "FAQ": {"FAQ"},
+        }
         for part in self.parts:
             if self.intent != "COMBINED" and part.kind != self.intent:
                 raise ValueError("답변 종류가 질문 의도와 다름")
-            if any(known.get(key) != expected[part.kind] for key in part.source_ids):
+            if any(
+                known.get(key) not in expected[part.kind] for key in part.source_ids
+            ):
                 raise ValueError("인용 출처가 없거나 답변 종류와 다름")
         return self
 

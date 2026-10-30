@@ -49,3 +49,42 @@ def test_hit_requires_real_document_location_or_explicit_report_origin():
                 report_version=1,
             ),
         )
+
+
+def history_source(**changes):
+    return (
+        dict(
+            kind="HISTORY_QUERY",
+            source_id="query:1",
+            title="DB 조회",
+            conditions={},
+            total=0,
+            synthetic_total=0,
+            snapshot="a" * 64,
+        )
+        | changes
+    )
+
+
+def test_zero_history_count_has_a_valid_server_source_and_roundtrips():
+    from weeing_weeing.contracts import ChatHistorySource
+    from weeing_weeing.contracts.chat_tools import ChatHistoryQuery, ChatHistoryResult
+
+    result = ChatHistoryResult(source=history_source(), truncated=False)
+    assert ChatHistoryResult.model_validate_json(result.model_dump_json()) == result
+    for changes in (
+        dict(total=-1),
+        dict(total=True),
+        dict(synthetic_total=1),
+        dict(snapshot="invented"),
+    ):
+        with pytest.raises(ValidationError):
+            ChatHistorySource(**history_source(**changes))
+    with pytest.raises(ValidationError):
+        ChatHistoryQuery(code="made-up")
+    with pytest.raises(ValidationError):
+        ChatHistoryResult(source=history_source(total=1), truncated=False)
+    with pytest.raises(ValidationError):
+        ChatHistoryQuery(
+            conditions={"date_from": "2026-10-02", "date_to": "2026-10-01"}
+        )

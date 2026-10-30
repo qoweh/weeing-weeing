@@ -48,6 +48,7 @@ rag(검색 근거 변환), db(대화 저장), api(인증·조립), hmi/web(상�
 | `ChatConversation`, `ChatContext`, `ChatTurn` | 대화 목록 메타데이터와 서버가 준비한 최근 문맥. 시간대 필수·갱신 시각 순서 검증. 문맥은 user/assistant만, 최대 20개·각 4000자·총 16000자 |
 | `ChatDocumentSource` | 문서 ID·버전·페이지(1 이상) 또는 절 |
 | `ChatReportSource` | 보고서 ID·판(1 이상), 가상 여부 `synthetic` 필수. 승인·권한 검증 자체를 대체하지 않음 |
+| `ChatHistorySource` | DB 구조화 조회 조건·오류 코드·전체 승인 보고서 수·가상 보고서 수·스냅샷 해시. 0건도 출처로 표시하며 MAINTENANCE_HISTORY 본문에서만 인용 |
 | `ChatFaqSource` | 검토된 FAQ ID·버전 |
 | `ChatAnswerPart` | 매뉴얼 기준/과거 정비 사례/FAQ 본문과 출처 ID 목록. 서로 다른 종류의 근거 혼용 거부 |
 | `ChatResponse` | 요청 ID·의도·상태·적용 검색 조건·안내·본문·출처·추가 질문·오류·생성 시각 |
@@ -128,8 +129,21 @@ api(공통 검색 주입·인증·대화 소유권)다. 기존 `ChatQuestion`·`
 상태를 재확인한다. 직책별 문서 ACL은 없다. 검색 오류·출처 상태 변경은 FAILED이며
 근거 부족과 구분한다. 대화 소유권·쓰기 권한은 유지한다. 미지원 조건은 재질문 가능한
 도구 오류다. 공개 `InvalidChatQueryError`는 안전한 오류 설명만 담는다.
-최종 답변 상태·인용은 기존 `ChatResponse` 검증도 적용한다. 실제 검색 연결 전의
-모의 테스트용 조립 인터페이스이며 상세 제한·남은 작업은 [CHATBOT](CHATBOT.md)을 따른다.
+최종 답변 상태·인용은 `ChatResponse` 검증도 적용한다. `ChatSource` 판별 union에
+`HISTORY_QUERY`가 추가되므로 API·저장·화면의 출처 역직렬화는 이 종류도 지원해야 한다.
+`ChatSearchHit`의 문서/보고서 종류는 그대로 유지한다.
+
+- `ChatHistoryQuery`: 설비·실제 조치일 조건·정의된 오류 코드. 유사 질의문·사용자 권한을 받지 않는다.
+- `ChatHistoryResult`: `ChatHistorySource`, 제한된 보고서 목록, `truncated`. total은 top-k가 아닌
+  조건에 맞는 **최신 승인 보고서 수**다. 같은 사건에 여러 보고서가 있을 수 있어 전체 고장 발생
+  횟수와 다르다. 가상 사례 수는 synthetic_total로 따로 제공한다.
+- 목록 길이는 min(total, limit), truncated는 total > 목록 길이와 일치해야 한다.
+  0건은 reports=[], truncated=false이며 DB 조회 출처를 인용할 수 있다.
+- 조회 스냅샷은 답변 직전 DB에서 다시 계산한다. 자료 추가·개정·삭제로 바뀌면 출처 상태
+  변경으로 실패한다. 자동 재시도나 이전 집계 재사용은 하지 않는다.
+
+`api/chat_knowledge.py`가 DB·공유 RAG를 조립한다. 자세한 지원 조건·실행 방법은
+[CHATBOT](CHATBOT.md)을 따른다.
 
 ## 아직 정하지 않은 것
 

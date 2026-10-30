@@ -17,6 +17,9 @@ uv run --no-sync pytest                 # 테스트 (= make test)
 make api                                # FastAPI 개발 서버
 ```
 
+챗봇 단일 질문 실행은 `make chat ARGS='"P03 점검 절차는?" --asset-id BLDC-001'`을 사용합니다.
+DB·색인·Claude API 키가 필요하고 실제 API 비용이 발생합니다. [CHATBOT](docs/CHATBOT.md)을 참고하세요.
+
 자세한 설치(uv·Docker·Claude API 키)와 문제 해결: [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md)
 
 ## 팀 공지

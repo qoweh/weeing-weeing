@@ -54,7 +54,7 @@ def _is_current(info: DocInfo | None, metadata: dict[str, str]) -> bool:
         return False
     if info.doc_version != metadata["doc_version"]:
         return False
-    return all(info.metadata.get(k) == metadata[k] for k in DOC_LEVEL_KEYS)
+    return all(info.metadata.get(k) == metadata.get(k) for k in DOC_LEVEL_KEYS)
 
 
 def sync(

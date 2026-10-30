@@ -280,6 +280,10 @@ class ReportRepository(Protocol):
         expected_revision: int,
     ) -> ReportDocument: ...
 
+    def approved_reports(self) -> list[MaintenanceReport]:
+        """전체 보고서의最新 승인 판. 구조화 기간 조회·집계용이며 색인 대기 상태와 무관하다."""
+        ...
+
     def pending_index_reports(
         self,
         *,

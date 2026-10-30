@@ -6,6 +6,7 @@ from pydantic import Field, model_validator
 
 from weeing_weeing.contracts.chat import (
     ChatDocumentSource,
+    ChatHistorySource,
     ChatModel,
     ChatReportSource,
     ChatSearchConditions,
@@ -38,3 +39,34 @@ class ChatSearchHit(ChatModel):
         ChatDocumentSource | ChatReportSource, Field(discriminator="kind")
     ]
     text: Annotated[NonEmpty, Field(max_length=8000)]
+
+
+class ChatHistoryQuery(ChatModel):
+    """정확한 DB 조회. query 문자열 유사도는 전체 목록·건수 조건으로 사용하지 않는다."""
+
+    conditions: ChatSearchConditions = Field(default_factory=ChatSearchConditions)
+    code: NonEmpty | None = None
+
+    @model_validator(mode="after")
+    def _known_code(self) -> Self:
+        if self.code is not None and self.code not in CODES:
+            raise ValueError("정의되지 않은 설비 오류 코드")
+        return self
+
+
+class ChatHistoryResult(ChatModel):
+    source: ChatHistorySource
+    reports: list[ChatSearchHit] = Field(default_factory=list, max_length=20)
+    truncated: bool = Field(strict=True)
+
+    @model_validator(mode="after")
+    def _result(self) -> Self:
+        if any(hit.source.kind != "REPORT" for hit in self.reports):
+            raise ValueError("이력 목록에는 보고서 출처만 사용")
+        if len({hit.source.source_id for hit in self.reports}) != len(self.reports):
+            raise ValueError("보고서 출처 중복")
+        if len(self.reports) != min(self.source.total, self.source.conditions.limit):
+            raise ValueError("전체 건수·목록 개수 불일치")
+        if self.truncated != (self.source.total > len(self.reports)):
+            raise ValueError("목록 생략 여부 불일치")
+        return self

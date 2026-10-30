@@ -20,6 +20,7 @@ from weeing_weeing.contracts import (
 
 # 기존 호출자가 공개 인터페이스에서 구현 클래스를 가져갈 수 있도록 다시 노출한다.
 from weeing_weeing.rag.retriever import HybridRetriever as HybridRetriever
+from weeing_weeing.rag.store import Hit as SearchHit
 from weeing_weeing.rag.store import VectorStore
 
 # 색인 진행 단계 이름(예: parsing, chunking)을 받아 화면·로그 등에 전달하는 함수 형식.
@@ -79,6 +80,21 @@ class Retriever(Protocol):
         ...
 
 
+class MetadataRetriever(Retriever, Protocol):
+    """챗봇 조립용 검색 경계. 기존 Evidence 검색과 동일한 공유 저장소·리랭커 사용."""
+
+    def search_hits(
+        self,
+        query: str,
+        *,
+        k: int = 5,
+        filters: dict[str, Any] | None = None,
+        versions: dict[str, str] | None = None,
+    ) -> list[SearchHit]:
+        """페이지·제목·유형 등을 보존한다. 반환 메타데이터의 최신성은 DB와 재검증한다."""
+        ...
+
+
 class InvalidDocumentError(ValueError):
     """문서를 색인할 수 없다(형식·내용·입력 정보 문제). 사용자에게 보여 줄 메시지를 담는다."""
 
@@ -102,7 +118,7 @@ def _get_store() -> VectorStore:
 
 
 @lru_cache(maxsize=1)
-def get_retriever() -> Retriever:
+def get_retriever() -> MetadataRetriever:
     """프로세스에서 재사용할 검색기. RERANKER_MODEL이 있으면 리랭킹한다.
 
     api 또는 실행 스크립트에서 조립해 Agent에 주입한다.
@@ -155,3 +171,35 @@ def incident_query(incident: Incident) -> str:
     from weeing_weeing.rag.query import incident_query as build
 
     return build(incident)
+
+
+def close_rag_resources() -> None:
+    """모든 작업이 끝난 단일 프로세스 종료 시 공유 저장소·로컬 폴더 잠금을 해제한다.
+
+    요청 처리 중 호출하면 안 된다. CLI가 Python 종료 전에 클라이언트를 명시적으로
+    닫아 Qdrant 소멸자가 이미 종료된 Python 모듈에 접근하는 일을 방지한다.
+    """
+    if _get_store.cache_info().currsize:
+        _get_store().close()
+    get_indexer.cache_clear()
+    get_retriever.cache_clear()
+    _get_store.cache_clear()
+
+
+def report_search_hit(report: MaintenanceReport):
+    """DB의 승인 보고서에서 사번·AI 분석·결재를 제외한 챗봇 근거를 만든다."""
+    from weeing_weeing.contracts.chat import ChatReportSource
+    from weeing_weeing.contracts.chat_tools import ChatSearchHit
+    from weeing_weeing.rag.report import report_chunk
+
+    chunk = report_chunk(report)
+    return ChatSearchHit(
+        source=ChatReportSource(
+            source_id=chunk.chunk_id,
+            title=str(chunk.metadata["title"]),
+            report_id=report.report_id,
+            report_version=report.report_version,
+            synthetic=report.data_origin == "SYNTHETIC",
+        ),
+        text=chunk.text[:8000],
+    )

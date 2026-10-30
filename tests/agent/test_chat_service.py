@@ -142,6 +142,7 @@ def test_free_question_calls_tools_without_separate_classifier():
     names = {tool["name"] for tool in client.calls[0]["tools"]}
     assert names == {
         "search_knowledge",
+        "query_history",
         "browse_faq",
         "get_faq_answer",
         "submit_answer",
@@ -336,3 +337,88 @@ def test_factory_requires_explicit_knowledge_and_preserves_validated_context():
     assert result.status == "NEEDS_CLARIFICATION"
     task = json.loads(client.calls[0]["messages"][0]["content"])
     assert task["recent_turns"] == [dict(role="user", content="BLDC-001을 보고 있어요")]
+
+
+def test_empty_followup_search_cannot_unlock_previous_conditions():
+    class Knowledge(CommonKnowledge):
+        def search(self, query, *, timeout_s):
+            self.searches.append(query)
+            return [] if query.query == "empty" else self.hits
+
+    knowledge = Knowledge()
+    client = FakeClient(
+        reply(search(conditions={"asset_id": "A1"})),
+        reply(search(query="empty", conditions={"asset_id": "A1"})),
+        reply(search(conditions={"asset_id": "A2"})),
+        reply(submit()),
+    )
+    result = ask(client, knowledge)
+    assert result.status == "OK"
+    assert result.applied_conditions.asset_id == "A1"
+    assert [query.conditions.asset_id for query in knowledge.searches] == ["A1", "A1"]
+    assert any(
+        block.get("is_error")
+        for message in client.calls[3]["messages"]
+        if message["role"] == "user" and isinstance(message["content"], list)
+        for block in message["content"]
+    )
+
+
+def test_model_cannot_override_user_selected_conditions():
+    knowledge = CommonKnowledge()
+    client = FakeClient(
+        reply(search(conditions={"asset_id": "A2"})),
+        reply(submit("NEEDS_CLARIFICATION")),
+    )
+    result = ask(client, knowledge, conditions=ChatSearchConditions(asset_id="A1"))
+    assert result.status == "NEEDS_CLARIFICATION"
+    assert not knowledge.searches
+
+
+def test_history_max_limit_reserves_room_for_count_source():
+    from weeing_weeing.contracts.chat_tools import ChatHistoryResult
+
+    class Knowledge(CommonKnowledge):
+        def query_history(self, query, *, timeout_s):
+            return ChatHistoryResult(
+                source=dict(
+                    kind="HISTORY_QUERY",
+                    source_id="history:20",
+                    title="DB 조회",
+                    conditions=query.conditions,
+                    code=None,
+                    total=20,
+                    synthetic_total=0,
+                    snapshot="a" * 64,
+                ),
+                reports=[
+                    dict(
+                        source=dict(
+                            kind="REPORT",
+                            source_id=f"report:{n}",
+                            title=f"보고서 {n}",
+                            report_id=f"R{n}",
+                            report_version=1,
+                            synthetic=False,
+                        ),
+                        text="사람이 기록한 조치",
+                    )
+                    for n in range(min(20, query.conditions.limit))
+                ],
+                truncated=query.conditions.limit < 20,
+            )
+
+    client = FakeClient(
+        reply(call("query_history", {"conditions": {"limit": 20}})),
+        reply(
+            submit(
+                intent="MAINTENANCE_HISTORY",
+                ids=("history:20",),
+                text="승인 보고서 전체 20건입니다.",
+            )
+        ),
+    )
+    result = ask(client, Knowledge(), conditions=ChatSearchConditions(limit=20))
+    assert result.status == "OK"
+    assert result.applied_conditions.limit == 19
+    assert result.sources[0].total == 20

@@ -515,6 +515,36 @@ class SqlReports(Repository):
             session.flush()
             return _view(session, row, version)
 
+    def approved_reports(self) -> list[MaintenanceReport]:
+        """보고서별 최신 승인 판 전체. 현재 초안과 색인 작업 상태에 영향받지 않는다.
+
+        유사 검색의 top-k와 구분한 구조화 조회용이다. 호출자가 사람 작성 칸만 투영한다.
+        """
+        # 전체 중 가장 최근 보고서 하나가 아니라, 각 report_id별 가장 높은 승인 버전을 고른다.
+        # 승인 판 뒤에 초안·반려 개정판이 생겨도 기존 승인 판은 검색 대상으로 남는다.
+        latest = (
+            select(
+                ReportVersionRow.report_id,
+                func.max(ReportVersionRow.version_no).label("version"),
+            )
+            .where(ReportVersionRow.report_status == ReportStatus.APPROVED)
+            .group_by(ReportVersionRow.report_id)
+            .subquery()
+        )
+        with self._transaction() as session:
+            rows = session.scalars(
+                select(ReportVersionRow)
+                .join(
+                    latest,
+                    (ReportVersionRow.report_id == latest.c.report_id)
+                    & (ReportVersionRow.version_no == latest.c.version),
+                )
+                .order_by(ReportVersionRow.report_id)
+            )
+            return [
+                MaintenanceReport.model_validate(row.data["report"]) for row in rows
+            ]
+
     def pending_index_reports(
         self,
         *,
