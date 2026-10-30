@@ -8,7 +8,12 @@ from uuid import uuid4
 
 import pytest
 
-from weeing_weeing.contracts import ChatContext, ChatQuestion, ChatResponse
+from weeing_weeing.contracts import (
+    ChatContext,
+    ChatDocumentSource,
+    ChatQuestion,
+    ChatResponse,
+)
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts/chat.py"
 
@@ -112,3 +117,52 @@ def test_recent_conversation_stays_within_contract_bounds():
         assert len(context.recent_turns) <= 20
         assert sum(len(turn.content) for turn in context.recent_turns) <= 16000
         assert len(context.recent_turns) % 2 == 0
+
+
+@pytest.mark.parametrize(
+    ("locations", "expected_sources"),
+    [
+        ([{"page": 5}, {"page": 5}], 1),
+        ([{"page": 5, "section": "1"}, {"page": 5, "section": "2"}], 1),
+        ([{"page": 5}, {"page": 6}], 2),
+        ([{"section": "1"}, {"section": "2"}], 2),
+    ],
+)
+def test_show_deduplicates_displayed_location_and_preserves_other_sources(
+    capsys, locations, expected_sources
+):
+    show = runpy.run_path(str(SCRIPT))["show"]
+    question = ChatQuestion(request_id=uuid4(), question="질문")
+    source_fields = {
+        "title": "BTT-MANUAL_v2.0.pdf",
+        "doc_id": "BLDC-001-MANUAL",
+        "doc_version": "v2.0",
+    }
+    response_value = ChatResponse(
+        request_id=question.request_id,
+        intent="MANUAL",
+        status="OK",
+        applied_conditions=question.conditions,
+        message="안내합니다.",
+        parts=[
+            {
+                "kind": "MANUAL",
+                "text": "첫 번째 근거",
+                "source_ids": ["chunk-1"],
+            },
+            {
+                "kind": "MANUAL",
+                "text": "두 번째 근거",
+                "source_ids": ["chunk-2"],
+            },
+        ],
+        sources=[
+            ChatDocumentSource(source_id="chunk-1", **source_fields, **locations[0]),
+            ChatDocumentSource(source_id="chunk-2", **source_fields, **locations[1]),
+        ],
+        generated_at=datetime.now(UTC),
+    )
+
+    show(response_value)
+
+    assert capsys.readouterr().out.count("출처:") == expected_sources

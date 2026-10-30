@@ -53,6 +53,7 @@ def show(response):
         print(f"\n[{part.kind}] {part.text}")
     for question in response.clarification_questions:
         print(f"확인 질문: {question}")
+    displayed_sources = set()
     for source in response.sources:
         if source.kind == "DOCUMENT":
             detail = (
@@ -60,16 +61,34 @@ def show(response):
                 if source.page
                 else f"{source.doc_id} v{source.doc_version}, {source.section}"
             )
+            display_key = (
+                source.kind,
+                source.doc_id,
+                source.doc_version,
+                source.page,
+                source.section if source.page is None else None,
+            )
         elif source.kind == "REPORT":
             detail = f"{source.report_id} v{source.report_version}" + (
                 " (가상 사례)" if source.synthetic else ""
+            )
+            display_key = (
+                source.kind,
+                source.report_id,
+                source.report_version,
+                source.synthetic,
             )
         elif source.kind == "HISTORY_QUERY":
             detail = (
                 f"DB 승인 보고서 {source.total}건 (가상 {source.synthetic_total}건)"
             )
+            display_key = (source.kind, source.source_id)
         else:
             detail = f"FAQ {source.faq_id}"
+            display_key = (source.kind, source.faq_id)
+        if display_key in displayed_sources:
+            continue
+        displayed_sources.add(display_key)
         print(f"출처: {source.title} — {detail}")
     if response.failure:
         print(

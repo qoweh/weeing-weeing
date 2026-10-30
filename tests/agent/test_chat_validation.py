@@ -241,6 +241,6 @@ def test_clarification_cannot_display_hidden_unverified_instructions():
     assert result.status == "NEEDS_CLARIFICATION"
     assert "PRIVATE_UNSUPPORTED_INSTRUCTION" not in result.model_dump_json()
     assert result.clarification_questions == [
-        "찾으려는 자료와 설비 ID·오류 코드·조회 기간 중 필요한 조건을 알려주세요."
+        "정확한 용어 · 설비 ID · 오류 코드 · 조회 기간 등 더 구체적으로 질문을 입력해주세요."
     ]
     assert not client.checks
