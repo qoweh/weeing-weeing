@@ -41,7 +41,7 @@ class Settings:
     llm_user: str = ""  # 사람별 집계 이름(GitHub 핸들)
     langfuse_base_url: str = ""  # 비어 있으면 기록하지 않는다
     langfuse_tracing_environment: str = "dev"  # dev | demo | ci
-    langfuse_capture_content: bool = False  # 프롬프트·응답 본문까지 보낼지
+    langfuse_capture_content: bool = True  # 프롬프트·응답 본문까지 보낼지
     analysis_auto_enabled: bool = False  # 유료 자동 호출은 명시적으로 켠다
 
 
@@ -82,7 +82,7 @@ def get_settings() -> Settings:
         llm_user=env("LLM_USER", ""),
         langfuse_base_url=env("LANGFUSE_BASE_URL", ""),
         langfuse_tracing_environment=env("LANGFUSE_TRACING_ENVIRONMENT", "dev"),
-        langfuse_capture_content=env("LANGFUSE_CAPTURE_CONTENT", "false").lower()
+        langfuse_capture_content=env("LANGFUSE_CAPTURE_CONTENT", "true").lower()
         in ("1", "true", "yes"),
         analysis_auto_enabled=env("ANALYSIS_AUTO_ENABLED", "false").lower()
         in ("1", "true", "yes"),

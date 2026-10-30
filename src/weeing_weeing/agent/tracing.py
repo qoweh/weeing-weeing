@@ -8,7 +8,7 @@ Claude 키를 팀원 6명이 각자 쓰고 콘솔 사용량 화면을 볼 수 �
 - LANGFUSE_BASE_URL이나 키가 없으면 NullTracer(아무것도 안 함). 테스트·CI가 그대로 돈다.
 - 기록은 보조 기능이다. 전송·기록 실패는 경고만 남기고 LLM 호출과 분석을 막지 않는다.
   보내기는 SDK가 백그라운드에서 모아서 한다.
-- 프롬프트·응답 본문은 LANGFUSE_CAPTURE_CONTENT=true일 때만 보낸다(기본은 토큰·메타데이터만).
+- 프롬프트·응답 본문은 기본으로 보낸다. LANGFUSE_CAPTURE_CONTENT=false면 토큰·메타데이터만 보낸다.
 """
 
 import logging

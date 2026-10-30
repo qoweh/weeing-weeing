@@ -25,7 +25,7 @@ flowchart LR
 | tool | 도구 호출 1번 | 도구 이름, 입력 오류면 WARNING |
 
 - **태그(진입점)**: `analyze`, `llm-check`, 기본값 `app`. 새 기능에서 `get_llm_client(entrypoint="chatbot")`처럼 이름을 주면 기능별로 나뉜다.
-- **본문은 기본으로 보내지 않는다.** 프롬프트·응답·도구 입력은 `LANGFUSE_CAPTURE_CONTENT=true`일 때만 보낸다. 디버깅할 때만 켠다.
+- **본문은 기본으로 보낸다.** 프롬프트·응답·도구 입력까지 기록한다. 메타데이터만 보내려면 `LANGFUSE_CAPTURE_CONTENT=false`로 끈다.
 - API 키, 사번·결재 정보는 어떤 경우에도 보내지 않는다.
 
 ## 팀원 설정 (한 번만)
