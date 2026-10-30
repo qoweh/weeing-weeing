@@ -11,6 +11,18 @@ class LlmUnavailableError(LlmError):
     """서버에 연결하지 못했거나 인증 정보(API 키)가 없다·틀렸다."""
 
 
+class LlmRequestError(LlmError):
+    """공급자 HTTP 오류. 같은 설정의 평가 요청을 반복하지 않는다."""
+
+    def __init__(self, status_code: int, *, parameter_hint: str | None = None):
+        self.status_code = status_code
+        self.parameter_hint = parameter_hint
+        super().__init__(
+            f"Claude API 오류 HTTP {status_code}"
+            + (f" ({parameter_hint})" if parameter_hint else "")
+        )
+
+
 class LlmModelMissingError(LlmError):
     """그 모델 ID를 쓸 수 없다(오타·권한 없음)."""
 
@@ -30,6 +42,8 @@ class LlmUsage:
     input_tokens: int
     output_tokens: int
     total_s: float  # 요청을 보내고 응답을 다 받기까지
+    cache_read_input_tokens: int = 0
+    cache_creation_input_tokens: int = 0
 
     @property
     def tokens_per_s(self) -> float:
@@ -41,4 +55,6 @@ class LlmUsage:
             self.input_tokens + other.input_tokens,
             self.output_tokens + other.output_tokens,
             self.total_s + other.total_s,
+            self.cache_read_input_tokens + other.cache_read_input_tokens,
+            self.cache_creation_input_tokens + other.cache_creation_input_tokens,
         )

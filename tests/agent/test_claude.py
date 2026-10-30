@@ -126,3 +126,15 @@ def test_unrelated_type_error_is_not_hidden():
     client = ClaudeClient("claude-test", sdk=FakeSdk(TypeError("bad argument")))
     with pytest.raises(TypeError):
         client.generate_json("s", "u", timeout_s=5)
+
+
+def test_actual_response_model_and_usage_are_captured():
+    response = message(text('{"ok":true}'))
+    response.model = "actual-model-version"
+    response.usage.cache_read_input_tokens = 12
+    response.usage.cache_creation_input_tokens = 4
+    client = ClaudeClient("requested-model", sdk=FakeSdk(response))
+    client.generate_json("s", "u", timeout_s=5)
+    assert client.last_response_model == "actual-model-version"
+    assert client.last_usage.cache_read_input_tokens == 12
+    assert client.last_usage.cache_creation_input_tokens == 4

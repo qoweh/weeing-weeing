@@ -2,7 +2,7 @@
 
 입력: data/eval/llm_cases_v1.toml, .env(ANTHROPIC_API_KEY·LLM_MODEL·LLM_EFFORT·LLM_TIMEOUT_S)
 출력: 터미널 요약, outputs/llm_check/report-<시각>.md
-종료 코드: 0 모든 사례가 스키마·계약 통과 / 1 통과 못 한 사례 있음 / 2 키·모델·설정 문제로 시작 못 함
+종료 코드: 0 형식·기대 상태·지정 정답 인용 통과 / 1 불일치 있음 / 2 입력·API 설정 문제
 비용: 사례마다 API를 한 번 부른다(사례 4개 × 반복 횟수).
 
     make llm-check                                            # .env의 모델
@@ -17,7 +17,9 @@ from datetime import datetime
 from pathlib import Path
 
 from weeing_weeing.agent.interface import LlmError, get_llm_client
-from weeing_weeing.agent.llm_check import format_markdown, load_cases, run_check
+from weeing_weeing.agent.interface import format_llm_check as format_markdown
+from weeing_weeing.agent.interface import load_llm_cases as load_cases
+from weeing_weeing.agent.interface import run_llm_check as run_check
 from weeing_weeing.config import PROJECT_ROOT, get_settings
 
 CASES = PROJECT_ROOT / "data/eval/llm_cases_v1.toml"
@@ -59,14 +61,18 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError(f"{args.cases}에 사례가 없다")
         print(f"모델 {client.model_name} / 사례 {len(cases)}개 × {args.repeat}회")
         report = run_check(
-            client, cases, timeout_s=settings.llm_timeout_s, repeat=args.repeat
+            client,
+            cases,
+            timeout_s=settings.llm_timeout_s,
+            repeat=args.repeat,
+            effort=settings.llm_effort,
         )
         client.tracer.flush()  # 사용량 기록(LANGFUSE_* 설정 시)을 끝나기 전에 보낸다
     except (LlmError, ValueError, OSError) as exc:
         print(f"시작하지 못함: {exc}", file=sys.stderr)
         return 2
 
-    text = format_markdown(report)
+    text = format_markdown(report, include_example=False)
     out = args.out or PROJECT_ROOT / (
         f"outputs/llm_check/report-{datetime.now():%Y%m%d-%H%M%S}.md"
     )

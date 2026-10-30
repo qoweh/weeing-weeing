@@ -365,7 +365,12 @@ def test_document_search_unavailable_preview_keeps_metadata_and_cannot_read_outs
     elif file_state == "outside_symlink":
         outside = env[1].parent / "outside.md"
         outside.write_text("외부기밀")
-        preview.symlink_to(outside)
+        try:
+            preview.symlink_to(outside)
+        except OSError as exc:
+            if getattr(exc, "winerror", None) == 1314:
+                pytest.skip("Windows 심볼릭 링크 생성 권한이 없음")
+            raise
     client = TestClient(app)
     assert client.get("/documents", params={"q": "외부기밀"}).json() == []
     response = client.get("/documents", params={"q": "UP-MANUAL"})

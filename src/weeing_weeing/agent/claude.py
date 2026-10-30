@@ -21,6 +21,7 @@ from weeing_weeing.agent.errors import (
     LlmError,
     LlmModelMissingError,
     LlmRefusedError,
+    LlmRequestError,
     LlmTimeoutError,
     LlmUnavailableError,
     LlmUsage,
@@ -83,6 +84,7 @@ class ClaudeClient:
         self._sdk = sdk
         self.tracer = tracer
         self.last_usage: LlmUsage | None = None
+        self.last_response_model: str | None = None
 
     def generate_json(
         self,
@@ -158,6 +160,7 @@ class ClaudeClient:
 
     def _request(self, timeout_s: float, **params: Any) -> Any:
         started = time.perf_counter()
+        self.last_response_model = None
         try:
             response = (
                 self._client()
@@ -187,7 +190,24 @@ class ClaudeClient:
                 f"Claude API에 연결하지 못함: {type(exc).__name__}"
             ) from exc
         except anthropic.APIStatusError as exc:
-            raise LlmError(f"Claude API 오류 HTTP {exc.status_code}") from exc
+            # 요청 본문·공급자 메시지는 남기지 않고 알려진 파라미터 이름만 분류한다.
+            detail = str(getattr(exc, "body", "")).lower()
+            hint = next(
+                (
+                    name
+                    for name in (
+                        "effort",
+                        "fallbacks",
+                        "json_schema",
+                        "max_tokens",
+                        "output_config",
+                        "model",
+                    )
+                    if name in detail
+                ),
+                None,
+            )
+            raise LlmRequestError(exc.status_code, parameter_hint=hint) from exc
         except TypeError as exc:
             # 키·토큰·프로필이 하나도 없으면 SDK가 요청 직전에 TypeError를 낸다
             if "authentication" not in str(exc):
@@ -197,10 +217,14 @@ class ClaudeClient:
                 "ant auth login"
             ) from exc
         usage = getattr(response, "usage", None)
+        self.last_response_model = getattr(response, "model", None)
         self.last_usage = LlmUsage(
             input_tokens=getattr(usage, "input_tokens", 0) or 0,
             output_tokens=getattr(usage, "output_tokens", 0) or 0,
             total_s=time.perf_counter() - started,
+            cache_read_input_tokens=getattr(usage, "cache_read_input_tokens", 0) or 0,
+            cache_creation_input_tokens=getattr(usage, "cache_creation_input_tokens", 0)
+            or 0,
         )
         return response
 

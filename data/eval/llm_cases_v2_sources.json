@@ -1,0 +1,23 @@
+{
+  "source": "data/parsed/BTT-MANUAL_v2.0.md",
+  "sha256": "f333feae23bb4727b42145a55928058c823ad7f67ee4f4e6f6a2ab1d409c5e85",
+  "normalization": "UTF-8 LF",
+  "codes": [
+    "BTT2-P03",
+    "BTT2-P04",
+    "BTT2-P01",
+    "BTT2-M02",
+    "BTT2-M07",
+    "BTT2-M10",
+    "BTT2-M12",
+    "BTT2-M14"
+  ],
+  "pages": [
+    4,
+    5,
+    6,
+    7
+  ],
+  "cases": 32,
+  "note": "관측·수치는 합성 입력. 근거는 저장소 파싱 원문의 페이지 전체 발췌. 전문가 정답 검토 전 초안."
+}

@@ -7,7 +7,7 @@ ENV_FILE := $(if $(wildcard .env),--env-file .env,)
 # 의존성이 바뀌면(pull 후 등) make setup을 다시 실행한다.
 RUN := uv run --no-sync
 
-.PHONY: help setup lint fmt test check skills db-up db-migrate qdrant-up down api models index-reports seed-users rag-e2e llm-check analyze
+.PHONY: help setup lint fmt test check skills db-up db-migrate qdrant-up down api models index-reports seed-users rag-e2e llm-check llm-eval analyze
 
 help: ## 명령 목록
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -58,6 +58,9 @@ rag-e2e: ## RAG 실제 문서 E2E 검증·백엔드 비교 (#28, ARGS="--backend
 
 llm-check: ## LLM(Claude) 구조화 출력 점검 (ANTHROPIC_API_KEY 필요, ARGS="--model claude-sonnet-5-5 --repeat 3")
 	PYTHONPATH=src $(RUN) $(ENV_FILE) python scripts/check_llm.py $(ARGS)
+
+llm-eval: ## 모델·effort 비교 계획 (#106). ARGS="--execute"는 유료 실행
+	PYTHONPATH=src $(RUN) $(ENV_FILE) python scripts/compare_llm.py $(ARGS)
 
 analyze: ## 사건 하나를 에이전트로 분석 (ANTHROPIC_API_KEY·색인 필요, ARGS="--incident 경로.json")
 	PYTHONPATH=src $(RUN) $(ENV_FILE) python scripts/analyze_incident.py $(ARGS)

@@ -1,12 +1,13 @@
 # LLM 구조화 출력 점검 사례 (#10, make llm-check). 근거 문장은 data/parsed/의 매뉴얼·룰에서 줄여 옮겼다.
 # expected_status: 근거로 판단할 수 있으면 OK, 근거가 없거나 관련 없으면 INSUFFICIENT_EVIDENCE.
 # 검사: JSON·스키마·AnalysisResult 계약(인용은 실제 근거만)은 반드시 통과해야 하고,
-#       expected_status 일치율은 숫자로만 기록한다(모델 비교용).
+#       #106부터 expected_status·지정한 정답 인용도 성공 조건에 포함한다.
 
 [[cases]]
 id = "c01-p03-occupancy"
-incident = "BTT2-P03 입구 장기 점유 Error. 입구 광전센서가 6.2초 연속 true. 같은 시간 RPM 1480(정상), 출구 센서는 false 유지."
+incident = "BTT2-P03 입구 장기 점유 Error. 입구 광전센서가 6.2초 연속 true. 같은 시간 RPM 1015(정상), 출구 센서는 false 유지."
 expected_status = "OK"
+expected_evidence_ids = ["BTT-MANUAL:2.0:0007", "BTT-RULE:2.0:0004"]
 
   [[cases.evidence]]
   evidence_id = "BTT-MANUAL:2.0:0007"
@@ -26,6 +27,7 @@ expected_status = "OK"
 id = "c02-m12-vibration"
 incident = "BTT2-M12 구동측(DE) 진동 RMS 상한 초과. RMS 0.095 g가 30초 지속(상한 0.080601 g). 속도·하중 변화 없음."
 expected_status = "OK"
+expected_evidence_ids = ["BTT-MANUAL:2.0:0015"]
 
   [[cases.evidence]]
   evidence_id = "BTT-MANUAL:2.0:0015"
@@ -38,11 +40,13 @@ expected_status = "OK"
 id = "c03-no-evidence"
 incident = "BTT2-P03 입구 장기 점유 Error. 입구 광전센서가 7초 연속 true."
 expected_status = "INSUFFICIENT_EVIDENCE"
+expected_evidence_ids = []
 
 [[cases]]
 id = "c04-unrelated-evidence"
 incident = "BTT2-P03 입구 장기 점유 Error. 입구 광전센서가 7초 연속 true."
 expected_status = "INSUFFICIENT_EVIDENCE"
+expected_evidence_ids = []
 
   [[cases.evidence]]
   evidence_id = "BTT-RULE:2.0:0002"

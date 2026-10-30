@@ -5,6 +5,7 @@ from weeing_weeing.agent.errors import (
     LlmError,
     LlmModelMissingError,
     LlmRefusedError,
+    LlmRequestError,
     LlmTimeoutError,
     LlmUnavailableError,
     LlmUsage,
@@ -13,6 +14,22 @@ from weeing_weeing.agent.faq import (
     FaqCatalogError,
     FaqNotFoundError,
     FaqVersionConflictError,
+)
+from weeing_weeing.agent.llm_check import (
+    CheckReport,
+    check_case,
+)
+from weeing_weeing.agent.llm_check import (
+    format_markdown as format_llm_check,
+)
+from weeing_weeing.agent.llm_check import (
+    load_cases as load_llm_cases,
+)
+from weeing_weeing.agent.llm_check import (
+    report_data as llm_check_data,
+)
+from weeing_weeing.agent.llm_check import (
+    run_check as run_llm_check,
 )
 from weeing_weeing.agent.runtime import ToolInputError as InvalidChatQueryError
 from weeing_weeing.agent.sensor_window import SensorBatch, SensorReader
@@ -34,6 +51,12 @@ if TYPE_CHECKING:
     from weeing_weeing.rag.interface import Retriever
 
 __all__ = [
+    "CheckReport",
+    "check_case",
+    "format_llm_check",
+    "load_llm_cases",
+    "llm_check_data",
+    "run_llm_check",
     "Analyzer",
     "SensorBatch",
     "SensorReader",
@@ -48,6 +71,7 @@ __all__ = [
     "load_faq_catalog",
     "LlmClient",
     "LlmError",
+    "LlmRequestError",
     "LlmModelMissingError",
     "LlmRefusedError",
     "LlmTimeoutError",
