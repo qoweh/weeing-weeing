@@ -1,6 +1,7 @@
 """실제 문서 E2E 검증(#28). 평가 자료 목록 문서를 백엔드마다 새 저장소에 색인하고 비교한다.
 
-입력: data/eval/rag_documents_v1.toml과 그 문서들, data/eval/rag_queries_v1.toml(샘플 질의), .env(EMBEDDING_MODEL 등)
+입력: data/eval/rag_documents_v1.toml과 그 문서들, data/eval/rag_queries_v1.toml(샘플 질의),
+.env(EMBEDDING_MODEL 등)
 출력: 터미널 요약, outputs/rag_e2e/report-<시각>.md(검색 비교표·색인·갱신·질의별 상위 결과)
 종료 코드: 0 모든 검사 통과 / 1 색인·멱등·갱신 검사 실패 / 2 설정·연결·실행 오류
 
@@ -17,6 +18,7 @@
 
 import argparse
 import dataclasses
+import gc
 import sys
 import tempfile
 import time
@@ -24,6 +26,7 @@ import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 
 from weeing_weeing.config import get_settings
@@ -99,11 +102,27 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("-k", type=int, default=5, help="상위 몇 개를 볼지")
     parser.add_argument("--out", type=Path, help="결과 파일(기본 outputs/rag_e2e/)")
     parser.add_argument(
+        "--chunking",
+        choices=("legacy", "structured"),
+        default="legacy",
+        help="문서 청킹 방식(기본 legacy, 웹 신규 업로드는 structured)",
+    )
+    parser.add_argument(
         "--no-embedding-cache",
         action="store_true",
         help="같은 입력도 다시 임베딩한다(캐시 없는 처리 시간 측정)",
     )
+    parser.add_argument(
+        "--keep-embedding-model",
+        action="store_true",
+        help="임베딩 캐시를 사용해도 검색 중 모델을 메모리에 유지한다",
+    )
+    parser.add_argument(
+        "--reranker-batch-size", type=int, default=16, help="리랭커 추론 배치 크기"
+    )
     args = parser.parse_args(argv)
+    if args.reranker_batch_size < 1:
+        parser.error("--reranker-batch-size는 1 이상이어야 한다")
 
     backends = [b.strip() for b in args.backends.split(",") if b.strip()]
     unknown = sorted(set(backends) - set(BACKENDS))
@@ -115,8 +134,8 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("qdrant-server는 QDRANT_URL이 필요하다(make qdrant-up)")
         corpus = load_corpus(args.documents)
         queries = load_queries(args.queries)
-        make_indexer = factory.indexer_class()
-        reranker = factory.build_reranker(settings)
+        make_indexer = partial(factory.indexer_class(), chunking=args.chunking)
+        reranker = factory.build_reranker(settings, batch_size=args.reranker_batch_size)
     except NotImplementedError:
         return _cannot_start(
             "#6 Indexer가 아직 없다. rag/factory.py의 indexer_class()에 연결한 뒤 실행한다"
@@ -127,6 +146,16 @@ def main(argv: list[str] | None = None) -> int:
     embedder = factory.LazyEmbedder(settings.embedding_model)  # 모델은 한 번만
     if not args.no_embedding_cache:
         embedder = EvaluationEmbedder(embedder)
+
+    def prepare_search():
+        print("질의 임베딩 사전 계산 시작", flush=True)
+        for query in queries:
+            embedder.embed_query(query.text)
+        embedder.freeze()
+        gc.collect()
+        print("임베딩 캐시 고정·모델 참조 해제 완료", flush=True)
+
+    freeze_embeddings = not args.no_embedding_cache and not args.keep_embedding_model
     runs = []
     skipped: dict[str, str] = {}  # 시작하지 못한 백엔드 → 이유. 나머지는 계속 돈다
     for backend in backends:
@@ -154,6 +183,7 @@ def main(argv: list[str] | None = None) -> int:
                         if reranker is not None
                         else None,
                         progress=lambda message: print(message, flush=True),
+                        prepare_search=prepare_search if freeze_embeddings else None,
                     )
                 )
             except Exception as exc:
@@ -167,12 +197,15 @@ def main(argv: list[str] | None = None) -> int:
     report = format_markdown(runs, k=args.k)
     report += (
         "\n## 실행 설정\n\n"
+        f"- 청킹 방식: `{args.chunking}`\n"
         f"- 질의 파일: `{args.queries}` ({len(queries)}개)\n"
         f"- 임베딩: `{settings.embedding_model}`\n"
         f"- 리랭커: `{settings.reranker_model or '미사용'}`\n"
+        f"- 리랭커 추론 배치 크기: {args.reranker_batch_size}\n"
         f"- 후보 수: {settings.rag_candidate_k}, 최종 k: {args.k}\n"
         f"- 관련도 하한: {settings.rag_min_relevance}\n"
         f"- 실행 중 임베딩 캐시: {'미사용' if args.no_embedding_cache else '사용'}\n"
+        f"- 질의 임베딩 사전 계산 후 모델 해제: {'사용' if freeze_embeddings else '미사용'}\n"
         "- 처리 시간은 위 캐시 설정을 포함한다. 캐시 사용 결과는 순수 추론 속도가 아니다.\n"
     )
     if skipped:

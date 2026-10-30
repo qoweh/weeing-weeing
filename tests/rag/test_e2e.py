@@ -77,6 +77,20 @@ def test_embedding_cache_does_not_keep_failed_or_incomplete_outputs():
     assert cached.embed_query("질문") == [2.0]
 
 
+def test_frozen_embeddings_preserve_vectors_and_reject_new_inputs():
+    cached = EvaluationEmbedder(FakeEmbedder())
+    documents = cached.embed_documents(["입구 센서"])
+    query = cached.embed_query("입구 센서")
+    cached.freeze()
+    cached.freeze()
+    assert cached.embed_documents(["입구 센서"]) == documents
+    assert cached.embed_query("입구 센서") == query
+    with pytest.raises(ValueError, match="캐시에 없는 문서"):
+        cached.embed_documents(["새 문서"])
+    with pytest.raises(ValueError, match="캐시에 없는 질의"):
+        cached.embed_query("새 질문")
+
+
 def test_cached_evaluation_preserves_rankings_and_update_checks(ws, store_factory):
     from unittest.mock import Mock
 
@@ -419,7 +433,11 @@ def cli(ws, tmp_path, monkeypatch):
     monkeypatch.setenv("RERANKER_MODEL", "")  # 기본값(실제 모델)을 쓰지 않는다
     monkeypatch.delenv("QDRANT_URL", raising=False)
     monkeypatch.setattr(factory, "_default_embedder", lambda name: FakeEmbedder())
-    monkeypatch.setattr(factory, "indexer_class", lambda: TextIndexer)
+
+    def make_indexer(store, *, chunking):
+        return TextIndexer(store)
+
+    monkeypatch.setattr(factory, "indexer_class", lambda: make_indexer)
     out = tmp_path / "report.md"
 
     def run_cli(*args):
@@ -453,6 +471,29 @@ def test_cli_runs_local_backends_and_writes_report(cli, capsys):
 def test_cli_can_disable_embedding_cache_for_timing(cli):
     assert cli("--backends", "qdrant", "--no-embedding-cache") == 0
     assert "실행 중 임베딩 캐시: 미사용" in cli.out.read_text(encoding="utf-8")
+
+
+def test_cli_can_keep_embedding_model(cli):
+    assert cli("--backends", "qdrant", "--keep-embedding-model") == 0
+    assert "질의 임베딩 사전 계산 후 모델 해제: 미사용" in cli.out.read_text(
+        encoding="utf-8"
+    )
+
+
+@pytest.mark.parametrize("chunking", ["legacy", "structured"])
+def test_cli_uses_selected_chunking_for_indexer_and_records_it(
+    cli, monkeypatch, chunking
+):
+    selected = []
+
+    def make_indexer(store, *, chunking):
+        selected.append(chunking)
+        return TextIndexer(store)
+
+    monkeypatch.setattr(factory, "indexer_class", lambda: make_indexer)
+    assert cli("--backends", "qdrant", "--chunking", chunking) == 0
+    assert selected == [chunking]
+    assert f"청킹 방식: `{chunking}`" in cli.out.read_text(encoding="utf-8")
 
 
 def test_cli_without_indexer_is_exit_code_2(cli, capsys, monkeypatch):
@@ -491,11 +532,19 @@ def test_cli_configured_reranker_is_measured(cli, monkeypatch):
     load = Mock(return_value=model)
     monkeypatch.setenv("RERANKER_MODEL", "local-model")
     monkeypatch.setattr(reranker, "_load_model", load)
-    assert cli("--backends", "qdrant,chroma") == 0
+    assert cli("--backends", "qdrant,chroma", "--reranker-batch-size", "2") == 0
     report = cli.out.read_text(encoding="utf-8")
     assert "| qdrant | reranked |" in report
     assert "| chroma | reranked |" in report
     load.assert_called_once_with("local-model")
+    assert all(call.kwargs["batch_size"] == 2 for call in model.predict.call_args_list)
+    assert "리랭커 추론 배치 크기: 2" in report
+
+
+def test_cli_rejects_nonpositive_reranker_batch_size(cli):
+    with pytest.raises(SystemExit) as error:
+        cli("--reranker-batch-size", "0")
+    assert error.value.code == 2
 
 
 def test_cli_reranker_failure_is_reported_as_failure(cli, monkeypatch, capsys):

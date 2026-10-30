@@ -1,0 +1,136 @@
+# #75 후속 질의 단위 보류셋. 기존 36개로 선정한 하한 0.02를 점수 조회 전에 고정한다.
+# 정상: 매뉴얼·룰·SOP 각 4개, 근거 없음: 문서와 가까운 질문 6개·다른 범위 6개.
+# 같은 문서군을 사용하므로 문서/의미 범주까지 독립인 검증셋은 아니다. 전문가 검토 전 초안.
+# o02는 기존 평가에 사용됐으므로 이 보류셋에 넣지 않고 별도 대조 사례로 측정한다.
+
+[[queries]]
+id = "h01"
+query = "M06 입력전류가 늘었을 때 속도와 적재량을 맞춰 무엇부터 조사해야 하나"
+doc_id = "BTT-MANUAL"
+any_of = ["동일 속도·적재 기준", "베어링/전달부 저항"]
+
+[[queries]]
+id = "h02"
+query = "버스 저전압이 부하를 걸 때만 생기면 전원과 드라이버 사이에서 무엇을 대조하나"
+doc_id = "BTT-MANUAL"
+any_of = ["부하 시 전압 강하", "전원 용량 조사"]
+
+[[queries]]
+id = "h03"
+query = "감속할 때 버스 과전압이 뜨면 임의 저항을 추가해서 처리해도 되나"
+doc_id = "BTT-MANUAL"
+any_of = ["임의 저항 추가 금지", "회생 처리·가감속"]
+
+[[queries]]
+id = "h04"
+query = "모터 외함 고온 측정값으로 권선이나 드라이버 내부 온도까지 추정할 수 있나"
+doc_id = "BTT-MANUAL"
+any_of = ["권선·드라이버 온도 추정 금지"]
+
+[[queries]]
+id = "h05"
+query = "planned_hold가 켜진 계획 대기 중에도 이송 고장 시간을 계속 정상 실적으로 합산하나"
+doc_id = "BTT-RULE"
+any_of = ["대기 시간을 별도 기록", "대기 전후 구간"]
+
+[[queries]]
+id = "h06"
+query = "첫 수신 행부터 입구 센서가 true면 새 트레이 진입 에지로 등록하는가"
+doc_id = "BTT-RULE"
+any_of = ["최초 행이 true여도", "새 진입 에지로 만들지"]
+
+[[queries]]
+id = "h07"
+query = "이송시간이 초과된 트레이는 추적 목록에서 지우고 늦은 출구 신호를 다음 트레이에 붙이나"
+doc_id = "BTT-RULE"
+any_of = ["만료 표시로 남긴다", "이후 트레이에 자동 전이하지"]
+
+[[queries]]
+id = "h08"
+query = "M19의 좌우 변화 비교에 쓸 정상 기준 로그는 얼마나 확보하며 기준이 없으면 어떻게 표시하나"
+doc_id = "BTT-RULE"
+any_of = ["정상 로그 10분 이상", "기준 미확보·0"]
+
+[[queries]]
+id = "h09"
+query = "시험 운전 승인 뒤 RESET만 누르면 START를 별도로 주지 않아도 가동되는가"
+doc_id = "BTT-SOP-001"
+any_of = ["RESET은 START가 아니다"]
+
+[[queries]]
+id = "h10"
+query = "개인 잠금을 부착한 작업자가 현장에 없을 때 다른 사람이 그냥 잠금을 해제해도 되나"
+doc_id = "BTT-SOP-001"
+any_of = ["부착자 부재", "본인 잠금을 해제"]
+
+[[queries]]
+id = "h11"
+query = "카메라 화면과 센서 표시만으로 위험구역 인원 확인을 대체해도 되는가"
+doc_id = "BTT-SOP-001"
+any_of = ["카메라·센서값만", "인원 확인을 대체하지"]
+
+[[queries]]
+id = "h12"
+query = "시험 중 출구 에지가 한 번 들어온 것만으로 이송 시험 합격을 확정할 수 있나"
+doc_id = "BTT-SOP-001"
+any_of = ["출구 에지 하나만으로", "시험 합격을 확정"]
+
+[[queries]]
+id = "n01"
+query = "이 BLDC 모터의 상전류에서 권선 절연저항을 계산하는 공식과 합격 수치는"
+expect_no_evidence = true
+
+[[queries]]
+id = "n02"
+query = "이 컨베이어에 실제 장착된 베어링의 제조사 부품번호와 구매 가격을 알려줘"
+expect_no_evidence = true
+
+[[queries]]
+id = "n03"
+query = "설치된 광전센서 모델의 검출거리와 허용 주변광 lux 정격표를 제시해줘"
+expect_no_evidence = true
+
+[[queries]]
+id = "n04"
+query = "이 설비 회로도의 단자 번호별 배선 색상과 퓨즈 정격표는"
+expect_no_evidence = true
+
+[[queries]]
+id = "n05"
+query = "배터리 셀 침수 시험의 수심과 시간 및 전해액 조성비는"
+expect_no_evidence = true
+
+[[queries]]
+id = "n06"
+query = "모터 권선 온도를 외함 측정값에서 환산하는 계수와 계산 공식을 알려줘"
+expect_no_evidence = true
+
+[[queries]]
+id = "n07"
+query = "협동로봇 TCP 교시점의 6축 캘리브레이션 보정 절차는"
+expect_no_evidence = true
+
+[[queries]]
+id = "n08"
+query = "공기압 콤프레서 윤활유 교체 시간과 오일 규격은"
+expect_no_evidence = true
+
+[[queries]]
+id = "n09"
+query = "타사 PLC 프로그램의 비밀번호 초기화와 잠금 해제 절차는"
+expect_no_evidence = true
+
+[[queries]]
+id = "n10"
+query = "냉동기의 냉매 충전량과 누설 검사 기준값을 알려줘"
+expect_no_evidence = true
+
+[[queries]]
+id = "n11"
+query = "이번 주말 서울에서 부산까지 KTX 시간표와 운임은"
+expect_no_evidence = true
+
+[[queries]]
+id = "n12"
+query = "실내에서 바질을 재배할 때 조명 시간과 물주기 간격은"
+expect_no_evidence = true

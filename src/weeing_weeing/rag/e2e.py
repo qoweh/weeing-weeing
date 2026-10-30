@@ -44,13 +44,15 @@ class EvaluationEmbedder:
     """
 
     def __init__(self, embedder: Embedder) -> None:
-        self._embedder = embedder
+        self._embedder: Embedder | None = embedder
         self._documents: dict[tuple[str, ...], list[list[float]]] = {}
         self._queries: dict[str, list[float]] = {}
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         key = tuple(texts)
         if key not in self._documents:
+            if self._embedder is None:
+                raise ValueError("고정된 평가 임베딩 캐시에 없는 문서 입력입니다.")
             vectors = self._embedder.embed_documents(texts)
             if len(vectors) != len(texts):
                 raise ValueError("임베더가 청크 수와 다른 개수의 벡터를 돌려줬다")
@@ -59,8 +61,14 @@ class EvaluationEmbedder:
 
     def embed_query(self, text: str) -> list[float]:
         if text not in self._queries:
+            if self._embedder is None:
+                raise ValueError("고정된 평가 임베딩 캐시에 없는 질의 입력입니다.")
             self._queries[text] = list(self._embedder.embed_query(text))
         return self._queries[text].copy()
+
+    def freeze(self) -> None:
+        """계산한 벡터만 보관하고 모델 참조를 해제한다. 새 입력은 오류로 알린다."""
+        self._embedder = None
 
 
 class QueryError(ValueError):
@@ -243,6 +251,7 @@ def run_backend(
     k: int = 5,
     retriever: Retriever | None = None,
     progress: Callable[[str], None] | None = None,
+    prepare_search: Callable[[], None] | None = None,
 ) -> BackendResult:
     """빈 저장소에서 시작한다. 갱신 검사가 첫 문서의 버전을 바꿔 두므로 끝난 뒤 버린다."""
     indexer = make_indexer(store)
@@ -266,6 +275,8 @@ def run_backend(
     # 빈 색인을 근거 없음 질의의 성공으로 집계하지 않는다.
     results = []
     if indexed.ok:
+        if prepare_search is not None:
+            prepare_search()
         for i, query in enumerate(queries, 1):
             query_started = time.perf_counter()
             if progress is not None:

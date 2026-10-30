@@ -138,11 +138,11 @@ def build_indexer(store: VectorStore) -> Indexer:
     return indexer_class()(store)
 
 
-def build_reranker(settings: Settings) -> Reranker | None:
+def build_reranker(settings: Settings, *, batch_size: int = 16) -> Reranker | None:
     """모델을 지정한 경우에만 리랭커를 만든다. 가중치는 첫 검색에서 로드한다."""
     if not settings.reranker_model.strip():
         return None
-    return CrossEncoderReranker(settings.reranker_model)
+    return CrossEncoderReranker(settings.reranker_model, batch_size=batch_size)
 
 
 def build_retriever(
