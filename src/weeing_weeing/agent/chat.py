@@ -19,7 +19,7 @@ from weeing_weeing.agent.errors import (
     LlmServiceError,
     LlmTimeoutError,
 )
-from weeing_weeing.agent.faq import FaqNotFoundError, FaqVersionConflictError
+from weeing_weeing.agent.faq import FaqNotFoundError
 from weeing_weeing.agent.runtime import (
     AgentError,
     AgentSpec,
@@ -87,7 +87,6 @@ class _BrowseFaq(ChatModel):
 
 class _GetFaq(ChatModel):
     faq_id: str = Field(min_length=1, max_length=64)
-    faq_version: str = Field(min_length=1, max_length=64)
 
 
 class _SearchUnavailableError(RuntimeError):
@@ -409,15 +408,13 @@ class ToolChatService:
             return to_json([item.model_dump(mode="json") for item in items])
 
         def get_faq(data: dict[str, Any], memory: RunMemory) -> str:
-            """FAQ ID·버전으로 검토된 고정 답변을 가져와 이번 요청의 근거로 등록한다."""
+            """FAQ ID로 고정 답변을 가져와 이번 요청의 근거로 등록한다."""
             deadline.remaining()
             selection = _GetFaq.model_validate(data)
             try:
                 faq = self._faq.get_answer(selection.faq_id)
             except FaqNotFoundError as exc:
                 raise ToolInputError("조회할 수 없는 FAQ") from exc
-            if faq.source.faq_version != selection.faq_version:
-                raise ToolInputError("FAQ 버전 변경: 목록을 다시 조회한다")
             combined = {**texts, faq.source.source_id: faq.answer}
             if len(combined) > 20 or sum(map(len, combined.values())) > 32000:
                 raise ToolInputError("누적 근거 상한 초과: 필요한 자료만 조회한다")
@@ -453,8 +450,11 @@ class ToolChatService:
                         )
                     if source.kind == "FAQ":
                         current = self._faq.get_answer(source.faq_id)
-                        if current.source != source:
-                            raise FaqVersionConflictError("FAQ 출처가 변경됨")
+                        if (
+                            current.source != source
+                            or current.answer != texts[source.source_id]
+                        ):
+                            raise _SearchUnavailableError("FAQ 내용이 변경됨")
                     else:
                         try:
                             searchable = self._knowledge.is_searchable(
@@ -553,8 +553,12 @@ class ToolChatService:
                 # 검토 호출 동안 삭제·개정됐을 수도 있으므로 외부에 반환하기 직전에 재확인한다.
                 for source in response.sources:
                     if source.kind == "FAQ":
-                        if self._faq.get_answer(source.faq_id).source != source:
-                            raise _SearchUnavailableError("FAQ 출처 변경")
+                        current_faq = self._faq.get_answer(source.faq_id)
+                        if (
+                            current_faq.source != source
+                            or current_faq.answer != texts[source.source_id]
+                        ):
+                            raise _SearchUnavailableError("FAQ 내용 변경")
                     else:
                         try:
                             current = self._knowledge.is_searchable(
@@ -595,7 +599,7 @@ class ToolChatService:
                 ),
                 AgentTool(
                     "get_faq_answer",
-                    "FAQ ID·버전으로 검토 답변을 조회한다.",
+                    "FAQ ID로 고정 답변을 조회한다.",
                     _GetFaq.model_json_schema(),
                     get_faq,
                 ),

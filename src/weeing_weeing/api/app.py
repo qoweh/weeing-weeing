@@ -9,6 +9,7 @@ from weeing_weeing import __version__
 from weeing_weeing.api.analysis import AnalysisService
 from weeing_weeing.api.analysis import router as analysis_router
 from weeing_weeing.api.auth import router as auth_router
+from weeing_weeing.api.chat import router as chat_router
 from weeing_weeing.api.documents import router as documents_router
 from weeing_weeing.api.reports import router as reports_router
 from weeing_weeing.api.telemetry import router as telemetry_router
@@ -37,6 +38,7 @@ async def lifespan(app):
 app = FastAPI(title="weeing-weeing", version=__version__, lifespan=lifespan)
 app.include_router(analysis_router)
 app.include_router(auth_router)
+app.include_router(chat_router)
 app.include_router(documents_router)
 app.include_router(telemetry_router)
 app.include_router(reports_router)

@@ -34,15 +34,13 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         if args.command == "faq":
-            # ID·버전은 서버 카탈로그에서 얻으며 DB·검색기·LLM을 만들지 않는다.
+            # ID는 서버 카탈로그에서 얻으며 DB·검색기·LLM을 만들지 않는다.
             catalog = load_faq_catalog()
             if args.faq_id:
-                selected = catalog.get_answer(args.faq_id)
                 result = catalog.answer(
                     FaqSelection(
                         request_id=uuid4(),
                         faq_id=args.faq_id,
-                        faq_version=selected.question.faq_version,
                     )
                 )
                 output = result.model_dump(mode="json")

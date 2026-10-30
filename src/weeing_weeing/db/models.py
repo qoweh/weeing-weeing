@@ -302,3 +302,95 @@ class ReportIndexJobRow(Base):
             ["report_version.report_id", "report_version.version_no"],
         ),
     )
+
+
+class ChatConversationRow(Base):
+    """개인 대화. owner_id는 생성 후 바꾸지 않으며 관리자 열람 예외도 두지 않는다."""
+
+    __tablename__ = "chat_conversation"
+    conversation_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    owner_id: Mapped[str] = mapped_column(
+        String(32), ForeignKey("app_user.employee_no", ondelete="CASCADE"), index=True
+    )
+    title: Mapped[str] = mapped_column(String(100))
+    conditions: Mapped[dict] = mapped_column(JsonColumn)
+    mode: Mapped[str] = mapped_column(String(8))
+    next_sequence: Mapped[int] = mapped_column(Integer, default=1)
+    active_request_id: Mapped[str | None] = mapped_column(String(36))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (CheckConstraint("mode IN ('FAQ','CHAT')", name="ck_chat_mode"),)
+
+
+class ChatRequestRow(Base):
+    """대화별 요청 ID로 실행을 예약한다. 실행 토큰은 외부 응답에 포함하지 않는다."""
+
+    __tablename__ = "chat_request"
+    conversation_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("chat_conversation.conversation_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    request_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    fingerprint: Mapped[str] = mapped_column(String(64))
+    submission: Mapped[dict] = mapped_column(JsonColumn)
+    conditions: Mapped[dict] = mapped_column(JsonColumn)
+    state: Mapped[str] = mapped_column(String(16))
+    execution_token: Mapped[str | None] = mapped_column(String(36))
+    lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    user_sequence: Mapped[int] = mapped_column(Integer)
+    response: Mapped[dict | None] = mapped_column(JsonColumn)
+    # 0007 스키마 호환용. 대화 저장 기능에서는 사용량을 읽거나 갱신하지 않는다.
+    usage: Mapped[dict | None] = mapped_column(JsonColumn)
+    retry_allowed: Mapped[bool] = mapped_column(Boolean, default=False)
+    error_code: Mapped[str | None] = mapped_column(String(32))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (
+        CheckConstraint(
+            "state IN ('RESERVED','RUNNING','COMPLETED','FAILED','UNKNOWN')",
+            name="ck_chat_request_state",
+        ),
+    )
+
+
+class ChatMessageRow(Base):
+    __tablename__ = "chat_message"
+    conversation_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    sequence: Mapped[int] = mapped_column(Integer, primary_key=True)
+    request_id: Mapped[str] = mapped_column(String(36))
+    role: Mapped[str] = mapped_column(String(16))
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["conversation_id", "request_id"],
+            ["chat_request.conversation_id", "chat_request.request_id"],
+            ondelete="CASCADE",
+        ),
+        UniqueConstraint(
+            "conversation_id", "request_id", "role", name="uq_chat_message_role"
+        ),
+        CheckConstraint("role IN ('user','assistant')", name="ck_chat_message_role"),
+    )
+
+
+class LegacyChatFeedbackRow(Base):
+    """0007을 적용한 DB의 기존 데이터 보존용. 공개 저장소·API에서는 사용하지 않는다."""
+
+    __tablename__ = "chat_feedback"
+    conversation_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    request_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    rating: Mapped[str] = mapped_column(String(16))
+    comment: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["conversation_id", "request_id"],
+            ["chat_request.conversation_id", "chat_request.request_id"],
+            ondelete="CASCADE",
+        ),
+        CheckConstraint(
+            "rating IN ('HELPFUL','UNHELPFUL')", name="ck_chat_feedback_rating"
+        ),
+    )

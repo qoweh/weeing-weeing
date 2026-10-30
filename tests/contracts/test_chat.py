@@ -173,7 +173,6 @@ def test_reviewed_faq_can_answer_without_llm_or_document_source():
                         "source_id": "faq",
                         "title": "보고서 조회",
                         "faq_id": "FAQ-01",
-                        "faq_version": "1",
                     }
                 ],
             }

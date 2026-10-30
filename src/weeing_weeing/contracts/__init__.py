@@ -32,6 +32,13 @@ from weeing_weeing.contracts.chat import (
     ChatStatus,
     ChatTurn,
 )
+from weeing_weeing.contracts.chat_storage import (
+    ChatConversationPage,
+    ChatRequestState,
+    ChatRequestView,
+    ChatSavedMessage,
+    ChatSubmission,
+)
 from weeing_weeing.contracts.codes import CODES, RULE_VERSION, Severity
 from weeing_weeing.contracts.document import DocumentRecord
 from weeing_weeing.contracts.faq import FaqAnswer, FaqQuestion, FaqSelection, FaqTopic
@@ -47,6 +54,11 @@ from weeing_weeing.contracts.telemetry import SCHEMA_VERSION, TelemetryRecord
 from weeing_weeing.contracts.user import UserAccount
 
 __all__ = [
+    "ChatSubmission",
+    "ChatRequestState",
+    "ChatRequestView",
+    "ChatSavedMessage",
+    "ChatConversationPage",
     "CODES",
     "RULE_VERSION",
     "SCHEMA_VERSION",

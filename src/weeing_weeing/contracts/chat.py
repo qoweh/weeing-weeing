@@ -101,7 +101,6 @@ class ChatFaqSource(ChatModel):
     source_id: NonEmpty
     title: NonEmpty
     faq_id: NonEmpty
-    faq_version: NonEmpty
 
 
 ChatSource = Annotated[
@@ -122,7 +121,9 @@ class ChatFailure(ChatModel):
         "STORAGE_UNAVAILABLE",  # DB 연결 실패 등 대화 조회·저장 기능 장애
         "INTERNAL_ERROR",  # 위 항목으로 분류되지 않는 내부 처리 오류
     ]
-    retryable: bool = Field(strict=True)  # 같은 요청을 재시도할 수 있는지 여부
+    retryable: bool = Field(
+        strict=True
+    )  # 장애 회복 가능성. 같은 ID 재실행은 저장 요청의 retry_allowed로 판단
 
 
 class ChatAnswerPart(ChatModel):
@@ -189,6 +190,9 @@ class ChatTurn(ChatModel):
 
 
 class ChatConversation(ChatModel):
+    """개인 대화의 목록 정보와 선택 모드. 소유권 검사는 DB에서 수행한다."""
+
+    mode: Literal["FAQ", "CHAT"] = "FAQ"
     conversation_id: UUID
     title: Annotated[NonEmpty, Field(max_length=100)]
     conditions: ChatSearchConditions

@@ -45,11 +45,11 @@ rag(검색 근거 변환), db(대화 저장), api(인증·조립), hmi/web(상�
 |---|---|
 | `ChatQuestion` | UUID 요청 ID, 공백 제거 후 1~2000자 질문, 검색 조건. 사용자·권한·의도 필드 주입 금지 |
 | `ChatSearchConditions` | 선택적 설비 ID·모델(1~100자), 시작/종료일, 검색 결과 1~20개(기본 5). 역전 기간·빈 식별자·정수가 아닌 limit 거부 |
-| `ChatConversation`, `ChatContext`, `ChatTurn` | 대화 목록 메타데이터와 서버가 준비한 최근 문맥. 시간대 필수·갱신 시각 순서 검증. 문맥은 user/assistant만, 최대 20개·각 4000자·총 16000자 |
+| `ChatConversation`, `ChatContext`, `ChatTurn` | 대화 목록 메타데이터(FAQ/CHAT 모드 포함)와 서버가 준비한 최근 문맥. 시간대 필수·갱신 시각 순서 검증. 문맥은 user/assistant만, 최대 20개·각 4000자·총 16000자 |
 | `ChatDocumentSource` | 문서 ID·버전·페이지(1 이상) 또는 절 |
 | `ChatReportSource` | 보고서 ID·판(1 이상), 가상 여부 `synthetic` 필수. 승인·권한 검증 자체를 대체하지 않음 |
 | `ChatHistorySource` | DB 구조화 조회 조건·오류 코드·전체 승인 보고서 수·가상 보고서 수·스냅샷 해시. 0건도 출처로 표시하며 MAINTENANCE_HISTORY 본문에서만 인용 |
-| `ChatFaqSource` | 검토된 FAQ ID·버전 |
+| `ChatFaqSource` | FAQ ID·제목·출처 ID(수동 버전 없음) |
 | `ChatAnswerPart` | 매뉴얼 기준/과거 정비 사례/FAQ 본문과 출처 ID 목록. 서로 다른 종류의 근거 혼용 거부 |
 | `ChatResponse` | 요청 ID·의도·상태·적용 검색 조건·안내·본문·출처·추가 질문·오류·생성 시각 |
 
@@ -99,14 +99,15 @@ API 경로·실행 정책 제안과 후속 범위는 [CHATBOT](CHATBOT.md)을 �
 
 `contracts/faq.py`를 추가한다. 영향 모듈은 agent(파일 조회·응답 변환), api(목록·선택
 요청 연결), db(선택 메시지 스냅샷 저장), hmi/web(주제·질문 버튼)이다.
-기존 `ChatQuestion`·`ChatResponse`·`ChatFaqSource`와 LLM 계약은 유지한다.
+기존 `ChatQuestion`·`ChatResponse`와 LLM 경계는 유지한다.
+FAQ의 수동 버전·검토일·참고 문서 필드를 제거하며 `ChatFaqSource`에서도 수동 버전을 제거한다.
 
 | 계약 | 역할·검증 |
 |---|---|
 | `FaqTopic` | 주제 ID·이름·표시 순서. 순서는 0 이상 정수이며 ID는 영문/숫자로 시작하는 영문·숫자·`_`·`-` 1~64자 |
-| `FaqQuestion` | FAQ ID·버전·주제 ID·대표 질문·순서. 질문은 공백 제거 후 1~2000자, 버전은 1~64자 |
-| `FaqSelection` | 요청 UUID·FAQ ID·버전만 허용. 사용자 ID·답변 본문을 클라이언트가 지정할 수 없음 |
-| `FaqAnswer` | 서버의 대표 질문·검토 답변(1~4000자)·검토일·`ChatFaqSource`. 질문과 출처 ID·버전 일치 필수 |
+| `FaqQuestion` | FAQ ID·주제 ID·대표 질문·순서. 질문은 공백 제거 후 1~2000자 |
+| `FaqSelection` | 요청 UUID·FAQ ID만 허용. 사용자 ID·답변 본문을 클라이언트가 지정할 수 없음 |
+| `FaqAnswer` | 서버의 대표 질문·답변(1~4000자)·`ChatFaqSource`. 질문과 출처의 FAQ ID 일치 필수 |
 
 주제·질문·답변의 최상위 필드는 변경할 수 없게 한다. 목록은 새 리스트, 답변은 깊은
 복사로 반환하여 호출자의 수정이 카탈로그에 영향을 주지 않게 한다.
@@ -144,6 +145,38 @@ api(공통 검색 주입·인증·대화 소유권)다. 기존 `ChatQuestion`·`
 
 `api/chat_knowledge.py`가 DB·공유 RAG를 조립한다. 자세한 지원 조건·실행 방법은
 [CHATBOT](CHATBOT.md)을 따른다.
+
+## 개인 대화 저장 계약 (#90)
+
+`contracts/chat_storage.py`는 대화 저장·본인 접근·중복 실행 방지에 필요한 계약만 둔다.
+영향 모듈은 db(저장·소유권·예약), api(인증 후 실행 조립), 향후 hmi/web(상태·기록 표시)다.
+기존 `ChatQuestion`·`ChatResponse` 구조는 유지하며 `ChatConversation`에 기본 FAQ인
+FAQ/CHAT 모드를 추가한다. 별도 ChatSavedConversation 파생 모델은 두지 않는다.
+
+- `ChatSubmission`: request_id + CHAT(질문) 또는 FAQ(ID). 사용자/소유자 ID,
+  이전 문맥·의도·실행 토큰은 입력 불가. 생략한 conditions는 첫 예약의 대화 조건을 사용한다.
+- `ChatRequestView`: 상태, 최초 예약 조건, 저장 응답, 재시도 가능 여부와 안전한 오류 코드.
+  없는/비활성 FAQ는 FAQ_NOT_FOUND다. 같은 ID 재실행 없이 목록 새로고침 후 새 ID로 선택한다.
+  RESERVED(실행 전), RUNNING(실행 시작), COMPLETED(응답 저장), FAILED(실행 전 실패),
+  UNKNOWN(실행 이후 결과 불명)을 구분한다. COMPLETED는 실패 응답도 보존한다.
+- 같은 대화의 동일 request_id·동일 본문은 현재 상태/저장 응답을 반환한다. 다른 본문은 충돌.
+  실행 전 실패만 `retry=True`를 명시해 재예약할 수 있다. 장애 회복 가능성을 나타내는
+  `ChatResponse.failure.retryable`과 같은 ID 재실행 허가인 `ChatRequestView.retry_allowed`를 구분한다.
+- `ChatSavedMessage`: 저장된 질문/답변의 순번·시각·요청 연결과 원본 응답.
+  모델 문맥용 ChatTurn의 길이 제한과 달리 전체 과거 답변을 보존한다.
+- `ChatConversationPage`: 대화 정보·제한된 메시지 목록·다음 페이지 유무. 긴 기록을 한꺼번에 읽지 않는다.
+
+사용량 저장 모델·출처 현재 상태 모델·피드백 모델은 두지 않는다. 에이전트의 기존
+사용량 수집과 새 답변의 검색·출처 검증은 유지한다. 과거 기록은 당시 스냅샷 그대로 반환한다.
+목록·조회·문맥·재전송·수정·삭제·결과 저장 모두 활성 사용자와 소유자를 검사하며 관리자도
+예외 없다. 타인 대화와 없는 대화는 동일 ChatNotFoundError(HTTP 404)다.
+이전 DB JSON의 폐지된 FAQ 버전은 읽기 시 제외하며 기존 질문·답변과 중복 ID는 유지한다.
+새 요청은 폐지한 필드를 허용하지 않는다. DB 스키마 변경·데이터 삭제는 없다.
+보관·예약 만료·동시성·기존 DB 호환은 [CHAT_STORAGE](CHAT_STORAGE.md),
+HTTP 경로·상태·응답 매핑은 [CHAT_API](CHAT_API.md)를 따른다.
+POST /messages는 기존 ChatQuestion, /faq-selections는 FaqSelection을 받고
+서버가 ChatSubmission으로 변환한다. 새 HTTP 입력 모델인 ConversationCreate/Update는
+api 내부에만 두며 contracts의 종류를 늘리지 않는다. 영향 모듈은 db·api·향후 화면이다.
 
 ## 아직 정하지 않은 것
 

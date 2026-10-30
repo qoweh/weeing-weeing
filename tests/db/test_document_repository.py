@@ -414,7 +414,7 @@ def test_migration_repairs_already_applied_legacy_0005_without_dropping_data(rep
             == []
         )
         assert (
-            connection.scalar(text("SELECT version_num FROM alembic_version")) == "0006"
+            connection.scalar(text("SELECT version_num FROM alembic_version")) == "0007"
         )
         command.downgrade(config, "0005")
         assert inspect(connection).has_table("analysis_job")

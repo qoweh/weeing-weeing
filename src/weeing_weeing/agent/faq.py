@@ -1,7 +1,7 @@
 """파일 기반 FAQ 조회. 네트워크·LLM·임베딩·DB 없이 선택한 검토 답변만 반환한다."""
 
 import tomllib
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal, Self
 
@@ -21,7 +21,6 @@ from weeing_weeing.contracts.faq import (
     FaqQuestion,
     FaqSelection,
     FaqTopic,
-    FaqVersion,
 )
 
 DEFAULT_FAQ_PATH = Path(__file__).resolve().parents[3] / "data/faq/service_v1.toml"
@@ -32,11 +31,7 @@ class FaqCatalogError(RuntimeError):
 
 
 class FaqNotFoundError(LookupError):
-    """없는 항목과 비활성·미검토 항목을 같은 오류로 취급한다."""
-
-
-class FaqVersionConflictError(ValueError):
-    """화면의 FAQ 버전과 현재 답변 버전이 다르다. 목록을 다시 조회해야 한다."""
+    """없는 항목과 비활성 항목을 같은 오류로 취급한다."""
 
 
 class _TopicRecord(FaqTopic):
@@ -45,24 +40,17 @@ class _TopicRecord(FaqTopic):
 
 class _FaqRecord(ChatModel):
     faq_id: FaqId
-    faq_version: FaqVersion
     topic_id: FaqId
     question: str = Field(min_length=1, max_length=2000)
     order: int = Field(default=0, ge=0, strict=True)
     active: bool = Field(default=False, strict=True)
     aliases: tuple[NonEmpty, ...] = ()  # 참고 표현이며 자동 매칭에는 사용하지 않는다
     answer: str = Field(default="", max_length=4000)
-    reviewed_at: date | None = None
-    references: tuple[NonEmpty, ...] = ()  # 작성 시 확인한 코드·문서 위치
 
     @model_validator(mode="after")
-    def _reviewed(self) -> Self:
-        if self.active and (
-            not self.answer or self.reviewed_at is None or not self.references
-        ):
-            raise ValueError("활성 FAQ에는 답변·검토일·근거가 필요함")
-        if self.reviewed_at is not None and self.reviewed_at > date.today():
-            raise ValueError("FAQ 검토일은 미래일 수 없음")
+    def _answer_required(self) -> Self:
+        if self.active and not self.answer:
+            raise ValueError("활성 FAQ에는 비어 있지 않은 답변이 필요함")
         return self
 
 
@@ -103,20 +91,16 @@ class FileFaqCatalog:
             if not record.active or record.topic_id not in topics:
                 continue
             question = FaqQuestion(
-                **record.model_dump(
-                    include={"faq_id", "faq_version", "topic_id", "question", "order"}
-                )
+                **record.model_dump(include={"faq_id", "topic_id", "question", "order"})
             )
             self._questions.setdefault(record.topic_id, []).append(question)
             self._answers[record.faq_id] = FaqAnswer(
                 question=question,
                 answer=record.answer,
-                reviewed_at=record.reviewed_at,
                 source=ChatFaqSource(
-                    source_id=f"faq:{record.faq_id}:{record.faq_version}",
+                    source_id=f"faq:{record.faq_id}",
                     title=record.question,
                     faq_id=record.faq_id,
-                    faq_version=record.faq_version,
                 ),
             )
         self._topics = tuple(
@@ -133,7 +117,7 @@ class FileFaqCatalog:
             questions.sort(key=lambda question: (question.order, question.faq_id))
 
     def list_topics(self) -> list[FaqTopic]:
-        """활성·검토 완료 질문이 하나 이상인 활성 주제만 반환한다."""
+        """활성 질문이 하나 이상인 활성 주제만 반환한다."""
         return list(self._topics)
 
     def list_questions(self, topic_id: str) -> list[FaqQuestion]:
@@ -157,10 +141,6 @@ class FileFaqCatalog:
     ) -> ChatResponse:
         """ID 선택을 기존 챗봇 응답으로 변환한다. 조건은 보존하며 검색하지 않는다."""
         faq = self.get_answer(selection.faq_id)
-        if selection.faq_version != faq.source.faq_version:
-            raise FaqVersionConflictError(
-                "FAQ가 변경됐습니다. 질문 목록을 새로고침하세요."
-            )
         return ChatResponse(
             request_id=selection.request_id,
             intent="FAQ",

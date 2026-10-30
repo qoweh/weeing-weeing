@@ -22,6 +22,10 @@ from weeing_weeing.db.interface import (
 
 # 외래 키 순서: 참조하는 쪽부터 지운다.
 TABLES = (
+    "chat_feedback",  # 기존 0007 스키마 호환 테이블
+    "chat_message",
+    "chat_request",
+    "chat_conversation",
     "analysis_job",
     "report_index_job",
     "approval",

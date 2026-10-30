@@ -69,7 +69,7 @@ def show(response):
                 f"DB 승인 보고서 {source.total}건 (가상 {source.synthetic_total}건)"
             )
         else:
-            detail = f"FAQ {source.faq_id} v{source.faq_version}"
+            detail = f"FAQ {source.faq_id}"
         print(f"출처: {source.title} — {detail}")
     if response.failure:
         print(

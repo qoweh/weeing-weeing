@@ -317,7 +317,7 @@ def test_faq_tool_reuses_catalog_without_retrieving_documents():
         reply(
             call(
                 "get_faq_answer",
-                {"faq_id": faq.source.faq_id, "faq_version": faq.source.faq_version},
+                {"faq_id": faq.source.faq_id},
             )
         ),
         reply(submit(intent="FAQ", ids=(faq.source.source_id,), text=faq.answer)),

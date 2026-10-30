@@ -18,7 +18,6 @@ from weeing_weeing.agent.errors import (
 from weeing_weeing.agent.faq import (
     FaqCatalogError,
     FaqNotFoundError,
-    FaqVersionConflictError,
 )
 from weeing_weeing.agent.llm_check import (
     CheckReport,
@@ -80,7 +79,6 @@ __all__ = [
     "FaqCatalog",
     "FaqCatalogError",
     "FaqNotFoundError",
-    "FaqVersionConflictError",
     "load_faq_catalog",
     "LlmClient",
     "LlmError",
@@ -244,7 +242,7 @@ class FaqCatalog(Protocol):
         *,
         conditions: ChatSearchConditions | None = None,
     ) -> ChatResponse:
-        """선택 답변을 챗봇 응답으로 반환한다. 오래된 버전은 FaqVersionConflictError다.
+        """선택 ID의 현재 답변을 챗봇 응답으로 반환한다.
 
         LLM·임베딩·검색·DB를 호출하지 않는다. 예외를 LLM 자동 호출로 처리하지 않는다.
         저장할 대표 질문·답변은 get_answer()에서 서버 데이터로 얻는다.

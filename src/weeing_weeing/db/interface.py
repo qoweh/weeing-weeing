@@ -19,6 +19,12 @@ from weeing_weeing.contracts import (
     UserAccount,
 )
 from weeing_weeing.db.analysis_jobs import AnalysisConflictError, SqlAnalysisJobs
+from weeing_weeing.db.chats import (
+    ChatClaim,
+    ChatConflictError,
+    ChatNotFoundError,
+    SqlChats,
+)
 from weeing_weeing.db.documents import (
     DocumentConflictError,
     DocumentNotFoundError,
@@ -42,6 +48,12 @@ if TYPE_CHECKING:
     from sqlalchemy import Engine
 
 __all__ = [
+    "ChatClaim",
+    "ChatConflictError",
+    "ChatNotFoundError",
+    "SqlChats",
+    "get_chats",
+    "open_chats",
     "AnalysisConflictError",
     "SqlAnalysisJobs",
     "get_analysis_jobs",
@@ -362,6 +374,7 @@ class _Shared:
     users: UserRepository
     reports: ReportRepository
     analysis_jobs: SqlAnalysisJobs
+    chats: SqlChats
 
 
 @lru_cache(maxsize=4)
@@ -380,6 +393,7 @@ def _cached(url: str, timeout_s: float) -> _Shared:
         SqlUsers(engine),
         SqlReports(engine),
         SqlAnalysisJobs(engine),
+        SqlChats(engine),
     )
 
 
@@ -432,3 +446,13 @@ def get_analysis_jobs() -> SqlAnalysisJobs:
 def open_analysis_jobs(url: str, *, timeout_s: float = 5) -> SqlAnalysisJobs:
     """독립 환경·시연용 작업 저장소. 호출자가 엔진 수명을 관리한다."""
     return SqlAnalysisJobs(open_engine(url, timeout_s=timeout_s))
+
+
+def open_chats(url: str, *, timeout_s: float = 5) -> SqlChats:
+    """독립 DB의 개인 대화 저장소. 마이그레이션 후 같은 DB 사용자 계정을 참조한다."""
+    return SqlChats(open_engine(url, timeout_s=timeout_s))
+
+
+def get_chats() -> SqlChats:
+    """공통 엔진의 소유자 전용 대화·요청 저장소."""
+    return _shared().chats

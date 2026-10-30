@@ -7,13 +7,19 @@ from weeing_weeing.contracts import FaqAnswer, FaqQuestion, FaqSelection, FaqTop
 
 
 def question_data():
-    return dict(faq_id="FAQ-001", faq_version="1", topic_id="reports", question="질문")
+    return dict(faq_id="FAQ-001", topic_id="reports", question="질문")
 
 
-def test_selection_accepts_only_request_id_and_catalog_identity():
-    selection = FaqSelection(request_id=uuid4(), faq_id="FAQ-001", faq_version="1")
+def test_selection_accepts_only_request_id_and_faq_id():
+    selection = FaqSelection(request_id=uuid4(), faq_id="FAQ-001")
     assert FaqSelection.model_validate_json(selection.model_dump_json()) == selection
-    for extra in ({"user_id": "another-user"}, {"answer": "클라이언트가 만든 답변"}):
+    for extra in (
+        {"user_id": "another-user"},
+        {"answer": "임의 답변"},
+        {"faq_version": "1"},
+        {"reviewed_at": "2026-01-01"},
+        {"references": ["docs/AUTH.md"]},
+    ):
         with pytest.raises(ValidationError):
             FaqSelection(**(selection.model_dump() | extra))
 
@@ -21,13 +27,7 @@ def test_selection_accepts_only_request_id_and_catalog_identity():
 @pytest.mark.parametrize("identifier", ["", " ", "../secret", "x" * 65, "faq/id"])
 def test_selection_rejects_invalid_ids(identifier):
     with pytest.raises(ValidationError):
-        FaqSelection(request_id=uuid4(), faq_id=identifier, faq_version="1")
-
-
-@pytest.mark.parametrize("version", ["", " ", "x" * 65])
-def test_selection_rejects_empty_or_excessive_version(version):
-    with pytest.raises(ValidationError):
-        FaqSelection(request_id=uuid4(), faq_id="FAQ-001", faq_version=version)
+        FaqSelection(request_id=uuid4(), faq_id=identifier)
 
 
 @pytest.mark.parametrize(
@@ -45,19 +45,12 @@ def test_topic_is_immutable():
         topic.title = "바뀐 이름"
 
 
-@pytest.mark.parametrize("source_override", [{"faq_id": "OTHER"}, {"faq_version": "2"}])
-def test_answer_rejects_mismatched_source(source_override):
+def test_answer_rejects_mismatched_source():
     with pytest.raises(ValidationError):
         FaqAnswer(
             question=question_data(),
-            answer="검토 답변",
-            reviewed_at="2026-01-01",
+            answer="답변",
             source=dict(
-                kind="FAQ",
-                source_id="faq:FAQ-001:1",
-                title="질문",
-                faq_id="FAQ-001",
-                faq_version="1",
-            )
-            | source_override,
+                kind="FAQ", source_id="faq:OTHER", title="질문", faq_id="OTHER"
+            ),
         )

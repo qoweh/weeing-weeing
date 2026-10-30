@@ -75,18 +75,19 @@ flowchart LR
 챗봇 생성·호출별 사용량 수집과 동시 호출 격리는 #89, 검색은 #88, 저장은 #90,
 API 조립은 #91이다. 사용량 수집 시 공유 클라이언트의 `last_usage` 경합을 방지해야 한다.
 보고서 정비·결재 작성이나 PLC 제어 도구는 챗봇에 제공하지 않는다.
-API 경로·스레드 실행·타임아웃은 [CHATBOT](CHATBOT.md)의 제안이며 아직 실행되지 않는다.
+HTTP 경로·작업 스레드 실행·처리 상태는 [CHAT_API](CHAT_API.md), 검색·생성 제한은
+[CHATBOT](CHATBOT.md)을 따른다.
 
 ### FAQ 목록 선택 (#87)
 
 일반 서비스 안내는 `data/faq/service_v1.toml`에서 관리하고
 `agent.interface.load_faq_catalog()`로 `FaqCatalog` 스냅샷을 만든다. 외부 모듈은
 공개 인터페이스와 `contracts/faq.py`만 사용한다. FAQ 구현은 LLM·RAG·DB를
-호출하거나 다른 모듈을 조립하지 않는다. 선택 요청은 FAQ ID·버전을 검증한 뒤
+호출하거나 다른 모듈을 조립하지 않는다. 선택 요청은 FAQ ID의 공개 여부를 검증한 뒤
 검토된 답변과 `ChatFaqSource`를 기존 `ChatResponse`로 변환한다.
 
 활성 주제 중 활성·검토 완료 질문이 있는 것만 표시한다. 알 수 없는 항목·비활성 항목,
-버전 충돌·파일 장애를 구분하고 LLM으로 자동 전환하지 않는다. API에서 인증·소유권·
+비활성 항목·파일 장애를 구분하고 LLM으로 자동 전환하지 않는다. API에서 인증·소유권·
 메시지 저장을 연결하는 작업은 #90·#91, 주제→질문 목록과 항상 표시되는 채팅 시작
 버튼은 #92다. 별도 사전 분류기는 만들지 않고 자유 질문은 #89의 Claude 도구 루프가
 검색 도구와 조건을 선택한다. `get_chat_service()`는 검증용 도구 루프를 구현하며
@@ -96,7 +97,7 @@ API 경로·스레드 실행·타임아웃은 [CHATBOT](CHATBOT.md)의 제안이
 `is_searchable`은 삭제·개정·승인 상태 확인이며 사용자 ACL이 아니다. 챗봇 정비 근거는
 최신 승인 보고서만 사용한다. #88의 `api/chat_knowledge.py`에서 `DatabaseChatKnowledge`가
 DB와 공유 RAG 검색기를 연결한다. `build_chat_service()`는 이 구현과 기존 Claude 클라이언트를
-조립하며 `make chat`으로 실행한다. 인증된 HTTP·대화 저장 연결은 #90·#91에서 진행한다.
+조립하며 `make chat`으로 실행한다. 개인 대화 저장·실행 조립은 #90의 `api/chat_storage.py`에 구현하며 인증된 HTTP는 #91의 `api/chat.py`에 연결했다.
 `query_history`는 유사 검색과 별도로 DB의 전체 최신 승인 판에서 기간 목록·보고서 수를
 조회한다. 0건도 `ChatHistorySource`로 인용하고 답변 전 집계 스냅샷을 재확인한다.
 원문 열람과 별개로 대화 소유권·작성/수정/결재 권한은 유지한다.
@@ -120,3 +121,23 @@ tests/               pytest. 모듈 폴더 구조를 따라간다
 docs/                설계·규칙 문서
 .agents/skills/      팀 공용 에이전트 스킬 원본 (.claude/skills는 자동 생성 사본)
 ```
+
+### 개인 대화 저장과 실행 조립 (#90)
+
+`contracts/chat_storage.py`는 저장 요청·상태·메시지·페이지 계약이다. 대화 정보와
+FAQ/CHAT 모드는 기존 `ChatConversation`을 재사용한다.
+`db.interface.get_chats()/open_chats()`가 공개 저장 경계이며 내부 `db/chats.py`가
+소유권 검사·중복 예약·원자적 완료·페이지·삭제·최근 문맥 조회를 구현한다.
+대화 기능은 chat_conversation/chat_request/chat_message 테이블을 사용한다.
+0007 스키마의 기존 피드백 테이블·사용량 컬럼은 데이터 보존을 위해 호환 선언만 유지한다.
+
+`api.chat_storage.StoredChatService`는 소유자 검사가 끝난 DB 예약을 받은 뒤에만
+FAQ 또는 ChatService를 호출한다. 외부 호출 동안 DB 트랜잭션을 유지하지 않는다.
+요청마다 전용 ChatService를 만들고 동일 요청의 프로세스 간 경합은 DB 잠금·실행 토큰으로 막는다.
+HTTP(#91)는 로그인 세션의 사번을 actor_id로 전달해야 하며 요청 본문에서 받지 않는다.
+대화 조회는 DB 공개 저장소가 당시 기록을 반환하며 검색·LLM을 호출하지 않는다.
+`api/chat.py`가 기존 Bearer 인증과 저장 서비스를 연결한다. 동기 라우트는 작업 스레드에서
+실행하고 FAQ 선택에는 검색·LLM을 만들지 않는다. 과거 기록은 원문 JSON으로 반환한다.
+HTTP 경로·상태 코드·실행 방법은 [CHAT_API](CHAT_API.md)를 따른다. 웹 UI와 익명 CLI의
+영구 저장 연결은 포함하지 않는다.
+세부 정책은 [CHAT_STORAGE](CHAT_STORAGE.md)를 따른다.
