@@ -4,12 +4,15 @@
 }
 .library-filters {
   display: grid;
-  grid-template-columns: minmax(220px, 460px) repeat(3, minmax(120px, 180px)) 145px minmax(145px, 1fr);
+  grid-template-columns: minmax(220px, 1fr) repeat(2, minmax(130px, 180px)) repeat(3, minmax(130px, 145px));
   gap: 16px;
   align-items: stretch;
   margin-bottom: 24px;
 }
 .library-filters > * { min-width: 0; }
+.library-filters--report {
+  grid-template-columns: minmax(220px, 1fr) minmax(130px, 180px) repeat(2, minmax(130px, 145px));
+}
 .library-filters input,
 .library-filters select {
   width: 100%;
@@ -116,6 +119,14 @@
 .library-table th:nth-child(6) {
   width: 11.1%;
 }
+.library-table--manual th:nth-child(1) { width: 6%; }
+.library-table--manual th:nth-child(2) { width: 20%; }
+.library-table--manual th:nth-child(3) { width: 16%; }
+.library-table--manual th:nth-child(4) { width: 13%; }
+.library-table--manual th:nth-child(5) { width: 8%; }
+.library-table--manual th:nth-child(6) { width: 14%; }
+.library-table--manual th:nth-child(7) { width: 13%; }
+.library-table--manual th:nth-child(8) { width: 10%; }
 .library-table td,
 .library-table th {
   padding: 0 16px;
@@ -282,17 +293,30 @@
   color: var(--text);
   font: inherit;
   font-weight: 400;
+  line-height: normal;
+}
+.manual-upload-fields select {
+  appearance: none;
+  padding-right: 40px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 21px) 50%, calc(100% - 16px) 50%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
 }
 .manual-upload-fields input::placeholder {
   color: var(--muted);
 }
 .manual-upload-fields input[type='file'] {
-  padding: 10px 16px;
+  padding: 0 16px;
+  line-height: 46px;
 }
 .manual-upload-fields input::file-selector-button {
   color: var(--primary);
   font: inherit;
   font-weight: 700;
+  line-height: inherit;
   background: none;
   border: 0;
   padding: 0 24px 0 0;
@@ -301,22 +325,25 @@
 .manual-upload-file {
   grid-column: 1 / -1;
 }
-.manual-upload-card .button--primary {
+.manual-upload-file .library-footnote {
+  margin-top: -4px;
+  line-height: 1.4;
+  font-weight: 400;
+}
+.manual-upload-back .button--primary {
   background: var(--library-button);
   border: 0;
   border-radius: 8px;
   min-width: 170px;
   min-height: 48px;
 }
-.manual-upload-card .library-footnote {
-  margin: 20px 0 0;
-}
 .manual-upload-back {
   display: flex;
   justify-content: flex-end;
+  gap: 12px;
   margin-top: 16px;
 }
-.manual-upload-back .button {
+.manual-upload-back .button:not(.button--primary) {
   min-width: 160px;
   border-radius: 8px;
   color: var(--muted);
@@ -325,6 +352,10 @@
 .library-page button:focus-visible,
 .library-page input:focus-visible,
 .manual-upload-page input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+.manual-upload-page select:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 3px;
 }
@@ -354,7 +385,7 @@
 .manual-upload-card h1 {
   font-weight: 700;
 }
-:root:not([data-theme='dark']) .manual-upload-card .button--primary {
+:root:not([data-theme='dark']) .manual-upload-back .button--primary {
   background: var(--primary);
   color: white;
 }
@@ -373,6 +404,6 @@
   .library-summary { flex-wrap: wrap; gap: 4px 16px; }
   .library-summary p { max-width: none; }
   .manual-upload-fields input[type='file'] { height: auto; min-height: 48px; max-width: 100%; }
-  .manual-upload-back .button { width: 100%; }
+  .manual-upload-back .button { flex: 1; min-width: 0; }
   .library-dialog dl { grid-template-columns: minmax(75px, auto) minmax(0, 1fr); }
 }

@@ -45,6 +45,30 @@ export default function AppShell({
   const [chatSize, setChatSize] = useState(null)
   const [chatPosition, setChatPosition] = useState({ x: 0, y: 0 })
   const [suggestionGroup, setSuggestionGroup] = useState('start')
+  const [screenZoom, setScreenZoom] = useState(100)
+
+  useEffect(() => {
+    document.documentElement.style.zoom = `${screenZoom}%`
+    return () => { document.documentElement.style.zoom = '' }
+  }, [screenZoom])
+
+  useEffect(() => {
+    function preventZoomShortcut(event) {
+      if ((event.ctrlKey || event.metaKey) &&
+        (['+', '-', '=', '_'].includes(event.key) || ['NumpadAdd', 'NumpadSubtract'].includes(event.code))) {
+        event.preventDefault()
+      }
+    }
+    function preventZoomWheel(event) {
+      if (event.ctrlKey || event.metaKey) event.preventDefault()
+    }
+    window.addEventListener('keydown', preventZoomShortcut, true)
+    window.addEventListener('wheel', preventZoomWheel, { passive: false, capture: true })
+    return () => {
+      window.removeEventListener('keydown', preventZoomShortcut, true)
+      window.removeEventListener('wheel', preventZoomWheel, true)
+    }
+  }, [])
 
   useEffect(() => {
     if (chatBody.current) chatBody.current.scrollTop = chatBody.current.scrollHeight
@@ -76,7 +100,7 @@ export default function AppShell({
   function startChatResize(event) {
     if (event.button !== 0) return
     const rect = chatDialog.current.getBoundingClientRect()
-    chatResize.current = { x: event.clientX, y: event.clientY, width: rect.width, height: rect.height }
+    chatResize.current = { x: event.clientX, y: event.clientY, width: rect.width / (screenZoom / 100), height: rect.height / (screenZoom / 100) }
     event.currentTarget.setPointerCapture(event.pointerId)
     event.preventDefault()
   }
@@ -84,7 +108,7 @@ export default function AppShell({
   function moveChatResize(event) {
     if (!chatResize.current) return
     const start = chatResize.current
-    setChatSize({ width: Math.max(0, start.width + start.x - event.clientX), height: Math.max(0, start.height + start.y - event.clientY) })
+    setChatSize({ width: Math.max(0, start.width + (start.x - event.clientX) / (screenZoom / 100)), height: Math.max(0, start.height + (start.y - event.clientY) / (screenZoom / 100)) })
   }
 
   function resizeChatWithKeyboard(event) {
@@ -93,7 +117,7 @@ export default function AppShell({
     event.preventDefault()
     const rect = chatDialog.current.getBoundingClientRect()
     const [width, height] = offsets[event.key]
-    setChatSize({ width: Math.max(0, rect.width + width), height: Math.max(0, rect.height + height) })
+    setChatSize({ width: Math.max(0, rect.width / (screenZoom / 100) + width), height: Math.max(0, rect.height / (screenZoom / 100) + height) })
   }
 
   function startChatDrag(event) {
@@ -109,7 +133,7 @@ export default function AppShell({
     const start = chatDrag.current
     const dx = Math.min(window.innerWidth - 8 - start.rect.right, Math.max(8 - start.rect.left, event.clientX - start.x))
     const dy = Math.min(window.innerHeight - 8 - start.rect.bottom, Math.max(8 - start.rect.top, event.clientY - start.y))
-    setChatPosition({ x: start.position.x + dx, y: start.position.y + dy })
+    setChatPosition({ x: start.position.x + dx / (screenZoom / 100), y: start.position.y + dy / (screenZoom / 100) })
   }
   return (
     <div className="shell">
@@ -119,6 +143,8 @@ export default function AppShell({
         busy={busy}
         theme={theme}
         onToggleTheme={onToggleTheme}
+        screenZoom={screenZoom}
+        onChangeScreenZoom={setScreenZoom}
       />
       <Sidebar page={page} onNavigate={onNavigate} busy={busy} />
       <main className="shell__content" id="main-content">

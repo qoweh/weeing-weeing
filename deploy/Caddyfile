@@ -22,6 +22,6 @@
 
 	# 나머지는 frontend(Next.js)
 	handle {
-		reverse_proxy frontend:3000
+		reverse_proxy frontend:3100
 	}
 }

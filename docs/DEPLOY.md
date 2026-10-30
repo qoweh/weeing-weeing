@@ -19,7 +19,7 @@ EC2 ~/weeing-weeing/          (레포 clone 없음. 이 두 파일만 있다)
 
 web(Caddy :80/:443) ─┬─ /api/*  → api(FastAPI :8000)  ─┬─ postgres
                      ├─ /hmi/*  → hmi/web 정적 파일     └─ qdrant
-                     └─ 그 외   → frontend(Next.js :3000)
+                     └─ 그 외   → frontend(Next.js :3100)
 ```
 
 | 서비스 | 이미지 | 데이터(볼륨) |

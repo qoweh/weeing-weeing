@@ -23,7 +23,7 @@ export function ManualPage({ onNavigate, onSessionExpired }) {
   const [loading, setLoading] = useState(true)
   const [reload, setReload] = useState(0)
   const [query, setQuery] = useState('')
-  const [filters, setFilters] = useState({ period: '', asset: '', status: '' })
+  const [filters, setFilters] = useState({ period: '', docType: '' })
   const [selected, setSelected] = useState(null)
   const dialog = useRef(null)
   useEffect(() => {
@@ -61,18 +61,19 @@ export function ManualPage({ onNavigate, onSessionExpired }) {
   return (
     <div className="library-page" aria-label="매뉴얼 · 문서 관리">
       <Filters
-        rows={rows}
         query={query}
         setQuery={setQuery}
         filters={filters}
         setFilters={setFilters}
+        onRefresh={() => setReload((n) => n + 1)}
+        loading={loading}
       >
         <Button
           variant="primary"
           className="library-upload"
           onClick={() => onNavigate('manual-upload')}
         >
-          매뉴얼 업로드
+          문서 업로드
         </Button>
       </Filters>
       {loading ? (
@@ -183,7 +184,7 @@ export function ManualUploadPage({
   }
   return (
     <div className="manual-upload-page">
-      <form onSubmit={submit} className="manual-upload-card">
+      <form id="manual-upload-form" onSubmit={submit} className="manual-upload-card">
         <h1>문서 등록</h1>
         <fieldset disabled={busy}>
           <div className="manual-upload-fields">
@@ -195,6 +196,7 @@ export function ManualUploadPage({
                 accept=".pdf,application/pdf"
                 required
               />
+              <span className="library-footnote">PDF 파일 · 최대 200 MB</span>
             </label>
             <label>
               문서 ID
@@ -223,11 +225,7 @@ export function ManualUploadPage({
               <input name="asset_id" defaultValue="BLDC-001" required />
             </label>
           </div>
-          <Button type="submit" variant="primary">
-            {busy ? '등록 중…' : '문서 등록 실행'}
-          </Button>
         </fieldset>
-        <p className="library-footnote">PDF 파일 · 최대 200 MB</p>
         {message && <p role="status">{message}</p>}
         {error && (
           <p className="workspace-error" role="alert">
@@ -236,8 +234,11 @@ export function ManualUploadPage({
         )}
       </form>
       <div className="manual-upload-back">
-        <Button disabled={busy} onClick={() => onNavigate('manuals')}>
-          목록으로
+        <Button type="button" disabled={busy} onClick={() => onNavigate('manuals')}>
+          목록
+        </Button>
+        <Button type="submit" form="manual-upload-form" variant="primary" disabled={busy}>
+          {busy ? '등록 중…' : '문서 등록 실행'}
         </Button>
       </div>
     </div>

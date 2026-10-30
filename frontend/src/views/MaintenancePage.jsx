@@ -13,7 +13,7 @@ export default function MaintenancePage({ onOpen, onSessionExpired }) {
   const [rows, setRows] = useState([]),
     [issues, setIssues] = useState([])
   const [query, setQuery] = useState(''),
-    [filters, setFilters] = useState({ period: '', asset: '', status: '' })
+    [filters, setFilters] = useState({ period: '', docType: '' })
   const [loading, setLoading] = useState(true),
     [error, setError] = useState(''),
     [reload, setReload] = useState(0)
@@ -47,7 +47,7 @@ export default function MaintenancePage({ onOpen, onSessionExpired }) {
         setRows(mapped)
         setIssues(
           incidents
-            .filter((i) => i.status !== 'CLOSED' && i.severity === 'Error')
+            .filter((i) => ['OPEN', 'ACKNOWLEDGED'].includes(i.status) && i.severity === 'Error')
             .map((i) => {
               const report = reports.find(
                 (r) => r.incident_id === i.incident_id,
@@ -84,11 +84,12 @@ export default function MaintenancePage({ onOpen, onSessionExpired }) {
     <div className="library-page" aria-label="정비 이력 · 보고서">
       <Filters
         report
-        rows={[...rows, ...issues]}
         query={query}
         setQuery={setQuery}
         filters={filters}
         setFilters={setFilters}
+        onRefresh={() => setReload((n) => n + 1)}
+        loading={loading}
       />
       {loading ? (
         <p role="status">정비 이력을 불러오는 중입니다.</p>

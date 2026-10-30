@@ -3,12 +3,13 @@ import Button from './Button'
 import './library.scss'
 
 export function Filters({
-  rows,
   query,
   setQuery,
   filters,
   setFilters,
   report = false,
+  onRefresh,
+  loading,
   children,
 }) {
   return (
@@ -33,35 +34,29 @@ export function Filters({
         <option value="30">최근 30일</option>
         <option value="90">최근 90일</option>
       </select>
-      <select
-        aria-label="설비 모델"
-        value={filters.asset}
-        onChange={(e) => setFilters({ ...filters, asset: e.target.value })}
-      >
-        <option value="">설비 모델</option>
-        {[...new Set(rows.map((r) => r.asset).filter(Boolean))]
-          .sort()
-          .map((a) => (
-            <option key={a}>{a}</option>
-          ))}
-      </select>
-      <select
-        aria-label={report ? '문서 상태' : '처리 상태'}
-        value={filters.status}
-        onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-      >
-        <option value="">{report ? '문서 상태' : '처리 상태'}</option>
-        {[...new Set(rows.map((r) => r.status))].map((s) => (
-          <option key={s}>{s}</option>
-        ))}
-      </select>
+      {!report && (
+        <select
+          aria-label="문서 종류"
+          value={filters.docType}
+          onChange={(e) => setFilters({ ...filters, docType: e.target.value })}
+        >
+          <option value="" disabled>문서종류</option>
+          <option value="all">전체</option>
+          <option value="manual">매뉴얼</option>
+          <option value="sop">규정·SOP</option>
+          <option value="rule">룰베이스</option>
+        </select>
+      )}
       <Button
         onClick={() => {
           setQuery('')
-          setFilters({ period: '', asset: '', status: '' })
+          setFilters({ period: '', docType: '' })
         }}
       >
         필터 초기화
+      </Button>
+      <Button onClick={onRefresh} disabled={loading}>
+        목록 새로고침
       </Button>
       {children}
     </div>
@@ -76,8 +71,7 @@ export function filterRows(rows, query, filters) {
             .toLowerCase()
             .includes(query.trim().toLowerCase()),
         )) &&
-      (!filters.asset || r.asset === filters.asset) &&
-      (!filters.status || r.status === filters.status) &&
+      (!filters.docType || filters.docType === 'all' || r.doc_type === filters.docType) &&
       (!filters.period ||
         (r.date &&
           new Date(r.date).getTime() >=
@@ -103,20 +97,25 @@ export function LibraryTable({
   compact = false,
   onOpen,
 }) {
+  const documentTypes = { manual: '매뉴얼', sop: '규정·SOP', rule: '룰베이스' }
   const [sort, setSort] = useState({ key: 'date', direction: -1 })
   const [page, setPage] = useState(1)
   const pages = Math.max(1, Math.ceil(rows.length / 10))
   const current = Math.min(page, pages)
   const sorted = rows
-    .map((row, index) => ({ ...row, number: rows.length - index }))
+    .map((row, index) => ({ ...row, number: index + 1 }))
     .sort(
       (a, b) =>
-        String(a[sort.key] ?? '').localeCompare(
-          String(b[sort.key] ?? ''),
+        String(sort.key === 'doc_type' ? documentTypes[a.doc_type] || a.doc_type || '' : a[sort.key] ?? '').localeCompare(
+          String(sort.key === 'doc_type' ? documentTypes[b.doc_type] || b.doc_type || '' : b[sort.key] ?? ''),
           'ko',
           { numeric: true },
         ) * sort.direction,
     )
+    .map((row, index) => ({
+      ...row,
+      number: sort.key === 'number' && sort.direction === -1 ? rows.length - index : index + 1,
+    }))
   const columns = report
     ? [
         ['number', '번호'],
@@ -131,6 +130,7 @@ export function LibraryTable({
         ['number', '번호'],
         ['name', '문서명'],
         ['asset', '적용 설비'],
+        ['doc_type', '문서 종류'],
         ['version', '버전'],
         ['date', '등록일'],
         ['status', '처리 상태'],
@@ -147,7 +147,7 @@ export function LibraryTable({
         <p>열 제목을 클릭하여 오름차순 / 내림차순 정렬</p>
       </div>
       <div className="library-table-scroll" role="region" aria-label={`${title} 표`} tabIndex={0}>
-        <table className="library-table">
+        <table className={`library-table ${report ? 'library-table--report' : 'library-table--manual'}`}>
           <thead>
             <tr>
               {columns.map(([key, label]) => (
@@ -201,6 +201,8 @@ export function LibraryTable({
                       >
                         {r.name}
                       </button>
+                    ) : key === 'doc_type' ? (
+                      documentTypes[r.doc_type] || r.doc_type || '—'
                     ) : key === 'date' ? (
                       dateLabel(r.date, report)
                     ) : key === 'status' && report ? (
@@ -226,7 +228,7 @@ export function LibraryTable({
             ))}
             {!rows.length && (
               <tr>
-                <td colSpan={7} className="library-empty">
+                <td colSpan={columns.length + (report ? 0 : 1)} className="library-empty">
                   표시할 {report ? '정비 이력이' : '문서가'} 없습니다.
                 </td>
               </tr>

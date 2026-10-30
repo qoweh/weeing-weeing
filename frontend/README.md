@@ -88,7 +88,7 @@ API_ORIGIN=http://127.0.0.1:8000
 npm run dev
 ```
 
-Next.js 개발 서버: `http://localhost:3000`
+Next.js 개발 서버: `http://localhost:3100`
 
 백엔드도 별도로 실행해야 로그인과 문서 등록, 분석, 보고서 기능을 사용할 수 있습니다. 화면은 `src/views`, 공통 UI는 `src/components`, API 연결은 `src/api`에서 관리하며 현재 단일 페이지에서 전환됩니다. 대시보드 수치는 예시입니다.
 
