@@ -1,6 +1,6 @@
 """에이전트 실행기: 에이전트 정의(AgentSpec) + 도구 호출 루프(run_agent) + 실행 기억(RunMemory) (#102).
 
-지금은 사건 분석 에이전트 하나만 쓰지만, 멀티 에이전트로 넓힐 때 그대로 쓰도록 나눠 둔다.
+사건 분석과 챗봇이 같은 실행기를 쓴다. 각 실행은 하나의 역할과 허용 도구를 가진다.
 에이전트 하나 = 역할 프롬프트 + 허용 도구 + 결과를 받는 제출 도구 + 반복 상한.
 설계와 멀티 에이전트·메모리 확장 계획은 docs/AGENT.md.
 
@@ -56,6 +56,9 @@ class RunMemory:
     tool_calls: list[ToolCall] = field(default_factory=list)
     usage: LlmUsage = field(default_factory=lambda: LlmUsage(0, 0, 0.0))
     turns: int = 0
+    usage_missing_calls: int = (
+        0  # 공급자가 사용량을 주지 않은 호출은 0으로 확정하지 않는다.
+    )
 
     def remember(self, items: list[Evidence]) -> None:
         for item in items:
@@ -133,8 +136,13 @@ def run_agent(
             metadata={
                 "turns": memory.turns,
                 "tool_calls": len(memory.tool_calls),
-                "input_tokens": memory.usage.input_tokens,
-                "output_tokens": memory.usage.output_tokens,
+                "input_tokens": memory.usage.input_tokens
+                if not memory.usage_missing_calls
+                else None,
+                "output_tokens": memory.usage.output_tokens
+                if not memory.usage_missing_calls
+                else None,
+                "usage_missing_calls": memory.usage_missing_calls,
             },
         )
     return output, memory
@@ -163,6 +171,9 @@ def _loop(
         )
         if client.last_usage is not None:
             memory.usage = memory.usage + client.last_usage
+        else:
+            memory.usage_missing_calls += 1
+        memory.usage_missing_calls += max(0, getattr(client, "last_attempts", 1) - 1)
         memory.messages.append({"role": "assistant", "content": response.content})
 
         uses = [b for b in response.content if b.type == "tool_use"]
@@ -181,6 +192,9 @@ def _loop(
 
         results, output, finished = [], None, False
         for block in uses:
+            # 첫 유효 제출 뒤에는 남은 도구를 실행하지 않아 추가 검토·결과 변경을 막는다.
+            if finished:
+                break
             with tracer.observe(block.name, as_type="tool", input=block.input) as obs:
                 content, is_error = _run_tool(block, tools, spec.finish, memory)
                 obs.update(

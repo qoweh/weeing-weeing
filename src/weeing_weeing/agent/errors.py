@@ -23,6 +23,22 @@ class LlmRequestError(LlmError):
         )
 
 
+class LlmAuthenticationError(LlmUnavailableError):
+    """API 키·프로필·공급자 권한 오류. 자동 재시도하지 않는다."""
+
+
+class LlmRateLimitError(LlmRequestError):
+    """공급자의 429 호출 제한. 제한된 재시도 후에도 해소되지 않았다."""
+
+
+class LlmServiceError(LlmUnavailableError):
+    """네트워크·5xx 일시 장애. 인증 오류와 구분한다."""
+
+
+class LlmInvalidResponseError(LlmError):
+    """빈 응답·출력 잘림 등 정상 답변으로 처리할 수 없는 공급자 응답."""
+
+
 class LlmModelMissingError(LlmError):
     """그 모델 ID를 쓸 수 없다(오타·권한 없음)."""
 

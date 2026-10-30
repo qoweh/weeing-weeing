@@ -9,7 +9,16 @@ from zoneinfo import ZoneInfo
 
 from pydantic import Field
 
-from weeing_weeing.agent.errors import LlmError, LlmTimeoutError
+from weeing_weeing.agent.chat_grounding import verify_grounding
+from weeing_weeing.agent.chat_usage import ChatCallUsage, ChatRunUsage
+from weeing_weeing.agent.errors import (
+    LlmAuthenticationError,
+    LlmError,
+    LlmInvalidResponseError,
+    LlmRateLimitError,
+    LlmServiceError,
+    LlmTimeoutError,
+)
 from weeing_weeing.agent.faq import FaqNotFoundError, FaqVersionConflictError
 from weeing_weeing.agent.runtime import (
     AgentError,
@@ -21,6 +30,7 @@ from weeing_weeing.agent.runtime import (
     run_agent,
     to_json,
 )
+from weeing_weeing.agent.tracing import NULL_TRACER
 from weeing_weeing.contracts.chat import (
     ChatAnswerPart,
     ChatContext,
@@ -98,19 +108,61 @@ class _Deadline:
 
 
 class _BudgetClient:
+    """도구 루프와 근거 검토의 호출 예산·추적·사용량을 같은 요청에 묶는다."""
+
     def __init__(self, client: "LlmClient", deadline: _Deadline) -> None:
         self.client = client
         self.deadline = deadline
+        self.calls: list[ChatCallUsage] = []
+        self.tracer = getattr(client, "tracer", NULL_TRACER)
 
     @property
     def last_usage(self):
         return self.client.last_usage
 
+    @property
+    def last_attempts(self):
+        return getattr(self.client, "last_attempts", 1)
+
+    def _call(self, purpose, invoke):
+        started = time.monotonic()
+        failed = True
+        called = False
+        try:
+            remaining = self.deadline.remaining()
+            called = True
+            response = invoke(remaining)
+            self.deadline.remaining()
+            failed = False
+            return response
+        finally:
+            if called:
+                self.calls.append(
+                    ChatCallUsage(
+                        purpose=purpose,
+                        provider=getattr(self.client, "provider", "unknown"),
+                        model=getattr(self.client, "last_response_model", None)
+                        or getattr(self.client, "model_name", "unknown"),
+                        usage=self.client.last_usage,
+                        elapsed_s=time.monotonic() - started,
+                        failed=failed,
+                        attempts=self.last_attempts,
+                    )
+                )
+
     def create(self, **kwargs):
-        kwargs["timeout_s"] = self.deadline.remaining()
-        response = self.client.create(**kwargs)
-        self.deadline.remaining()
-        return response
+        return self._call(
+            "dialogue",
+            lambda remaining: self.client.create(**{**kwargs, "timeout_s": remaining}),
+        )
+
+    def generate_json(self, system, user, *, schema, timeout_s):
+        return self._call(
+            "grounding",
+            lambda remaining: self.client.generate_json(
+                system, user, schema=schema, timeout_s=remaining
+            ),
+        )
 
 
 class ToolChatService:
@@ -139,6 +191,7 @@ class ToolChatService:
         self._faq = faq
         self._max_turns = max_turns
         self._lock = threading.Lock()
+        self.last_run: ChatRunUsage | None = None
 
     def reply(
         self, question: ChatQuestion, *, context: ChatContext, timeout_s: float
@@ -146,17 +199,27 @@ class ToolChatService:
         """질문 한 건을 처리하고 시간 초과·검색·생성 실패를 공통 응답으로 변환한다."""
         deadline = _Deadline(timeout_s)
         acquired = False
+        client = None
+        memory = RunMemory()
+        started = time.monotonic()
         try:
             # 클라이언트가 보관하는 호출별 사용량이 동시에 덮어써지지 않게 직렬화한다.
             acquired = self._lock.acquire(timeout=deadline.remaining())
             if not acquired:
                 raise LlmTimeoutError("대화 처리 대기 시간 초과")
-            return self._reply(question, context, deadline)
+            client = _BudgetClient(self._client, deadline)
+            return self._reply(question, context, deadline, client, memory)
         except LlmTimeoutError:
             return self._failed(question, "TIMEOUT", True)
         except _SearchUnavailableError:
             return self._failed(question, "SEARCH_UNAVAILABLE", True)
-        except AgentError:
+        except LlmAuthenticationError:
+            return self._failed(question, "LLM_AUTHENTICATION", False)
+        except LlmRateLimitError:
+            return self._failed(question, "RATE_LIMITED", True)
+        except LlmServiceError:
+            return self._failed(question, "LLM_SERVICE", True)
+        except (AgentError, LlmInvalidResponseError):
             return self._failed(question, "INVALID_RESPONSE", False)
         except LlmError:
             return self._failed(question, "LLM_SERVICE", False)
@@ -165,6 +228,12 @@ class ToolChatService:
             return self._failed(question, "INTERNAL_ERROR", False)
         finally:
             if acquired:
+                self.last_run = ChatRunUsage(
+                    request_id=str(question.request_id),
+                    calls=tuple(client.calls) if client else (),
+                    tool_names=tuple(call.name for call in memory.tool_calls),
+                    elapsed_s=time.monotonic() - started,
+                )
                 self._lock.release()
 
     @staticmethod
@@ -180,7 +249,12 @@ class ToolChatService:
         )
 
     def _reply(
-        self, question: ChatQuestion, context: ChatContext, deadline: _Deadline
+        self,
+        question: ChatQuestion,
+        context: ChatContext,
+        deadline: _Deadline,
+        client: _BudgetClient,
+        memory: RunMemory,
     ) -> ChatResponse:
         """Claude의 도구 선택→서버 검색→근거 전달→답변 제출 흐름을 구성한다."""
         # 이번 요청에서 실제로 얻은 근거만 보관한다. 이전 대화의 인용을 그대로 신뢰하지 않는다.
@@ -190,6 +264,7 @@ class ToolChatService:
         applied = question.conditions
         search_count = 0
         conditions_locked = False
+        grounding_attempts = 0
 
         def conditions_for(conditions):
             """명시된 사용자 조건을 보존하고 서로 다른 조건의 근거가 섞이지 않게 한다."""
@@ -357,6 +432,7 @@ class ToolChatService:
 
         def submit(data: dict[str, Any], memory: RunMemory) -> ChatResponse:
             """모델의 최종 답변에서 인용 ID·가상 표시·출처 최신성을 검증한다."""
+            nonlocal grounding_attempts
             deadline.remaining()
             draft = _Draft.model_validate(data)
             cited = {key for part in draft.parts for key in part.source_ids}
@@ -392,13 +468,107 @@ class ToolChatService:
                             ) from exc
                         if not searchable:
                             raise _SearchUnavailableError("검색 대상 상태가 변경됨")
-            return ChatResponse(
-                **draft.model_dump(),
+            response_data = draft.model_dump()
+            # 안내 문구에 검증되지 않은 사실 주장을 숨기지 못하도록 서버 문구로 고정한다.
+            response_data["message"] = {
+                "OK": "검색 근거를 바탕으로 안내합니다.",
+                "NEEDS_CLARIFICATION": "질문 조건을 조금 더 확인해야 합니다.",
+                "INSUFFICIENT_EVIDENCE": "답변을 뒷받침할 근거가 충분하지 않습니다.",
+                "OUT_OF_SCOPE": "매뉴얼·승인 정비이력·FAQ 관련 질문만 안내할 수 있습니다.",
+            }[draft.status]
+            if draft.status == "NEEDS_CLARIFICATION":
+                # 추가 질문에 미검증 단정·조치 지시를 숨기지 못하도록 서버 문구를 쓴다.
+                response_data["clarification_questions"] = [
+                    "찾으려는 자료와 설비 ID·오류 코드·조회 기간 중 필요한 조건을 알려주세요."
+                ]
+            response = ChatResponse(
+                **response_data,
                 request_id=question.request_id,
                 applied_conditions=applied,
                 sources=[source for key, source in sources.items() if key in cited],
                 generated_at=datetime.now(UTC),
             )
+            if response.status == "OK":
+                # 존재하는 인용이라도 본문이 과장·일반화됐을 수 있어 별도 호출로 대조한다.
+                # 같은 답변은 최대 두 번만 검토해 수정 루프의 추가 비용을 제한한다.
+                if sum(len(part.text) for part in response.parts) > 16000:
+                    raise ToolInputError(
+                        "답변 본문이 너무 길다. 필요한 내용만 16000자 이내로 줄인다."
+                    )
+                # 동일 근거를 부분마다 복제하지 않아 검토 호출의 입력 크기를 제한한다.
+                payload = {
+                    "question": question.question,
+                    "parts": [part.model_dump(mode="json") for part in response.parts],
+                    "evidence": {
+                        key: {
+                            "source": sources[key].model_dump(mode="json"),
+                            "text": texts[key],
+                        }
+                        for key in cited
+                    },
+                }
+                if grounding_attempts >= 2:
+                    return ChatResponse(
+                        request_id=question.request_id,
+                        intent=draft.intent,
+                        status="INSUFFICIENT_EVIDENCE",
+                        applied_conditions=applied,
+                        message="답변을 뒷받침할 근거가 충분하지 않습니다.",
+                        generated_at=datetime.now(UTC),
+                    )
+                grounding_attempts += 1
+                verdict = verify_grounding(
+                    client, payload, timeout_s=deadline.remaining()
+                )
+                if client.last_usage is not None:
+                    memory.usage = memory.usage + client.last_usage
+                else:
+                    memory.usage_missing_calls += 1
+                memory.usage_missing_calls += max(0, client.last_attempts - 1)
+                if verdict.verdict != "SUPPORTED":
+                    if verdict.verdict == "CONFLICT":
+                        return ChatResponse(
+                            request_id=question.request_id,
+                            intent=draft.intent,
+                            status="NEEDS_CLARIFICATION",
+                            applied_conditions=applied,
+                            message="근거의 적용 조건이 충돌하여 답변을 확정하지 못했습니다.",
+                            clarification_questions=[
+                                "확인하려는 설비·문서 버전과 적용 조건을 구체적으로 알려주세요."
+                            ],
+                            generated_at=datetime.now(UTC),
+                        )
+                    if grounding_attempts < 2:
+                        raise ToolInputError(
+                            "답변에 인용 근거로 확인되지 않는 주장이 있다. 추가 검색하거나 내용을 줄이고, 근거가 없으면 INSUFFICIENT_EVIDENCE로 제출한다."
+                        )
+                    return ChatResponse(
+                        request_id=question.request_id,
+                        intent=draft.intent,
+                        status="INSUFFICIENT_EVIDENCE",
+                        applied_conditions=applied,
+                        message="답변을 뒷받침할 근거가 충분하지 않습니다.",
+                        generated_at=datetime.now(UTC),
+                    )
+                # 검토 호출 동안 삭제·개정됐을 수도 있으므로 외부에 반환하기 직전에 재확인한다.
+                for source in response.sources:
+                    if source.kind == "FAQ":
+                        if self._faq.get_answer(source.faq_id).source != source:
+                            raise _SearchUnavailableError("FAQ 출처 변경")
+                    else:
+                        try:
+                            current = self._knowledge.is_searchable(
+                                source, timeout_s=deadline.remaining()
+                            )
+                        except LlmTimeoutError:
+                            raise
+                        except Exception as exc:
+                            raise _SearchUnavailableError(
+                                "검토 후 출처 확인 실패"
+                            ) from exc
+                        if not current:
+                            raise _SearchUnavailableError("검토 중 출처 변경")
+            return response
 
         # 별도 분류용 LLM 호출은 없다. 같은 Claude 실행이 필요한 도구를 골라 반복 호출한다.
         spec = AgentSpec(
@@ -436,7 +606,7 @@ class ToolChatService:
                 _Draft.model_json_schema(),
                 submit,
             ),
-            prompt_version="chat-tools-v2",
+            prompt_version="chat-tools-v3",
             max_turns=self._max_turns,
         )
         # '지난달' 같은 상대 날짜 해석을 위해 한국 시간 기준일과 사용자 조건을 함께 준다.
@@ -453,9 +623,11 @@ class ToolChatService:
             }
         )
         result, _ = run_agent(
-            _BudgetClient(self._client, deadline),
+            client,
             spec,
             task,
             timeout_s=deadline.remaining(),
+            memory=memory,
+            session_id=str(question.request_id),
         )
         return result

@@ -18,7 +18,9 @@ make api                                # FastAPI 개발 서버
 ```
 
 챗봇 단일 질문 실행은 `make chat ARGS='"P03 점검 절차는?" --asset-id BLDC-001'`을 사용합니다.
-DB·색인·Claude API 키가 필요하고 실제 API 비용이 발생합니다. [CHATBOT](docs/CHATBOT.md)을 참고하세요.
+DB·색인·Claude API 키가 필요하고 실제 API 비용이 발생합니다. 키를 파일에 남기지 않고
+직접 대화하려면 `make chat-private ARGS='--asset-id BLDC-001'`을 실행해 터미널에서 숨김
+입력하세요. 이 명령은 .env를 자동으로 로드하지 않습니다. [CHATBOT](docs/CHATBOT.md)을 참고하세요.
 
 자세한 설치(uv·Docker·Claude API 키)와 문제 해결: [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md)
 

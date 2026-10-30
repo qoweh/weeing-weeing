@@ -259,6 +259,9 @@ class ToolClient:
         self.structured = structured
         self.result = None
 
+    def generate_json(self, system, user, **kwargs):
+        return '{"verdict":"SUPPORTED","unsupported_parts":[]}'
+
     def create(self, **kwargs):
         self.calls += 1
         if self.calls == 1:

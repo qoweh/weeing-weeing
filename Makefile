@@ -74,3 +74,7 @@ chat: ## 챗봇 질문 실행 (Claude API 비용 발생, DB·색인 필요, ARGS
 .PHONY: chat-check
 chat-check: ## Claude 없이 FAQ·검색·DB 조회 확인 (ARGS='faq' 또는 'search "P03 점검"' 또는 'history')
 	PYTHONPATH=src $(RUN) $(ENV_FILE) python scripts/check_chat.py $(ARGS)
+
+.PHONY: chat-private
+chat-private: ## .env 자동 로딩 없이 Claude 키를 숨김 입력해 직접 대화 (API 비용 발생)
+	PYTHONPATH=src $(RUN) --no-env-file python scripts/chat.py --interactive --ask-key $(ARGS)

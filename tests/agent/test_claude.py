@@ -81,7 +81,9 @@ def test_generate_json_sends_schema_effort_and_fallback():
     assert call["output_config"]["effort"] == "low"
     assert call["output_config"]["format"]["schema"]["additionalProperties"] is False
     assert call["betas"] == [FALLBACK_BETA] and call["fallbacks"] == "default"
-    assert sdk.options == [{"timeout": 7}]
+    assert len(sdk.options) == 1
+    assert 0 < sdk.options[0]["timeout"] <= 7
+    assert sdk.options[0]["max_retries"] == 0
     assert client.last_usage.input_tokens == 10
     assert client.last_usage.output_tokens == 5
 
@@ -138,3 +140,77 @@ def test_actual_response_model_and_usage_are_captured():
     assert client.last_response_model == "actual-model-version"
     assert client.last_usage.cache_read_input_tokens == 12
     assert client.last_usage.cache_creation_input_tokens == 4
+
+
+@pytest.mark.parametrize("code,attempts", [(400, 1), (401, 1), (429, 3), (500, 3)])
+def test_retry_policy_is_bounded_and_does_not_retry_auth_or_input(
+    monkeypatch, code, attempts
+):
+    from weeing_weeing.agent import claude
+
+    waits = []
+    monkeypatch.setattr(claude.time, "sleep", waits.append)
+    cls = anthropic.AuthenticationError if code == 401 else anthropic.APIStatusError
+    sdk = FakeSdk(status_error(cls, code))
+    with pytest.raises(LlmError):
+        ClaudeClient("test", sdk=sdk).create(
+            system="s", messages=[], tools=[], timeout_s=5
+        )
+    assert len(sdk.calls) == attempts
+    assert waits == ([0.25, 0.5] if attempts == 3 else [])
+    assert all(option["max_retries"] == 0 for option in sdk.options)
+
+
+def test_missing_usage_and_failed_call_do_not_reuse_previous_tokens(monkeypatch):
+    from weeing_weeing.agent import claude
+
+    monkeypatch.setattr(claude.time, "sleep", lambda _: None)
+    sdk = FakeSdk(message(text("{}")))
+    client = ClaudeClient("test", sdk=sdk)
+    client.generate_json("s", "u", timeout_s=5)
+    assert client.last_usage.input_tokens == 10
+    sdk.reply = status_error(anthropic.AuthenticationError, 401)
+    with pytest.raises(LlmError):
+        client.generate_json("s", "u", timeout_s=5)
+    assert client.last_usage is None
+    sdk.reply = message(text("{}"))
+    sdk.reply.usage = None
+    client.generate_json("s", "u", timeout_s=5)
+    assert client.last_usage is None
+
+
+def test_retry_does_not_start_when_remaining_budget_cannot_cover_backoff(monkeypatch):
+    from weeing_weeing.agent import claude
+
+    clock = [10.0]
+    monkeypatch.setattr(claude.time, "monotonic", lambda: clock[0])
+    sdk = FakeSdk(status_error(anthropic.APIStatusError, 429))
+    original = sdk._create
+
+    def slow(**params):
+        clock[0] += 4.95
+        return original(**params)
+
+    sdk.beta.messages.create = slow
+    with pytest.raises(LlmTimeoutError):
+        ClaudeClient("test", sdk=sdk).create(
+            system="s", messages=[], tools=[], timeout_s=5
+        )
+    assert len(sdk.calls) == 1
+
+
+def test_explicit_key_is_passed_only_to_sdk_not_request_or_repr(monkeypatch):
+    from weeing_weeing.agent import claude
+
+    sdk = FakeSdk(message(text("{}")))
+    received = []
+
+    def factory(**kwargs):
+        received.append(kwargs)
+        return sdk
+
+    monkeypatch.setattr(claude.anthropic, "Anthropic", factory)
+    client = ClaudeClient("test", api_key="FAKE_SECRET_KEY_SENTINEL")
+    client.generate_json("s", "u", timeout_s=5)
+    assert received == [{"api_key": "FAKE_SECRET_KEY_SENTINEL"}]
+    assert "FAKE_SECRET_KEY_SENTINEL" not in repr(client) + json.dumps(sdk.calls)

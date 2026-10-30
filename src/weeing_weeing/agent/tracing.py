@@ -90,7 +90,7 @@ class _LangfuseObservation:
         try:
             self._raw.update(**fields)
         except Exception as exc:  # 기록 실패가 분석을 막지 않게
-            logger.warning("Langfuse 기록 실패: %s", exc)
+            logger.warning("Langfuse 기록 실패: %s", type(exc).__name__)
 
 
 class LangfuseTracer:
@@ -148,28 +148,28 @@ class LangfuseTracer:
             )
             observation = _LangfuseObservation(raw, self._capture)
         except Exception as exc:
-            logger.warning("Langfuse 기록 시작 실패(%s): %s", name, exc)
+            logger.warning("Langfuse 기록 시작 실패(%s): %s", name, type(exc).__name__)
 
         token = _depth.set(_depth.get() + 1)
         try:
             yield observation
         except BaseException as exc:
-            observation.update(
-                level="ERROR", status_message=f"{type(exc).__name__}: {exc}"[:500]
-            )
+            observation.update(level="ERROR", status_message=type(exc).__name__)
             raise
         finally:
             _depth.reset(token)
             try:
                 stack.close()
             except Exception as exc:
-                logger.warning("Langfuse 기록 종료 실패(%s): %s", name, exc)
+                logger.warning(
+                    "Langfuse 기록 종료 실패(%s): %s", name, type(exc).__name__
+                )
 
     def flush(self) -> None:
         try:
             self._client.flush()
         except Exception as exc:
-            logger.warning("Langfuse 전송 실패: %s", exc)
+            logger.warning("Langfuse 전송 실패: %s", type(exc).__name__)
 
 
 def build_tracer(settings: "Settings", *, entrypoint: str) -> Tracer:
@@ -197,7 +197,9 @@ def build_tracer(settings: "Settings", *, entrypoint: str) -> Tracer:
             timeout=TIMEOUT_S,
         )
     except Exception as exc:
-        logger.warning("Langfuse를 시작하지 못해 기록하지 않는다: %s", exc)
+        logger.warning(
+            "Langfuse를 시작하지 못해 기록하지 않는다: %s", type(exc).__name__
+        )
         return NULL_TRACER
     return LangfuseTracer(
         client,

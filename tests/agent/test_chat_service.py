@@ -67,6 +67,10 @@ class FakeClient:
             raise response
         return response
 
+    def generate_json(self, system, user, **kwargs):
+        # 기존 도구 루프 테스트는 검토 호출을 통과시키고, 검토 자체는 별도 사례로 검증한다.
+        return '{"verdict":"SUPPORTED","unsupported_parts":[]}'
+
 
 def document():
     return ChatSearchHit(
@@ -134,7 +138,7 @@ def test_free_question_calls_tools_without_separate_classifier():
     assert result.applied_conditions == conditions
     assert knowledge.searches[0].conditions == conditions
     assert knowledge.searches[0].code == "BTT2-P03"
-    assert len(knowledge.reads) == 2  # 검색 후·답변 출처 반환 전 재검사
+    assert len(knowledge.reads) == 3  # 검색 후·제출 전·근거 검토 후 재검사
     assert len(client.calls) == 2
     task = json.loads(client.calls[0]["messages"][0]["content"])
     assert task["timezone"] == "Asia/Seoul"

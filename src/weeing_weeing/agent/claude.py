@@ -6,7 +6,8 @@
   그대로 돌려줘 다음 요청에 thinking 블록까지 이어 붙일 수 있게 한다.
 - 생각 단계는 모델이 알아서 정한다(adaptive). 깊이는 effort로만 조절한다.
 - 안전 정책 거부에 대비해 서버 측 대체 모델(fallbacks="default")을 켠다.
-- 실패는 LlmError 하위 예외로 알린다. 429·5xx·연결 오류는 SDK가 max_retries만큼 다시 보낸다.
+- 실패는 LlmError 하위 예외로 알린다. 429·5xx·연결 오류는 전체 예산 안에서 최대 2번 재시도한다.
+  SDK 내부 재시도는 끄고 _send에서 시간 예산·대기를 제어한다.
 - API 키는 SDK가 ANTHROPIC_API_KEY(또는 ant auth login 프로필)에서 직접 읽는다.
 - 호출 1번을 tracer에 generation 1개로 남긴다(모델·토큰·오류, #113).
 """
@@ -18,12 +19,14 @@ from typing import Any
 import anthropic
 
 from weeing_weeing.agent.errors import (
-    LlmError,
+    LlmAuthenticationError,
+    LlmInvalidResponseError,
     LlmModelMissingError,
+    LlmRateLimitError,
     LlmRefusedError,
     LlmRequestError,
+    LlmServiceError,
     LlmTimeoutError,
-    LlmUnavailableError,
     LlmUsage,
 )
 from weeing_weeing.agent.tracing import NULL_TRACER, Tracer
@@ -76,6 +79,7 @@ class ClaudeClient:
         effort: str = "medium",
         sdk: Any | None = None,
         tracer: Tracer = NULL_TRACER,
+        api_key: str | None = None,
     ) -> None:
         if not model:
             raise ValueError("LLM_MODEL이 비어 있다. .env에 모델 ID를 넣는다")
@@ -83,8 +87,12 @@ class ClaudeClient:
         self._effort = effort
         self._sdk = sdk
         self.tracer = tracer
+        self._api_key = (
+            api_key  # 숨김 입력한 키는 파일·로그·요청 추적에 기록하지 않는다.
+        )
         self.last_usage: LlmUsage | None = None
         self.last_response_model: str | None = None
+        self.last_attempts = 0
 
     def generate_json(
         self,
@@ -108,9 +116,12 @@ class ClaudeClient:
         )
         text = "".join(b.text for b in response.content if b.type == "text")
         if not text.strip():
-            raise LlmError(f"{self.model_name}: 빈 응답")
+            raise LlmInvalidResponseError("Claude API가 빈 응답을 반환했습니다.")
         if schema is None:
-            json.loads(text)  # 스키마 없이도 JSON이어야 한다(아니면 JSONDecodeError)
+            try:
+                json.loads(text)
+            except ValueError as exc:
+                raise LlmInvalidResponseError("Claude JSON 응답 형식 오류") from exc
         return text
 
     def create(
@@ -130,12 +141,23 @@ class ClaudeClient:
             output_config={"effort": self._effort},
         )
 
+    def close(self) -> None:
+        """CLI 종료 시 추적을 보내고 SDK 연결을 닫는다. 키를 디스크로 저장하지 않는다."""
+        try:
+            self.tracer.flush()
+        finally:
+            try:
+                if self._sdk is not None:
+                    self._sdk.close()
+            finally:
+                self._api_key = None
+
     def _client(self) -> Any:
         if self._sdk is None:
             try:
-                self._sdk = anthropic.Anthropic()
+                self._sdk = anthropic.Anthropic(api_key=self._api_key)
             except anthropic.AnthropicError as exc:
-                raise LlmUnavailableError(
+                raise LlmAuthenticationError(
                     "Claude API 인증 정보가 없다. .env에 ANTHROPIC_API_KEY를 넣거나 "
                     "ant auth login"
                 ) from exc
@@ -152,33 +174,68 @@ class ClaudeClient:
             observation.update(
                 output=[_dump(b) for b in response.content],
                 usage_details=_usage_details(response),
-                metadata={"stop_reason": response.stop_reason, "effort": self._effort},
+                metadata={
+                    "stop_reason": response.stop_reason,
+                    "effort": self._effort,
+                    "attempts": self.last_attempts,
+                    "retry_usage_unknown": self.last_attempts > 1,
+                },
                 # 서버 측 대체 모델이 답했으면 실제 모델로 단가를 계산한다
                 model=getattr(response, "model", None) or self.model_name,
             )
             return self._check(response)
 
+    def _send(self, timeout_s: float, **params: Any) -> Any:
+        """SDK 내부 중복 재시도를 끄고 같은 시간 예산에서 최대 2번만 재시도한다.
+
+        인증·입력 오류는 재시도하지 않는다. 대기와 네트워크 요청은 남은 예산 안에 둔다.
+        통신 장애 후 공급자 과금 여부가 불명확할 수 있으며, 비용은 사용량 미확인으로 남긴다.
+        """
+        deadline = time.monotonic() + timeout_s
+        for attempt in range(3):
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise LlmTimeoutError("Claude API 시간 예산 초과")
+            try:
+                self.last_attempts += 1
+                return (
+                    self._client()
+                    .with_options(timeout=remaining, max_retries=0)
+                    .beta.messages.create(
+                        model=self.model_name,
+                        max_tokens=MAX_TOKENS,
+                        betas=[FALLBACK_BETA],
+                        fallbacks="default",
+                        **params,
+                    )
+                )
+            except (anthropic.APIConnectionError, anthropic.APIStatusError) as exc:
+                transient = (
+                    isinstance(exc, anthropic.APIConnectionError)
+                    or exc.status_code == 429
+                    or exc.status_code >= 500
+                )
+                if not transient or attempt == 2:
+                    raise
+                wait = 0.25 * (2**attempt)
+                if wait >= deadline - time.monotonic():
+                    raise LlmTimeoutError("Claude API 재시도 시간 예산 초과") from exc
+                time.sleep(wait)
+        raise AssertionError("도달할 수 없는 재시도 상태")
+
     def _request(self, timeout_s: float, **params: Any) -> Any:
         started = time.perf_counter()
         self.last_response_model = None
+        self.last_attempts = 0
+        self.last_usage = None  # 실패 시 이전 호출의 사용량을 재사용하지 않는다.
         try:
-            response = (
-                self._client()
-                .with_options(timeout=timeout_s)
-                .beta.messages.create(
-                    model=self.model_name,
-                    max_tokens=MAX_TOKENS,
-                    betas=[FALLBACK_BETA],
-                    fallbacks="default",
-                    **params,
-                )
-            )
+            response = self._send(timeout_s, **params)
         except anthropic.APITimeoutError as exc:
             raise LlmTimeoutError(
                 f"{self.model_name}: {timeout_s:g}초 안에 응답 없음"
             ) from exc
         except (anthropic.AuthenticationError, anthropic.PermissionDeniedError) as exc:
-            raise LlmUnavailableError(
+            raise LlmAuthenticationError(
                 "Claude API 인증 실패. ANTHROPIC_API_KEY를 확인한다"
             ) from exc
         except anthropic.NotFoundError as exc:
@@ -186,10 +243,14 @@ class ClaudeClient:
                 f"모델 {self.model_name}을 쓸 수 없다. LLM_MODEL을 확인한다"
             ) from exc
         except anthropic.APIConnectionError as exc:
-            raise LlmUnavailableError(
+            raise LlmServiceError(
                 f"Claude API에 연결하지 못함: {type(exc).__name__}"
             ) from exc
         except anthropic.APIStatusError as exc:
+            if exc.status_code == 429:
+                raise LlmRateLimitError(429) from exc
+            if exc.status_code >= 500:
+                raise LlmServiceError("Claude API 일시 장애") from exc
             # 요청 본문·공급자 메시지는 남기지 않고 알려진 파라미터 이름만 분류한다.
             detail = str(getattr(exc, "body", "")).lower()
             hint = next(
@@ -212,27 +273,39 @@ class ClaudeClient:
             # 키·토큰·프로필이 하나도 없으면 SDK가 요청 직전에 TypeError를 낸다
             if "authentication" not in str(exc):
                 raise
-            raise LlmUnavailableError(
+            raise LlmAuthenticationError(
                 "Claude API 인증 정보가 없다. .env에 ANTHROPIC_API_KEY를 넣거나 "
                 "ant auth login"
             ) from exc
         usage = getattr(response, "usage", None)
         self.last_response_model = getattr(response, "model", None)
-        self.last_usage = LlmUsage(
-            input_tokens=getattr(usage, "input_tokens", 0) or 0,
-            output_tokens=getattr(usage, "output_tokens", 0) or 0,
-            total_s=time.perf_counter() - started,
-            cache_read_input_tokens=getattr(usage, "cache_read_input_tokens", 0) or 0,
-            cache_creation_input_tokens=getattr(usage, "cache_creation_input_tokens", 0)
-            or 0,
-        )
+        # 공급자가 토큰을 주지 않으면 0이 아니라 None으로 남긴다.
+        input_tokens = getattr(usage, "input_tokens", None)
+        output_tokens = getattr(usage, "output_tokens", None)
+        if (
+            type(input_tokens) is int
+            and type(output_tokens) is int
+            and min(input_tokens, output_tokens) >= 0
+        ):
+            self.last_usage = LlmUsage(
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                total_s=time.perf_counter() - started,
+                cache_read_input_tokens=getattr(usage, "cache_read_input_tokens", 0)
+                or 0,
+                cache_creation_input_tokens=getattr(
+                    usage, "cache_creation_input_tokens", 0
+                )
+                or 0,
+            )
+
         return response
 
     def _check(self, response: Any) -> Any:
         if response.stop_reason == "refusal":
             raise LlmRefusedError(f"{self.model_name}: 안전 정책으로 응답 거부")
         if response.stop_reason == "max_tokens":
-            raise LlmError(f"{self.model_name}: 출력이 {MAX_TOKENS}토큰에서 잘림")
+            raise LlmInvalidResponseError("Claude 출력이 토큰 상한에서 잘렸습니다.")
         return response
 
 
@@ -245,7 +318,11 @@ def _usage_details(response: Any) -> dict[str, int]:
         ("cache_read_input_tokens", "cache_read_input_tokens"),
         ("cache_creation_input_tokens", "cache_creation_input_tokens"),
     )
-    return {key: getattr(usage, attr, 0) or 0 for key, attr in names}
+    return {
+        key: value
+        for key, attr in names
+        if type(value := getattr(usage, attr, None)) is int and value >= 0
+    }
 
 
 def _dump(block: Any) -> Any:

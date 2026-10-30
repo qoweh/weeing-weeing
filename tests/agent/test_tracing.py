@@ -117,7 +117,6 @@ def test_claude_call_is_one_generation_with_token_usage():
         "input": 100,
         "output": 20,
         "cache_read_input_tokens": 50,
-        "cache_creation_input_tokens": 0,
     }
     assert gen.updates["model"] == "claude-fallback"  # 실제로 답한 모델로 단가 계산
     # 바깥 기록이 없으면 이 호출이 trace가 되어 사람·기능 태그를 단다
@@ -147,7 +146,7 @@ def test_failed_call_is_recorded_as_error_and_still_raises():
 
     fake = FakeLangfuse()
     request = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
-    sdk = FakeSdk(anthropic.APITimeoutError(request=request))
+    sdk = FakeSdk(*(anthropic.APITimeoutError(request=request) for _ in range(3)))
     client = ClaudeClient("claude-test", sdk=sdk, tracer=tracer(fake))
     with pytest.raises(LlmTimeoutError):
         client.generate_json("s", "u", timeout_s=5)
@@ -229,3 +228,20 @@ def test_get_llm_client_has_null_tracer_by_default(monkeypatch):
     monkeypatch.delenv("LANGFUSE_BASE_URL", raising=False)
     client = get_llm_client(entrypoint="test")
     assert client.tracer is NULL_TRACER
+
+
+def test_exception_text_is_not_sent_to_tracing_or_logs(caplog):
+    fake = FakeLangfuse()
+    with pytest.raises(ValueError):
+        with tracer(fake).observe("private-test"):
+            raise ValueError("FAKE_SECRET_ERROR_SENTINEL")
+    assert fake.observations[0].updates["status_message"] == "ValueError"
+
+    class Broken(FakeLangfuse):
+        def start_as_current_observation(self, **kwargs):
+            raise RuntimeError("FAKE_SECRET_ERROR_SENTINEL")
+
+    with caplog.at_level(logging.WARNING):
+        with tracer(Broken()).observe("broken"):
+            pass
+    assert "FAKE_SECRET_ERROR_SENTINEL" not in caplog.text

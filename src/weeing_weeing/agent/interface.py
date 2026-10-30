@@ -1,11 +1,16 @@
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
+from weeing_weeing.agent.chat_usage import ChatCallUsage, ChatRunUsage
 from weeing_weeing.agent.errors import (
+    LlmAuthenticationError,
     LlmError,
+    LlmInvalidResponseError,
     LlmModelMissingError,
+    LlmRateLimitError,
     LlmRefusedError,
     LlmRequestError,
+    LlmServiceError,
     LlmTimeoutError,
     LlmUnavailableError,
     LlmUsage,
@@ -67,6 +72,8 @@ __all__ = [
     "SensorBatch",
     "SensorReader",
     "ChatService",
+    "ChatCallUsage",
+    "ChatRunUsage",
     "ChatKnowledge",
     "InvalidChatQueryError",
     "get_chat_service",
@@ -77,6 +84,10 @@ __all__ = [
     "load_faq_catalog",
     "LlmClient",
     "LlmError",
+    "LlmAuthenticationError",
+    "LlmRateLimitError",
+    "LlmServiceError",
+    "LlmInvalidResponseError",
     "LlmRequestError",
     "LlmModelMissingError",
     "LlmRefusedError",
@@ -132,6 +143,10 @@ class Analyzer(Protocol):
 
 
 class ChatService(Protocol):
+    last_run: (
+        ChatRunUsage | None
+    )  # 요청 ID를 대조해 읽는 최근 실행 통계. 본문·키는 포함하지 않는다.
+
     def reply(
         self,
         question: ChatQuestion,
@@ -199,7 +214,9 @@ def get_chat_service(
 
     settings = settings or get_settings()
     return ToolChatService(
-        client if client is not None else get_llm_client(settings),
+        client
+        if client is not None
+        else get_llm_client(settings, entrypoint="chatbot"),
         knowledge,
         faq if faq is not None else load_faq_catalog(),
         max_turns=min(settings.agent_max_turns, 12),
@@ -248,11 +265,15 @@ def load_faq_catalog(path: Path | None = None) -> FaqCatalog:
 
 
 def get_llm_client(
-    settings: "Settings | None" = None, *, entrypoint: str = "app"
+    settings: "Settings | None" = None,
+    *,
+    entrypoint: str = "app",
+    api_key: str | None = None,
 ) -> LlmClient:
     """.env 설정(LLM_MODEL·LLM_EFFORT)으로 만든 Claude 클라이언트.
 
-    API 키는 여기서 읽지 않는다. 첫 호출 때 SDK가 ANTHROPIC_API_KEY에서 읽는다.
+    api_key를 전달하면 숨김 입력한 메모리의 키를 사용한다. 생략하면 첫 호출 때 SDK가
+    환경변수/로그인 프로필을 읽는다. 키는 추적·로그에 전달하지 않는다.
     entrypoint는 사용량 기록의 기능 태그다(예: analyze, llm-check, api, chatbot).
     LANGFUSE_* 설정이 있으면 호출이 Langfuse에 남는다(docs/USAGE_TRACKING.md).
     """
@@ -265,6 +286,7 @@ def get_llm_client(
         settings.llm_model,
         effort=settings.llm_effort,
         tracer=build_tracer(settings, entrypoint=entrypoint),
+        api_key=api_key,
     )
 
 
