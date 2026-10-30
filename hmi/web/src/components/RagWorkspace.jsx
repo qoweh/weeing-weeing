@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   analyzeTestIncident,
@@ -29,6 +29,58 @@ const progressMessages = {
   storing: "벡터 DB에 저장 중입니다.",
   completed: "문서 등록이 완료됐습니다.",
 };
+
+const documentKinds = { manual: "매뉴얼", rule: "룰베이스", sop: "규정·SOP" };
+
+function compareVersions(left, right) {
+  if (!/^\d+(\.\d+)*$/.test(left) || !/^\d+(\.\d+)*$/.test(right)) return null;
+  const a = left.split(".").map(BigInt);
+  const b = right.split(".").map(BigInt);
+  for (let i = 0; i < Math.max(a.length, b.length); i += 1) {
+    if ((a[i] ?? 0n) !== (b[i] ?? 0n)) return (a[i] ?? 0n) > (b[i] ?? 0n) ? 1 : -1;
+  }
+  return 0;
+}
+
+function DocumentDialog({ replacement, completed, failure, onCancel, onConfirm }) {
+  const dialog = useRef(null);
+  const button = useRef(null);
+  useEffect(() => {
+    const element = dialog.current;
+    const focused = document.activeElement;
+    element.showModal();
+    button.current.focus();
+    return () => { element.close(); focused?.focus(); };
+  }, []);
+  const current = replacement?.detail.current;
+  const incoming = replacement?.detail.incoming;
+  const order = current && compareVersions(incoming.doc_version, current.doc_version);
+  return <dialog ref={dialog} className="document-dialog" aria-labelledby="document-dialog-title"
+    onCancel={(event) => { event.preventDefault(); onCancel(); }}>
+    {completed ? <>
+      <h2 id="document-dialog-title">문서등록이 완료되었습니다</h2>
+      <p>문서가 검색 자료로 등록되었습니다.</p>
+      <div className="document-dialog__actions"><button ref={button} className="primary" type="button" onClick={onCancel}>확인</button></div>
+    </> : failure ? <>
+      <h2 id="document-dialog-title">{failure.title}</h2>
+      <p>{failure.message}</p>
+      <div className="document-dialog__actions"><button ref={button} className="primary" type="button" onClick={onCancel}>확인</button></div>
+    </> : <>
+      <h2 id="document-dialog-title">기존 문서를 교체할까요?</h2>
+      <p>같은 문서 ID가 있습니다. 교체하면 기존 검색 자료도 새 문서로 바뀝니다.</p>
+      <div className="document-dialog__details">
+        <p><strong>기존</strong> {current.title} · {documentKinds[current.doc_type]} · v{current.doc_version}</p>
+        <p><strong>새 문서</strong> {incoming.title} · {documentKinds[current.doc_type]} · v{incoming.doc_version}</p>
+        <p>문서 ID: {current.doc_id} · 설비: {current.asset_id}</p>
+      </div>
+      {order !== null && order <= 0 && <p className="document-dialog__warning">새 문서 버전이 기존 버전과 같거나 낮습니다. 파일명을 확인해 주세요.</p>}
+      <div className="document-dialog__actions">
+        <button ref={button} type="button" onClick={onCancel}>취소</button>
+        <button className="primary" type="button" onClick={onConfirm}>교체하여 등록</button>
+      </div>
+    </>}
+  </dialog>;
+}
 
 function TextField({
   label,
@@ -187,6 +239,9 @@ export default function RagWorkspace({ tab, user, onSessionExpired, onBusyChange
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
+  const [replacement, setReplacement] = useState(null);
+  const [documentFailure, setDocumentFailure] = useState(null);
+  const [completed, setCompleted] = useState(() => Boolean(sessionStorage.getItem("weeing-document-completed")));
   const [progressMessage, setProgressMessage] = useState(
     "서버에서 처리 중입니다…",
   );
@@ -209,6 +264,43 @@ export default function RagWorkspace({ tab, user, onSessionExpired, onBusyChange
     }
   }
 
+  async function registerDocument(form) {
+    setBusy(true);
+    onBusyChange(true);
+    setError("");
+    setResult(null);
+    setDocumentFailure(null);
+    try {
+      await uploadDocument(form, (stage) => setProgressMessage(progressMessages[stage] ?? "처리 상태를 확인하고 있습니다…"));
+      sessionStorage.setItem("weeing-document-completed", "1");
+      window.location.reload();
+    } catch (failure) {
+      if (failure.status === 401) {
+        onSessionExpired();
+      } else if (failure.status === 409 && failure.detail?.code === "replace_confirmation_required") {
+        setReplacement({ form, detail: failure.detail });
+      } else {
+        setDocumentFailure({
+          title: failure.status ? "문서를 등록할 수 없습니다" : "문서 등록 상태를 확인해 주세요",
+          message: typeof failure.detail === "string" ? failure.detail : failure.message,
+        });
+      }
+    } finally {
+      setBusy(false);
+      onBusyChange(false);
+    }
+  }
+
+  function confirmReplacement() {
+    const { form, detail } = replacement;
+    form.set("confirm_replace", "true");
+    form.set("expected_upload_id", detail.current.upload_id ?? "");
+    form.set("expected_version", detail.current.doc_version);
+    form.set("expected_sha256", detail.current.source_sha256);
+    setReplacement(null);
+    void registerDocument(form);
+  }
+
   function handleSubmit(event) {
     event.preventDefault();
     if (busy) return;
@@ -218,13 +310,7 @@ export default function RagWorkspace({ tab, user, onSessionExpired, onBusyChange
 
     if (tab === "documents") {
       if (!canManageManuals) return;
-      void execute(() =>
-        uploadDocument(form, (stage) => {
-          setProgressMessage(
-            progressMessages[stage] ?? "처리 상태를 확인하고 있습니다…",
-          );
-        }),
-      );
+      void registerDocument(form);
       return;
     }
 
@@ -261,6 +347,9 @@ export default function RagWorkspace({ tab, user, onSessionExpired, onBusyChange
 
   return (
     <div className="rag-workspace">
+      {completed && <DocumentDialog completed onCancel={() => { sessionStorage.removeItem("weeing-document-completed"); setCompleted(false); }} />}
+      {replacement && <DocumentDialog replacement={replacement} onCancel={() => setReplacement(null)} onConfirm={confirmReplacement} />}
+      {documentFailure && <DocumentDialog failure={documentFailure} onCancel={() => setDocumentFailure(null)} />}
       <header className="page-header">
         <div>
           <div className="eyebrow">WORKSPACE</div>

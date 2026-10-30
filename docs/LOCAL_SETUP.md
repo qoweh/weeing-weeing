@@ -84,6 +84,12 @@ TEST_DATABASE_URL=postgresql://weeing:weeing@localhost:5432/weeing uv run --no-s
 
 문서 목록은 DB `document` 테이블이 원본이다(3절). 먼저 `make models`로 임베딩(`BAAI/bge-m3`)·리랭커(`BAAI/bge-reranker-v2-m3`)를 준비하고, 관제 담당자로 로그인해 HMI의 **문서 등록**에서 PDF를 올린다. 파싱·청킹·임베딩·벡터 저장은 자동으로 진행한다. 원본 PDF는 `storage/uploads/`, 문서 정보와 상태는 DB에 저장한다. 운영 카탈로그나 별도 일괄 색인 명령은 사용하지 않는다. 리랭커를 끄려면 `.env`에 `RERANKER_MODEL=`(빈 값)을 둔다.
 
+기존 문서와 같은 ID를 입력하면 문서 종류와 설비 ID가 동일한 경우에만 교체할 수 있다.
+등록 화면에서 기존 파일과 새 파일을 확인하고 교체를 승인해야 한다. 버전이 같거나 낮으면
+경고하며, PDF 파일명에서 버전을 찾지 못하면 기본 `1.0`을 사용한다. 교체가 완료되면
+기존 검색 자료도 새 문서의 청크로 교체된다. 같은 ID의 문서 종류나 설비가 다르면 다른
+문서 ID를 입력해야 한다.
+
 | | Qdrant 로컬 모드 (기본) | Qdrant 서버 모드 |
 |---|---|---|
 | 설정 | `QDRANT_URL` 비움, `QDRANT_PATH=storage/qdrant` | `QDRANT_URL=http://localhost:6333` |

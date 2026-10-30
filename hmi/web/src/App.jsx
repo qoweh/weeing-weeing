@@ -21,7 +21,7 @@ export default function App() {
   const [authPage, setAuthPage] = useState('login')
   const [user, setUser] = useState(null)
   const [checking, setChecking] = useState(() => Boolean(sessionStorage.getItem(sessionKey)))
-  const [page, setPage] = useState('dashboard')
+  const [page, setPage] = useState(() => sessionStorage.getItem('weeing-document-completed') ? 'documents' : 'dashboard')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 

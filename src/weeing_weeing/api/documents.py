@@ -240,6 +240,10 @@ def upload_document(
     doc_id: Annotated[str, Form(min_length=1, max_length=128, pattern=ID_PATTERN)],
     asset_id: Annotated[str, Form(min_length=1, max_length=128)],
     doc_type: Annotated[Literal["manual", "rule", "sop"], Form()] = "manual",
+    confirm_replace: Annotated[bool, Form()] = False,
+    expected_upload_id: Annotated[str, Form()] = "",
+    expected_version: Annotated[str, Form()] = "",
+    expected_sha256: Annotated[str, Form()] = "",
 ) -> dict[str, Any]:
     """원본을 저장하고 접수 정보를 반환한다. 색인은 이후 진행한다."""
     try:
@@ -295,7 +299,58 @@ def upload_document(
                     conflict = repo.upload_conflict(record.doc_id, sha256)
                     if conflict:
                         raise HTTPException(status_code=409, detail=conflict)
+                    current = repo.upload_target(record.doc_id)
+                    if current:
+                        if current.doc_type != record.doc_type:
+                            raise HTTPException(
+                                status_code=409,
+                                detail="이미 다른 종류의 문서가 사용 중인 ID입니다. 다른 문서 ID를 입력하세요.",
+                            )
+                        if current.extra.get("asset_id") != record.extra.get(
+                            "asset_id"
+                        ):
+                            raise HTTPException(
+                                status_code=409,
+                                detail="이미 다른 설비의 문서가 사용 중인 ID입니다. 다른 문서 ID를 입력하세요.",
+                            )
+                        if not confirm_replace:
+                            raise HTTPException(
+                                status_code=409,
+                                detail={
+                                    "code": "replace_confirmation_required",
+                                    "message": "같은 문서 ID가 있습니다. 교체 여부를 확인하세요.",
+                                    "current": {
+                                        "doc_id": current.doc_id,
+                                        "title": current.title,
+                                        "doc_type": current.doc_type,
+                                        "asset_id": current.extra.get("asset_id"),
+                                        "doc_version": current.doc_version,
+                                        "upload_id": current.upload_id,
+                                        "source_sha256": current.source_sha256,
+                                    },
+                                    "incoming": {
+                                        "title": original_name,
+                                        "doc_version": doc_version,
+                                    },
+                                },
+                            )
+                        if (
+                            current.upload_id or "",
+                            current.doc_version,
+                            current.source_sha256,
+                        ) != (expected_upload_id, expected_version, expected_sha256):
+                            raise HTTPException(
+                                status_code=409,
+                                detail="문서가 변경됐습니다. 다시 등록해 교체 내용을 확인하세요.",
+                            )
+                    elif confirm_replace:
+                        raise HTTPException(
+                            status_code=409,
+                            detail="기존 문서가 변경되거나 삭제됐습니다. 다시 등록해 확인하세요.",
+                        )
                     repo.add_upload(record)
+            except db.DocumentConflictError as exc:
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
             except db.DatabaseUnavailableError as exc:
                 raise _db_unavailable(exc) from exc
         except Exception:

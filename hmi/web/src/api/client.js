@@ -39,10 +39,11 @@ async function request(path, { method = "GET", body } = {}) {
     if (!response.ok) {
       const detail = data?.detail ?? data?.message ?? "요청 실패";
       const message =
-        typeof detail === "string" ? detail : JSON.stringify(detail);
+        typeof detail === "string" ? detail : (detail?.message ?? JSON.stringify(detail));
 
       const error = new Error(`HTTP ${response.status}: ${message}`);
       error.status = response.status;
+      error.detail = detail;
       throw error;
     }
 

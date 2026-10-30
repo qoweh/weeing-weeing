@@ -1,4 +1,11 @@
 .rag-workspace {
+  .document-dialog { width: min(540px, calc(100% - 32px)); max-height: calc(100dvh - 48px); overflow-y: auto; margin: auto; padding: 28px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); color: var(--text); box-shadow: 0 20px 80px #0003; }
+  .document-dialog::backdrop { background: #0c182a80; }
+  .document-dialog h2 { margin-bottom: 12px; }
+  .document-dialog p { overflow-wrap: anywhere; }
+  .document-dialog__details { margin-top: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
+  .document-dialog__warning { margin-top: 12px; color: var(--danger, #a32121); font-weight: 600; }
+  .document-dialog__actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
   h1 { margin: 0; font-size: clamp(1.65rem, 3vw, 2rem); }
   h2 { margin: 0 0 16px; font-size: 20px; }
   h3 { margin: 0 0 12px; }

@@ -261,10 +261,24 @@ class SqlDocuments(Repository):
 
     # --- 업로드 ---
 
+    def upload_target(self, doc_id: str) -> DocumentRecord | None:
+        with self._transaction() as session:
+            rows = session.scalars(
+                select(DocumentRow)
+                .where(DocumentRow.doc_id == doc_id, _alive(_now()))
+                .order_by(DocumentRow.id.desc())
+            ).all()
+            if any(row.status in IN_PROGRESS for row in rows):
+                raise DocumentConflictError(
+                    "같은 문서 ID의 등록이 진행 중입니다. 완료 후 다시 시도하세요."
+                )
+            current = next((row for row in rows if row.status == "completed"), None)
+            return to_record(current) if current else None
+
     def upload_conflict(self, doc_id: str, sha256: str) -> str | None:
         """현재 DB에 등록된 다른 문서와 해시가 겹치면 이유를 돌려준다.
 
-        같은 doc_id의 업로드는 개정판으로 보고 허용한다(완료되면 예전 것을 대체).
+        같은 doc_id의 교체 확인은 호출자가 잠금 안에서 별도로 검사한다.
         진행 중인 업로드도 내용 비교에 넣는다(같은 파일을 동시에 두 번 올리는 경우).
         """
         with self._transaction() as session:
@@ -290,7 +304,7 @@ class SqlDocuments(Repository):
                 .limit(1)
             )
             if same is not None:
-                return f"{same}와 같은 내용의 파일이다. 같은 문서가 두 번 검색·인용된다"
+                return f"이미 {same} 문서에 같은 내용의 파일이 등록되어 있습니다. 중복 등록할 수 없습니다."
             return None
 
     def add_upload(self, record: DocumentRecord) -> DocumentRecord:

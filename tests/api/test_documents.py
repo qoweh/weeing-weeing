@@ -49,6 +49,21 @@ def upload(content: bytes, *, name="manual.pdf", **form):
     )
 
 
+def replace_upload(content: bytes, *, name="manual.pdf", **form):
+    response = upload(content, name=name, **form)
+    assert response.status_code == 409, response.text
+    current = response.json()["detail"]["current"]
+    return upload(
+        content,
+        name=name,
+        **form,
+        confirm_replace="true",
+        expected_upload_id=current["upload_id"] or "",
+        expected_version=current["doc_version"],
+        expected_sha256=current["source_sha256"],
+    )
+
+
 def other_pdf() -> bytes:
     """업로드 검증용 PDF(원본 본문 + 끝에 주석 한 줄)."""
     return MANUAL.read_bytes() + b"\n% upload test\n"
@@ -128,7 +143,9 @@ def test_upload_is_indexed_into_store_and_kept_outside_git(env):
 def test_new_version_upload_replaces_previous(env):
     store, uploads = env
     first = upload(other_pdf()).json()["upload_id"]
-    second = upload(other_pdf() + b"% v2\n", name="manual_v2.0.pdf").json()["upload_id"]
+    second = replace_upload(other_pdf() + b"% v2\n", name="manual_v2.0.pdf").json()[
+        "upload_id"
+    ]
 
     versions = {c.doc_version for c in store.chunks(where={"doc_id": "UP-MANUAL"})}
     assert versions == {"2.0"}
@@ -138,6 +155,90 @@ def test_new_version_upload_replaces_previous(env):
     assert [
         r.upload_id for r in db.get_documents().listed() if r.origin == "upload"
     ] == [second]
+
+
+def test_same_id_requires_confirmation_and_rejects_different_kind_or_asset(env):
+    store, _ = env
+    first = upload(other_pdf(), doc_type="rule").json()
+    original = [(c.chunk_id, c.text) for c in store.chunks()]
+    wrong_kind = upload(other_pdf() + b"%manual", doc_type="manual")
+    wrong_asset = upload(other_pdf() + b"%asset", doc_type="rule", asset_id="OTHER")
+    assert wrong_kind.status_code == wrong_asset.status_code == 409
+    assert "다른 종류" in wrong_kind.json()["detail"]
+    assert "다른 설비" in wrong_asset.json()["detail"]
+    pending = upload(other_pdf() + b"%new", name="rule_v2.0.pdf", doc_type="rule")
+    assert pending.status_code == 409
+    detail = pending.json()["detail"]
+    assert detail["code"] == "replace_confirmation_required"
+    assert detail["current"]["upload_id"] == first["upload_id"]
+    assert detail["incoming"]["doc_version"] == "2.0"
+    assert [(c.chunk_id, c.text) for c in store.chunks()] == original
+    assert (
+        replace_upload(
+            other_pdf() + b"%new", name="rule_v2.0.pdf", doc_type="rule"
+        ).status_code
+        == 202
+    )
+    assert {c.doc_version for c in store.chunks()} == {"2.0"}
+
+
+def test_confirmation_cannot_replace_a_newer_or_deleted_document(env):
+    first = upload(other_pdf()).json()
+    confirmation = upload(other_pdf() + b"%next", name="manual_v2.0.pdf").json()[
+        "detail"
+    ]["current"]
+    second = replace_upload(other_pdf() + b"%other", name="manual_v3.0.pdf").json()
+    stale = upload(
+        other_pdf() + b"%next",
+        name="manual_v2.0.pdf",
+        confirm_replace="true",
+        expected_upload_id=confirmation["upload_id"],
+        expected_version=confirmation["doc_version"],
+        expected_sha256=confirmation["source_sha256"],
+    )
+    assert stale.status_code == 409
+    assert "변경" in stale.json()["detail"]
+    assert db.get_documents().get_upload(first["upload_id"]).status == "superseded"
+    assert db.get_documents().get_upload(second["upload_id"]).status == "completed"
+    assert delete(second).status_code == 200
+    assert (
+        upload(
+            other_pdf() + b"%next",
+            confirm_replace="true",
+            expected_upload_id=confirmation["upload_id"],
+            expected_version=confirmation["doc_version"],
+            expected_sha256=confirmation["source_sha256"],
+        ).status_code
+        == 409
+    )
+
+
+def test_concurrent_upload_is_rejected_until_existing_upload_finishes(env):
+    from datetime import UTC, datetime
+    from uuid import uuid4
+
+    repo = db.get_documents()
+    first = upload(other_pdf()).json()
+    record = repo.get_upload(first["upload_id"])
+    repo.add_upload(
+        record.model_copy(
+            update={
+                "upload_id": uuid4().hex,
+                "status": "queued",
+                "stage": "queued",
+                "uploaded_at": datetime.now(UTC),
+            }
+        )
+    )
+    response = upload(
+        other_pdf() + b"%next",
+        confirm_replace="true",
+        expected_upload_id=first["upload_id"],
+        expected_version=first["doc_version"],
+        expected_sha256=first["source_sha256"],
+    )
+    assert response.status_code == 409
+    assert "진행 중" in response.json()["detail"]
 
 
 def test_broken_pdf_fails_with_message(env):
@@ -296,7 +397,7 @@ def test_list_documents_has_titles_and_excludes_report_and_superseded(env):
     add_legacy(repo, "BTT-MANUAL", title="매뉴얼")
     add_legacy(repo, "REPORT", doc_type="report")
     upload(other_pdf())
-    upload(other_pdf() + b"%new", name="장비 점검_v2.0.pdf")
+    replace_upload(other_pdf() + b"%new", name="장비 점검_v2.0.pdf")
     response = TestClient(app).get("/documents")
     assert response.status_code == 200
     docs = {r["doc_id"]: r for r in response.json()}
@@ -352,7 +453,7 @@ def test_document_search_normalizes_whitespace_case_and_treats_symbols_literally
 def test_document_search_excludes_old_versions_and_deleted_files(env):
     first = upload(other_pdf()).json()
     (env[1] / first["upload_id"] / "parsed.md").write_text("이순신 구버전 전용 본문")
-    second = upload(other_pdf() + b"%new", name="manual_v2.0.pdf").json()
+    second = replace_upload(other_pdf() + b"%new", name="manual_v2.0.pdf").json()
     (env[1] / second["upload_id"] / "parsed.md").write_text("홍길동 현재 본문")
     client = TestClient(app)
     assert client.get("/documents", params={"q": "이순신"}).json() == []
@@ -422,7 +523,7 @@ def test_anonymous_document_requests_are_401(env):
 def test_delete_removes_vectors_and_all_versions_preserving_originals(env):
     store, uploads = env
     first = upload(other_pdf()).json()
-    second = upload(other_pdf() + b"%new", name="manual_v2.0.pdf").json()
+    second = replace_upload(other_pdf() + b"%new", name="manual_v2.0.pdf").json()
     upload(other_pdf() + b"%other", doc_id="OTHER")
     response = delete(second)
     assert response.status_code == 200, response.text
@@ -466,7 +567,7 @@ def test_delete_failure_is_visible_and_retryable(env, monkeypatch):
 
 def test_delete_old_snapshot_does_not_remove_new_version(env):
     old = upload(other_pdf()).json()
-    upload(other_pdf() + b"%new", name="manual_v2.0.pdf")
+    replace_upload(other_pdf() + b"%new", name="manual_v2.0.pdf")
     assert delete(old).status_code == 409
     assert {c.doc_version for c in env[0].chunks(where={"doc_id": "UP-MANUAL"})} == {
         "2.0"
@@ -515,6 +616,8 @@ def test_same_pdf_under_another_id_is_rejected_from_db_hash(env):
     response = upload(other_pdf(), doc_id="DUPLICATE")
     assert response.status_code == 409
     assert "같은 내용" in response.json()["detail"]
+    assert "UP-MANUAL" in response.json()["detail"]
+    assert "중복 등록할 수 없습니다" in response.json()["detail"]
 
 
 def test_deleted_legacy_manual_can_be_uploaded_again(env):
