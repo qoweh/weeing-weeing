@@ -50,7 +50,12 @@ export default function AppShell({
 
   useEffect(() => {
     document.documentElement.style.zoom = `${screenZoom}%`
-    return () => { document.documentElement.style.zoom = '' }
+    // zoom은 vh까지 같이 배율을 곱하므로, 셸 높이가 화면에 맞도록 배율을 CSS 변수로 넘긴다.
+    document.documentElement.style.setProperty('--screen-zoom', screenZoom / 100)
+    return () => {
+      document.documentElement.style.zoom = ''
+      document.documentElement.style.removeProperty('--screen-zoom')
+    }
   }, [screenZoom])
 
   useEffect(() => {

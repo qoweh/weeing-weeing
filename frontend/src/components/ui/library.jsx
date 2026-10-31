@@ -126,9 +126,13 @@ export function LibraryTable({
   compact = false,
   onOpen,
   highlight = '',
+  initialSort = { key: 'date', direction: -1 },
+  totalCount,
+  alwaysPaginate = false,
+  hint = '열 제목을 클릭하여 오름차순 / 내림차순 정렬',
 }) {
   const documentTypes = { manual: '매뉴얼', sop: '규정·SOP', rule: '룰베이스' }
-  const [sort, setSort] = useState({ key: 'date', direction: -1 })
+  const [sort, setSort] = useState(initialSort)
   const [page, setPage] = useState(1)
   const pages = Math.max(1, Math.ceil(rows.length / 10))
   const current = Math.min(page, pages)
@@ -172,9 +176,9 @@ export function LibraryTable({
     >
       <div className="library-summary">
         <h2>
-          {title} <span>{rows.length}건</span>
+          {title} <span>{totalCount ?? rows.length}건</span>
         </h2>
-        <p>열 제목을 클릭하여 오름차순 / 내림차순 정렬</p>
+        <p>{hint}</p>
       </div>
       <div className="library-table-scroll" role="region" aria-label={`${title} 표`} tabIndex={0}>
         <table className={`library-table ${report ? 'library-table--report' : 'library-table--manual'}`}>
@@ -292,7 +296,7 @@ export function LibraryTable({
           </tbody>
         </table>
       </div>
-      {(!compact || pages > 1) && (
+      {(!compact || alwaysPaginate || pages > 1) && (
         <div className="library-pagination">
           <Button
             aria-label="이전 페이지"

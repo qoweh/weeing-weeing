@@ -4,6 +4,10 @@ import Button from './Button'
 import { dateLabel } from './library'
 import './DocumentPdfModal.css'
 
+// 서버 응답에 담긴 file 값은 신뢰하지 않고, 브라우저가 만든 blob: 주소만 iframe과 링크에 쓴다.
+const safeFile = (value) =>
+  typeof value === 'string' && value.startsWith('blob:') ? value : ''
+
 export default function DocumentPdfModal({
   doc,
   onClose,
@@ -11,10 +15,11 @@ export default function DocumentPdfModal({
   onDelete,
 }) {
   const dialog = useRef(null)
-  const [url, setUrl] = useState(doc.file || '')
-  const [loading, setLoading] = useState(!doc.file && Boolean(doc.upload_id))
+  const file = safeFile(doc.file)
+  const [url, setUrl] = useState(file)
+  const [loading, setLoading] = useState(!file && Boolean(doc.upload_id))
   const [error, setError] = useState(
-    !doc.file && !doc.upload_id ? '웹에서 등록한 문서만 원문을 볼 수 있습니다.' : '',
+    !file && !doc.upload_id ? '웹에서 등록한 문서만 원문을 볼 수 있습니다.' : '',
   )
 
   useEffect(() => {
@@ -27,7 +32,7 @@ export default function DocumentPdfModal({
   }, [])
 
   useEffect(() => {
-    if (doc.file || !doc.upload_id) return
+    if (safeFile(doc.file) || !doc.upload_id) return
     let active = true
     let objectUrl = ''
     setLoading(true)

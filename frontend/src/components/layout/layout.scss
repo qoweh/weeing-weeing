@@ -1,4 +1,4 @@
-.shell { min-height: 100vh; display: grid; grid-template-columns: 240px minmax(0,1fr); grid-template-rows: 80px 1fr; }
+.shell { min-height: calc(100vh / var(--screen-zoom, 1)); display: grid; grid-template-columns: 240px minmax(0,1fr); grid-template-rows: 80px 1fr; }
 .header { grid-column: 1/-1; display: grid; grid-template-columns: 240px minmax(0,1fr); align-items: center; background: var(--surface); border-bottom: 1px solid var(--border); }
 .brand { display: flex; align-items: center; gap: 10px; margin: 0 20px; color: var(--text); text-decoration: none; font-weight: 800; font-size: 1rem; line-height: 1.1; }
 .brand small { display: block; margin-top: 5px; color: var(--muted); font-size: .6rem; font-weight: 700; letter-spacing: .03em; }

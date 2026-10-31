@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { listReports, listIncidents } from '../api/client'
 import Button from '../components/ui/Button'
+import PageTitle from '../components/ui/PageTitle'
 import { Filters, filterRows, LibraryTable } from '../components/ui/library'
 const labels = {
   DRAFT: '임시 저장',
@@ -10,8 +11,7 @@ const labels = {
   REJECTED: '반려',
 }
 export default function MaintenancePage({ user, onOpen, onSessionExpired, refreshKey = 0 }) {
-  const [rows, setRows] = useState([]),
-    [issues, setIssues] = useState([])
+  const [rows, setRows] = useState([])
   const [query, setQuery] = useState(''),
     [filters, setFilters] = useState({ period: '', docType: '' })
   const [loading, setLoading] = useState(true),
@@ -49,28 +49,6 @@ export default function MaintenancePage({ user, onOpen, onSessionExpired, refres
           }
         })
         setRows(mapped)
-        setIssues(
-          incidents
-            .filter((i) => ['OPEN', 'ACKNOWLEDGED'].includes(i.status) && i.severity === 'Error')
-            .map((i) => {
-              const report = reports.find(
-                (r) => r.incident_id === i.incident_id,
-              )
-              return {
-                id: report?.report_id || i.incident_id,
-                reportId: report?.report_id,
-                incidentId: i.incident_id,
-                name: report?.report_id || '보고서 작성',
-                issue: i.codes.join(', '),
-                asset: i.asset_id,
-                date: i.first_detected_at,
-                author: report?.author_name || '—',
-                status: report ? labels[report.report_status] : '작성 필요',
-                tone: 'warning',
-                incident: i,
-              }
-            }),
-        )
       })
       .catch((e) => {
         if (active) {
@@ -87,6 +65,7 @@ export default function MaintenancePage({ user, onOpen, onSessionExpired, refres
   }, [scope, reload, refreshKey, onSessionExpired])
   return (
     <div className="library-page" aria-label="정비 이력 · 보고서">
+      <PageTitle>정비이력</PageTitle>
       <div className="library-report-scopes" role="group" aria-label="보고서 목록 선택">
         <Button aria-pressed={scope === 'all'} onClick={() => setScope('all')}>전체 보고서</Button>
         <Button aria-pressed={scope === 'mine'} onClick={() => setScope('mine')}>내 보고서</Button>
@@ -113,23 +92,12 @@ export default function MaintenancePage({ user, onOpen, onSessionExpired, refres
               <Button onClick={() => setReload((n) => n + 1)}>다시 시도</Button>
             </p>
           )}
-          {scope === 'all' && <LibraryTable
-            report
-            compact
-            title="오류 이슈"
-            rows={filterRows(issues, query, filters)}
-            onOpen={(r) => onOpen(r.reportId, r.incidentId, r)}
-          />}
           <LibraryTable
             report
             title={{ all: '정비 이력', mine: '내 보고서', review: '결재 대기' }[scope]}
             rows={filterRows(rows, query, filters)}
             onOpen={(r) => onOpen(r.reportId || r.id, r.incidentId, r)}
           />
-          <p className="library-footnote">
-            최근 조회된 사건·보고서 기준입니다. 발생 시각이 없는 항목은 —로
-            표시합니다.
-          </p>
         </>
       )}
     </div>

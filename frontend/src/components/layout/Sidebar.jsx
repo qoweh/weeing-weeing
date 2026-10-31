@@ -1,8 +1,9 @@
 const navigation = [
-  { icon: 'f1f1d', label: '설비 모니터링', id: 'monitoring', pending: true },
+  // { icon: 'f1f1d', label: '설비 모니터링', id: 'monitoring', pending: true },
   { icon: '5dd0d', label: '대시보드', id: 'dashboard' },
-  { icon: '3a495', activeIcon: '0dea7', label: '문서 내역', id: 'manuals' },
-  { icon: 'd141d', activeIcon: '4741e', label: '정비 이력', id: 'maintenance' },
+  { icon: 'f1f1d', label: '이상현황', id: 'incidents' },
+  { icon: '3a495', activeIcon: '0dea7', label: '문서내역', id: 'manuals' },
+  { icon: 'd141d', activeIcon: '4741e', label: '정비이력', id: 'maintenance' },
 ]
 export default function Sidebar({ page, onNavigate, busy }) {
   const current =

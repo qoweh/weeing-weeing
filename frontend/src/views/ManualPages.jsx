@@ -3,6 +3,7 @@ import { deleteDocument, listDocuments, uploadDocument } from '../api/client'
 import DeleteDocumentDialog from '../components/ui/DeleteDocumentDialog'
 import DocumentPdfModal from '../components/ui/DocumentPdfModal'
 import Button from '../components/ui/Button'
+import PageTitle from '../components/ui/PageTitle'
 import { documentVersionFromFilename } from '../components/ui/documentVersion'
 import {
   Filters,
@@ -111,6 +112,7 @@ export function ManualPage({ user, onNavigate, onSessionExpired, onBusyChange })
   }
   return (
     <div className="library-page" aria-label="매뉴얼 · 문서 관리">
+      <PageTitle>문서내역</PageTitle>
       <Filters
         query={query}
         setQuery={setQuery}
@@ -151,7 +153,6 @@ export function ManualPage({ user, onNavigate, onSessionExpired, onBusyChange })
           onConfirm={removeDocument}
         />
       )}
-      <p className="library-footnote">PDF 파일 최대 200 MB</p>
       {selected && (
         <DocumentPdfModal
           key={selected.id}
@@ -164,49 +165,28 @@ export function ManualPage({ user, onNavigate, onSessionExpired, onBusyChange })
     </div>
   )
 }
-const progress = {
-  uploading: 'PDF를 업로드하고 있습니다.',
-  queued: '처리 순서를 기다리고 있습니다.',
-  parsing: '문서를 읽고 있습니다.',
-  chunking: '문서를 정리하고 있습니다.',
-  loading_model: '검색 준비 중입니다.',
-  embedding: '검색 정보를 생성하고 있습니다.',
-  storing: '저장 중입니다.',
-  completed: '문서 등록이 완료됐습니다.',
-}
 export function ManualUploadPage({
   onNavigate,
   onSessionExpired,
   onBusyChange,
 }) {
   const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [dragging, setDragging] = useState(false)
   const [version, setVersion] = useState('1.0')
   const dragDepth = useRef(0)
   const formRef = useRef(null)
 
-  async function uploadFormData(form, data, file, dropped = false) {
+  async function uploadFormData(form, data, file) {
     if (busy) return
     setError('')
-    setMessage('')
     if (
       !file?.size ||
       !file.name.toLowerCase().endsWith('.pdf') ||
       file.size > 200 * 1024 * 1024
     ) {
-      setError('200 MB 이하의 비어 있지 않은 PDF 파일을 선택하세요.')
+      setError('20 MB 이하의 비어 있지 않은 PDF 파일을 선택하세요.')
       return
-    }
-    if (dropped && !String(data.get('doc_id') || '').trim()) {
-      const generatedId = file.name.replace(/\.pdf$/i, '').trim().replace(/\s+/g, '-')
-      if (!generatedId || generatedId.length > 128 || /[:\s]/.test(generatedId)) {
-        setError('파일명에서 문서 ID를 만들 수 없습니다. 파일명을 확인하세요.')
-        return
-      }
-      data.set('doc_id', generatedId)
-      form.elements.namedItem('doc_id').value = generatedId
     }
     for (const name of ['doc_id', 'doc_version', 'asset_id']) {
       const value = String(data.get(name)).trim()
@@ -219,14 +199,9 @@ export function ManualUploadPage({
     setBusy(true)
     onBusyChange(true)
     try {
-      await uploadDocument(data, (stage) =>
-        setMessage(progress[stage] || '처리 중입니다.'),
-      )
-      setMessage(progress.completed)
-      form.reset()
-      setVersion('1.0')
+      await uploadDocument(data)
+      onNavigate('manuals')
     } catch (e) {
-      setMessage('')
       setError(e.message)
       if (e.status === 401) onSessionExpired()
     } finally {
@@ -245,17 +220,18 @@ export function ManualUploadPage({
   function handleDrop(event) {
     if (!event.dataTransfer.types.includes('Files')) return
     event.preventDefault()
+    if (busy) return
     setDragging(false)
     dragDepth.current = 0
     const file = event.dataTransfer.files[0]
     const form = formRef.current
     if (!file || !form) return
-    const data = new FormData(form)
-    data.set('file', file)
+    form.elements.namedItem('file').files = event.dataTransfer.files
     const droppedVersion = documentVersionFromFilename(file.name)
-    data.set('doc_version', droppedVersion)
     setVersion(droppedVersion)
-    void uploadFormData(form, data, file, true)
+    const id = form.elements.namedItem('doc_id')
+    if (!id.value.trim()) id.value = file.name.replace(/\.pdf$/i, '').trim().replace(/\s+/g, '-')
+    setError('')
   }
 
   return (
@@ -278,7 +254,7 @@ export function ManualUploadPage({
       }}
       onDrop={handleDrop}
     >
-      {dragging && <div className="library-drop-overlay">PDF 파일을 놓으면 등록이 시작됩니다</div>}
+      {dragging && <div className="library-drop-overlay">PDF 파일을 놓아 선택하세요</div>}
       <form ref={formRef} id="manual-upload-form" onSubmit={submit} className="manual-upload-card">
         <h1>문서 등록</h1>
         <fieldset disabled={busy}>
@@ -298,7 +274,7 @@ export function ManualUploadPage({
                   )
                 }
               />
-              <span className="library-footnote">PDF 파일 · 최대 200 MB</span>
+              <span className="library-footnote">PDF 파일 · 최대 20 MB</span>
             </label>
             <label>
               문서 ID
@@ -333,7 +309,6 @@ export function ManualUploadPage({
             </label>
           </div>
         </fieldset>
-        {message && <p role="status">{message}</p>}
         {error && (
           <p className="workspace-error" role="alert">
             {error}
@@ -345,7 +320,7 @@ export function ManualUploadPage({
           목록
         </Button>
         <Button type="submit" form="manual-upload-form" variant="primary" disabled={busy}>
-          {busy ? '등록 중…' : '문서 등록 실행'}
+          문서 등록 실행 {busy && <span className="manual-upload-spinner" aria-label="등록 중" />}
         </Button>
       </div>
     </div>

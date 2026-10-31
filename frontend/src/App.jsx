@@ -6,16 +6,25 @@ import {
   setAccessToken,
 } from './api/client'
 import AppShell from './components/layout/AppShell.jsx'
-import DashboardPage from './views/DashboardPage.jsx'
+// 기존 대시보드는 src/views/DashboardPage.jsx에 보관한다. 복구 시 아래 주석을 푼다.
+// import DashboardPage from './views/DashboardPage.jsx'
+import PreparingPage from './views/PreparingPage.jsx'
 import LoginPage from './views/LoginPage.jsx'
 import { ManualPage, ManualUploadPage } from './views/ManualPages.jsx'
+import IncidentsPage from './views/IncidentsPage.jsx'
 import MaintenancePage from './views/MaintenancePage.jsx'
 import ReportDraftModal from './components/report/ReportDraftModal.jsx'
 import SignupPage from './views/SignupPage.jsx'
 
 const sessionKey = 'weeing-report-session'
 const historyKey = 'weeing-app-view'
-const pages = new Set(['dashboard', 'manuals', 'manual-upload', 'maintenance'])
+const pages = new Set([
+  'dashboard',
+  'manuals',
+  'manual-upload',
+  'maintenance',
+  'incidents',
+])
 
 function readHistoryView() {
   if (typeof window === 'undefined') return null
@@ -166,12 +175,13 @@ export default function App() {
         reportId,
       }
 
-      if (page !== 'maintenance') {
-        writeHistoryView({ page: 'maintenance', reportSelection: null })
+      const origin = page === 'incidents' ? 'incidents' : 'maintenance'
+      if (page !== origin) {
+        writeHistoryView({ page: origin, reportSelection: null })
       }
-      const nextView = { page: 'maintenance', reportSelection: selection }
+      const nextView = { page: origin, reportSelection: selection }
       writeHistoryView(nextView)
-      setPage('maintenance')
+      setPage(origin)
       setReportSelection(selection)
       setError('')
     },
@@ -183,11 +193,12 @@ export default function App() {
       window.history.back()
       return
     }
-    const nextView = { page: 'maintenance', reportSelection: null }
+    const origin = page === 'incidents' ? 'incidents' : 'maintenance'
+    const nextView = { page: origin, reportSelection: null }
     writeHistoryView(nextView, true)
-    setPage('maintenance')
+    setPage(origin)
     setReportSelection(null)
-  }, [])
+  }, [page])
 
   function handleReportSaved() {
     setMaintenanceRefreshKey((key) => key + 1)
@@ -229,7 +240,8 @@ export default function App() {
         </p>
       )}
       <div hidden={page !== 'dashboard'}>
-        <DashboardPage />
+        {/* <DashboardPage /> */}
+        <PreparingPage onNavigate={navigate} />
       </div>
       {page === 'manuals' && (
         <ManualPage
@@ -257,6 +269,15 @@ export default function App() {
               reportId,
               row,
             )
+          }
+        />
+      )}
+      {page === 'incidents' && (
+        <IncidentsPage
+          onSessionExpired={forgetSession}
+          refreshKey={maintenanceRefreshKey}
+          onOpen={(reportId, _incidentId, row) =>
+            openReportDraft(row?.incident, reportId, row)
           }
         />
       )}

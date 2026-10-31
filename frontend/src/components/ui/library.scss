@@ -23,14 +23,14 @@
 }
 .library-filters {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) repeat(2, minmax(130px, 180px)) repeat(3, minmax(130px, 145px));
-  gap: 16px;
+  grid-template-columns: minmax(200px, 1fr) repeat(2, minmax(120px, 160px)) repeat(3, auto);
+  gap: 12px;
   align-items: stretch;
   margin-bottom: 24px;
 }
 .library-filters > * { min-width: 0; }
 .library-filters--report {
-  grid-template-columns: minmax(220px, 1fr) minmax(130px, 180px) repeat(2, minmax(130px, 145px));
+  grid-template-columns: minmax(200px, 1fr) minmax(120px, 160px) repeat(2, auto);
 }
 .library-filters input,
 .library-filters select {
@@ -54,28 +54,28 @@
   background-repeat: no-repeat;
 }
 .library-filters .button {
+  min-width: max-content;
   min-height: 48px;
+  padding: 0 16px;
   border-radius: 8px;
   color: var(--primary);
   font-weight: 400;
   white-space: nowrap;
 }
 .library-filters .library-upload {
-  width: 145px;
   justify-self: end;
   color: var(--text);
   background: var(--library-button);
   font-weight: 700;
   border: 0;
 }
-@container (max-width: 1100px) {
-  .library-filters {
+/* 문서 내역은 컨트롤이 6개라 약 810px 아래에서 검색창을 윗줄로 올린다. 정비 이력은 620px 규칙만 따른다. */
+@container (max-width: 820px) {
+  .library-filters--manual {
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
-  .library-filters input { grid-column: span 5; }
-  .library-filters--report { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .library-filters--report input { grid-column: span 4; }
-  .library-filters .library-upload { grid-column: auto; width: 100%; }
+  .library-filters--manual input { grid-column: span 5; }
+  .library-filters--manual .library-upload { grid-column: auto; width: 100%; }
 }
 @container (max-width: 620px) {
   .library-filters, .library-filters--report { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -236,7 +236,7 @@
 .library-pagination {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 8px;
   margin-top: 16px;
 }
@@ -362,6 +362,26 @@
   border-radius: 8px;
   min-width: 170px;
   min-height: 48px;
+}
+
+.manual-upload-spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  margin-left: 0.4em;
+  vertical-align: middle;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: manual-upload-spin 0.8s linear infinite;
+}
+
+@keyframes manual-upload-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .manual-upload-spinner { animation-duration: 2s; }
 }
 .manual-upload-back {
   display: flex;

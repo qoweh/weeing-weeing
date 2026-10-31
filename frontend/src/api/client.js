@@ -124,20 +124,6 @@ export async function uploadDocument(formData, onProgress = () => {}) {
   }
 }
 
-export function approveTestReport(payload) {
-  return request("/test/reports/approve", {
-    method: "POST",
-    body: payload,
-  });
-}
-
-export function analyzeTestIncident(payload) {
-  return request("/test/analysis", {
-    method: "POST",
-    body: payload,
-  });
-}
-
 export function loginUser(employeeNo, password) {
   return request("/auth/login", { method: "POST", body: { employee_no: employeeNo, password } });
 }
@@ -148,7 +134,7 @@ export function listIncidents() { return request("/incidents"); }
 export function getIncidentAnalysis(id) {
   return request(`/incidents/${encodeURIComponent(id)}/analysis`);
 }
-export function listReports(scope = "mine") { return request(`/reports?scope=${scope}`); }
+export function listReports(scope = "mine") { return request(`/reports?scope=${encodeURIComponent(scope)}`); }
 export function getReport(id, version) {
   const suffix = version ? `/versions/${version}` : "";
   return request(`/reports/${encodeURIComponent(id)}${suffix}`);
@@ -159,7 +145,7 @@ export function saveReport(id, body) {
   });
 }
 export function actOnReport(id, action, revision, comment = "") {
-  return request(`/reports/${encodeURIComponent(id)}/${action}`, {
+  return request(`/reports/${encodeURIComponent(id)}/${encodeURIComponent(action)}`, {
     method: "POST", body: { expected_revision: revision, comment },
   });
 }

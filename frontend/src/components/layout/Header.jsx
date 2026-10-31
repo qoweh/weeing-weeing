@@ -128,7 +128,7 @@ export default function Header({ theme, onToggleTheme, user, onLogout, busy, scr
                     <div className="header-account__zoom-controls" role="group" aria-label="화면 확대 및 축소">
                       <button type="button" aria-label="화면 축소" disabled={screenZoom <= 80} onClick={() => onChangeScreenZoom((value) => Math.max(80, value - 10))}>−</button>
                       <button type="button" className="header-account__zoom-reset" aria-label={`현재 ${screenZoom}%, 화면 비율 100%로 초기화`} onClick={() => onChangeScreenZoom(100)}>{screenZoom}%</button>
-                      <button type="button" aria-label="화면 확대" disabled={screenZoom >= 140} onClick={() => onChangeScreenZoom((value) => Math.min(140, value + 10))}>+</button>
+                      <button type="button" aria-label="화면 확대" disabled={screenZoom >= 120} onClick={() => onChangeScreenZoom((value) => Math.min(120, value + 10))}>+</button>
                     </div>
                   </div>
                 </div>
