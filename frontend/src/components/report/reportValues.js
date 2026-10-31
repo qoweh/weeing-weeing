@@ -17,7 +17,7 @@ function localTime(value) {
 export function formValues(document) {
   if (!document) return {};
   return Object.fromEntries(fields.map((name) => {
-    const value = document.form_data[snake(name)];
+    const value = document.form_data?.[snake(name)];
     return [name, dates.has(name) ? localTime(value) : value ?? ""];
   }));
 }

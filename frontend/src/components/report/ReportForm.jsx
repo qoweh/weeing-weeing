@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 
+import { alarmDescriptions, measurementSummary } from "./reportPresentation";
 import "./ReportForm.css";
 
 const initialValues = {
@@ -48,6 +49,33 @@ function ReadValue({ label, children, wide = false }) {
   );
 }
 
+function AutoTextarea({ onChange, value, ...props }) {
+  const ref = useRef(null);
+
+  function fit() {
+    const element = ref.current;
+    if (!element) return;
+    element.style.height = "auto";
+    element.style.height = `${element.scrollHeight}px`;
+  }
+
+  useEffect(() => {
+    fit();
+  }, [value]);
+
+  return (
+    <textarea
+      {...props}
+      ref={ref}
+      value={value}
+      onChange={(event) => {
+        fit();
+        onChange?.(event);
+      }}
+    />
+  );
+}
+
 function Field({
   label,
   name,
@@ -58,6 +86,8 @@ function Field({
   wide = false,
   required = false,
   readOnly = false,
+  bare = false,
+  placeholder,
 }) {
   const props = {
     name,
@@ -66,10 +96,20 @@ function Field({
     required,
     readOnly,
   };
+  const classes = [
+    wide && "report-wide",
+    bare && "report-field--bare",
+    bare && !value && "is-empty",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
-    <label className={wide ? "report-wide" : undefined}>
-      <span>
+    <label
+      className={classes || undefined}
+      data-placeholder={bare ? placeholder : undefined}
+    >
+      <span className={bare ? "report-sr-only" : undefined}>
         {label}
         {required && " *"}
       </span>
@@ -83,12 +123,32 @@ function Field({
           ))}
         </select>
       ) : type === "textarea" ? (
-        <textarea {...props} rows={3} />
+        <AutoTextarea {...props} placeholder={placeholder} rows={1} />
       ) : (
-        <input {...props} type={type} />
+        <input {...props} placeholder={placeholder} type={type} />
       )}
     </label>
   );
+}
+
+function SubRows({ rows }) {
+  return (
+    <div className="report-subtable">
+      {rows.map(([label, field, required]) => (
+        <Fragment key={label}>
+          <span className="report-sub-label">
+            {label}
+            {required && " *"}
+          </span>
+          <div>{field}</div>
+        </Fragment>
+      ))}
+    </div>
+  );
+}
+
+function Auto({ children }) {
+  return children || <span className="report-placeholder">자동 입력</span>;
 }
 
 function PhotoField({ side, title, onEdit }) {
@@ -127,16 +187,12 @@ function PhotoField({ side, title, onEdit }) {
       <h4>{title}</h4>
 
       <div className="report-photo-body">
-        <div className="report-photo-preview">
+        <label className="report-photo-preview">
           {file ? (
             <img ref={imageRef} alt={`${title} 미리보기`} />
           ) : (
-            <p>{title} 사진 1장을 선택하세요.</p>
+            <p><strong>{title} 사진 1장 첨부</strong><br />비율 유지 / 원본은 연결 사건에 보관</p>
           )}
-        </div>
-
-        <label>
-          사진 선택
           <input
             type="file"
             name={`${side}_photo`}
@@ -145,36 +201,38 @@ function PhotoField({ side, title, onEdit }) {
           />
         </label>
 
-        <label>
-          캡션
-          <textarea
+        <label className="report-photo-caption">
+          <span>
+            <strong>캡션</strong>
+            {side === "before"
+              ? " · 이상 부위 · 관측 상태"
+              : " · 조치 내용 · 복구 상태"}
+          </span>
+          <AutoTextarea
             name={`${side}_caption`}
-            rows={2}
-            placeholder={
-              side === "before"
-                ? "이상 부위와 관측 상태"
-                : "실제 조치 내용과 복구 상태"
-            }
+            rows={1}
             onChange={onEdit}
           />
         </label>
 
-        <label>
-          촬영 시각
-          <input
-            type="datetime-local"
-            name={`${side}_taken_at`}
-            onChange={onEdit}
-          />
-        </label>
+        <div className="report-photo-meta">
+          <label>
+            촬영 시각
+            <input
+              type="datetime-local"
+              name={`${side}_taken_at`}
+              onChange={onEdit}
+            />
+          </label>
 
-        <label>
-          촬영 위치
-          <input
-            name={`${side}_location`}
-            onChange={onEdit}
-          />
-        </label>
+          <label>
+            촬영 위치
+            <input
+              name={`${side}_location`}
+              onChange={onEdit}
+            />
+          </label>
+        </div>
       </div>
     </div>
   );
@@ -189,7 +247,7 @@ function formatSensor(value) {
 }
 
 function formatTime(value) {
-  if (!value) return "아직 연결되지 않았습니다.";
+  if (!value) return "";
 
   const date = new Date(value);
 
@@ -210,6 +268,8 @@ export default function ReportForm({
   busy = false,
   onSave,
   onSubmit,
+  saveOnly = false,
+  saveOnlyLabel = '저장 후 제출',
 }) {
   const [values, setValues] = useState(() => ({
     ...initialValues, ...savedValues,
@@ -219,6 +279,9 @@ export default function ReportForm({
   }));
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  // AI가 채운 초안은 읽기 상태로 열고, 수정 버튼을 눌러야 입력할 수 있다.
+  const [editing, setEditing] = useState(false);
+  const locked = readOnly || busy || (saveOnly && !editing);
 
   // 다른 사건의 분석 결과가 현재 보고서에 섞이지 않도록 확인한다.
   const linkedAnalysis =
@@ -231,6 +294,8 @@ export default function ReportForm({
 
   const analysisMessage = !linkedAnalysis
     ? "AI 초안이 아직 연결되지 않았습니다."
+    : linkedAnalysis.status === "OK"
+      ? "제시된 원인 후보 없음"
     : linkedAnalysis.status === "INSUFFICIENT_EVIDENCE"
       ? "근거가 부족해 AI 초안 작성을 중단했습니다."
       : "AI 분석에 실패했습니다. 담당자 확인이 필요합니다.";
@@ -280,6 +345,11 @@ export default function ReportForm({
     event.preventDefault();
     clearFeedback();
 
+    if (saveOnly) {
+      await onSave?.(values);
+      return;
+    }
+
     if (
       downtimeMinutes !== null &&
       (!Number.isFinite(downtimeMinutes) || downtimeMinutes < 0)
@@ -311,238 +381,100 @@ export default function ReportForm({
     <article className="report-sheet">
       <header className="report-heading">
         <p className="report-meta">
-          정비관리 | CONV-MR-S-001 | 양식 v1.2
+          <span>정비관리 | CONV-MR-S-001 | 양식 v1.2</span>
+          <span>현장 사진(전·후) 포함 / 1쪽 양식</span>
         </p>
         <h2>컨베이어 설비 이상 정비 보고서</h2>
-        <p>발생 사실과 AI 제안 및 실제 조치 결과를 구분하여 작성</p>
+        <p>기본 보고서 발생 사실과 AI 제안 및 실제 조치 결과를 구분하여 작성</p>
       </header>
 
       <form onSubmit={handleCheck}>
-        <fieldset disabled={readOnly || busy} className="report-fields">
+        <fieldset disabled={locked} className="report-fields">
         <Section number="01" title="기본 정보">
-          <dl className="report-read-grid">
-            <ReadValue label="보고서 번호">
-              {reportId || "저장 시 자동 발급"}
-            </ReadValue>
-            <ReadValue label="연결 사건">
-              {incident?.incident_id}
-            </ReadValue>
-            <ReadValue label="공정 / 설비">
-              {incident
-                ? `${incident.process_id} / ${incident.asset_id}`
-                : null}
-            </ReadValue>
-            <ReadValue label="설비명 / 모델">
-              {assetName || null}
-            </ReadValue>
-            <ReadValue label="발생 시각">
-              {formatTime(incident?.first_detected_at)}
-            </ReadValue>
-            <ReadValue label="문서 상태">{statusLabel}</ReadValue>
-          </dl>
-
-          <div className="report-input-grid">
-            {renderField("author", "작성자", { readOnly: true })}
-            {renderField("department", "부서")}
-            {renderField("processImpact", "공정 영향", {
-              options: ["미확인", "정지", "감속", "영향 없음"],
-              wide: true,
-            })}
+          <div className="report-table report-table--basic">
+            <div className="report-cell"><strong>보고서 번호</strong><span><Auto>{reportId}</Auto></span></div>
+            <div className="report-cell"><strong>연결 사건</strong><span><Auto>{incident?.incident_id}</Auto></span></div>
+            <div className="report-cell"><strong>공정 설비</strong><span><Auto>{[incident?.process_id, incident?.asset_id].filter(Boolean).join(" / ")}</Auto></span></div>
+            <div className="report-cell"><strong>설비명 모델</strong><span><Auto>{assetName}</Auto></span></div>
+            <div className="report-cell"><strong>발생 시각</strong><span><Auto>{formatTime(incident?.first_detected_at)}</Auto></span></div>
+            <div className="report-cell"><strong>작성자 부서</strong><div>{renderField("department", "작성자 부서", { bare: true, placeholder: "입력" })}</div></div>
+            <div className="report-cell"><strong>문서 상태</strong><span>{statusLabel}</span></div>
+            <div className="report-cell"><strong>공정 영향</strong><div>{renderField("processImpact", "공정 영향", { bare: true, options: ["미확인", "정지", "감속", "영향 없음"] })}</div></div>
           </div>
         </Section>
 
         <Section number="02" title="발생 현상 및 주요 측정값">
-          <dl className="report-read-grid">
-            <ReadValue label="알람 코드" wide>
-              {incident?.codes?.join(", ") || "연결 사건 대기"}
-            </ReadValue>
-            <ReadValue label="관측 현상" wide>
-              {linkedAnalysis?.observed_facts || "관측 사실 연결 대기"}
-            </ReadValue>
-          </dl>
-
-          <div className="report-sensors">
-            {sensors.map(([label, field]) => (
-              <div key={field}>
-                <strong>{label}</strong>
-                <span>{formatSensor(getSensor(field))}</span>
-              </div>
-            ))}
+          <div className="report-table">
+            <div className="report-cell report-cell--wide"><strong>알람 및 관측 현상</strong><span style={{ whiteSpace: "pre-line" }}>{alarmDescriptions(incident, linkedAnalysis).join("\n") || "알람 미확인"}{incident?.evidence?.length ? `\n${incident.evidence.map(measurementSummary).join("\n")}` : ""}</span></div>
           </div>
-          <p className="report-note">
-            사건에 기록된 센서 근거를 표시합니다.
-            수집되지 않은 값은 임의로 채우지 않습니다.
-          </p>
+          <div className="report-sensors">
+            {sensors.map(([label, field]) => <div key={field}><strong>{label}</strong><span>{formatSensor(getSensor(field))}</span></div>)}
+          </div>
         </Section>
 
         <Section number="03" title="AI 분석 및 대응 권고">
-          {analysisReady ? (
-            <dl className="report-read-grid">
-              <ReadValue label="추정 원인 및 근거" wide>
-                {linkedAnalysis.suspected_causes.length ? (
-                  <ul>
-                    {linkedAnalysis.suspected_causes.map((item, index) => (
-                      <li key={index}>
-                        <strong>{item.cause}</strong>
-                        <br />
-                        {item.basis}
-                        <br />
-                        근거 ID: {item.evidence_ids.join(", ")}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  "제시된 원인 후보 없음"
-                )}
-              </ReadValue>
-
-              <ReadValue label="권고 점검 절차" wide>
-                {linkedAnalysis.recommended_checks.length ? (
-                  <ol>
-                    {linkedAnalysis.recommended_checks.map((text, index) => (
-                      <li key={index}>{text}</li>
-                    ))}
-                  </ol>
-                ) : (
-                  "제시된 점검 절차 없음"
-                )}
-              </ReadValue>
-
-              <ReadValue label="권고 조치" wide>
-                {linkedAnalysis.recommended_actions.length ? (
-                  <ul>
-                    {linkedAnalysis.recommended_actions.map((text, index) => (
-                      <li key={index}>{text}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  "제시된 권고 조치 없음"
-                )}
-              </ReadValue>
-
-              <ReadValue label="승인이 필요한 조치" wide>
-                {linkedAnalysis.actions_requiring_approval.length ? (
-                  <ul>
-                    {linkedAnalysis.actions_requiring_approval.map(
-                      (text, index) => <li key={index}>{text}</li>,
-                    )}
-                  </ul>
-                ) : (
-                  "별도 제시 없음"
-                )}
-              </ReadValue>
-
-              <ReadValue label="참조 매뉴얼·이력" wide>
-                <ul>
-                  {linkedAnalysis.evidence.map((item) => (
-                    <li key={item.evidence_id}>
-                      {item.citation} · 근거 ID: {item.evidence_id}
-                    </li>
-                  ))}
-                </ul>
-              </ReadValue>
-            </dl>
-          ) : (
-            <div className="report-empty">
-              <p>{analysisMessage}</p>
-              {linkedAnalysis?.additional_checks?.length > 0 && (
-                <ul>
-                  {linkedAnalysis.additional_checks.map((text, index) => (
-                    <li key={index}>{text}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-
-          {linkedAnalysis?.limitations && (
-            <p className="report-note">{linkedAnalysis.limitations}</p>
-          )}
+          <div className="report-table">
+            <div className="report-cell report-cell--wide"><strong>추정 원인 및 근거</strong><span>{analysisReady && linkedAnalysis.suspected_causes?.length ? linkedAnalysis.suspected_causes.map((item, index) => <span className="report-analysis-item" key={index}>{item.cause} · {item.basis} · 근거 ID: {item.evidence_ids?.join(", ")}</span>) : analysisMessage}</span></div>
+            <div className="report-cell report-cell--wide"><strong>권고 점검 절차</strong><span>{analysisReady && linkedAnalysis.recommended_checks?.length ? linkedAnalysis.recommended_checks.join(" · ") : "제시된 점검 절차 없음"}{analysisReady && linkedAnalysis.recommended_actions?.length > 0 && ` · 권고 조치: ${linkedAnalysis.recommended_actions.join(" · ")}`}{analysisReady && linkedAnalysis.actions_requiring_approval?.length > 0 && ` · 승인 필요: ${linkedAnalysis.actions_requiring_approval.join(" · ")}`}</span></div>
+            <div className="report-cell report-cell--wide"><strong>참조 매뉴얼·이력</strong><span>{analysisReady && linkedAnalysis.evidence?.length ? linkedAnalysis.evidence.map((item) => item.citation).join(" · ") : "연결된 근거 없음"}</span></div>
+          </div>
+          {linkedAnalysis?.limitations && <p className="report-note">{linkedAnalysis.limitations}</p>}
         </Section>
 
         <Section number="04" title="실제 점검 및 조치 결과">
-          <div className="report-input-grid">
-            {renderField("actionStatus", "실제 조치 여부", { options: ["수행", "미수행"] })}
-            {renderField("actualActions", "실제 수행 내용 또는 미수행 사유", {
-              type: "textarea",
-              wide: true,
-              required: true,
-            })}
-            {renderField("replacedParts", "교체 부품 — 없으면 ‘없음’", {
-              type: "textarea",
-              wide: true,
-            })}
-            {renderField("actionBy", "조치 기록자 사번", { readOnly: true })}
-            {renderField("actionAt", "조치 시각", {
-              type: "datetime-local",
-              required: values.actionStatus === "수행",
-            })}
-            {renderField("confirmedCause", "확인 원인 — 미확인이면 ‘미확인’", {
-              type: "textarea",
-              wide: true,
-              required: true,
-            })}
-            {renderField("causeEvidence", "원인 확인 근거", {
-              type: "textarea",
-              wide: true,
-            })}
-            {renderField("causeCategory", "원인 분류")}
-            {renderField("aiAssessment", "AI 제안과 실제 결과 비교", {
-              options: ["판단 불가", "일치", "부분 일치", "불일치"],
-            })}
+          <div className="report-table report-table--rows">
+            <strong className="report-th">실제 조치 및 부품</strong>
+            <div className="report-td">
+              <SubRows rows={[
+                ["실제 조치 여부", renderField("actionStatus", "실제 조치 여부", { bare: true, options: ["수행", "미수행"] })],
+                ["수행 내용 · 미수행 사유", renderField("actualActions", "실제 수행 내용 또는 미수행 사유", { bare: true, type: "textarea", required: true, placeholder: "수행 내용 (미수행이면 사유)" }), true],
+                ["교체 부품", renderField("replacedParts", "교체 부품", { bare: true, type: "textarea", placeholder: "없으면 ‘없음’" })],
+                ["조치 기록자 사번", renderField("actionBy", "조치 기록자 사번", { bare: true, readOnly: true })],
+                ["조치 시각", renderField("actionAt", "조치 시각", { bare: true, type: "datetime-local", placeholder: "입력", required: values.actionStatus === "수행" }), values.actionStatus === "수행"],
+              ]} />
+            </div>
+            <strong className="report-th">확인 원인 및 근거</strong>
+            <div className="report-td">
+              <SubRows rows={[
+                ["확인 원인", renderField("confirmedCause", "확인 원인", { bare: true, type: "textarea", required: true, placeholder: "미확인이면 그 사실, 확인했다면 원인" }), true],
+                ["원인 확인 근거", renderField("causeEvidence", "원인 확인 근거", { bare: true, type: "textarea", placeholder: "확인했다면 원인과 확인 근거" })],
+                ["원인 분류", renderField("causeCategory", "원인 분류", { bare: true, placeholder: "입력" })],
+                ["AI 제안과 실제 결과 비교", renderField("aiAssessment", "AI 제안과 실제 결과 비교", { bare: true, options: ["판단 불가", "일치", "부분 일치", "불일치"] })],
+              ]} />
+            </div>
           </div>
         </Section>
 
         <Section number="05" title="복구 확인 및 처리 결과">
-          <div className="report-input-grid">
-            {renderField("trialResult", "복구 시험 결과", {
-              options: ["미실시", "정상", "부적합"],
-            })}
-            {renderField("resolution", "처리 결과", {
-              options: ["미확인", "해결", "미해결", "보류"],
-            })}
-            {renderField("trialDetails", "시험 내용·결과 또는 미실시 사유", {
-              type: "textarea",
-              wide: true,
-              required: true,
-            })}
-            {renderField("downtimeStart", "정지 시작", {
-              type: "datetime-local",
-            })}
-            {renderField("downtimeEnd", "운전 복귀", {
-              type: "datetime-local",
-            })}
+          <div className="report-table report-table--recovery">
+            <strong className="report-th">복구 시험 및 결과</strong>
+            <div className="report-td report-td--span">
+              <SubRows rows={[
+                ["복구 시험 결과", renderField("trialResult", "복구 시험 결과", { bare: true, options: ["미실시", "정상", "부적합"] })],
+                ["시험 내용 · 미실시 사유", renderField("trialDetails", "시험 내용·결과 또는 미실시 사유", { bare: true, type: "textarea", required: true, placeholder: "적합 / 부적합 / 미실시 (미실시면 사유)" }), true],
+              ]} />
+            </div>
+            <strong className="report-th">정지 시작</strong>
+            <div className="report-td">{renderField("downtimeStart", "정지 시작", { type: "datetime-local", bare: true, placeholder: "입력" })}</div>
+            <strong className="report-th">운전 복귀</strong>
+            <div className="report-td">{renderField("downtimeEnd", "운전 복귀", { type: "datetime-local", bare: true, placeholder: "입력" })}</div>
+            <strong className="report-th">총 정지 분</strong>
+            <div className="report-td"><span>{downtimeMinutes === null ? "구간 확인 후 계산" : !Number.isFinite(downtimeMinutes) || downtimeMinutes < 0 ? "정지 구간을 확인하세요." : `${Number(downtimeMinutes.toFixed(2))}분`}</span></div>
+            <strong className="report-th">처리 결과</strong>
+            <div className="report-td">{renderField("resolution", "처리 결과", { options: ["미확인", "해결", "미해결", "보류"], bare: true })}</div>
+            <strong className="report-th">후속 조치 및 담당</strong>
+            <div className="report-td report-td--span">
+              <SubRows rows={[
+                ["후속 조치", renderField("followUp", "후속 조치", { bare: true, type: "textarea", placeholder: "미해결 사항 · 담당자 · 기한 (해당 없으면 ‘없음’)" })],
+                ["후속 조치 담당자", renderField("followUpOwner", "후속 조치 담당자", { bare: true, placeholder: "입력" })],
+                ["후속 조치 기한", renderField("followUpDue", "후속 조치 기한", { bare: true, type: "date", placeholder: "입력" })],
+              ]} />
+            </div>
+            <strong className="report-th">작성 확인</strong>
+            <div className="report-td">{renderField("confirmedBy", "작성 확인 성명", { readOnly: true, bare: true })}</div>
+            <strong className="report-th">검토 확정</strong>
+            <div className="report-td"><span>제출·결재 이력으로 확인</span></div>
           </div>
-
-          <dl className="report-read-grid">
-            <ReadValue label="총 정지 시간" wide>
-              {downtimeMinutes === null
-                ? "정지 시작과 운전 복귀를 입력하면 계산합니다."
-                : !Number.isFinite(downtimeMinutes) || downtimeMinutes < 0
-                  ? "정지 구간을 확인하세요."
-                  : `${Number(downtimeMinutes.toFixed(2))}분`}
-            </ReadValue>
-          </dl>
-
-          <div className="report-input-grid">
-            {renderField("followUp", "후속 조치 — 해당 없으면 ‘없음’", {
-              type: "textarea",
-              wide: true,
-            })}
-            {renderField("followUpOwner", "후속 조치 담당자")}
-            {renderField("followUpDue", "후속 조치 기한", {
-              type: "date",
-            })}
-            {renderField("confirmedBy", "작성 확인 성명", {
-              readOnly: true,
-            })}
-          </div>
-
-          <dl className="report-read-grid">
-            <ReadValue label="검토 확정" wide>
-              제출·결재 이력의 사용자와 시각으로 확인합니다.
-            </ReadValue>
-          </dl>
         </Section>
 
         <Section number="06" title="현장 사진 (조치 전·후)">
@@ -562,21 +494,60 @@ export default function ReportForm({
         </Section>
 
         <p className="report-note">
-          AI 권고를 실제 수행으로 기입하지 않습니다.
-          정지시간은 알람 지속시간과 다릅니다.
-          입력 시각은 브라우저의 현지 시간 기준입니다.
+          AI 권고를 실제 수행으로 기입하지 않습니다. 정지시간은 알람
+          지속시간과 다르며 상세 센서 로그와 전·후 사진 원본은 연결 사건에
+          보관합니다.
         </p>
 
         {error && <p className="error" role="alert">{error}</p>}
         {message && <p className="report-feedback" role="status">{message}</p>}
+        </fieldset>
 
         <footer className="report-footer">
-          <span>* 제출 시 필수 입력. 임시 저장은 빈 칸을 허용합니다.</span>
-          {!readOnly && onSave && <button type="button" onClick={() => void onSave(values)}>임시 저장</button>}
-          {!readOnly && <button type="submit" className="report-check-button">{onSubmit ? "저장 후 제출" : "작성 내용 확인"}</button>}
+          <span>
+            {saveOnly
+              ? '저장 후 완료는 초안으로 보관되며, 검토나 제출은 진행하지 않습니다.'
+              : '* 제출 시 필수 입력. 임시 저장은 빈 칸을 허용합니다.'}
+            {' '}입력 시각은 브라우저의 현지 시간 기준입니다.
+          </span>
+          {!readOnly && onSave && !saveOnly && (
+            <button type="button" disabled={busy} onClick={() => void onSave(values)}>
+              임시 저장
+            </button>
+          )}
+          {!readOnly && saveOnly && (
+            <>
+              <button
+                type="button"
+                className="report-edit-button"
+                aria-pressed={editing}
+                disabled={busy || editing}
+                onClick={() => setEditing(true)}
+              >
+                {editing ? '수정 중' : '수정'}
+              </button>
+              <button
+                type="button"
+                className="report-check-button"
+                disabled={busy}
+                onClick={() => void onSave?.(values)}
+              >
+                {saveOnlyLabel}
+              </button>
+            </>
+          )}
+          {!readOnly && !saveOnly && (
+            <button type="submit" className="report-check-button" disabled={busy}>
+              {onSubmit ? '저장 후 제출' : '작성 내용 확인'}
+            </button>
+          )}
         </footer>
-        </fieldset>
       </form>
+
+      <div className="report-paper-footer">
+        <span>AI 초안과 실제 확인 결과를 구분하여 기록</span>
+        <span>CONV-MR-S-001 | v1.2 | 1 / 1</span>
+      </div>
     </article>
   );
 }

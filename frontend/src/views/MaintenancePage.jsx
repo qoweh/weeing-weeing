@@ -9,7 +9,7 @@ const labels = {
   APPROVED: '작성 완료',
   REJECTED: '반려',
 }
-export default function MaintenancePage({ onOpen, onSessionExpired }) {
+export default function MaintenancePage({ user, onOpen, onSessionExpired, refreshKey = 0 }) {
   const [rows, setRows] = useState([]),
     [issues, setIssues] = useState([])
   const [query, setQuery] = useState(''),
@@ -17,11 +17,12 @@ export default function MaintenancePage({ onOpen, onSessionExpired }) {
   const [loading, setLoading] = useState(true),
     [error, setError] = useState(''),
     [reload, setReload] = useState(0)
+  const [scope, setScope] = useState('all')
   useEffect(() => {
     let active = true
     setLoading(true)
     setError('')
-    Promise.all([listReports('all'), listIncidents()])
+    Promise.all([listReports(scope), listIncidents()])
       .then(([reports, incidents]) => {
         if (!active) return
         const mapped = reports.map((r) => {
@@ -30,11 +31,14 @@ export default function MaintenancePage({ onOpen, onSessionExpired }) {
           )
           return {
             id: r.report_id,
+            reportId: r.report_id,
+            incidentId: r.incident_id,
             name: r.report_id,
-            issue: incident?.codes.join(', ') || r.incident_id || '사건 미연결',
+            issue: incident?.codes?.join(', ') || r.incident_id || '사건 미연결',
             asset: r.asset_id,
-            date: incident?.first_detected_at,
+            date: incident?.first_detected_at || r.updated_at,
             author: r.author_name,
+            incident,
             status: labels[r.report_status] || r.report_status,
             tone:
               r.report_status === 'APPROVED'
@@ -63,6 +67,7 @@ export default function MaintenancePage({ onOpen, onSessionExpired }) {
                 author: report?.author_name || '—',
                 status: report ? labels[report.report_status] : '작성 필요',
                 tone: 'warning',
+                incident: i,
               }
             }),
         )
@@ -79,9 +84,16 @@ export default function MaintenancePage({ onOpen, onSessionExpired }) {
     return () => {
       active = false
     }
-  }, [reload, onSessionExpired])
+  }, [scope, reload, refreshKey, onSessionExpired])
   return (
     <div className="library-page" aria-label="정비 이력 · 보고서">
+      <div className="library-report-scopes" role="group" aria-label="보고서 목록 선택">
+        <Button aria-pressed={scope === 'all'} onClick={() => setScope('all')}>전체 보고서</Button>
+        <Button aria-pressed={scope === 'mine'} onClick={() => setScope('mine')}>내 보고서</Button>
+        {['보전 팀장', '관제 담당자'].includes(user.role) && (
+          <Button aria-pressed={scope === 'review'} onClick={() => setScope('review')}>결재 대기</Button>
+        )}
+      </div>
       <Filters
         report
         query={query}
@@ -93,25 +105,26 @@ export default function MaintenancePage({ onOpen, onSessionExpired }) {
       />
       {loading ? (
         <p role="status">정비 이력을 불러오는 중입니다.</p>
-      ) : error ? (
-        <p className="workspace-error" role="alert">
-          {error}{' '}
-          <Button onClick={() => setReload((n) => n + 1)}>다시 시도</Button>
-        </p>
       ) : (
         <>
-          <LibraryTable
+          {error && (
+            <p className="workspace-error" role="alert">
+              실제 목록을 불러오지 못했습니다: {error}{' '}
+              <Button onClick={() => setReload((n) => n + 1)}>다시 시도</Button>
+            </p>
+          )}
+          {scope === 'all' && <LibraryTable
             report
             compact
             title="오류 이슈"
             rows={filterRows(issues, query, filters)}
-            onOpen={(r) => onOpen(r.reportId, r.incidentId)}
-          />
+            onOpen={(r) => onOpen(r.reportId, r.incidentId, r)}
+          />}
           <LibraryTable
             report
-            title="정비 이력"
+            title={{ all: '정비 이력', mine: '내 보고서', review: '결재 대기' }[scope]}
             rows={filterRows(rows, query, filters)}
-            onOpen={(r) => onOpen(r.id)}
+            onOpen={(r) => onOpen(r.reportId || r.id, r.incidentId, r)}
           />
           <p className="library-footnote">
             최근 조회된 사건·보고서 기준입니다. 발생 시각이 없는 항목은 —로

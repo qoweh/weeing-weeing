@@ -39,10 +39,11 @@ async function request(path, { method = "GET", body } = {}) {
     if (!response.ok) {
       const detail = data?.detail ?? data?.message ?? "요청 실패";
       const message =
-        typeof detail === "string" ? detail : JSON.stringify(detail);
+        typeof detail === "string" ? detail : (detail?.message ?? JSON.stringify(detail));
 
       const error = new Error(`HTTP ${response.status}: ${message}`);
       error.status = response.status;
+      error.detail = detail;
       throw error;
     }
 
@@ -144,6 +145,9 @@ export function loginUser(employeeNo, password) {
 export function currentUser() { return request("/auth/me"); }
 export function logoutUser() { return request("/auth/logout", { method: "POST" }); }
 export function listIncidents() { return request("/incidents"); }
+export function getIncidentAnalysis(id) {
+  return request(`/incidents/${encodeURIComponent(id)}/analysis`);
+}
 export function listReports(scope = "mine") { return request(`/reports?scope=${scope}`); }
 export function getReport(id, version) {
   const suffix = version ? `/versions/${version}` : "";
@@ -160,4 +164,61 @@ export function actOnReport(id, action, revision, comment = "") {
   });
 }
 
-export function listDocuments() { return request("/documents"); }
+export function listDocuments(query = "") {
+  const params = new URLSearchParams({ q: query });
+  return request(query ? `/documents?${params}` : "/documents");
+}
+
+export function deleteDocument(document) {
+  return request(`/documents/${encodeURIComponent(document.doc_id)}`, {
+    method: "DELETE",
+    body: {
+      doc_version: document.doc_version,
+      source_sha256: document.source_sha256,
+      upload_id: document.upload_id,
+    },
+  });
+}
+
+export async function fetchDocumentFile(uploadId) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 60_000);
+
+  try {
+    const response = await fetch(
+      `/api/documents/${encodeURIComponent(uploadId)}/file`,
+      {
+        cache: "no-store",
+        signal: controller.signal,
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      },
+    );
+
+    if (!response.ok) {
+      const error = new Error(
+        [404, 405].includes(response.status)
+          ? "서버에서 문서 원문(PDF)을 찾을 수 없습니다."
+          : `문서 원문을 불러오지 못했습니다. HTTP ${response.status}`,
+      );
+      error.status = response.status;
+      throw error;
+    }
+
+    return await response.blob();
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error("문서 원문 응답 대기 시간이 초과됐습니다.", {
+        cause: error,
+      });
+    }
+    if (error instanceof TypeError) {
+      throw new Error(
+        "서버에 연결하지 못했습니다. FastAPI 실행 상태를 확인하세요.",
+        { cause: error },
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}

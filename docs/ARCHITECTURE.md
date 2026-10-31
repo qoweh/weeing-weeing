@@ -12,7 +12,7 @@ flowchart LR
   R["rag<br>근거 검색"] --> G
   G -- AnalysisResult --> API["api<br>FastAPI + db"]
   D -- Incident --> API
-  API --> H["hmi<br>Streamlit"]
+  API --> H["frontend<br>Next.js"]
   H -- "리셋·재가동 승인" --> P
   H -- "확정 보고서" --> R
 ```
@@ -33,7 +33,7 @@ flowchart LR
 | `api` | HTTP API, 모듈 연결 | HTTP JSON | 2차 |
 | `db` | PostgreSQL 저장 | contracts 모델 ↔ 테이블 | 2차 |
 | `plc` | 상태 전환, 보호 정지 | `TelemetryRecord` → `PlcState` | 3차 |
-| `hmi/` | 대시보드, 보고서, 결재 | api 호출 | 5차 |
+| `frontend/` | 대시보드, 보고서, 결재 (Next.js) | api 호출 | 5차 |
 | `simulator/` | Unreal 연동 | 고장 주입 → Telemetry | 4차 |
 
 각 모듈의 책임과 금지 사항은 `src/weeing_weeing/<모듈>/__init__.py` 첫 주석에, 바깥에 내놓는 함수 모양은 `<모듈>/interface.py`의 `Protocol`에 있다.
@@ -113,7 +113,7 @@ DB와 공유 RAG 검색기를 연결한다. `build_chat_service()`는 이 구현
 
 ```
 src/weeing_weeing/   파이썬 패키지 (모듈별 하위 폴더)
-hmi/                 Streamlit 앱 (5차)
+frontend/            Next.js 웹 앱, HMI 화면 (5차)
 simulator/           Unreal 연동 메모·스크립트 (4차)
 data/                원본 데이터와 지식 문서 (data/README.md)
 scripts/             일회성·보조 스크립트 (합성 데이터 생성, 색인 실행 등)

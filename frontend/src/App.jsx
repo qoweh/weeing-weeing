@@ -10,10 +10,25 @@ import DashboardPage from './views/DashboardPage.jsx'
 import LoginPage from './views/LoginPage.jsx'
 import { ManualPage, ManualUploadPage } from './views/ManualPages.jsx'
 import MaintenancePage from './views/MaintenancePage.jsx'
-import ReportWorkspace from './components/report/ReportWorkspace.jsx'
+import ReportDraftModal from './components/report/ReportDraftModal.jsx'
 import SignupPage from './views/SignupPage.jsx'
 
 const sessionKey = 'weeing-report-session'
+const historyKey = 'weeing-app-view'
+const pages = new Set(['dashboard', 'manuals', 'manual-upload', 'maintenance'])
+
+function readHistoryView() {
+  if (typeof window === 'undefined') return null
+  const view = window.history.state?.[historyKey]
+  return view && pages.has(view.page) ? view : null
+}
+
+function writeHistoryView(view, replace = false) {
+  if (typeof window === 'undefined') return
+  const state = { ...(window.history.state || {}), [historyKey]: view }
+  const method = replace ? 'replaceState' : 'pushState'
+  window.history[method](state, '', window.location.href)
+}
 
 function initialTheme() {
   try {
@@ -34,8 +49,14 @@ export default function App() {
   const [checking, setChecking] = useState(() =>
     Boolean(sessionStorage.getItem(sessionKey)),
   )
-  const [reportSelection, setReportSelection] = useState({})
-  const [page, setPage] = useState('dashboard')
+  const [initialView] = useState(
+    () => readHistoryView() || { page: 'dashboard', reportSelection: null },
+  )
+  const [reportSelection, setReportSelection] = useState(
+    initialView.reportSelection || null,
+  )
+  const [page, setPage] = useState(initialView.page)
+  const [maintenanceRefreshKey, setMaintenanceRefreshKey] = useState(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -45,6 +66,8 @@ export default function App() {
     setUser(null)
     setAuthPage('login')
     setPage('dashboard')
+    setReportSelection(null)
+    writeHistoryView({ page: 'dashboard', reportSelection: null }, true)
   }, [])
 
   useEffect(() => {
@@ -55,6 +78,21 @@ export default function App() {
       /* Theme still works for this session. */
     }
   }, [theme])
+
+  useEffect(() => {
+    if (!readHistoryView()) {
+      writeHistoryView({ page, reportSelection }, true)
+    }
+
+    function restoreHistoryView() {
+      const view = readHistoryView()
+      setPage(view?.page || 'dashboard')
+      setReportSelection(view?.reportSelection || null)
+    }
+
+    window.addEventListener('popstate', restoreHistoryView)
+    return () => window.removeEventListener('popstate', restoreHistoryView)
+  }, [])
 
   useEffect(() => {
     const token = sessionStorage.getItem(sessionKey)
@@ -84,6 +122,9 @@ export default function App() {
     setAccessToken(session.access_token)
     setError('')
     setUser(session.user)
+    setPage('dashboard')
+    setReportSelection(null)
+    writeHistoryView({ page: 'dashboard', reportSelection: null }, true)
   }
 
   async function logout() {
@@ -99,6 +140,57 @@ export default function App() {
     } finally {
       setBusy(false)
     }
+  }
+
+  const navigate = useCallback((nextPage) => {
+    if (!pages.has(nextPage)) return
+    const nextView = { page: nextPage, reportSelection: null }
+    writeHistoryView(nextView)
+    setPage(nextPage)
+    setReportSelection(null)
+  }, [])
+
+  const openReportDraft = useCallback(
+    (incident, reportId = '', row = null) => {
+      const selectedIncident =
+        incident ||
+        (row?.incidentId ? { incident_id: row.incidentId } : null)
+      if (!selectedIncident && !reportId) {
+        setError('사건 정보를 찾을 수 없어 보고서를 열 수 없습니다.')
+        return
+      }
+
+      const selection = {
+        incident: selectedIncident,
+        incidentId: selectedIncident?.incident_id || '',
+        reportId,
+      }
+
+      if (page !== 'maintenance') {
+        writeHistoryView({ page: 'maintenance', reportSelection: null })
+      }
+      const nextView = { page: 'maintenance', reportSelection: selection }
+      writeHistoryView(nextView)
+      setPage('maintenance')
+      setReportSelection(selection)
+      setError('')
+    },
+    [page],
+  )
+
+  const closeReportDraft = useCallback(() => {
+    if (readHistoryView()?.reportSelection) {
+      window.history.back()
+      return
+    }
+    const nextView = { page: 'maintenance', reportSelection: null }
+    writeHistoryView(nextView, true)
+    setPage('maintenance')
+    setReportSelection(null)
+  }, [])
+
+  function handleReportSaved() {
+    setMaintenanceRefreshKey((key) => key + 1)
   }
 
   if (checking)
@@ -124,7 +216,8 @@ export default function App() {
       onLogout={logout}
       busy={busy}
       page={page}
-      onNavigate={setPage}
+      onNavigate={navigate}
+      onIncidentSelect={(incident) => openReportDraft(incident)}
       theme={theme}
       onToggleTheme={() =>
         setTheme((current) => (current === 'light' ? 'dark' : 'light'))
@@ -139,41 +232,44 @@ export default function App() {
         <DashboardPage />
       </div>
       {page === 'manuals' && (
-        <ManualPage onNavigate={setPage} onSessionExpired={forgetSession} />
+        <ManualPage
+          user={user}
+          onNavigate={navigate}
+          onSessionExpired={forgetSession}
+          onBusyChange={setBusy}
+        />
       )}
       {page === 'manual-upload' && (
         <ManualUploadPage
-          onNavigate={setPage}
+          onNavigate={navigate}
           onSessionExpired={forgetSession}
           onBusyChange={setBusy}
         />
       )}
       {page === 'maintenance' && (
         <MaintenancePage
+          user={user}
           onSessionExpired={forgetSession}
-          onOpen={(reportId, incidentId) => {
-            setReportSelection({ reportId, incidentId })
-            setPage('report-write')
-          }}
+          refreshKey={maintenanceRefreshKey}
+          onOpen={(reportId, _incidentId, row) =>
+            openReportDraft(
+              row?.incident,
+              reportId,
+              row,
+            )
+          }
         />
       )}
-      {page === 'report-write' && (
-        <>
-          <button
-            className="button"
-            disabled={busy}
-            onClick={() => setPage('maintenance')}
-          >
-            정비 이력 목록으로
-          </button>
-          <ReportWorkspace
-            user={user}
-            onSessionExpired={forgetSession}
-            onBusyChange={setBusy}
-            initialReportId={reportSelection.reportId}
-            initialIncidentId={reportSelection.incidentId}
-          />
-        </>
+      {reportSelection && (
+        <ReportDraftModal
+          key={`${reportSelection.incidentId}:${reportSelection.reportId || 'new'}`}
+          incident={reportSelection.incident}
+          reportId={reportSelection.reportId}
+          user={user}
+          onClose={closeReportDraft}
+          onSaved={handleReportSaved}
+          onSessionExpired={forgetSession}
+        />
       )}
     </AppShell>
   )

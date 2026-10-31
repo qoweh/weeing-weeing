@@ -707,3 +707,44 @@ def test_physical_delete_and_identical_reupload_with_qdrant(env, tmp_path, monke
         assert len(db.get_documents().managed_documents()) == 1
     finally:
         client.close()
+
+
+def test_original_pdf_can_be_viewed_inline_by_any_logged_in_user(env):
+    content = other_pdf()
+    body = upload(content).json()
+    app.dependency_overrides[current_user] = lambda: UserAccount(
+        employee_no="OTHER", name="점검자", role=Role.INSPECTOR
+    )
+    response = TestClient(app).get(f"/documents/{body['upload_id']}/file")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.headers["content-disposition"].startswith("inline")
+    assert response.content == content
+
+
+def test_original_pdf_requires_login(env):
+    body = upload(other_pdf()).json()
+    app.dependency_overrides.pop(current_user)
+    response = TestClient(app).get(f"/documents/{body['upload_id']}/file")
+    assert response.status_code == 401
+
+
+def test_original_pdf_unknown_missing_or_outside_root_is_404(env):
+    client = TestClient(app)
+    assert client.get(f"/documents/{'0' * 32}/file").status_code == 404
+
+    body = upload(other_pdf()).json()
+    pdf = next((env[1] / body["upload_id"]).glob("*.pdf"))
+    pdf.unlink()
+    assert client.get(f"/documents/{body['upload_id']}/file").status_code == 404
+
+    outside = env[1].parent / "outside.pdf"
+    outside.write_bytes(other_pdf())
+    add_legacy(
+        db.get_documents(),
+        "UP-OUTSIDE-PDF",
+        origin="upload",
+        upload_id="a" * 32,
+        source="../outside.pdf",
+    )
+    assert client.get(f"/documents/{'a' * 32}/file").status_code == 404

@@ -2,6 +2,25 @@
   padding: 0 24px;
   container-type: inline-size;
 }
+
+.library-report-scopes { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.library-report-scopes button[aria-pressed='true'] { background: #17263f; color: #fff; }
+.manual-upload-page { position: relative; }
+.manual-upload-page--dragging > :not(.library-drop-overlay) { pointer-events: none; }
+.library-drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--primary);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  color: var(--primary);
+  font-size: 18px;
+  font-weight: 700;
+  pointer-events: none;
+}
 .library-filters {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) repeat(2, minmax(130px, 180px)) repeat(3, minmax(130px, 145px));
@@ -166,6 +185,13 @@
 }
 .library-link:hover {
   text-decoration: underline;
+}
+.library-link--ellipsis {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .library-table .library-view {
   min-height: 32px;
@@ -406,4 +432,47 @@
   .manual-upload-fields input[type='file'] { height: auto; min-height: 48px; max-width: 100%; }
   .manual-upload-back .button { flex: 1; min-width: 0; }
   .library-dialog dl { grid-template-columns: minmax(75px, auto) minmax(0, 1fr); }
+}
+.library-table__clickable-row { cursor: pointer; }
+.library-table__clickable-row:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+.search-hit {
+  padding: 0 4px;
+  border: 1px solid #e0b53a;
+  border-radius: 999px;
+  background: #ffe066;
+  color: #172033;
+}
+/* 검색 결과: 같은 행 안, 내용 아래에 본문 문장을 한 줄로 보여 준다. */
+.library-table .library-row--excerpt {
+  position: relative;
+}
+.library-table .library-row--excerpt td {
+  height: 113px;
+  padding-top: 22px;
+  vertical-align: top;
+}
+.library-table .library-row--excerpt td:last-child {
+  padding-top: 12px;
+}
+.library-excerpt {
+  position: absolute;
+  top: 53px;
+  right: 20px;
+  left: 20px;
+  display: block;
+  height: 40px;
+  padding: 0 17px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #fff8d8;
+  color: #172033;
+  font-size: 13px;
+  line-height: 40px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+:root[data-theme='dark'] .library-excerpt {
+  background: #4a3d12;
+  color: #f4ecd0;
 }

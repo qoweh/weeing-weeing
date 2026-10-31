@@ -4,6 +4,7 @@
                      이후 백그라운드에서 PDF 파싱·청킹·임베딩·벡터 저장
     GET  /documents              등록 문서 목록(로그인)
     GET  /documents/{upload_id}  처리 상태(DB document 행, 로그인)
+    GET  /documents/{upload_id}/file  저장된 원본 PDF(로그인, 화면 열람용)
     DELETE /documents/{doc_id}   관제 담당자가 문서·검색 청크 삭제
 
 문서 목록과 처리 상태는 DB(document 테이블)로 관리한다. 별도 기본 문서 목록은 읽지 않는다.
@@ -31,6 +32,7 @@ from fastapi import (
     Query,
     UploadFile,
 )
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from weeing_weeing.api.auth import current_user, require_roles
@@ -499,3 +501,36 @@ def get_document_status(upload_id: UUID) -> dict[str, Any]:
             detail="업로드 기록을 찾을 수 없습니다.",
         )
     return _response(record)
+
+
+@router.get("/documents/{upload_id}/file", dependencies=[Depends(current_user)])
+def get_document_file(upload_id: UUID) -> FileResponse:
+    """업로드한 원본 PDF를 화면에서 바로 볼 수 있게 돌려준다."""
+    try:
+        record = documents().get_upload(upload_id.hex)
+    except db.DatabaseUnavailableError as exc:
+        raise _db_unavailable(exc) from exc
+    if record is None or record.origin != "upload":
+        raise HTTPException(
+            status_code=404,
+            detail="업로드 기록을 찾을 수 없습니다.",
+        )
+    root = upload_dir().resolve()
+    path = (root / record.source).resolve()
+    # DB 값이 업로드 폴더 밖을 가리키거나 PDF가 아니면 읽지 않는다.
+    if (
+        not path.is_relative_to(root)
+        or path.suffix.lower() != ".pdf"
+        or not path.is_file()
+    ):
+        raise HTTPException(
+            status_code=404,
+            detail="원본 PDF 파일을 찾을 수 없습니다.",
+        )
+    return FileResponse(
+        path,
+        media_type="application/pdf",
+        filename=record.title,
+        content_disposition_type="inline",
+        headers={"X-Content-Type-Options": "nosniff"},
+    )

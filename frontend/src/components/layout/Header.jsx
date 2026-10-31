@@ -3,13 +3,22 @@ import { listIncidents } from '../../api/client'
 import Button from '../ui/Button.jsx'
 import { dateLabel } from '../ui/library'
 
-export default function Header({ theme, onToggleTheme, user, onLogout, busy, screenZoom, onChangeScreenZoom }) {
+export default function Header({ theme, onToggleTheme, user, onLogout, busy, screenZoom, onChangeScreenZoom, onIncidentSelect }) {
   const [incidents, setIncidents] = useState(null),
     [error, setError] = useState(''),
     [severity, setSeverity] = useState(null)
   const [popupPosition, setPopupPosition] = useState(null)
   const alertButtons = useRef({})
   const alertPopup = useRef(null)
+  const accountMenu = useRef(null)
+  useEffect(() => {
+    function closeOnOutsidePointer(event) {
+      const menu = accountMenu.current
+      if (menu?.open && !menu.contains(event.target)) menu.open = false
+    }
+    document.addEventListener('pointerdown', closeOnOutsidePointer)
+    return () => document.removeEventListener('pointerdown', closeOnOutsidePointer)
+  }, [])
   useEffect(() => {
     let active = true
     async function refresh() {
@@ -23,8 +32,8 @@ export default function Header({ theme, onToggleTheme, user, onLogout, busy, scr
         }
       } catch (e) {
         if (active) {
-          setIncidents(null)
           setError(e.message)
+          setIncidents([])
         }
       }
     }
@@ -100,7 +109,7 @@ export default function Header({ theme, onToggleTheme, user, onLogout, busy, scr
             </Button>
           ))}
           {user && (
-            <details className="header-account">
+            <details className="header-account" ref={accountMenu}>
               <summary aria-label="내 계정" title={user.name}>
                 <span className="header__avatar">W</span>
                 <span className="header-account__summary-text">
@@ -178,20 +187,35 @@ export default function Header({ theme, onToggleTheme, user, onLogout, busy, scr
             <table className="header-alert-popup__table">
               <thead><tr>{['번호', '적용 설비', '에러 번호', '경고 발생일'].map((label) => <th scope="col" key={label}>{label}</th>)}</tr></thead>
               <tbody>
-                {error || incidents === null || !incidents.some((i) => i.severity === severity) ? (
-                  <tr><td colSpan={4} className="header-alert-popup__empty">{error ? `사건을 불러오지 못했습니다: ${error}` : incidents === null ? '불러오는 중입니다.' : '해당하는 진행 중 사건이 없습니다.'}</td></tr>
+                {incidents === null || !incidents.some((i) => i.severity === severity) ? (
+                  <tr><td colSpan={4} className="header-alert-popup__empty">{incidents === null ? '불러오는 중입니다.' : '해당하는 진행 중 사건이 없습니다.'}</td></tr>
                 ) : incidents.filter((i) => i.severity === severity).map((incident, index) => (
-                  <tr key={incident.incident_id}>
+                  <tr key={incident.incident_id} className="header-alert-popup__clickable-row" tabIndex={0}
+                    onClick={(event) => { if (!event.target.closest('button')) { setSeverity(null); onIncidentSelect?.(incident) } }}
+                    onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setSeverity(null); onIncidentSelect?.(incident) } }}>
                     <td>{String(index + 1).padStart(2, '0')}</td>
                     <td>{incident.asset_id || '—'}</td>
-                    <td>{incident.codes?.join(', ') || '—'}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="header-alert-popup__incident-link"
+                        onClick={() => {
+                          setSeverity(null)
+                          onIncidentSelect?.(incident)
+                        }}
+                      >
+                        {incident.codes?.join(', ') || '사건 보고서 열기'}
+                      </button>
+                    </td>
                     <td>{dateLabel(incident.first_detected_at, true)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <p className="header-alert-popup__note">최근 조회된 사건 기준 · 30초마다 갱신</p>
+          <p className="header-alert-popup__note">
+            {error ? `사건 목록을 불러오지 못했습니다. ${error}` : '최근 조회된 사건 기준 · 30초마다 갱신'}
+          </p>
         </section>
       )}
     </header>

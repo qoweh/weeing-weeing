@@ -60,6 +60,11 @@ button.nav-item:disabled, .button:disabled { opacity: .6; cursor: wait; }
 .header-alert-popup__table { width: 100%; min-width: 460px; border-collapse: collapse; text-align: left; font-size: 13px; }
 .header-alert-popup__table th { padding: 12px; background: var(--library-input); color: var(--primary); font-weight: 700; white-space: nowrap; }
 .header-alert-popup__table td { padding: 14px 12px; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+.header-alert-popup__clickable-row { cursor: pointer; }
+.header-alert-popup__clickable-row:hover td, .header-alert-popup__clickable-row:focus-visible td { background: var(--surface-hover); }
+.header-alert-popup__clickable-row:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.header-alert-popup__incident-link { padding: 0; border: 0; background: none; color: var(--primary); font: inherit; text-align: left; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.header-alert-popup__incident-link:hover { color: var(--primary-hover); }
 .header-alert-popup__table .header-alert-popup__empty { padding: 24px 12px; color: var(--muted); text-align: center; }
 .header-alert-popup__note { margin: 12px 0 0; }
 .header-account { position: relative; }

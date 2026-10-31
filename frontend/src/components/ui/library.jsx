@@ -2,6 +2,23 @@ import { useState } from 'react'
 import Button from './Button'
 import './library.scss'
 
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// 검색어와 일치하는 부분을 노란 원형 강조 표시로 감싼다.
+function highlightText(text, term) {
+  // macOS 파일명은 한글이 자모로 분해(NFD)되어 있어 조합형(NFC)으로 맞춰 비교한다.
+  const value = String(text ?? '').normalize('NFC')
+  const keyword = term.normalize('NFC')
+  if (!keyword) return value
+  const pattern = new RegExp(`(${escapeRegExp(keyword)})`, 'gi')
+  // split에 묶음 괄호를 쓰면 홀수 번째 조각이 일치한 부분이다.
+  return value.split(pattern).map((part, index) =>
+    index % 2 ? <mark key={index} className="search-hit">{part}</mark> : part,
+  )
+}
+
 export function Filters({
   query,
   setQuery,
@@ -90,12 +107,25 @@ export function dateLabel(value, time = false) {
         ...(time ? { hour: '2-digit', minute: '2-digit', hour12: false } : {}),
       }).format(date)
 }
+// 본문에서 찾은 문장 한 줄. 검색어가 잘리지 않도록 앞 문맥은 짧게 줄인다.
+function ExcerptBand({ excerpt }) {
+  const before =
+    excerpt.before.length > 40 ? `…${excerpt.before.slice(-40)}` : excerpt.before
+  return (
+    <span className="library-excerpt">
+      {before}
+      <mark className="search-hit">{excerpt.match}</mark>
+      {excerpt.after}
+    </span>
+  )
+}
 export function LibraryTable({
   rows,
   report = false,
   title,
   compact = false,
   onOpen,
+  highlight = '',
 }) {
   const documentTypes = { manual: '매뉴얼', sop: '규정·SOP', rule: '룰베이스' }
   const [sort, setSort] = useState({ key: 'date', direction: -1 })
@@ -189,23 +219,49 @@ export function LibraryTable({
           </thead>
           <tbody>
             {sorted.slice((current - 1) * 10, current * 10).map((r, i) => (
-              <tr key={r.id}>
+              <tr key={r.id}
+                className={[
+                  (report ? compact && r.incidentId : onOpen) ? 'library-table__clickable-row' : '',
+                  highlight && r.search_excerpt ? 'library-row--excerpt' : '',
+                ].filter(Boolean).join(' ') || undefined}
+                tabIndex={(report ? compact && r.incidentId : onOpen) ? 0 : undefined}
+                onClick={(report ? compact && r.incidentId : onOpen) ? (event) => { if (!event.target.closest('button')) onOpen(r) } : undefined}
+                onKeyDown={(report ? compact && r.incidentId : onOpen) ? (event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onOpen(r) } } : undefined}
+              >
                 {columns.map(([key]) => (
                   <td key={key}>
                     {key === 'number' ? (
-                      String(r.number).padStart(2, '0')
+                      <>
+                        {String(r.number).padStart(2, '0')}
+                        {highlight && r.search_excerpt && (
+                          <ExcerptBand excerpt={r.search_excerpt} />
+                        )}
+                      </>
                     ) : key === 'name' ? (
+                      report && !r.incidentId && !r.reportId ? (
+                        r.name
+                      ) : (
+                        <button
+                          className={report ? 'library-link' : 'library-link library-link--ellipsis'}
+                          title={report ? undefined : r.name}
+                          onClick={() => onOpen(r)}
+                        >
+                          {highlightText(r.name, highlight)}
+                        </button>
+                      )
+                    ) : key === 'doc_type' ? (
+                      documentTypes[r.doc_type] || r.doc_type || '—'
+                    ) : key === 'issue' && report && r.incidentId ? (
                       <button
                         className="library-link"
                         onClick={() => onOpen(r)}
+                        aria-label={`${r.issue || '사건'} 보고서 초안 열기`}
                       >
-                        {r.name}
+                        {r.issue || '—'}
                       </button>
-                    ) : key === 'doc_type' ? (
-                      documentTypes[r.doc_type] || r.doc_type || '—'
                     ) : key === 'date' ? (
                       dateLabel(r.date, report)
-                    ) : key === 'status' && report ? (
+                    ) : key === 'status' && report && r.incidentId ? (
                       <button
                         onClick={() => onOpen(r)}
                         className={`library-status library-status--${r.tone || 'neutral'}`}

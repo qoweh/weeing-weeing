@@ -34,6 +34,7 @@ export default function AppShell({
   busy,
   page,
   onNavigate,
+  onIncidentSelect,
   children,
 }) {
   const chatDialog = useRef(null)
@@ -145,6 +146,7 @@ export default function AppShell({
         onToggleTheme={onToggleTheme}
         screenZoom={screenZoom}
         onChangeScreenZoom={setScreenZoom}
+        onIncidentSelect={onIncidentSelect}
       />
       <Sidebar page={page} onNavigate={onNavigate} busy={busy} />
       <main className="shell__content" id="main-content">

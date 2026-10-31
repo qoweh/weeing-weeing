@@ -11,6 +11,31 @@
   color: var(--report-navy);
 }
 
+.report-fields {
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+.report-fields:disabled {
+  opacity: 1;
+}
+
+.report-fields:disabled input,
+.report-fields:disabled textarea,
+.report-fields:disabled select {
+  opacity: 1;
+  color: #334155;
+  border-color: transparent;
+  background-color: transparent;
+}
+
+.report-fields:disabled select {
+  background-image: none;
+  cursor: default;
+}
+
 .report-heading {
   margin-bottom: 28px;
 }
@@ -26,8 +51,9 @@
 
 .report-heading h2 {
   margin: 8px 0;
-  font-size: clamp(23px, 4vw, 30px);
-  line-height: 1.4;
+  font-size: clamp(24px, 3.4vw, 38px);
+  font-weight: 800;
+  line-height: 1.3;
 }
 
 .report-heading p {
@@ -38,6 +64,10 @@
 
 .report-meta {
   font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .report-section {
@@ -63,6 +93,29 @@
   font-size: 14px;
 }
 
+.report-table { border: 1px solid var(--report-line); }
+.report-table--basic { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.report-cell { display: grid; grid-template-columns: 36% minmax(0, 1fr); min-width: 0; outline: 1px solid var(--report-line); }
+.report-cell--wide, .report-cell--full { grid-template-columns: 36% minmax(0, 1fr); }
+.report-cell--full { grid-column: 1 / -1; }
+.report-cell > strong { display: flex; align-items: center; padding: 10px 14px; background: #f0f3f7; border-right: 1px solid var(--report-line); font-size: 14px; }
+.report-cell > span { padding: 10px 14px; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.report-placeholder { color: var(--report-muted); }
+.report-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+.report-table--recovery { display: grid; grid-template-columns: 36% repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--report-line); }
+.report-th, .report-td { min-width: 0; margin: 0; background: #fff; font-size: 14px; }
+.report-th { display: flex; align-items: center; padding: 10px 14px; background: #f0f3f7; }
+.report-td > span { display: block; padding: 10px 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.report-td--span { grid-column: span 3; }
+.report-analysis-item { display: block; }
+.report-cell-fields { display: flex; flex-wrap: wrap; align-items: start; gap: 8px; padding: 8px; min-width: 0; }
+.report-cell-fields > label { flex: 1 1 180px; }
+.report-cell-fields > label:has(textarea) { flex-basis: 100%; }
+.report-cell-fields > label:has(select) { flex: 0 1 200px; }
+.report-cell-fields > label > span { color: #6d7d96; font-size: 12px; }
+.report-cell-fields textarea { min-height: 44px; }
+
 .report-read-grid,
 .report-input-grid,
 .report-photo-grid {
@@ -71,16 +124,17 @@
 }
 
 .report-read-grid {
-  gap: 1px;
-  padding: 1px;
+  gap: 0;
+  padding: 0;
   margin: 0 0 12px;
-  background: var(--report-line);
+  border: 1px solid var(--report-line);
 }
 
 .report-read-value {
   display: grid;
   grid-template-columns: minmax(100px, 35%) minmax(0, 1fr);
   background: #fff;
+  outline: 1px solid var(--report-line);
 }
 
 .report-read-value dt,
@@ -95,6 +149,7 @@
 .report-read-value dt {
   background: #f0f3f7;
   font-weight: 700;
+  border-right: 1px solid var(--report-line);
 }
 
 .report-read-value dd {
@@ -108,8 +163,14 @@
 }
 
 .report-input-grid {
-  gap: 14px;
+  gap: 0;
   margin-bottom: 12px;
+  border: 1px solid var(--report-line);
+}
+
+.report-input-grid > label {
+  padding: 12px;
+  outline: 1px solid var(--report-line);
 }
 
 .report-wide {
@@ -117,30 +178,123 @@
 }
 
 .report-sheet label {
+  display: flex;
+  flex-direction: column;
   gap: 7px;
   font-size: 13px;
+  min-width: 0;
 }
 
 .report-sheet input,
 .report-sheet textarea,
 .report-sheet select {
-  border-color: var(--report-line);
-  border-radius: 3px;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--report-line);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--report-navy);
+  font: inherit;
   font-weight: 400;
+  line-height: 1.6;
+}
+
+.report-sheet select {
+  appearance: none;
+  padding-right: 40px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--report-muted) 50%),
+    linear-gradient(135deg, var(--report-muted) 50%, transparent 50%);
+  background-position: calc(100% - 21px) 50%, calc(100% - 16px) 50%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+
+.report-sheet textarea {
+  min-height: 44px;
+  overflow-y: hidden;
+  resize: none;
+}
+
+.report-photo-body textarea {
+  min-height: 44px;
+}
+
+.report-sheet .report-field--bare input,
+.report-sheet .report-field--bare select {
+  min-height: 42px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+}
+
+.report-sheet .report-field--bare {
+  font-size: 14px;
+}
+
+.report-sheet .report-field--bare select {
+  padding-right: 40px;
+}
+
+.report-sheet .report-photo-caption {
+  padding-top: 12px;
+  border-top: 1px solid var(--report-line);
+}
+
+.report-sheet .report-photo-caption textarea {
+  min-height: 44px;
+  padding: 4px 0 8px;
+  border: 0;
+  border-bottom: 1px solid var(--report-line);
+  border-radius: 0;
+}
+
+.report-photo-meta {
+  display: flex;
+  gap: 20px;
+}
+
+.report-sheet .report-photo-meta label {
+  flex: 1 1 0;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  color: var(--report-muted);
+  white-space: nowrap;
+}
+
+.report-sheet .report-photo-meta input {
+  min-height: 32px;
+  padding: 4px 6px;
+  border: 0;
+  border-bottom: 1px solid var(--report-muted);
+  border-radius: 0;
+}
+
+.report-sheet input:focus-visible,
+.report-sheet textarea:focus-visible,
+.report-sheet select:focus-visible {
+  outline: 2px solid #81a9ff;
+  outline-offset: 1px;
 }
 
 .report-sensors {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 1px;
-  padding: 1px;
-  background: var(--report-line);
+  gap: 0;
+  border: 1px solid var(--report-line);
 }
 
 .report-sensors > div {
   display: flex;
   flex-direction: column;
   background: #fff;
+  outline: 1px solid var(--report-line);
 }
 
 .report-sensors strong,
@@ -188,14 +342,19 @@
   padding: 12px;
 }
 
-.report-photo-preview {
+.report-sheet .report-photo-preview {
   display: grid;
-  height: 220px;
+  aspect-ratio: 16 / 9;
   place-items: center;
   overflow: hidden;
   border: 1px dashed #aebbd0;
   background: #f0f3f7;
+  cursor: pointer;
 }
+
+.report-photo-preview input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.report-photo-preview:focus-within { outline: 2px solid #81a9ff; outline-offset: 2px; }
+.report-photo-preview strong { color: var(--report-navy); }
 
 .report-photo-preview p {
   padding: 16px;
@@ -234,13 +393,76 @@
   font-size: 12px;
 }
 
-.report-check-button {
-  border-color: var(--report-navy);
-  background: var(--report-navy);
-  color: #fff;
+/* 문서 등록 버튼(.library-upload)과 같은 토큰을 써서 라이트·다크 모드를 따른다. */
+.report-sheet .report-check-button,
+.report-sheet .report-edit-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 145px;
+  min-height: 48px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--library-button, #dceafa);
+  color: var(--text, #172033);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+
+.report-sheet .report-edit-button {
+  background: var(--library-input, #edf5fb);
+  color: var(--muted, #718194);
+}
+
+.report-sheet .report-check-button:hover:not(:disabled),
+.report-sheet .report-edit-button:hover:not(:disabled) {
+  filter: brightness(0.96);
+}
+
+.report-sheet .report-check-button:focus-visible,
+.report-sheet .report-edit-button:focus-visible {
+  outline: 2px solid var(--focus, #81a9ff);
+  outline-offset: 3px;
+}
+
+.report-sheet .report-check-button:disabled,
+.report-sheet .report-edit-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.report-paper-footer {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--report-line);
+  color: var(--report-muted);
+  font-size: 12px;
+}
+
+.report-paper-footer::before {
+  position: absolute;
+  top: -2px;
+  left: 0;
+  width: 60px;
+  height: 3px;
+  background: var(--report-yellow);
+  content: "";
 }
 
 @media (max-width: 680px) {
+  .report-table--recovery { grid-template-columns: minmax(105px, 32%) minmax(0, 1fr); }
+  .report-td--span { grid-column: auto; }
+  .report-photo-meta { flex-direction: column; gap: 8px; }
+  .report-table--basic { grid-template-columns: 1fr; }
+  .report-cell--full { grid-column: auto; }
+  .report-cell, .report-cell--wide, .report-cell--full { grid-template-columns: minmax(105px, 32%) minmax(0, 1fr); }
   .report-sheet {
     padding: 20px 14px;
   }
@@ -258,4 +480,48 @@
   .report-read-value {
     grid-template-columns: 110px minmax(0, 1fr);
   }
+}
+
+/* 04·05: 칸 안의 입력 항목을 선이 있는 하위 표로 나눈다. */
+.report-table--rows { display: grid; grid-template-columns: 36% minmax(0, 1fr); gap: 1px; background: var(--report-line); }
+.report-table--rows .report-td { min-width: 0; }
+
+.report-subtable { display: grid; grid-template-columns: minmax(130px, 26%) minmax(0, 1fr); gap: 1px; background: var(--report-line); }
+.report-subtable > * { min-width: 0; background: #fff; }
+.report-sub-label { display: flex; align-items: center; padding: 10px 14px; background: #f8fafc; color: var(--report-muted); font-size: 13px; font-weight: 700; line-height: 1.5; }
+
+.report-sheet .report-field--bare { position: relative; }
+.report-sheet .report-field--bare textarea {
+  min-height: 42px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  font-size: 14px;
+}
+.report-sheet ::placeholder { color: var(--report-muted); opacity: 1; }
+
+/* 날짜 입력은 비어 있으면 브라우저 기본 문구 대신 안내 문구를 보여준다. */
+.report-field--bare.is-empty input[type="datetime-local"]:not(:focus)::-webkit-datetime-edit,
+.report-field--bare.is-empty input[type="date"]:not(:focus)::-webkit-datetime-edit { opacity: 0; }
+.report-field--bare.is-empty[data-placeholder]:not(:focus-within)::after {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  color: var(--report-muted);
+  content: attr(data-placeholder);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+.report-fields:disabled input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+.report-fields:disabled input[type="date"]::-webkit-calendar-picker-indicator { display: none; }
+
+/* 수정 상태에서만 입력 칸을 옅은 바탕으로 구분한다. */
+.report-fields:not(:disabled) .report-field--bare input:not([readonly]),
+.report-fields:not(:disabled) .report-field--bare select,
+.report-fields:not(:disabled) .report-field--bare textarea { background-color: #f4f7fb; }
+
+@media (max-width: 680px) {
+  .report-table--rows { grid-template-columns: minmax(105px, 32%) minmax(0, 1fr); }
+  .report-subtable { grid-template-columns: minmax(90px, 36%) minmax(0, 1fr); }
 }
