@@ -233,7 +233,7 @@ function ResultPanel({ result }) {
   );
 }
 
-export default function RagWorkspace({ tab, user, onSessionExpired, onBusyChange, workspaceBusy, onNavigate }) {
+export default function RagWorkspace({ tab, user, onSessionExpired, onBusyChange, workspaceBusy, onNavigate, reportSelection }) {
   const canManageManuals = user.role === "관제 담당자";
   const registrationRestricted = tab === "documents" && !canManageManuals;
   const [busy, setBusy] = useState(false);
@@ -354,10 +354,11 @@ export default function RagWorkspace({ tab, user, onSessionExpired, onBusyChange
         <div>
           <div className="eyebrow">WORKSPACE</div>
           <h1>{tabs.find((item) => item.id === tab)?.label}</h1>
-          <p>{tab === "manual-list" ? "등록된 문서와 검색 자료의 상태를 확인하세요." : tab === "documents" ? "PDF 문서를 등록해 검색과 분석의 근거로 활용하세요." : "보고서·결재와 검색·분석을 관리하세요."}</p>
+          {tab === "manual-list" && <p>등록된 문서와 검색 자료의 상태를 확인하세요.</p>}
+          {tab === "documents" && <p>PDF 문서를 등록해 검색과 분석의 근거로 활용하세요.</p>}
         </div>
 
-        {tab !== "manual-list" && !registrationRestricted && <button
+        {tab !== "manual-list" && tab !== "report-write" && !registrationRestricted && <button
           type="button"
           disabled={workspaceBusy}
           onClick={() => void execute(checkHealth)}
@@ -367,7 +368,7 @@ export default function RagWorkspace({ tab, user, onSessionExpired, onBusyChange
       </header>
 
       <div hidden={tab !== "report-write"}>
-        <ReportWorkspace user={user} onSessionExpired={onSessionExpired} onBusyChange={onBusyChange} />
+        <ReportWorkspace active={tab === "report-write"} key={reportSelection.key} initialDocument={reportSelection.document} initialIncidentId={reportSelection.incidentId} onNavigate={onNavigate} user={user} onSessionExpired={onSessionExpired} onBusyChange={onBusyChange} />
       </div>
 
       {tab === "manual-list" && <ManualListPage user={user} onSessionExpired={onSessionExpired}

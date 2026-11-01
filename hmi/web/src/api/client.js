@@ -146,6 +146,7 @@ export function currentUser() { return request("/auth/me"); }
 export function logoutUser() { return request("/auth/logout", { method: "POST" }); }
 export function listIncidents() { return request("/incidents"); }
 export function listReports(scope = "mine") { return request(`/reports?scope=${scope}`); }
+export function listReviewHistory() { return request("/reports/review-history"); }
 export function getReport(id, version) {
   const suffix = version ? `/versions/${version}` : "";
   return request(`/reports/${encodeURIComponent(id)}${suffix}`);
@@ -153,6 +154,11 @@ export function getReport(id, version) {
 export function saveReport(id, body) {
   return request(id ? `/reports/${encodeURIComponent(id)}/draft` : "/reports", {
     method: id ? "PUT" : "POST", body,
+  });
+}
+export function deleteReport(id, revision, draft = false) {
+  return request(`/reports/${encodeURIComponent(id)}${draft ? "/draft" : ""}`, {
+    method: "DELETE", body: { expected_revision: revision },
   });
 }
 export function actOnReport(id, action, revision, comment = "") {

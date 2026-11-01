@@ -11,8 +11,12 @@
 받은 metadata(문서 등록 정보)는 바꾸지 않는다. 동기화가 이 값으로 변경을 감지한다.
 """
 
+import hashlib
 import json
+import os
 import re
+import shutil
+import tempfile
 from collections.abc import Mapping
 from pathlib import Path
 from threading import Lock
@@ -66,12 +70,14 @@ class DocumentIndexer:
         *,
         chunker: ChunkerConfig | None = None,
         write_previews: bool = False,
+        report_preview_dir: Path | None = None,
         chunking: Literal["legacy", "structured"] = "legacy",
     ) -> None:
         """write_previews: 원본 옆에 parsed.md·chunks.md를 남긴다(업로드 검토용)."""
         self.store = store
         self._chunker = chunker or ChunkerConfig()
         self._write_previews = write_previews
+        self._report_preview_dir = report_preview_dir
         if chunking not in ("legacy", "structured"):
             raise ValueError(f"지원하지 않는 청킹 방식: {chunking}")
         self._chunking = chunking
@@ -107,6 +113,22 @@ class DocumentIndexer:
                 raise InvalidDocumentError("승인 보고서는 매뉴얼 삭제 대상이 아닙니다.")
             return self.store.delete_document(doc_id)
 
+    def delete_report(self, report_id: str) -> int:
+        with _INDEX_LOCK:
+            existing = self.store.documents(where={"doc_id": report_id})
+            if any(
+                info.metadata.get("doc_type") != "report" for info in existing.values()
+            ):
+                raise InvalidDocumentError(
+                    "보고서가 아닌 검색 자료는 삭제할 수 없습니다."
+                )
+            if self._report_preview_dir is not None:
+                folder = self._report_preview_folder(report_id)
+                if folder.exists():
+                    # 미리보기 정리에 실패했다면 검색 자료도 그대로 유지한다.
+                    shutil.rmtree(folder)
+            return self.store.delete_document(report_id)
+
     def index_report(self, report: MaintenanceReport) -> int:
         """전체 사례를 청크 하나로 저장한다. doc_id가 같으면 이전 승인 판을 교체한다."""
         chunk = report_chunk(report)
@@ -118,7 +140,41 @@ class DocumentIndexer:
                 raise InvalidDocumentError(
                     "등록 문서와 같은 ID로 보고서를 색인할 수 없습니다."
                 )
-            return self.store.replace_document(report.report_id, [chunk])
+            count = self.store.replace_document(report.report_id, [chunk])
+            if self._report_preview_dir is not None:
+                self._write_report_preview(chunk)
+            return count
+
+    def _report_preview_folder(self, report_id: str) -> Path:
+        assert self._report_preview_dir is not None
+        safe_id = re.sub(r"[^A-Za-z0-9_-]", "_", report_id)[:64]
+        digest = hashlib.sha256(report_id.encode("utf-8")).hexdigest()[:16]
+        return self._report_preview_dir / f"{safe_id}-{digest}"
+
+    def _write_report_preview(self, chunk: Chunk) -> None:
+        folder = self._report_preview_folder(chunk.doc_id)
+        folder.mkdir(parents=True, exist_ok=True)
+        preview = (
+            f"# 보고서 검색 청크\n\n"
+            f"- 보고서 ID: {chunk.doc_id}\n"
+            f"- 버전: {chunk.doc_version}\n"
+            f"- 청크 ID: {chunk.chunk_id}\n"
+            f"- 문자 수: {len(chunk.text)}\n"
+            f"- 메타데이터: {json.dumps(dict(chunk.metadata), ensure_ascii=False)}\n\n"
+            f"## 검색 본문\n\n{chunk.text}\n"
+        )
+        path = folder / f"v{chunk.doc_version}.md"
+        temp_path = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w", encoding="utf-8", dir=folder, delete=False
+            ) as file:
+                temp_path = Path(file.name)
+                file.write(preview)
+            os.replace(temp_path, path)
+        finally:
+            if temp_path is not None:
+                temp_path.unlink(missing_ok=True)
 
     def _index(self, path: Path, metadata: Mapping[str, Any], report) -> int:
         doc_id, version = metadata["doc_id"], metadata["doc_version"]

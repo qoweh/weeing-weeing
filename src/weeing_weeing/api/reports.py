@@ -1,5 +1,6 @@
 """로그인 사용자 공통 보고서 조회와 작성자 수정·직책별 결재 API(#62)."""
 
+import logging
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
@@ -9,8 +10,10 @@ from weeing_weeing.api.auth import CurrentUser
 from weeing_weeing.api.report_index import run_pending_reports
 from weeing_weeing.contracts import Incident, ReportDocument, ReportDraft, ReportSummary
 from weeing_weeing.db import interface as db
+from weeing_weeing.rag import interface as rag
 
 router = APIRouter(tags=["reports"])
+logger = logging.getLogger(__name__)
 
 
 def reports() -> db.ReportRepository:
@@ -67,7 +70,7 @@ def create_report(
 def list_reports(
     user: CurrentUser,
     repo: Reports,
-    scope: Literal["mine", "review", "all"] = "mine",
+    scope: Literal["mine", "review", "all", "approved"] = "mine",
     limit: int = Query(default=100, ge=1, le=200),
 ) -> list[ReportSummary]:
     return _call(
@@ -75,8 +78,16 @@ def list_reports(
         user.employee_no,
         review=scope == "review",
         all_reports=scope == "all",
+        approved_only=scope == "approved",
         limit=limit,
     )
+
+
+@router.get("/reports/review-history")
+def review_history(
+    user: CurrentUser, repo: Reports, limit: int = Query(default=100, ge=1, le=200)
+) -> list[db.ReportReviewHistory]:
+    return _call(repo.review_history, user.employee_no, limit=limit)
 
 
 @router.get("/reports/{report_id}")
@@ -103,6 +114,41 @@ def save_draft(
         draft,
         expected_revision=body.expected_revision,
     )
+
+
+@router.delete("/reports/{report_id}/draft")
+def delete_draft(report_id: str, body: ReportAction, user: CurrentUser, repo: Reports):
+    restored = _call(
+        repo.delete_draft,
+        user.employee_no,
+        report_id,
+        expected_revision=body.expected_revision,
+    )
+    return {"status": "restored" if restored else "deleted", "report": restored}
+
+
+@router.delete("/reports/{report_id}")
+def delete_approved_report(
+    report_id: str, body: ReportAction, user: CurrentUser, repo: Reports
+):
+    def delete_vector(doc_id: str) -> int:
+        try:
+            return rag.get_indexer().delete_report(doc_id)
+        except Exception as exc:
+            logger.error("보고서 검색 자료 삭제 실패: %s", type(exc).__name__)
+            raise HTTPException(
+                status_code=503,
+                detail="검색 자료 삭제에 실패했습니다. 다시 시도해 주세요.",
+            ) from exc
+
+    removed = _call(
+        repo.delete_approved,
+        user.employee_no,
+        report_id,
+        expected_revision=body.expected_revision,
+        delete_vector=delete_vector,
+    )
+    return {"status": "deleted", "removed_chunks": removed}
 
 
 @router.post("/reports/{report_id}/revise", status_code=201)

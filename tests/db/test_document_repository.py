@@ -394,6 +394,7 @@ def test_migration_only_cleans_previously_deleted_manual_rows(repo):
 
 def test_migration_repairs_already_applied_legacy_0005_without_dropping_data(repo):
     from alembic import command
+    from alembic.script import ScriptDirectory
     from sqlalchemy import inspect, text
 
     from weeing_weeing.db.migrate import alembic_config
@@ -414,7 +415,8 @@ def test_migration_repairs_already_applied_legacy_0005_without_dropping_data(rep
             == []
         )
         assert (
-            connection.scalar(text("SELECT version_num FROM alembic_version")) == "0007"
+            connection.scalar(text("SELECT version_num FROM alembic_version"))
+            == ScriptDirectory.from_config(config).get_current_head()
         )
         command.downgrade(config, "0005")
         assert inspect(connection).has_table("analysis_job")
@@ -494,3 +496,43 @@ def test_same_hash_uploads_under_different_ids_are_serialized(repo):
             future.result(timeout=5)
     finally:
         other._engine.dispose()
+
+
+def test_migration_preserves_report_branch_0007_data_and_adds_chat_tables(repo):
+    from alembic import command
+    from sqlalchemy import inspect, text
+
+    from weeing_weeing.db.migrate import alembic_config
+
+    config = alembic_config()
+    with repo._engine.begin() as connection:
+        config.attributes["connection"] = connection
+        command.downgrade(config, "0006")
+        connection.execute(
+            text(
+                "CREATE TABLE deleted_report_number (report_id VARCHAR(64) NOT NULL PRIMARY KEY)"
+            )
+        )
+        connection.execute(
+            text("INSERT INTO deleted_report_number (report_id) VALUES ('RPT-KEEP')")
+        )
+        command.stamp(config, "0007")
+        command.upgrade(config, "head")
+        assert (
+            connection.scalar(text("SELECT report_id FROM deleted_report_number"))
+            == "RPT-KEEP"
+        )
+        inspector = inspect(connection)
+        assert all(
+            inspector.has_table(name)
+            for name in (
+                "chat_conversation",
+                "chat_request",
+                "chat_message",
+                "chat_feedback",
+            )
+        )
+        assert (
+            compare_metadata(MigrationContext.configure(connection), Base.metadata)
+            == []
+        )

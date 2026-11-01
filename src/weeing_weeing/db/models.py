@@ -212,6 +212,13 @@ class SessionRow(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class DeletedReportNumberRow(Base):
+    """삭제된 보고서 번호의 재사용을 막는다."""
+
+    __tablename__ = "deleted_report_number"
+    report_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+
+
 class ReportRow(Base):
     """보고서 관리대장. 작성자·현재 버전·상태·변경 번호만 보관한다."""
 

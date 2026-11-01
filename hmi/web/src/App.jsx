@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import { currentUser, loginUser, logoutUser, setAccessToken } from './api/client'
+import { currentUser, getReport, loginUser, logoutUser, setAccessToken } from './api/client'
 import AppShell from './components/layout/AppShell.jsx'
 import RagWorkspace from './components/RagWorkspace.jsx'
 import DashboardPage from './pages/DashboardPage.jsx'
+import MaintenancePage from './pages/MaintenancePage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import SignupPage from './pages/SignupPage.jsx'
 
@@ -22,6 +23,8 @@ export default function App() {
   const [user, setUser] = useState(null)
   const [checking, setChecking] = useState(() => Boolean(sessionStorage.getItem(sessionKey)))
   const [page, setPage] = useState(() => sessionStorage.getItem('weeing-document-completed') ? 'documents' : 'dashboard')
+  const [reportSelection, setReportSelection] = useState({ key: 0 })
+  const [maintenanceTab, setMaintenanceTab] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -31,6 +34,7 @@ export default function App() {
     setUser(null)
     setAuthPage('login')
     setPage('dashboard')
+    setMaintenanceTab(null)
   }, [])
 
   useEffect(() => { window.scrollTo(0, 0) }, [page])
@@ -63,6 +67,21 @@ export default function App() {
     setUser(session.user)
   }
 
+  async function openMaintenanceReport(reportId, incidentId, version) {
+    setBusy(true)
+    setError('')
+    try {
+      const document = reportId ? await getReport(reportId, version) : null
+      setReportSelection((previous) => ({ key: previous.key + 1, document, incidentId }))
+      setPage('report-write')
+    } catch (failure) {
+      if (failure.status === 401) forgetSession()
+      setError(failure.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function logout() {
     if (busy) return
     setBusy(true)
@@ -87,8 +106,9 @@ export default function App() {
     theme={theme} onToggleTheme={() => setTheme((current) => current === 'light' ? 'dark' : 'light')}>
     {error && <p className="workspace-error" role="alert">{error}</p>}
     <div hidden={page !== 'dashboard'}><DashboardPage /></div>
-    <div hidden={page === 'dashboard'}>
-      <RagWorkspace tab={page} user={user} onSessionExpired={forgetSession} onBusyChange={setBusy} workspaceBusy={busy} onNavigate={setPage} />
+    {page === 'maintenance' && <MaintenancePage user={user} busy={busy} selectedTab={maintenanceTab} onSelectTab={setMaintenanceTab} onOpen={openMaintenanceReport} onSessionExpired={forgetSession} />}
+    <div hidden={page === 'dashboard' || page === 'maintenance'}>
+      <RagWorkspace tab={page} user={user} onSessionExpired={forgetSession} onBusyChange={setBusy} workspaceBusy={busy} onNavigate={setPage} reportSelection={reportSelection} />
     </div>
   </AppShell>
 }

@@ -52,6 +52,10 @@ class Indexer(Protocol):
         """해당 문서의 모든 청크를 삭제한다. 반복 호출해도 안전하다."""
         ...
 
+    def delete_report(self, report_id: str) -> int:
+        """승인 보고서의 모든 검색 자료를 삭제한다."""
+        ...
+
     def index_report(self, report: MaintenanceReport) -> int:
         """승인 보고서의 사람 작성 칸만 한 사례로 색인하고 이전 판을 교체한다."""
         ...
@@ -140,9 +144,15 @@ def get_indexer() -> Indexer:
     임베딩 모델은 첫 색인 때 올라온다.
     lru_cache가 색인기 객체를 재사용하며, 저장소는 get_retriever()와 공유한다.
     """
+    from weeing_weeing.config import from_root
     from weeing_weeing.rag.indexer import DocumentIndexer
 
-    return DocumentIndexer(_get_store(), write_previews=True, chunking="structured")
+    return DocumentIndexer(
+        _get_store(),
+        write_previews=True,
+        chunking="structured",
+        report_preview_dir=from_root(Path("storage/report-previews")),
+    )
 
 
 def upload_index_metadata(record: DocumentRecord, upload_dir: Path) -> dict[str, str]:

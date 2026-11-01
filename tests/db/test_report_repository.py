@@ -1,10 +1,12 @@
 from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
 from datetime import datetime, timezone
 from threading import Event
 from time import sleep
+from zoneinfo import ZoneInfo
 
 import pytest
-from sqlalchemy import event, select, update
+from sqlalchemy import event, select, text, update
 
 from weeing_weeing.api.report_index import process_pending_reports
 from weeing_weeing.contracts import (
@@ -15,7 +17,13 @@ from weeing_weeing.contracts import (
     UserAccount,
 )
 from weeing_weeing.db import interface as db
-from weeing_weeing.db.models import ApprovalRow, IncidentRow, ReportIndexJobRow
+from weeing_weeing.db.models import (
+    ApprovalRow,
+    IncidentRow,
+    ReportIndexJobRow,
+    ReportRow,
+    ReportVersionRow,
+)
 
 T0 = datetime(2026, 10, 28, 9, tzinfo=timezone.utc)
 
@@ -85,6 +93,37 @@ def approve(repo, doc):
     return step(repo, doc, "C1", "approve")
 
 
+def legacy_revision(repo, approved):
+    """이전 정책에서 승인 후 개정된 기록을 만들어 기존 데이터 호환성을 검사한다."""
+    with repo._transaction() as session:
+        if repo._engine.dialect.name == "sqlite":
+            session.execute(text("BEGIN IMMEDIATE"))
+        row = session.scalar(
+            select(ReportRow)
+            .where(ReportRow.report_id == approved.report_id)
+            .with_for_update()
+        )
+        old = session.get(ReportVersionRow, (row.report_id, row.current_version))
+        data = deepcopy(old.data)
+        data["report"] = None
+        row.current_version += 1
+        row.report_status = "DRAFT"
+        row.revision += 1
+        session.add(
+            ReportVersionRow(
+                report_id=row.report_id,
+                version_no=row.current_version,
+                author_name=old.author_name,
+                report_status="DRAFT",
+                data_origin=old.data_origin,
+                data=data,
+                created_at=T0,
+                updated_at=T0,
+            )
+        )
+    return repo.get_report("I1", approved.report_id)
+
+
 def test_index_job_result_and_failed_retry(setup_reports):
     repo = setup_reports
     first = approve(repo, repo.create_draft("I1", ready_draft()))
@@ -133,7 +172,7 @@ def test_approval_waits_for_vector_write_of_same_report(setup_reports):
 
     def revise_and_approve():
         revising.set()
-        revised = repo.revise("I1", first.report_id, expected_revision=first.revision)
+        revised = legacy_revision(repo, first)
         return approve(repo, revised)
 
     with ThreadPoolExecutor(max_workers=2) as pool:
@@ -157,7 +196,7 @@ def test_approval_waits_for_vector_write_of_same_report(setup_reports):
 
 def test_draft_round_trip_owner_and_revision(setup_reports):
     repo = setup_reports
-    doc = repo.create_draft("I1", ReportDraft())
+    doc = repo.create_draft("I1", ReportDraft(incident_id="INC-1"))
     assert repo.get_report("I1", doc.report_id) == doc
     assert repo.list_reports("I2") == []
     assert repo.get_report("I2", doc.report_id) == doc
@@ -172,7 +211,10 @@ def test_draft_round_trip_owner_and_revision(setup_reports):
     assert changed.revision == doc.revision + 1
     with pytest.raises(db.ReportConflictError):
         repo.save_draft(
-            "I1", doc.report_id, ReportDraft(), expected_revision=doc.revision
+            "I1",
+            doc.report_id,
+            ReportDraft(incident_id="INC-1"),
+            expected_revision=doc.revision,
         )
     assert repo.get_report("I1", doc.report_id).form_data.actual_actions == "센서 청소"
 
@@ -187,7 +229,10 @@ def test_complete_workflow_has_immutable_contract_and_atomic_outbox(setup_report
     assert doc.report.maintenance.actions_taken[0].by == "I1"
     with pytest.raises(db.ReportConflictError):
         repo.save_draft(
-            "I1", doc.report_id, ReportDraft(), expected_revision=doc.revision
+            "I1",
+            doc.report_id,
+            ReportDraft(incident_id="INC-1"),
+            expected_revision=doc.revision,
         )
     doc = step(repo, doc, "L1", "review")
     assert repo.pending_index_reports() == []
@@ -217,7 +262,9 @@ def test_admin_flag_does_not_grant_business_approval(setup_reports, actor, actio
 
 def test_missing_incident_or_incomplete_form_cannot_submit(setup_reports):
     repo = setup_reports
-    for draft in (ReportDraft(), ReportDraft(incident_id="INC-1")):
+    with pytest.raises(ValueError, match="사건을 선택"):
+        repo.create_draft("I1", ReportDraft())
+    for draft in (ReportDraft(incident_id="INC-1"),):
         doc = repo.create_draft("I1", draft)
         with pytest.raises(ValueError):
             step(repo, doc, "I1", "submit")
@@ -278,7 +325,7 @@ def test_all_reports_cannot_bypass_review_queue_role(setup_reports):
 def test_new_approved_version_replaces_pending_selection_only(setup_reports):
     repo = setup_reports
     old = approve(repo, repo.create_draft("I1", ready_draft()))
-    new = repo.revise("I1", old.report_id, expected_revision=old.revision)
+    new = legacy_revision(repo, old)
     assert repo.pending_index_reports() == [old.report]
     new = approve(repo, new)
     assert [r.report_version for r in repo.pending_index_reports()] == [2]
@@ -375,7 +422,7 @@ def test_approved_reports_are_complete_latest_approved_independent_of_index_stat
     second = approve(repo, repo.create_draft("I1", ready_draft()))
     repo.record_index_result(first.report_id, first.report_version, success=True)
     repo.record_index_result(second.report_id, second.report_version, success=False)
-    draft = repo.revise("I1", first.report_id, expected_revision=first.revision)
+    draft = legacy_revision(repo, first)
     rejected = step(
         repo,
         step(repo, repo.create_draft("I1", ready_draft()), "I1", "submit"),
@@ -389,6 +436,68 @@ def test_approved_reports_are_complete_latest_approved_independent_of_index_stat
         values[first.report_id].report_version == 1
     )  # 현재 초안이 승인 판을 가리지 않는다.
     assert rejected.report_id not in values
+    summaries = {r.report_id: r for r in repo.list_reports("I2", approved_only=True)}
+    assert set(summaries) == {first.report_id, second.report_id}
+    assert summaries[first.report_id].report_version == 1
+    assert summaries[first.report_id].report_status == "APPROVED"
     revised = approve(repo, draft)
     values = {r.report_id: r for r in repo.approved_reports()}
     assert values[first.report_id].report_version == revised.report_version == 2
+    summaries = {r.report_id: r for r in repo.list_reports("I2", approved_only=True)}
+    assert summaries[first.report_id].report_version == 2
+
+
+def test_report_number_sequence_and_incident_cannot_change(setup_reports):
+    repo = setup_reports
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        docs = list(
+            pool.map(lambda _: repo.create_draft("I1", ready_draft()), range(4))
+        )
+    prefix = (
+        f"RPT-BTT2-P03-{docs[0].created_at.astimezone(ZoneInfo('Asia/Seoul')):%Y%m%d}-"
+    )
+    assert {doc.report_id for doc in docs} == {f"{prefix}{i:03d}" for i in range(1, 5)}
+    with pytest.raises(ValueError, match="사건을 선택"):
+        repo.save_draft(
+            "I1", docs[0].report_id, ReportDraft(), expected_revision=docs[0].revision
+        )
+    with pytest.raises(db.ReportConflictError, match="변경할 수 없습니다"):
+        repo.save_draft(
+            "I1",
+            docs[0].report_id,
+            ReportDraft(incident_id="other"),
+            expected_revision=docs[0].revision,
+        )
+
+
+def test_same_error_code_shares_sequence_across_different_incidents(
+    setup_reports, database_url
+):
+    repo = setup_reports
+    incidents = db.open_incidents(database_url)
+    try:
+        incidents.save_incident(
+            Incident(
+                incident_id="INC-2",
+                process_id="P1",
+                asset_id="A1",
+                codes=["BTT2-P03", "BTT2-P04"],
+                severity="Error",
+                first_detected_at=T0,
+                last_detected_at=T0,
+            )
+        )
+
+        def create(incident_id):
+            draft = ready_draft()
+            draft.incident_id = incident_id
+            return repo.create_draft("I1", draft)
+
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            docs = list(pool.map(create, ["INC-1", "INC-2", "INC-1", "INC-2"]))
+        prefix = f"RPT-BTT2-P03-{docs[0].created_at.astimezone(ZoneInfo('Asia/Seoul')):%Y%m%d}-"
+        assert {doc.report_id for doc in docs} == {
+            f"{prefix}{i:03d}" for i in range(1, 5)
+        }
+    finally:
+        incidents._engine.dispose()

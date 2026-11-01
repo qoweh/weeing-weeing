@@ -1,12 +1,15 @@
 """보고서 저장·결재(#62). 권한·상태·revision 검사와 기록은 같은 트랜잭션에서 처리한다."""
 
+import hashlib
+import re
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import dataclass
-from uuid import uuid4
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, select, text, update
+from sqlalchemy import delete, func, select, text, update
 
 from weeing_weeing.contracts import (
     AnalysisResult,
@@ -30,6 +33,7 @@ from weeing_weeing.db.incidents import UnknownIncidentError
 from weeing_weeing.db.models import (
     AnalysisRow,
     ApprovalRow,
+    DeletedReportNumberRow,
     IncidentRow,
     ReportIndexJobRow,
     ReportRow,
@@ -59,10 +63,31 @@ class ReportIndexWork:
     finish: Callable[[bool], None]
 
 
+@dataclass(frozen=True)
+class ReportReviewHistory:
+    """현재 보고서 요약과 결재자가 마지막으로 처리한 버전의 이력."""
+
+    report: ReportSummary
+    review_version: int
+    review_step: int
+    review_role: str
+    decision: str
+    reviewed_at: datetime
+
+
 def _actor(session, employee_no: str, role: Role | None = None) -> UserRow:
     user = session.get(UserRow, employee_no)
     if user is None or not user.is_active or (role and user.role != role.value):
         raise ReportForbiddenError("이 작업을 할 수 있는 활성 계정이 아닙니다.")
+    return user
+
+
+def _author(session, employee_no: str) -> UserRow:
+    user = _actor(session, employee_no)
+    if user.role not in (Role.INSPECTOR.value, Role.MAINT_LEAD.value):
+        raise ReportForbiddenError(
+            "현장 점검자와 보전 팀장만 보고서를 작성할 수 있습니다."
+        )
     return user
 
 
@@ -243,14 +268,57 @@ def _submitted_report(row: ReportRow, version: ReportVersionRow) -> MaintenanceR
     )
 
 
+def _new_report_id(session, error_code: str, timestamp) -> str:
+    if not error_code or re.search(r"[:\s]", error_code):
+        raise ValueError("에러 코드가 올바르지 않아 보고서 번호를 만들 수 없습니다.")
+    prefix = f"RPT-{error_code}-{timestamp.astimezone(ZoneInfo('Asia/Seoul')):%Y%m%d}-"
+    if session.bind.dialect.name == "postgresql":
+        # 서로 다른 사건이라도 코드와 날짜가 같으면 같은 순번을 사용한다.
+        lock_key = int.from_bytes(
+            hashlib.blake2b(prefix.encode(), digest_size=8).digest(), "big", signed=True
+        )
+        session.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": lock_key})
+    existing = session.scalars(
+        select(ReportRow.report_id).where(
+            ReportRow.report_id.startswith(prefix, autoescape=True)
+        )
+    )
+    deleted = session.scalars(
+        select(DeletedReportNumberRow.report_id).where(
+            DeletedReportNumberRow.report_id.startswith(prefix, autoescape=True)
+        )
+    )
+    existing = list(existing) + list(deleted)
+    sequences = [
+        int(suffix) for value in existing if (suffix := value[len(prefix) :]).isdigit()
+    ]
+    report_id = f"{prefix}{max(sequences, default=0) + 1:03d}"
+    if len(report_id) > 64:
+        raise ValueError("에러 코드가 너무 길어 보고서 번호를 만들 수 없습니다.")
+    return report_id
+
+
 class SqlReports(Repository):
     def create_draft(self, actor_id: str, draft: ReportDraft) -> ReportDocument:
         with self._transaction() as session:
-            user = _actor(session, actor_id, Role.INSPECTOR)
+            user = _author(session, actor_id)
+            if not draft.incident_id:
+                raise ValueError("보고서를 저장하려면 사건을 선택하세요.")
+            if self._engine.dialect.name == "sqlite":
+                session.execute(text("BEGIN IMMEDIATE"))
+            incident = session.scalar(
+                select(IncidentRow)
+                .where(IncidentRow.incident_id == draft.incident_id)
+                .with_for_update()
+            )
+            if incident is None:
+                raise UnknownIncidentError(draft.incident_id)
+            if not incident.codes:
+                raise ValueError("선택한 사건에 에러 코드가 없습니다.")
             snapshots = _snapshots(session, draft.incident_id)
             timestamp = now()
             row = ReportRow(
-                report_id=f"RPT-{uuid4().hex}",
+                report_id=_new_report_id(session, incident.codes[0], timestamp),
                 author_id=actor_id,
                 incident_id=draft.incident_id,
                 report_status=ReportStatus.DRAFT,
@@ -289,11 +357,17 @@ class SqlReports(Repository):
         expected_revision: int,
     ) -> ReportDocument:
         with self._transaction() as session:
-            user = _actor(session, actor_id, Role.INSPECTOR)
+            user = _author(session, actor_id)
             row, version = _load(session, report_id, lock=True)
             _owner(row, user)
             if row.report_status != ReportStatus.DRAFT:
                 raise ReportConflictError("작성 중인 보고서만 수정할 수 있습니다.")
+            if not draft.incident_id:
+                raise ValueError("보고서를 저장하려면 사건을 선택하세요.")
+            if row.incident_id is not None and row.incident_id != draft.incident_id:
+                raise ReportConflictError(
+                    "저장된 보고서의 연결 사건은 변경할 수 없습니다."
+                )
             snapshots = (
                 {k: deepcopy(version.data[k]) for k in ("incident", "ai_analysis")}
                 if draft.incident_id == row.incident_id
@@ -330,17 +404,41 @@ class SqlReports(Repository):
         *,
         review: bool = False,
         all_reports: bool = False,
+        approved_only: bool = False,
         limit: int = 100,
     ) -> list[ReportSummary]:
-        if review and all_reports:
-            raise ValueError("전체 보고서와 내 결재 대기는 동시에 조회할 수 없습니다.")
+        if sum((review, all_reports, approved_only)) > 1:
+            raise ValueError("보고서 조회 범위는 하나만 선택할 수 있습니다.")
         with self._transaction() as session:
             user = _actor(session, actor_id)
-            query = select(ReportRow, ReportVersionRow).join(
-                ReportVersionRow,
-                (ReportVersionRow.report_id == ReportRow.report_id)
-                & (ReportVersionRow.version_no == ReportRow.current_version),
-            )
+            if approved_only:
+                latest_approved = (
+                    select(
+                        ReportVersionRow.report_id,
+                        func.max(ReportVersionRow.version_no).label("version"),
+                    )
+                    .where(ReportVersionRow.report_status == ReportStatus.APPROVED)
+                    .group_by(ReportVersionRow.report_id)
+                    .subquery()
+                )
+                query = (
+                    select(ReportRow, ReportVersionRow)
+                    .join(
+                        latest_approved,
+                        latest_approved.c.report_id == ReportRow.report_id,
+                    )
+                    .join(
+                        ReportVersionRow,
+                        (ReportVersionRow.report_id == ReportRow.report_id)
+                        & (ReportVersionRow.version_no == latest_approved.c.version),
+                    )
+                )
+            else:
+                query = select(ReportRow, ReportVersionRow).join(
+                    ReportVersionRow,
+                    (ReportVersionRow.report_id == ReportRow.report_id)
+                    & (ReportVersionRow.version_no == ReportRow.current_version),
+                )
             if review:
                 statuses = {
                     Role.MAINT_LEAD.value: ReportStatus.SUBMITTED,
@@ -354,24 +452,85 @@ class SqlReports(Repository):
                     ReportRow.report_status == statuses[user.role],
                     ReportRow.author_id != actor_id,
                 )
-            elif not all_reports:
+            elif not approved_only and not all_reports:
                 query = query.where(ReportRow.author_id == actor_id)
             return [
                 ReportSummary(
                     report_id=r.report_id,
                     author_id=r.author_id,
                     author_name=v.author_name,
-                    report_version=r.current_version,
-                    report_status=r.report_status,
-                    incident_id=r.incident_id,
+                    report_version=v.version_no,
+                    report_status=v.report_status,
+                    incident_id=(v.data["incident"] or {}).get("incident_id"),
                     asset_id=(v.data["incident"] or {}).get("asset_id"),
-                    updated_at=utc(r.updated_at),
+                    updated_at=utc(v.updated_at if approved_only else r.updated_at),
                 )
                 for r, v in session.execute(
                     query.order_by(
                         ReportRow.updated_at.desc(), ReportRow.report_id
                     ).limit(min(max(limit, 1), 200))
                 )
+            ]
+
+    def review_history(
+        self, actor_id: str, *, limit: int = 100
+    ) -> list[ReportReviewHistory]:
+        with self._transaction() as session:
+            user = _actor(session, actor_id)
+            if user.role not in (Role.MAINT_LEAD.value, Role.CONTROL.value):
+                raise ReportForbiddenError(
+                    "결재 직책만 내 결재 이력을 조회할 수 있습니다."
+                )
+            ranked = (
+                select(
+                    ApprovalRow.id.label("approval_id"),
+                    func.row_number()
+                    .over(
+                        partition_by=ApprovalRow.report_id,
+                        order_by=(ApprovalRow.at.desc(), ApprovalRow.id.desc()),
+                    )
+                    .label("rank"),
+                )
+                .where(
+                    ApprovalRow.employee_no == actor_id,
+                    ApprovalRow.decision.in_(("승인", "반려")),
+                )
+                .subquery()
+            )
+            query = (
+                select(ApprovalRow, ReportRow, ReportVersionRow)
+                .join(
+                    ranked,
+                    (ranked.c.approval_id == ApprovalRow.id) & (ranked.c.rank == 1),
+                )
+                .join(ReportRow, ReportRow.report_id == ApprovalRow.report_id)
+                .join(
+                    ReportVersionRow,
+                    (ReportVersionRow.report_id == ReportRow.report_id)
+                    & (ReportVersionRow.version_no == ReportRow.current_version),
+                )
+                .order_by(ApprovalRow.at.desc(), ApprovalRow.id.desc())
+                .limit(min(max(limit, 1), 200))
+            )
+            return [
+                ReportReviewHistory(
+                    report=ReportSummary(
+                        report_id=row.report_id,
+                        author_id=row.author_id,
+                        author_name=version.author_name,
+                        report_version=row.current_version,
+                        report_status=row.report_status,
+                        incident_id=row.incident_id,
+                        asset_id=(version.data["incident"] or {}).get("asset_id"),
+                        updated_at=utc(row.updated_at),
+                    ),
+                    review_version=approval.version_no,
+                    review_step=approval.step,
+                    review_role=approval.role,
+                    decision=approval.decision,
+                    reviewed_at=utc(approval.at),
+                )
+                for approval, row, version in session.execute(query)
             ]
 
     def transition(
@@ -389,11 +548,14 @@ class SqlReports(Repository):
             if action == "submit":
                 _owner(row, user)
                 required, source, target, step = (
-                    Role.INSPECTOR,
+                    None,
                     ReportStatus.DRAFT,
-                    ReportStatus.SUBMITTED,
+                    ReportStatus.REVIEWED
+                    if user.role == Role.MAINT_LEAD.value
+                    else ReportStatus.SUBMITTED,
                     1,
                 )
+                _author(session, actor_id)
                 report = _submitted_report(row, version)
             elif action == "review":
                 required, source, target, step = (
@@ -431,7 +593,7 @@ class SqlReports(Repository):
                 report = None
             else:
                 raise ValueError("지원하지 않는 보고서 작업입니다.")
-            if user.role != required.value or (
+            if (required is not None and user.role != required.value) or (
                 action != "submit" and actor_id == row.author_id
             ):
                 raise ReportForbiddenError(
@@ -450,7 +612,7 @@ class SqlReports(Repository):
                     version_no=version.version_no,
                     step=step,
                     employee_no=actor_id,
-                    role=required.value,
+                    role=user.role,
                     decision="제출"
                     if action == "submit"
                     else "반려"
@@ -485,12 +647,12 @@ class SqlReports(Repository):
         self, actor_id: str, report_id: str, *, expected_revision: int
     ) -> ReportDocument:
         with self._transaction() as session:
-            user = _actor(session, actor_id, Role.INSPECTOR)
+            user = _author(session, actor_id)
             row, previous = _load(session, report_id, lock=True)
             _owner(row, user)
-            if row.report_status not in (ReportStatus.REJECTED, ReportStatus.APPROVED):
+            if row.report_status != ReportStatus.REJECTED:
                 raise ReportConflictError(
-                    "반려·승인된 보고서에서만 개정판을 만들 수 있습니다."
+                    "반려된 보고서에서만 개정판을 만들 수 있습니다."
                 )
             _claim(
                 session,
@@ -514,6 +676,73 @@ class SqlReports(Repository):
             session.add(version)
             session.flush()
             return _view(session, row, version)
+
+    def delete_draft(
+        self, actor_id: str, report_id: str, *, expected_revision: int
+    ) -> ReportDocument | None:
+        with self._transaction() as session:
+            if self._engine.dialect.name == "sqlite":
+                session.execute(text("BEGIN IMMEDIATE"))
+            user = _author(session, actor_id)
+            row, version = _load(session, report_id, lock=True)
+            _owner(row, user)
+            if row.report_status != ReportStatus.DRAFT:
+                raise ReportConflictError(
+                    "작성 중인 보고서만 삭제하거나 수정을 취소할 수 있습니다."
+                )
+            if row.revision != expected_revision:
+                raise ReportConflictError(
+                    "다른 작업으로 보고서가 변경됐습니다. 다시 불러오세요."
+                )
+            if row.current_version == 1:
+                session.add(DeletedReportNumberRow(report_id=report_id))
+                session.delete(version)
+                session.flush()
+                session.delete(row)
+                return None
+            previous = session.get(
+                ReportVersionRow, (report_id, row.current_version - 1)
+            )
+            if previous is None or previous.report_status != ReportStatus.REJECTED:
+                raise ReportConflictError("이전 반려 보고서를 찾을 수 없습니다.")
+            session.delete(version)
+            session.flush()
+            _claim(
+                session,
+                row,
+                expected_revision,
+                current_version=previous.version_no,
+                report_status=ReportStatus.REJECTED,
+                incident_id=(previous.data["incident"] or {}).get("incident_id"),
+                data_origin=previous.data_origin,
+            )
+            return _view(session, row, previous)
+
+    def delete_approved(
+        self,
+        actor_id: str,
+        report_id: str,
+        *,
+        expected_revision: int,
+        delete_vector: Callable[[str], int],
+    ) -> int:
+        with self._transaction() as session:
+            if self._engine.dialect.name == "sqlite":
+                session.execute(text("BEGIN IMMEDIATE"))
+            _actor(session, actor_id, Role.CONTROL)
+            row, _ = _load(session, report_id, lock=True)
+            if row.report_status != ReportStatus.APPROVED:
+                raise ReportConflictError("최종 승인된 보고서만 삭제할 수 있습니다.")
+            if row.revision != expected_revision:
+                raise ReportConflictError(
+                    "다른 작업으로 보고서가 변경됐습니다. 다시 불러오세요."
+                )
+            removed = delete_vector(report_id)
+            session.add(DeletedReportNumberRow(report_id=report_id))
+            for model in (ReportIndexJobRow, ApprovalRow, ReportVersionRow):
+                session.execute(delete(model).where(model.report_id == report_id))
+            session.delete(row)
+            return removed
 
     def approved_reports(self) -> list[MaintenanceReport]:
         """보고서별 최신 승인 판 전체. 현재 초안과 색인 작업 상태에 영향받지 않는다.

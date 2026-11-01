@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import lru_cache
@@ -35,6 +35,7 @@ from weeing_weeing.db.reports import (
     ReportForbiddenError,
     ReportIndexWork,
     ReportNotFoundError,
+    ReportReviewHistory,
 )
 from weeing_weeing.db.session import DatabaseUnavailableError
 from weeing_weeing.db.users import (
@@ -75,6 +76,7 @@ __all__ = [
     "ReportConflictError",
     "ReportForbiddenError",
     "ReportNotFoundError",
+    "ReportReviewHistory",
     "get_reports",
     "open_reports",
     "get_documents",
@@ -271,8 +273,13 @@ class ReportRepository(Protocol):
         *,
         review: bool = False,
         all_reports: bool = False,
+        approved_only: bool = False,
         limit: int = 100,
     ) -> list[ReportSummary]: ...
+
+    def review_history(
+        self, actor_id: str, *, limit: int = 100
+    ) -> list[ReportReviewHistory]: ...
 
     def transition(
         self,
@@ -291,6 +298,19 @@ class ReportRepository(Protocol):
         *,
         expected_revision: int,
     ) -> ReportDocument: ...
+
+    def delete_draft(
+        self, actor_id: str, report_id: str, *, expected_revision: int
+    ) -> ReportDocument | None: ...
+
+    def delete_approved(
+        self,
+        actor_id: str,
+        report_id: str,
+        *,
+        expected_revision: int,
+        delete_vector: Callable[[str], int],
+    ) -> int: ...
 
     def approved_reports(self) -> list[MaintenanceReport]:
         """전체 보고서의最新 승인 판. 구조화 기간 조회·집계용이며 색인 대기 상태와 무관하다."""

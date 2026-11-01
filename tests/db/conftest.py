@@ -28,6 +28,7 @@ TABLES = (
     "chat_conversation",
     "analysis_job",
     "report_index_job",
+    "deleted_report_number",
     "approval",
     "report_version",
     "report",

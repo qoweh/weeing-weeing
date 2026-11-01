@@ -45,9 +45,13 @@ def process_pending_reports(
             while reports:
                 for report in reports:
                     attempted.add(report.report_id)
-                    repo.record_index_result(
-                        report.report_id, report.report_version, success=False
-                    )
+                    try:
+                        repo.record_index_result(
+                            report.report_id, report.report_version, success=False
+                        )
+                    except db.ReportNotFoundError:
+                        # 처리 대기 목록을 읽은 뒤 삭제된 보고서다.
+                        continue
                     failed += 1
                 reports = next_batch()
             return IndexRunResult(failed=failed)

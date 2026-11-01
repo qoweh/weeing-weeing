@@ -553,7 +553,7 @@ export default function ReportForm({
         {message && <p className="report-feedback" role="status">{message}</p>}
 
         <footer className="report-footer">
-          <span>* 제출 시 필수 입력. 임시 저장은 빈 칸을 허용합니다.</span>
+          <span>* 제출 시 필수 입력. 임시 저장은 사건 선택이 필요하며 나머지 항목은 비워둘 수 있습니다.</span>
           {!readOnly && onSave && <button type="button" onClick={() => void onSave(values)}>임시 저장</button>}
           {!readOnly && <button type="submit" className="report-check-button">{onSubmit ? "저장 후 제출" : "작성 내용 확인"}</button>}
         </footer>
