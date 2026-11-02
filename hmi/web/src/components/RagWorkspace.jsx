@@ -368,7 +368,7 @@ export default function RagWorkspace({ tab, user, onSessionExpired, onBusyChange
       </header>
 
       <div hidden={tab !== "report-write"}>
-        <ReportWorkspace active={tab === "report-write"} key={reportSelection.key} initialDocument={reportSelection.document} initialIncidentId={reportSelection.incidentId} onNavigate={onNavigate} user={user} onSessionExpired={onSessionExpired} onBusyChange={onBusyChange} />
+        <ReportWorkspace active={tab === "report-write"} key={reportSelection.key} initialDocument={reportSelection.document} initialIncidentId={reportSelection.incidentId} initialIncident={reportSelection.incident} initialTelemetry={reportSelection.telemetry} initialAnalysis={reportSelection.analysis} onNavigate={onNavigate} user={user} onSessionExpired={onSessionExpired} onBusyChange={onBusyChange} />
       </div>
 
       {tab === "manual-list" && <ManualListPage user={user} onSessionExpired={onSessionExpired}

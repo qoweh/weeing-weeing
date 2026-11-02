@@ -1,6 +1,7 @@
 const navigation = [
   { icon: '▦', label: '대시보드', id: 'dashboard' },
-  { icon: '◉', label: '이상 사건', id: 'incidents', pending: true },
+  { icon: '◉', label: '이상 사건', id: 'incident-history' },
+  { icon: '◉', label: '이상사건 발생(임시)', id: 'incidents' },
   { icon: '▤', label: '정비 이력', id: 'maintenance' },
   { icon: '⌕', label: '문서 검색', id: 'search', pending: true },
   { icon: '✦', label: '에러 분석', id: 'analysis' },

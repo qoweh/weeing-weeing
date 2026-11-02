@@ -194,6 +194,7 @@ function formatTime(value) {
 export default function ReportForm({
   incident = null,
   analysis = null,
+  telemetry = null,
   reportId = "",
   assetName = "",
   savedValues = {},
@@ -352,6 +353,10 @@ export default function ReportForm({
             <ReadValue label="마지막 감지">
               {formatTime(incident?.last_detected_at)}
             </ReadValue>
+            {telemetry && <>
+              <ReadValue label="센서 표본 시각" wide>{formatTime(telemetry.timestamp)}</ReadValue>
+              {[["입구 센서", "infeed_present", ""], ["출구 센서", "outfeed_present", ""], ["회전 속도", "rpm", "rpm"], ["DC 입력 전류", "dc_input_current_a", "A"], ["DC 버스 전압", "dc_bus_voltage_v", "V"], ["모터 외함 온도", "motor_housing_temp_c", "℃"], ["구동측 진동 RMS", "de_vibration_rms_g", "g"], ["구동측 첨도", "de_kurtosis", ""], ["반구동측 진동 RMS", "nde_vibration_rms_g", "g"], ["반구동측 첨도", "nde_kurtosis", ""]].map(([label, field, unit]) => <ReadValue key={field} label={label}>{telemetry[field] == null ? "측정값 없음" : typeof telemetry[field] === "boolean" ? (telemetry[field] ? "감지" : "감지 안 됨") : `${telemetry[field]} ${unit}`}</ReadValue>)}
+            </>}
           </dl>
         </Section>
 

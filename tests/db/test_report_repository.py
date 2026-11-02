@@ -67,9 +67,9 @@ def setup_reports(reports, database_url, monkeypatch):
     incidents._engine.dispose()
 
 
-def ready_draft():
+def ready_draft(incident_id="INC-1"):
     return ReportDraft(
-        incident_id="INC-1",
+        incident_id=incident_id,
         data_origin="SYNTHETIC",
         form_data=ReportFormData(
             actual_actions="센서 청소",
@@ -78,6 +78,22 @@ def ready_draft():
             trial_details="빈 이송 시험 정상",
             trial_result="정상",
         ),
+    )
+
+
+def add_incident(repo, incident_id):
+    from weeing_weeing.db.incidents import SqlIncidents
+
+    SqlIncidents(repo._engine).save_incident(
+        Incident(
+            incident_id=incident_id,
+            process_id="P1",
+            asset_id="A1",
+            codes=["BTT2-P03"],
+            severity="Error",
+            first_detected_at=T0,
+            last_detected_at=T0,
+        )
     )
 
 
@@ -135,7 +151,8 @@ def test_index_job_result_and_failed_retry(setup_reports):
     assert repo.get_report("I1", first.report_id).index_status == "indexed"
     assert repo.pending_index_reports(include_failed=True) == []
 
-    second = approve(repo, repo.create_draft("I1", ready_draft()))
+    add_incident(repo, "INC-2")
+    second = approve(repo, repo.create_draft("I1", ready_draft("INC-2")))
     repo.record_index_result(second.report_id, second.report_version, success=False)
     assert repo.get_report("I1", second.report_id).index_status == "failed"
     assert repo.pending_index_reports() == []
@@ -419,13 +436,15 @@ def test_approved_reports_are_complete_latest_approved_independent_of_index_stat
 ):
     repo = setup_reports
     first = approve(repo, repo.create_draft("I1", ready_draft()))
-    second = approve(repo, repo.create_draft("I1", ready_draft()))
+    add_incident(repo, "INC-2")
+    add_incident(repo, "INC-3")
+    second = approve(repo, repo.create_draft("I1", ready_draft("INC-2")))
     repo.record_index_result(first.report_id, first.report_version, success=True)
     repo.record_index_result(second.report_id, second.report_version, success=False)
     draft = legacy_revision(repo, first)
     rejected = step(
         repo,
-        step(repo, repo.create_draft("I1", ready_draft()), "I1", "submit"),
+        step(repo, repo.create_draft("I1", ready_draft("INC-3")), "I1", "submit"),
         "L1",
         "reject",
         comment="보완",
@@ -449,9 +468,14 @@ def test_approved_reports_are_complete_latest_approved_independent_of_index_stat
 
 def test_report_number_sequence_and_incident_cannot_change(setup_reports):
     repo = setup_reports
+    for incident_id in ("INC-2", "INC-3", "INC-4"):
+        add_incident(repo, incident_id)
     with ThreadPoolExecutor(max_workers=4) as pool:
         docs = list(
-            pool.map(lambda _: repo.create_draft("I1", ready_draft()), range(4))
+            pool.map(
+                lambda incident_id: repo.create_draft("I1", ready_draft(incident_id)),
+                ("INC-1", "INC-2", "INC-3", "INC-4"),
+            )
         )
     prefix = (
         f"RPT-BTT2-P03-{docs[0].created_at.astimezone(ZoneInfo('Asia/Seoul')):%Y%m%d}-"
@@ -467,6 +491,83 @@ def test_report_number_sequence_and_incident_cannot_change(setup_reports):
             docs[0].report_id,
             ReportDraft(incident_id="other"),
             expected_revision=docs[0].revision,
+        )
+
+
+def test_concurrent_report_creation_allows_only_one_per_incident(setup_reports):
+    repo = setup_reports
+
+    def create(_):
+        try:
+            return repo.create_draft("I1", ready_draft())
+        except db.ReportConflictError:
+            return None
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        results = list(pool.map(create, range(4)))
+    assert len([item for item in results if item is not None]) == 1
+    assert len(repo.list_reports("I1")) == 1
+
+
+def test_incident_delete_racing_sensor_update_does_not_restore_incident(
+    setup_reports, database_url, sample_rows
+):
+    from weeing_weeing.contracts import TelemetryRecord
+
+    repo = setup_reports
+    report = approve(repo, repo.create_draft("I1", ready_draft()))
+    incidents = db.open_incidents(database_url)
+    jobs = db.open_analysis_jobs(database_url)
+    incident = incidents.get_incident("INC-1")
+    frame = TelemetryRecord.model_validate(sample_rows[0]).model_copy(
+        update={
+            "record_id": "race-delete",
+            "timestamp": T0,
+            "process_id": "P1",
+            "asset_id": "A1",
+        }
+    )
+    deleting, release = Event(), Event()
+
+    def delete_vector(report_id):
+        assert report_id == report.report_id
+        deleting.set()
+        assert release.wait(5)
+        return 1
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            deletion = pool.submit(
+                repo.delete_incident, "C1", "INC-1", delete_vector=delete_vector
+            )
+            assert deleting.wait(3)
+            update_future = pool.submit(jobs.record_frame, frame, [incident])
+            sleep(0.1)
+            assert not update_future.done()
+            release.set()
+            assert deletion.result(timeout=5)["deleted_reports"] == 1
+            assert update_future.result(timeout=5) == []
+        assert incidents.get_incident("INC-1") is None
+    finally:
+        release.set()
+        incidents._engine.dispose()
+        jobs._engine.dispose()
+
+
+def test_legacy_unlinked_draft_cannot_be_attached_to_occupied_incident(setup_reports):
+    repo = setup_reports
+    repo.create_draft("I1", ready_draft())
+    add_incident(repo, "INC-2")
+    legacy = repo.create_draft("I1", ready_draft("INC-2"))
+    with repo._transaction() as session:
+        session.execute(
+            update(ReportRow)
+            .where(ReportRow.report_id == legacy.report_id)
+            .values(incident_id=None)
+        )
+    with pytest.raises(db.ReportConflictError, match="이미 보고서"):
+        repo.save_draft(
+            "I1", legacy.report_id, ready_draft(), expected_revision=legacy.revision
         )
 
 
@@ -493,8 +594,10 @@ def test_same_error_code_shares_sequence_across_different_incidents(
             draft.incident_id = incident_id
             return repo.create_draft("I1", draft)
 
+        for incident_id in ("INC-3", "INC-4"):
+            add_incident(repo, incident_id)
         with ThreadPoolExecutor(max_workers=4) as pool:
-            docs = list(pool.map(create, ["INC-1", "INC-2", "INC-1", "INC-2"]))
+            docs = list(pool.map(create, ["INC-1", "INC-2", "INC-3", "INC-4"]))
         prefix = f"RPT-BTT2-P03-{docs[0].created_at.astimezone(ZoneInfo('Asia/Seoul')):%Y%m%d}-"
         assert {doc.report_id for doc in docs} == {
             f"{prefix}{i:03d}" for i in range(1, 5)

@@ -8,7 +8,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import Engine
+from sqlalchemy import Engine, text
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.exc import InterfaceError, OperationalError
 from sqlalchemy.orm import Session, sessionmaker
@@ -54,3 +54,12 @@ class Repository:
         """ON CONFLICT(업서트·중복 건너뛰기)를 쓰는 INSERT. PostgreSQL·SQLite 모두 지원한다."""
         dialect = postgresql if self._engine.dialect.name == "postgresql" else sqlite
         return dialect.insert(table)
+
+    def _lock_incidents(self, session: Session, incident_ids: list[str]) -> None:
+        """사건 쓰기·삭제를 프로세스 간 직렬화한다. SQLite는 호출자가 쓰기 잠금을 잡는다."""
+        if self._engine.dialect.name == "postgresql":
+            for incident_id in sorted(set(incident_ids)):
+                session.execute(
+                    text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+                    {"key": f"incident:{incident_id}"},
+                )

@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
-import { currentUser, getReport, loginUser, logoutUser, setAccessToken } from './api/client'
+import { currentUser, getReport, getIncidentReportContext, loginUser, logoutUser, setAccessToken } from './api/client'
 import AppShell from './components/layout/AppShell.jsx'
 import RagWorkspace from './components/RagWorkspace.jsx'
 import DashboardPage from './pages/DashboardPage.jsx'
 import MaintenancePage from './pages/MaintenancePage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import SignupPage from './pages/SignupPage.jsx'
+import IncidentTestPage from './pages/IncidentTestPage.jsx'
+import IncidentHistoryPage from './pages/IncidentHistoryPage.jsx'
 
 const sessionKey = 'weeing-report-session'
 
@@ -82,6 +84,21 @@ export default function App() {
     }
   }
 
+  async function openIncidentDraft(incidentId, analysis) {
+    setBusy(true)
+    setError('')
+    try {
+      const context = await getIncidentReportContext(incidentId)
+      setReportSelection((previous) => ({ key: previous.key + 1, document: context.draft, incidentId, incident: context.incident, telemetry: context.telemetry, analysis }))
+      setPage('report-write')
+    } catch (failure) {
+      if (failure.status === 401) forgetSession()
+      setError(failure.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function logout() {
     if (busy) return
     setBusy(true)
@@ -107,7 +124,9 @@ export default function App() {
     {error && <p className="workspace-error" role="alert">{error}</p>}
     <div hidden={page !== 'dashboard'}><DashboardPage /></div>
     {page === 'maintenance' && <MaintenancePage user={user} busy={busy} selectedTab={maintenanceTab} onSelectTab={setMaintenanceTab} onOpen={openMaintenanceReport} onSessionExpired={forgetSession} />}
-    <div hidden={page === 'dashboard' || page === 'maintenance'}>
+    {page === 'incidents' && <IncidentTestPage onSessionExpired={forgetSession} />}
+    {page === 'incident-history' && <IncidentHistoryPage user={user} busy={busy} onBusyChange={setBusy} onOpenDraft={openIncidentDraft} onOpenReport={openMaintenanceReport} onSessionExpired={forgetSession} />}
+    <div hidden={page === 'dashboard' || page === 'maintenance' || page === 'incidents' || page === 'incident-history'}>
       <RagWorkspace tab={page} user={user} onSessionExpired={forgetSession} onBusyChange={setBusy} workspaceBusy={busy} onNavigate={setPage} reportSelection={reportSelection} />
     </div>
   </AppShell>

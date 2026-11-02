@@ -2,13 +2,14 @@
 
 from uuid import uuid4
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, text, update
 
 from weeing_weeing.contracts import AnalysisResult, Incident, IncidentStatus, Severity
 from weeing_weeing.db.incidents import SqlIncidents, UnknownIncidentError, _columns
 from weeing_weeing.db.models import (
     AnalysisJobRow,
     AnalysisRow,
+    DeletedIncidentRow,
     IncidentRow,
     TelemetryRow,
 )
@@ -82,12 +83,19 @@ class SqlAnalysisJobs(SqlIncidents):
         """실패하면 전체 롤백. 유료 AI 호출은 이 트랜잭션 밖에서 실행한다."""
         jobs = []
         with self._transaction() as session:
+            if self._engine.dialect.name == "sqlite":
+                session.execute(text("BEGIN IMMEDIATE"))
+            self._lock_incidents(
+                session, [incident.incident_id for incident in incidents]
+            )
             session.execute(
                 self._insert(TelemetryRow)
                 .values(**_values(record))
                 .on_conflict_do_nothing(index_elements=KEY)
             )
             for incident in incidents:
+                if session.get(DeletedIncidentRow, incident.incident_id) is not None:
+                    continue
                 values = _columns(incident) | {"updated_at": now()}
                 statement = self._insert(IncidentRow).values(
                     incident_id=incident.incident_id, **values
@@ -125,6 +133,9 @@ class SqlAnalysisJobs(SqlIncidents):
 
     def retry(self, incident_id, request_id, *, capacity=100):
         with self._transaction() as session:
+            if self._engine.dialect.name == "sqlite":
+                session.execute(text("BEGIN IMMEDIATE"))
+            self._lock_incidents(session, [incident_id])
             row = session.get(IncidentRow, incident_id)
             if row is None:
                 raise UnknownIncidentError(incident_id)

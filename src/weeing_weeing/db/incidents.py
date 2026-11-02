@@ -5,10 +5,10 @@
 
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from weeing_weeing.contracts import AnalysisResult, Incident, IncidentStatus
-from weeing_weeing.db.models import AnalysisRow, IncidentRow
+from weeing_weeing.db.models import AnalysisRow, DeletedIncidentRow, IncidentRow
 from weeing_weeing.db.session import Repository, now, utc
 
 
@@ -52,6 +52,11 @@ class SqlIncidents(Repository):
             where=IncidentRow.last_detected_at <= statement.excluded.last_detected_at,
         )
         with self._transaction() as session:
+            if self._engine.dialect.name == "sqlite":
+                session.execute(text("BEGIN IMMEDIATE"))
+            self._lock_incidents(session, [incident.incident_id])
+            if session.get(DeletedIncidentRow, incident.incident_id) is not None:
+                raise UnknownIncidentError("삭제된 사건은 다시 저장할 수 없습니다.")
             session.execute(statement)
         return incident
 

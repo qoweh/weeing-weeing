@@ -101,6 +101,15 @@ class IncidentRow(Base):
     )
 
 
+class DeletedIncidentRow(Base):
+    """삭제된 사건이 진행 중인 센서 세션에서 다시 생성되지 않도록 기록한다."""
+
+    __tablename__ = "deleted_incident"
+
+    incident_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    deleted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class AnalysisRow(Base):
     """AI 분석 결과. 한 사건을 여러 번 분석할 수 있다(재분석·모델 비교). 최신은 generated_at."""
 

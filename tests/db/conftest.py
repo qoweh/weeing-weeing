@@ -19,26 +19,10 @@ from weeing_weeing.db.interface import (
     open_telemetry,
     open_users,
 )
+from weeing_weeing.db.models import Base
 
-# 외래 키 순서: 참조하는 쪽부터 지운다.
-TABLES = (
-    "chat_feedback",  # 기존 0007 스키마 호환 테이블
-    "chat_message",
-    "chat_request",
-    "chat_conversation",
-    "analysis_job",
-    "report_index_job",
-    "deleted_report_number",
-    "approval",
-    "report_version",
-    "report",
-    "user_session",
-    "app_user",
-    "analysis",
-    "incident",
-    "telemetry",
-    "document",
-)
+# 새 테이블도 빠지지 않도록 모델 전체를 외래 키의 역순으로 지운다.
+TABLES = tuple(table.name for table in reversed(Base.metadata.sorted_tables))
 BACKENDS = ["sqlite"]
 if os.environ.get("TEST_DATABASE_URL"):
     BACKENDS.append("postgresql")

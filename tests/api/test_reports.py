@@ -1,11 +1,17 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
 
 from weeing_weeing.api.app import app
 from weeing_weeing.api.report_index import process_pending_reports
-from weeing_weeing.contracts import Incident, Role, UserAccount
+from weeing_weeing.contracts import (
+    AnalysisResult,
+    Incident,
+    Role,
+    TelemetryRecord,
+    UserAccount,
+)
 from weeing_weeing.db import interface as db
 
 PASSWORD = "report-test-password"
@@ -77,6 +83,13 @@ def action(client, doc, verb, actor="I1", **extra):
     )
 
 
+def add_incident(incident_id):
+    original = db.get_incidents().get_incident("INC-1")
+    db.get_incidents().save_incident(
+        Incident.model_validate(original.model_dump() | {"incident_id": incident_id})
+    )
+
+
 def test_login_draft_reload_and_ownership(client):
     assert client.get("/reports").status_code == 401
     doc = create(client, form_data={})
@@ -95,6 +108,365 @@ def test_login_draft_reload_and_ownership(client):
     assert (
         client.get("/incidents", headers=auth(client)).json()[0]["incident_id"]
         == "INC-1"
+    )
+
+
+def test_incident_report_context_returns_own_draft_and_matching_sensor(client):
+    incident = db.get_incidents().get_incident("INC-1")
+    timestamp = incident.first_detected_at
+    record = TelemetryRecord(
+        record_id="context-test",
+        timestamp=timestamp,
+        process_id="P1",
+        asset_id="A1",
+        schema_version="3.0.0",
+        infeed_present=False,
+        outfeed_present=True,
+        rpm=1001,
+        dc_input_current_a=0.1,
+        dc_bus_voltage_v=24,
+        motor_housing_temp_c=95,
+        de_vibration_rms_g=0.06,
+        de_kurtosis=4,
+        nde_vibration_rms_g=0.05,
+        nde_kurtosis=4,
+    )
+    db.get_telemetry().save_many(
+        [
+            record,
+            record.model_copy(
+                update={
+                    "record_id": "future",
+                    "timestamp": timestamp + timedelta(seconds=1),
+                    "rpm": 2000,
+                }
+            ),
+        ]
+    )
+    draft = create(client, "I1", form_data={})
+    response = client.get("/incidents/INC-1/report-context", headers=auth(client, "I1"))
+    assert response.status_code == 200
+    assert response.json()["draft"]["report_id"] == draft["report_id"]
+    assert response.json()["telemetry"]["rpm"] == 1001
+    assert (
+        client.get(
+            "/incidents/INC-1/report-context", headers=auth(client, "I2")
+        ).json()["draft"]
+        is None
+    )
+    assert (
+        client.get(
+            "/incidents/INC-1/report-context", headers=auth(client, "C1")
+        ).json()["draft"]
+        is None
+    )
+    assert client.get("/incidents/INC-1/report-context").status_code == 401
+    assert (
+        client.get(
+            "/incidents/missing/report-context", headers=auth(client)
+        ).status_code
+        == 404
+    )
+
+
+def test_incident_overview_separates_recovery_from_report_approval(client):
+    headers = auth(client)
+    incident = db.get_incidents().get_incident("INC-1")
+    recovered = Incident.model_validate(
+        incident.model_dump()
+        | {"status": "RECOVERED", "recovered_at": incident.first_detected_at}
+    )
+    db.get_incidents().save_incident(recovered)
+    warning = Incident.model_validate(
+        incident.model_dump()
+        | {"incident_id": "INC-warning", "codes": ["BTT2-D05"], "severity": "Warning"}
+    )
+    db.get_incidents().save_incident(warning)
+
+    def overview():
+        response = client.get("/incidents/overview", headers=headers)
+        assert response.status_code == 200
+        return response.json()
+
+    assert client.get("/incidents/overview").status_code == 401
+    initial = overview()
+    assert len(initial) == 1
+    assert initial[0]["incident"]["status"] == "RECOVERED"
+    assert initial[0]["has_approved_report"] is False
+    report = create(client)
+    for verb, actor in (("submit", "I1"), ("review", "L1")):
+        response = action(client, report, verb, actor)
+        assert response.status_code == 200
+        report = response.json()
+        assert overview()[0]["has_approved_report"] is False
+    response = action(client, report, "approve", "C1")
+    assert response.status_code == 200
+    assert overview()[0]["has_approved_report"] is True
+    assert overview()[0]["incident"]["status"] == "RECOVERED"
+    approved = response.json()
+    db.get_reports().delete_approved(
+        "C1",
+        approved["report_id"],
+        expected_revision=approved["revision"],
+        delete_vector=lambda _: 0,
+    )
+    assert overview()[0]["has_approved_report"] is False
+
+
+def test_incident_overview_keeps_previous_error_when_severity_decreases(client):
+    incident = db.get_incidents().get_incident("INC-1")
+    sample = TelemetryRecord(
+        record_id="severity-test",
+        timestamp=incident.first_detected_at,
+        process_id=incident.process_id,
+        asset_id=incident.asset_id,
+        schema_version="3.0.0",
+        infeed_present=False,
+        outfeed_present=False,
+        rpm=1015,
+        dc_input_current_a=0.09,
+        dc_bus_voltage_v=24,
+        motor_housing_temp_c=95,
+        de_vibration_rms_g=0.06,
+        de_kurtosis=5,
+        nde_vibration_rms_g=0.055,
+        nde_kurtosis=4.5,
+    )
+    db.get_analysis_jobs().record_frame(sample, [incident])
+    downgraded = Incident.model_validate(
+        incident.model_dump() | {"severity": "Warning"}
+    )
+    db.get_incidents().save_incident(downgraded)
+    result = client.get("/incidents/overview", headers=auth(client)).json()
+    assert len(result) == 1
+    assert result[0]["incident"]["severity"] == "Warning"
+    assert result[0]["has_approved_report"] is False
+
+
+def test_incident_overview_reports_each_approval_stage(client):
+    headers = auth(client)
+
+    def overview():
+        return client.get("/incidents/overview", headers=headers).json()[0]
+
+    assert overview()["report_status"] is None
+    assert overview()["report_id"] is None
+    report = create(client)
+    assert overview()["report_status"] == "DRAFT"
+    assert overview()["report_id"] == report["report_id"]
+    report = action(client, report, "submit").json()
+    assert overview()["report_status"] == "SUBMITTED"
+    report = action(client, report, "reject", "L1", comment="보완 필요").json()
+    assert overview()["report_status"] == "REJECTED"
+    report = action(client, report, "revise").json()
+    assert overview()["report_status"] == "DRAFT"
+    report = action(client, report, "submit").json()
+    report = action(client, report, "review", "L1").json()
+    assert overview()["report_status"] == "REVIEWED"
+    report = action(client, report, "approve", "C1").json()
+    assert report["report_status"] == "APPROVED"
+    assert overview()["report_status"] == "APPROVED"
+
+
+def test_duplicate_report_rejected_for_other_author_until_draft_deleted(client):
+    first = create(client)
+    duplicate = client.post(
+        "/reports",
+        headers=auth(client, "L1"),
+        json={"incident_id": "INC-1", "form_data": {}},
+    )
+    assert duplicate.status_code == 409
+    assert "이미 보고서" in duplicate.json()["detail"]
+    deleted = client.request(
+        "DELETE",
+        f"/reports/{first['report_id']}/draft",
+        headers=auth(client),
+        json={"expected_revision": first["revision"]},
+    )
+    assert deleted.status_code == 200
+    assert create(client, "L1")["incident_id"] == "INC-1"
+
+
+def test_delete_incident_removes_linked_data_and_prevents_recreation(
+    client, monkeypatch, sample_rows
+):
+    from weeing_weeing.rag import interface as rag
+
+    incident = db.get_incidents().get_incident("INC-1")
+    frame = TelemetryRecord.model_validate(sample_rows[0]).model_copy(
+        update={
+            "record_id": "delete-test",
+            "timestamp": incident.first_detected_at,
+            "process_id": incident.process_id,
+            "asset_id": incident.asset_id,
+        }
+    )
+    jobs = db.get_analysis_jobs().record_frame(frame, [incident])
+    assert len(jobs) == 1
+    claimed = db.get_analysis_jobs().claim()
+    assert claimed is not None
+    path = "/incidents/INC-1"
+    assert client.delete(path).status_code == 401
+    assert client.delete(path, headers=auth(client, "I1")).status_code == 403
+    db.get_users().create_user(
+        UserAccount(
+            employee_no="S1", name="관리자", role=Role.SITE_MANAGER, is_admin=True
+        ),
+        PASSWORD,
+    )
+    assert client.delete(path, headers=auth(client, "S1")).status_code == 403
+    assert client.delete(path, headers=auth(client, "C1")).status_code == 409
+    result = AnalysisResult(
+        incident_id="INC-1",
+        status="INSUFFICIENT_EVIDENCE",
+        observed_facts="test",
+        model="fake",
+        generated_at=datetime.now(timezone.utc),
+    )
+    db.get_analysis_jobs().finish(claimed[0], result)
+    report = create(client)
+    for verb, actor in (("submit", "I1"), ("review", "L1"), ("approve", "C1")):
+        report = action(client, report, verb, actor).json()
+
+    class BrokenIndexer:
+        def delete_report(self, _report_id):
+            raise RuntimeError("vector unavailable")
+
+    monkeypatch.setattr(rag, "get_indexer", lambda: BrokenIndexer())
+    assert client.delete(path, headers=auth(client, "C1")).status_code == 503
+    assert db.get_incidents().get_incident("INC-1") is not None
+    assert (
+        client.get(f"/reports/{report['report_id']}", headers=auth(client)).status_code
+        == 200
+    )
+
+    deleted_ids = []
+
+    class Indexer:
+        def delete_report(self, report_id):
+            deleted_ids.append(report_id)
+            return 1
+
+    monkeypatch.setattr(rag, "get_indexer", lambda: Indexer())
+    response = client.delete(path, headers=auth(client, "C1"))
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "deleted",
+        "deleted_reports": 1,
+        "removed_chunks": 1,
+    }
+    assert deleted_ids == [report["report_id"]]
+    assert (
+        client.get(f"/reports/{report['report_id']}", headers=auth(client)).status_code
+        == 404
+    )
+    assert db.get_analysis_jobs().latest_job("INC-1") is None
+    assert db.get_analysis_jobs().latest_analysis("INC-1") is None
+    assert db.get_incidents().get_incident("INC-1") is None
+    assert db.get_analysis_jobs().record_frame(frame, [incident]) == []
+    assert db.get_incidents().get_incident("INC-1") is None
+    with pytest.raises(db.UnknownIncidentError):
+        db.get_incidents().save_incident(incident)
+    assert db.get_telemetry().between(
+        "A1", frame.timestamp, frame.timestamp + timedelta(seconds=1), process_id="P1"
+    )
+    assert client.delete(path, headers=auth(client, "C1")).status_code == 404
+
+
+def test_incident_without_report_can_be_deleted_without_vector_connection(
+    client, monkeypatch
+):
+    from weeing_weeing.rag import interface as rag
+
+    def unavailable():
+        raise AssertionError("벡터 저장소를 불필요하게 열면 안 됩니다")
+
+    monkeypatch.setattr(rag, "get_indexer", unavailable)
+    response = client.delete("/incidents/INC-1", headers=auth(client, "C1"))
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "deleted",
+        "deleted_reports": 0,
+        "removed_chunks": 0,
+    }
+
+
+def test_delete_incident_removes_actual_qdrant_report_and_handles_legacy_duplicates(
+    client, monkeypatch
+):
+    from qdrant_client import QdrantClient
+    from sqlalchemy import update
+
+    from weeing_weeing.db.models import ReportRow
+    from weeing_weeing.rag import interface as rag
+    from weeing_weeing.rag.indexer import DocumentIndexer
+    from weeing_weeing.rag.qdrant_store import QdrantVectorStore
+    from weeing_weeing.rag.sparse import KiwiBm25Encoder
+
+    class Embedder:
+        dim = 3
+
+        def embed_documents(self, texts):
+            return [[1.0, 0.0, 0.0] for _ in texts]
+
+        def embed_query(self, _):
+            return [1.0, 0.0, 0.0]
+
+    vector_client = QdrantClient(":memory:")
+    store = QdrantVectorStore(
+        vector_client,
+        embedder=Embedder(),
+        embedding_model="test",
+        sparse_encoder=KiwiBm25Encoder(),
+    )
+    indexer = DocumentIndexer(store)
+    monkeypatch.setattr(rag, "get_indexer", lambda: indexer)
+    approved = create(client)
+    for verb, actor in (("submit", "I1"), ("review", "L1"), ("approve", "C1")):
+        approved = action(client, approved, verb, actor).json()
+    assert process_pending_reports(db.get_reports(), lambda: indexer).indexed == 1
+    assert len(store.documents()) == 1
+
+    # 이전 정책에서 같은 사건에 여러 보고서가 만들어진 DB를 보존해 검증한다.
+    add_incident("INC-2")
+    legacy = create(client, "L1", incident_id="INC-2")
+    with db.get_reports()._transaction() as session:
+        session.execute(
+            update(ReportRow)
+            .where(ReportRow.report_id == legacy["report_id"])
+            .values(incident_id="INC-1")
+        )
+    result = client.delete("/incidents/INC-1", headers=auth(client, "C1"))
+    assert result.status_code == 200
+    assert result.json()["deleted_reports"] == 2
+    assert store.documents() == {}
+    for report_id in (approved["report_id"], legacy["report_id"]):
+        assert (
+            client.get(f"/reports/{report_id}", headers=auth(client)).status_code == 404
+        )
+    assert db.get_incidents().get_incident("INC-2") is not None
+    vector_client.close()
+
+
+def test_incident_approved_reports_excludes_drafts(client):
+    path = "/incidents/INC-1/approved-reports"
+    assert client.get(path).status_code == 401
+    assert client.get(path, headers=auth(client, "I2")).json() == []
+    first = create(client, "I1")
+    assert client.get(path, headers=auth(client, "I2")).json() == []
+    for verb, actor in (("submit", "I1"), ("review", "L1"), ("approve", "C1")):
+        response = action(client, first, verb, actor)
+        assert response.status_code == 200
+        first = response.json()
+    result = client.get(path, headers=auth(client, "I2")).json()
+    assert [(item["report_id"], item["report_version"]) for item in result] == [
+        (first["report_id"], 1)
+    ]
+    assert (
+        client.get(
+            "/incidents/missing/approved-reports", headers=auth(client)
+        ).status_code
+        == 404
     )
 
 
@@ -233,7 +605,8 @@ def test_final_approval_background_indexes_and_failure_can_be_retried(
         "run_pending_reports",
         lambda: process_pending_reports(db.get_reports(), BrokenIndexer),
     )
-    other = create(client)
+    add_incident("INC-2")
+    other = create(client, incident_id="INC-2")
     for verb, actor in (("submit", "I1"), ("review", "L1"), ("approve", "C1")):
         response = action(client, other, verb, actor)
         assert response.status_code == 200, response.text
@@ -333,7 +706,8 @@ def test_draft_delete_and_rejected_version_restore(client):
     )
     assert action(client, restored, "revise").json()["report_version"] == 2
 
-    other = create(client)
+    add_incident("INC-2")
+    other = create(client, incident_id="INC-2")
     deleted = client.request(
         "DELETE",
         f"/reports/{other['report_id']}/draft",
@@ -345,7 +719,7 @@ def test_draft_delete_and_rejected_version_restore(client):
         client.get(f"/reports/{other['report_id']}", headers=auth(client)).status_code
         == 404
     )
-    assert create(client)["report_id"] != other["report_id"]
+    assert create(client, incident_id="INC-2")["report_id"] != other["report_id"]
 
 
 def test_approved_delete_requires_control_and_removes_actual_vector(
@@ -422,7 +796,8 @@ def test_approved_scope_filters_before_limit_and_includes_own_reports(client):
     approved = create(client)
     for verb, actor in (("submit", "I1"), ("review", "L1"), ("approve", "C1")):
         approved = action(client, approved, verb, actor).json()
-    draft = create(client, actor="L1")
+    add_incident("INC-2")
+    draft = create(client, actor="L1", incident_id="INC-2")
     submitted = action(client, draft, "submit", "L1").json()
     for actor in ("I1", "L1", "C1"):
         response = client.get(
@@ -532,7 +907,8 @@ def test_review_history_limit_applies_after_grouping_reports(client):
     first = create(client)
     first = action(client, first, "submit").json()
     first = action(client, first, "reject", "L1", comment="첫 반려").json()
-    second = create(client)
+    add_incident("INC-2")
+    second = create(client, incident_id="INC-2")
     second = action(client, second, "submit").json()
     second = action(client, second, "reject", "L1", comment="다른 보고서").json()
     revised = action(client, first, "revise").json()

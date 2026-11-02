@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import {
-  actOnReport, deleteReport, getReport, listIncidents, saveReport,
+  actOnReport, deleteReport, getReport, getIncidentReportContext, listIncidentOverview, saveReport,
 } from "../api/client";
 import ReportForm from "./ReportForm";
 import { draftValues, formValues } from "./reportValues";
@@ -12,7 +12,7 @@ const inspector = "현장 점검자";
 const lead = "보전 팀장";
 const control = "관제 담당자";
 
-export default function ReportWorkspace({ user, onSessionExpired, onBusyChange, initialDocument = null, initialIncidentId = "", onNavigate, active = true }) {
+export default function ReportWorkspace({ user, onSessionExpired, onBusyChange, initialDocument = null, initialIncidentId = "", initialIncident = null, initialTelemetry = null, initialAnalysis = null, onNavigate, active = true }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -21,14 +21,15 @@ export default function ReportWorkspace({ user, onSessionExpired, onBusyChange, 
   const [incidentId, setIncidentId] = useState(initialDocument?.incident_id ?? initialIncidentId ?? "");
   const [origin, setOrigin] = useState(initialDocument?.data_origin ?? "LIVE");
   const [comment, setComment] = useState("");
+  const [telemetry, setTelemetry] = useState(initialTelemetry);
 
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    listIncidents()
+    listIncidentOverview()
       .then((available) => {
         if (cancelled) return;
-        setIncidents(available);
+        setIncidents(available.filter((item) => !item.report_id && !item.has_approved_report).map((item) => item.incident));
       }).catch((failure) => {
         if (cancelled) return;
         setError(failure.message);
@@ -36,6 +37,17 @@ export default function ReportWorkspace({ user, onSessionExpired, onBusyChange, 
       });
     return () => { cancelled = true; };
   }, [user, onSessionExpired]);
+
+  useEffect(() => {
+    if (!active || !incidentId) return;
+    let cancelled = false;
+    getIncidentReportContext(incidentId).then((context) => {
+      if (!cancelled) setTelemetry({ incidentId, record: context.telemetry });
+    }).catch((failure) => {
+      if (!cancelled && failure.status === 401) onSessionExpired();
+    });
+    return () => { cancelled = true; };
+  }, [active, incidentId, onSessionExpired]);
 
   const pendingReportId = document?.index_status === "pending" && document.report_version === document.current_version ? document.report_id : null;
   const pendingRevision = document?.revision;
@@ -101,6 +113,9 @@ export default function ReportWorkspace({ user, onSessionExpired, onBusyChange, 
   }
 
   async function persist(values) {
+    if (!document && !availableIncidents.some((item) => item.incident_id === incidentId)) {
+      throw new Error("보고서가 아직 없는 Error 사건을 선택해 주세요.");
+    }
     const payload = {
       incident_id: incidentId || null,
       data_origin: origin,
@@ -169,9 +184,11 @@ export default function ReportWorkspace({ user, onSessionExpired, onBusyChange, 
     (user.role === lead && document.report_status === "SUBMITTED") ||
     (user.role === control && document.report_status === "REVIEWED")
   );
-  const linkedIncident = document?.incident_id === incidentId ? document.incident : incidents.find((item) => item.incident_id === incidentId) ?? null;
-  const availableIncidents = document?.incident && !incidents.some((item) => item.incident_id === document.incident_id)
-    ? [document.incident, ...incidents] : incidents;
+  const linkedIncident = document?.incident_id === incidentId ? document.incident : incidents.find((item) => item.incident_id === incidentId) ?? (initialIncident?.incident_id === incidentId ? initialIncident : null);
+  const errorIncidents = incidents.filter((item) => item.severity === "Error");
+  const retainedIncident = document?.incident;
+  const availableIncidents = retainedIncident && !errorIncidents.some((item) => item.incident_id === retainedIncident.incident_id)
+    ? [retainedIncident, ...errorIncidents] : errorIncidents;
 
   return <section className="report-workspace">
     <header className="report-session">
@@ -193,7 +210,7 @@ export default function ReportWorkspace({ user, onSessionExpired, onBusyChange, 
           </select></label>
         </div>}
         {editable && document?.incident_id && <p>보고서 번호와 연결된 사건은 저장 후 변경할 수 없습니다.</p>}
-        {editable && availableIncidents.length === 0 && <p>DB에 저장된 사건이 없습니다. 보고서를 저장하려면 사건을 선택해야 합니다.</p>}
+        {editable && availableIncidents.length === 0 && <p>아직 보고서가 없는 Error 사건이 없습니다.</p>}
         {document && <>
           {!current && <p role="status">이전 버전입니다. 현재 버전은 v{document.current_version}이며, 이 버전은 조회만 할 수 있습니다.</p>}
           <p>작성자: {document.author_name} ({document.author_id}) · 마지막 처리: {new Date(document.updated_at).toLocaleString("ko-KR")}</p>
@@ -228,7 +245,8 @@ export default function ReportWorkspace({ user, onSessionExpired, onBusyChange, 
       <ReportForm
         key={document ? `${document.report_id}:${document.report_version}:${document.revision}` : `new:${user.employee_no}`}
         incident={linkedIncident}
-        analysis={document?.incident_id === incidentId ? document?.ai_analysis : null}
+        analysis={document ? (document.incident_id === incidentId ? document.ai_analysis : null) : (initialAnalysis?.incident_id === incidentId ? initialAnalysis : null)}
+        telemetry={telemetry?.incidentId === incidentId ? telemetry.record : (initialIncident?.incident_id === incidentId ? initialTelemetry : null)}
         reportId={document?.report_id}
         savedValues={formValues(document)}
         author={{ name: document?.author_name ?? user.name, employee_no: document?.author_id ?? user.employee_no }}

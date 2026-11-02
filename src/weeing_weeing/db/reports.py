@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import delete, func, select, text, update
+from sqlalchemy import delete, exists, func, or_, select, text, update
 
 from weeing_weeing.contracts import (
     AnalysisResult,
@@ -21,6 +21,7 @@ from weeing_weeing.contracts import (
     ReportStatus,
     ReportSummary,
     Role,
+    Severity,
 )
 from weeing_weeing.contracts.report import (
     ActionTaken,
@@ -31,8 +32,10 @@ from weeing_weeing.contracts.report import (
 )
 from weeing_weeing.db.incidents import UnknownIncidentError
 from weeing_weeing.db.models import (
+    AnalysisJobRow,
     AnalysisRow,
     ApprovalRow,
+    DeletedIncidentRow,
     DeletedReportNumberRow,
     IncidentRow,
     ReportIndexJobRow,
@@ -299,6 +302,118 @@ def _new_report_id(session, error_code: str, timestamp) -> str:
 
 
 class SqlReports(Repository):
+    def incident_approved_reports(
+        self, actor_id: str, incident_id: str
+    ) -> list[ReportSummary]:
+        """사건에 연결된 각 보고서의 가장 최근 승인 버전을 반환한다."""
+        approved = (
+            select(
+                ReportVersionRow.report_id,
+                func.max(ReportVersionRow.version_no).label("version"),
+            )
+            .where(ReportVersionRow.report_status == ReportStatus.APPROVED)
+            .group_by(ReportVersionRow.report_id)
+            .subquery()
+        )
+        with self._transaction() as session:
+            _actor(session, actor_id)
+            if session.get(IncidentRow, incident_id) is None:
+                raise UnknownIncidentError(incident_id)
+            rows = session.execute(
+                select(ReportRow, ReportVersionRow)
+                .join(approved, approved.c.report_id == ReportRow.report_id)
+                .join(
+                    ReportVersionRow,
+                    (ReportVersionRow.report_id == ReportRow.report_id)
+                    & (ReportVersionRow.version_no == approved.c.version),
+                )
+                .where(ReportRow.incident_id == incident_id)
+                .order_by(ReportVersionRow.updated_at.desc(), ReportRow.report_id)
+            )
+            return [
+                ReportSummary(
+                    report_id=row.report_id,
+                    author_id=row.author_id,
+                    author_name=version.author_name,
+                    report_version=version.version_no,
+                    report_status=version.report_status,
+                    incident_id=incident_id,
+                    asset_id=(version.data["incident"] or {}).get("asset_id"),
+                    updated_at=utc(version.updated_at),
+                )
+                for row, version in rows
+            ]
+
+    def incident_overview(self, actor_id: str, *, limit: int = 100) -> list[dict]:
+        """센서 사건과 별도로 연결 보고서의 처리 상태를 계산한다."""
+        approved = exists(
+            select(ReportRow.report_id)
+            .join(ReportVersionRow, ReportVersionRow.report_id == ReportRow.report_id)
+            .where(
+                ReportRow.incident_id == IncidentRow.incident_id,
+                ReportVersionRow.report_status == ReportStatus.APPROVED,
+            )
+        )
+        ever_error = exists(
+            select(AnalysisJobRow.job_id).where(
+                AnalysisJobRow.incident_id == IncidentRow.incident_id
+            )
+        )
+
+        def latest_report_field(field):
+            return (
+                select(field)
+                .where(ReportRow.incident_id == IncidentRow.incident_id)
+                .order_by(ReportRow.updated_at.desc(), ReportRow.report_id.desc())
+                .limit(1)
+                .scalar_subquery()
+            )
+
+        with self._transaction() as session:
+            _actor(session, actor_id)
+            rows = session.execute(
+                select(
+                    IncidentRow.data,
+                    approved.label("has_approved_report"),
+                    latest_report_field(ReportRow.report_status),
+                    latest_report_field(ReportRow.report_id),
+                )
+                .where(or_(IncidentRow.severity == Severity.ERROR, ever_error))
+                .order_by(IncidentRow.first_detected_at.desc(), IncidentRow.incident_id)
+                .limit(min(max(limit, 1), 200))
+            )
+            return [
+                {
+                    "incident": Incident.model_validate(data),
+                    "has_approved_report": done,
+                    "report_status": "APPROVED" if done else status,
+                    "report_id": report_id,
+                }
+                for data, done, status, report_id in rows
+            ]
+
+    def find_incident_draft(
+        self, actor_id: str, incident_id: str
+    ) -> ReportDocument | None:
+        with self._transaction() as session:
+            _author(session, actor_id)
+            row = session.scalar(
+                select(ReportRow)
+                .where(
+                    ReportRow.author_id == actor_id,
+                    ReportRow.incident_id == incident_id,
+                    ReportRow.report_status == ReportStatus.DRAFT,
+                )
+                .order_by(ReportRow.updated_at.desc(), ReportRow.report_id)
+                .limit(1)
+            )
+            if row is None:
+                return None
+            version = session.get(
+                ReportVersionRow, (row.report_id, row.current_version)
+            )
+            return _view(session, row, version)
+
     def create_draft(self, actor_id: str, draft: ReportDraft) -> ReportDocument:
         with self._transaction() as session:
             user = _author(session, actor_id)
@@ -306,6 +421,7 @@ class SqlReports(Repository):
                 raise ValueError("보고서를 저장하려면 사건을 선택하세요.")
             if self._engine.dialect.name == "sqlite":
                 session.execute(text("BEGIN IMMEDIATE"))
+            self._lock_incidents(session, [draft.incident_id])
             incident = session.scalar(
                 select(IncidentRow)
                 .where(IncidentRow.incident_id == draft.incident_id)
@@ -313,6 +429,15 @@ class SqlReports(Repository):
             )
             if incident is None:
                 raise UnknownIncidentError(draft.incident_id)
+            existing = session.scalar(
+                select(ReportRow.report_id)
+                .where(ReportRow.incident_id == draft.incident_id)
+                .limit(1)
+            )
+            if existing is not None:
+                raise ReportConflictError(
+                    "이 사건에 이미 보고서가 있습니다. 기존 보고서를 확인해 주세요."
+                )
             if not incident.codes:
                 raise ValueError("선택한 사건에 에러 코드가 없습니다.")
             snapshots = _snapshots(session, draft.incident_id)
@@ -348,6 +473,70 @@ class SqlReports(Repository):
             session.flush()
             return _view(session, row, version)
 
+    def delete_incident(
+        self,
+        actor_id: str,
+        incident_id: str,
+        *,
+        delete_vector: Callable[[str], int],
+    ) -> dict:
+        """관제 담당자가 사건과 연결 데이터를 제거한다. 센서 원본은 유지한다."""
+        with self._transaction() as session:
+            if self._engine.dialect.name == "sqlite":
+                session.execute(text("BEGIN IMMEDIATE"))
+            _actor(session, actor_id, Role.CONTROL)
+            self._lock_incidents(session, [incident_id])
+            incident = session.scalar(
+                select(IncidentRow)
+                .where(IncidentRow.incident_id == incident_id)
+                .with_for_update()
+            )
+            if incident is None:
+                raise UnknownIncidentError(incident_id)
+            jobs = session.scalars(
+                select(AnalysisJobRow)
+                .where(AnalysisJobRow.incident_id == incident_id)
+                .with_for_update()
+            ).all()
+            if any(job.status == "RUNNING" for job in jobs):
+                raise ReportConflictError(
+                    "AI 분석이 진행 중입니다. 분석이 끝난 뒤 삭제해 주세요."
+                )
+            reports = session.scalars(
+                select(ReportRow)
+                .where(ReportRow.incident_id == incident_id)
+                .order_by(ReportRow.report_id)
+                .with_for_update()
+            ).all()
+            removed_chunks = 0
+            for report in reports:
+                approved = session.scalar(
+                    select(ReportVersionRow.report_id)
+                    .where(
+                        ReportVersionRow.report_id == report.report_id,
+                        ReportVersionRow.report_status == ReportStatus.APPROVED,
+                    )
+                    .limit(1)
+                )
+                if approved is not None:
+                    removed_chunks += delete_vector(report.report_id)
+                session.add(DeletedReportNumberRow(report_id=report.report_id))
+                for model in (ReportIndexJobRow, ApprovalRow, ReportVersionRow):
+                    session.execute(
+                        delete(model).where(model.report_id == report.report_id)
+                    )
+                session.delete(report)
+            session.flush()
+            session.execute(
+                delete(AnalysisJobRow).where(AnalysisJobRow.incident_id == incident_id)
+            )
+            session.execute(
+                delete(AnalysisRow).where(AnalysisRow.incident_id == incident_id)
+            )
+            session.add(DeletedIncidentRow(incident_id=incident_id, deleted_at=now()))
+            session.delete(incident)
+            return {"deleted_reports": len(reports), "removed_chunks": removed_chunks}
+
     def save_draft(
         self,
         actor_id: str,
@@ -358,6 +547,10 @@ class SqlReports(Repository):
     ) -> ReportDocument:
         with self._transaction() as session:
             user = _author(session, actor_id)
+            if self._engine.dialect.name == "sqlite":
+                session.execute(text("BEGIN IMMEDIATE"))
+            if draft.incident_id:
+                self._lock_incidents(session, [draft.incident_id])
             row, version = _load(session, report_id, lock=True)
             _owner(row, user)
             if row.report_status != ReportStatus.DRAFT:
@@ -368,6 +561,19 @@ class SqlReports(Repository):
                 raise ReportConflictError(
                     "저장된 보고서의 연결 사건은 변경할 수 없습니다."
                 )
+            if row.incident_id is None:
+                existing = session.scalar(
+                    select(ReportRow.report_id)
+                    .where(
+                        ReportRow.incident_id == draft.incident_id,
+                        ReportRow.report_id != report_id,
+                    )
+                    .limit(1)
+                )
+                if existing is not None:
+                    raise ReportConflictError(
+                        "이 사건에 이미 보고서가 있습니다. 기존 보고서를 확인해 주세요."
+                    )
             snapshots = (
                 {k: deepcopy(version.data[k]) for k in ("incident", "ai_analysis")}
                 if draft.incident_id == row.incident_id

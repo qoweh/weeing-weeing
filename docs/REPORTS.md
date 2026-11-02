@@ -112,6 +112,16 @@ AI 코드가 maintenance·approval을 작성하지 않는다.
 | POST /reports/{id}/revise | 작성자가 반려 판에서 다음 DRAFT 생성 |
 | DELETE /reports/{id}/draft | 작성자의 초안 삭제 또는 반려 판으로 수정 취소 |
 | DELETE /reports/{id} | 관제 담당자의 최종 승인 보고서 및 검색 자료 삭제 |
+| DELETE /incidents/{id} | 관제 담당자의 사건·연결 보고서·결재·분석·검색 자료 삭제 |
+
+새 보고서는 같은 사건에 하나만 만들 수 있다. 다른 작성자가 이미 작성 중이거나
+반려·제출·승인한 보고서가 있으면 새 생성은 409다. 반려된 보고서는 작성자가
+기존 보고서에서 수정하며, 이전 데이터에 중복이 있으면 임의로 삭제하지 않는다.
+사건 삭제는 과거 중복을 포함한 모든 연결 보고서와 AI 분석을 제거하지만 센서 원본은
+보존한다. 분석이 실행 중이면 409를 반환한다. `deleted_incident`는 삭제된 사건 ID가
+이미 진행 중인 센서 세션에서 다시 저장되는 것을 막는다(마이그레이션 0009).
+벡터DB와 PostgreSQL은 별도 시스템이다. 벡터 삭제 오류가 나면 DB 삭제는 완료되지
+않으므로 재시도할 수 있지만, 통신 실패 시 벡터 삭제의 실제 완료 여부는 불확실할 수 있다.
 
 POST 초안 본문은 incident_id(없으면 null), data_origin(LIVE/REPLAY/SYNTHETIC), form_data다.
 PUT 초안에는 expected_revision을 추가한다. 결재·개정은 expected_revision과 선택적 comment다.

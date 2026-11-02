@@ -250,6 +250,20 @@ class ReportRepository(Protocol):
 
     def create_draft(self, actor_id: str, draft: ReportDraft) -> ReportDocument: ...
 
+    def find_incident_draft(
+        self, actor_id: str, incident_id: str
+    ) -> ReportDocument | None: ...
+
+    def incident_overview(self, actor_id: str, *, limit: int = 100) -> list[dict]: ...
+
+    def incident_approved_reports(
+        self, actor_id: str, incident_id: str
+    ) -> list[ReportSummary]: ...
+
+    def delete_incident(
+        self, actor_id: str, incident_id: str, *, delete_vector: Callable[[str], int]
+    ) -> dict: ...
+
     def save_draft(
         self,
         actor_id: str,
