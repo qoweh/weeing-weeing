@@ -233,7 +233,15 @@ def test_search_failure_is_not_insufficient_evidence_or_raw_error():
 
 
 def test_empty_results_can_return_insufficient_evidence():
-    client = FakeClient(reply(search()), reply(submit("INSUFFICIENT_EVIDENCE")))
+    client = FakeClient(
+        reply(search()),
+        reply(
+            submit(
+                "INSUFFICIENT_EVIDENCE",
+                message="입구 센서 점검에 관한 자료를 검색했지만 찾지 못했습니다.",
+            )
+        ),
+    )
     result = ask(client, CommonKnowledge(hits=[]))
     assert result.status == "INSUFFICIENT_EVIDENCE"
     assert not result.parts and not result.sources
@@ -255,11 +263,18 @@ def test_oversized_evidence_batch_is_not_sent_to_llm():
 
 def test_fabricated_citation_gets_a_correction_turn():
     client = FakeClient(
-        reply(submit(ids=("invented",))), reply(submit("INSUFFICIENT_EVIDENCE"))
+        reply(submit(ids=("invented",))),
+        reply(search()),
+        reply(
+            submit(
+                "INSUFFICIENT_EVIDENCE",
+                message="입구 센서 점검 자료를 찾지 못했습니다.",
+            )
+        ),
     )
-    result = ask(client)
+    result = ask(client, CommonKnowledge(hits=[]))
     assert result.status == "INSUFFICIENT_EVIDENCE"
-    assert len(client.calls) == 2
+    assert len(client.calls) == 3
 
 
 def test_repeated_invalid_output_finishes_as_failure():
@@ -281,7 +296,7 @@ def test_out_of_scope_can_finish_without_search():
     assert not knowledge.searches
 
 
-def test_synthetic_case_must_be_labelled_and_source_is_server_supplied():
+def test_synthetic_case_needs_no_body_label_and_keeps_server_source():
     hit = ChatSearchHit(
         source=dict(
             kind="REPORT",
@@ -295,18 +310,18 @@ def test_synthetic_case_must_be_labelled_and_source_is_server_supplied():
     )
     client = FakeClient(
         reply(search("MAINTENANCE_HISTORY")),
-        reply(submit(intent="MAINTENANCE_HISTORY", ids=("report:1",))),
         reply(
             submit(
                 intent="MAINTENANCE_HISTORY",
                 ids=("report:1",),
-                text="가상 사례에서는 센서 정렬을 확인했습니다.",
+                text="보고서에서는 센서 정렬을 확인했습니다.",
             )
         ),
     )
     result = ask(client, CommonKnowledge(hits=[hit]))
     assert result.status == "OK" and result.sources[0].synthetic is True
-    assert len(client.calls) == 3
+    assert "가상" not in result.parts[0].text
+    assert len(client.calls) == 2
 
 
 def test_faq_tool_reuses_catalog_without_retrieving_documents():
@@ -379,7 +394,8 @@ def test_model_cannot_override_user_selected_conditions():
     assert not knowledge.searches
 
 
-def test_history_max_limit_reserves_room_for_count_source():
+@pytest.mark.parametrize("synthetic", [False, True])
+def test_history_max_limit_reserves_room_for_count_source(synthetic):
     from weeing_weeing.contracts.chat_tools import ChatHistoryResult
 
     class Knowledge(CommonKnowledge):
@@ -392,7 +408,7 @@ def test_history_max_limit_reserves_room_for_count_source():
                     conditions=query.conditions,
                     code=None,
                     total=20,
-                    synthetic_total=0,
+                    synthetic_total=20 if synthetic else 0,
                     snapshot="a" * 64,
                 ),
                 reports=[
@@ -403,7 +419,7 @@ def test_history_max_limit_reserves_room_for_count_source():
                             title=f"보고서 {n}",
                             report_id=f"R{n}",
                             report_version=1,
-                            synthetic=False,
+                            synthetic=synthetic,
                         ),
                         text="사람이 기록한 조치",
                     )
@@ -426,3 +442,46 @@ def test_history_max_limit_reserves_room_for_count_source():
     assert result.status == "OK"
     assert result.applied_conditions.limit == 19
     assert result.sources[0].total == 20
+
+
+@pytest.mark.parametrize(
+    "question_text",
+    [
+        "컨테이너 입구 걸림 문제가 있었던 적이 있는지 보고서 알려줘",
+        "온도 관련된 문제가 있었던 적이 있어? 정비이력 보고 알려줘.",
+        "외함 온도 관련 문제를 어떻게 해결했었는지 알려줘",
+    ],
+)
+def test_broad_history_question_can_search_without_optional_filters(question_text):
+    hit = ChatSearchHit(
+        source=dict(
+            kind="REPORT",
+            source_id="report:1",
+            title="정비 보고서",
+            report_id="R1",
+            report_version=1,
+            synthetic=True,
+        ),
+        text="입구 가이드 간섭 해소 및 방열 통로 청소 기록",
+    )
+    client = FakeClient(
+        reply(search("MAINTENANCE_HISTORY", query=question_text)),
+        reply(
+            submit(
+                intent="MAINTENANCE_HISTORY",
+                ids=("report:1",),
+                text="보고서에 조치 이력이 있습니다.",
+            )
+        ),
+    )
+    knowledge = CommonKnowledge(hits=[hit])
+    service = ToolChatService(client, knowledge, load_faq_catalog())
+    result = service.reply(
+        ChatQuestion(request_id=uuid4(), question=question_text),
+        context=ChatContext(),
+        timeout_s=10,
+    )
+    assert result.status == "OK"
+    assert len(knowledge.searches) == 1
+    assert knowledge.searches[0].conditions == ChatSearchConditions()
+    assert knowledge.searches[0].code is None

@@ -50,7 +50,7 @@ def show(response):
     """사용자가 읽을 답변과 실제 서버 출처를 표시한다. SDK 원문 오류는 출력하지 않는다."""
     print(f"\n챗봇 [{response.status}]: {response.message}")
     for part in response.parts:
-        print(f"\n[{part.kind}] {part.text}")
+        print(f"\n{part.text}")
     for question in response.clarification_questions:
         print(f"확인 질문: {question}")
     displayed_sources = set()
@@ -69,9 +69,7 @@ def show(response):
                 source.section if source.page is None else None,
             )
         elif source.kind == "REPORT":
-            detail = f"{source.report_id} v{source.report_version}" + (
-                " (가상 사례)" if source.synthetic else ""
-            )
+            detail = f"{source.report_id} v{source.report_version}"
             display_key = (
                 source.kind,
                 source.report_id,
@@ -79,9 +77,7 @@ def show(response):
                 source.synthetic,
             )
         elif source.kind == "HISTORY_QUERY":
-            detail = (
-                f"DB 승인 보고서 {source.total}건 (가상 {source.synthetic_total}건)"
-            )
+            detail = f"DB 승인 보고서 {source.total}건"
             display_key = (source.kind, source.source_id)
         else:
             detail = f"FAQ {source.faq_id}"
