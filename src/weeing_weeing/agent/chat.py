@@ -4,6 +4,7 @@ import math
 import threading
 import time
 from datetime import UTC, datetime
+from datetime import time as datetime_time
 from typing import TYPE_CHECKING, Any, Literal
 from zoneinfo import ZoneInfo
 
@@ -35,6 +36,7 @@ from weeing_weeing.contracts.chat import (
     ChatAnswerPart,
     ChatContext,
     ChatFailure,
+    ChatIncidentQuery,
     ChatIntent,
     ChatModel,
     ChatQuestion,
@@ -44,6 +46,7 @@ from weeing_weeing.contracts.chat import (
 from weeing_weeing.contracts.chat_tools import (
     ChatHistoryQuery,
     ChatHistoryResult,
+    ChatIncidentResult,
     ChatSearchHit,
     ChatSearchQuery,
 )
@@ -52,7 +55,7 @@ if TYPE_CHECKING:
     from weeing_weeing.agent.interface import ChatKnowledge, FaqCatalog, LlmClient
 
 SYSTEM = """너는 배터리 트레이 이송 공정의 자료 안내 챗봇이다. 한국어로 답한다.
-매뉴얼·SOP·승인된 정비이력·FAQ를 안내한다. 범위 밖 질문은 OUT_OF_SCOPE로 답한다.
+매뉴얼·SOP·승인된 정비이력·현재 알림과 회복 사건·FAQ를 안내한다. 범위 밖 질문은 OUT_OF_SCOPE로 답한다.
 
 질문의 핵심 키워드와 의도를 파악해 search_knowledge의 검색 문장을 만든다.
 부정·비교·수치 방향 등 질문의 의미를 바꾸지 않는다.
@@ -99,6 +102,19 @@ ID·코드·기간을 임의로 만들지 않는다. 상대 날짜는 제공된 
 NEEDS_CLARIFICATION을 쓴다. message에 확인이 필요한 이유를 설명하고,
 clarification_questions에 사용자가 알려줘야 할 항목을 구체적으로 질문한다.
 없는 사실이나 조치·재가동 지시를 확인 질문에 넣지 않는다.
+
+현재 주의·경고와 알림 발생 이유는 query_incidents(state=ACTIVE)로 조회한다.
+진행 중은 OPEN·ACKNOWLEDGED이며, 집계 건수는 source의 전체 건수를 사용한다.
+질문에서 지정한 등급·설비·이상 코드·사건 ID·시간 범위만 필터로 넣는다.
+관련 코드가 확실하지 않으면 임의로 정하지 말고 제한 없이 조회한 사건을 구분해 설명한다.
+사라진 알림이나 회복된 문제를 물으면 query_incidents(state=RECOVERED)를 사용한다.
+시간대를 지정하지 않았다면 서버가 가장 최근 회복 사건 한 건을 반환한다.
+선택한 사건의 설비·이상 코드·발생/회복 시각을 밝히고, 다른 알림을 뜻했다면 시간대를 알려 달라고 안내한다.
+시간대가 명시되면 그 범위의 회복 사건을 조회한다. 회복 사건이 없으면 없다고 설명하고 만들어내지 않는다.
+사건 답변의 intent와 part.kind는 INCIDENT다. 다른 자료도 쓰면 COMBINED로 구분한다.
+알림 발생 이유는 evidence의 측정값·단위·threshold·observed로 설명한다.
+판정 기준이나 측정값이 기록되지 않았다면 없는 항목을 밝히고 매뉴얼 수치를 당시 측정값처럼 채우지 않는다.
+답변은 DB 조회 시점 기준이며 마지막 감지/회복 시각을 구분한다. 오래된 기록을 실시간 정상·이상으로 단정하지 않는다.
 
 정확한 건수·기간 목록은 query_history로 조회한다. 검색 결과 개수를 총건수로 말하지 않는다.
 FAQ는 browse_faq와 get_faq_answer로 조회한다.
@@ -498,6 +514,77 @@ class ToolChatService:
             )
             return to_json(result.model_dump(mode="json"))
 
+        def incidents(data: dict[str, Any], memory: RunMemory) -> str:
+            """현재 알림·최근 회복을 서버의 동일한 상태 정책과 전체 집계로 조회한다."""
+            nonlocal search_count
+            query = ChatIncidentQuery.model_validate(data)
+            if search_count >= 8:
+                raise ToolInputError("조회 호출은 최대 8회다")
+            search_count += 1
+            selected = question.conditions
+            if selected.model is not None:
+                raise ToolInputError(
+                    "사건에는 모델 정보가 없습니다. 모델 조건을 해제하거나 설비 ID를 선택해 주세요."
+                )
+            if selected.asset_id is not None:
+                if query.asset_id not in (None, selected.asset_id):
+                    raise ToolInputError("사용자가 지정한 설비를 바꿀 수 없습니다")
+                query.asset_id = selected.asset_id
+            # 공통 화면의 날짜도 누락하지 않는다. 사건은 발생/회복 시각(한국 시간) 기준이다.
+            zone = ZoneInfo("Asia/Seoul")
+            for key, day, boundary in (
+                ("time_from", selected.date_from, datetime_time.min),
+                ("time_to", selected.date_to, datetime_time.max),
+            ):
+                if day is not None:
+                    value = datetime.combine(day, boundary, tzinfo=zone)
+                    previous = getattr(query, key)
+                    if previous is not None and (
+                        (key == "time_from" and previous < value)
+                        or (key == "time_to" and previous > value)
+                    ):
+                        raise ToolInputError(
+                            "선택한 조회 기간 밖의 사건을 조회할 수 없습니다"
+                        )
+                    if previous is None:
+                        setattr(query, key, value)
+            query.limit = min(query.limit, selected.limit)
+            query = ChatIncidentQuery.model_validate(query.model_dump())
+            try:
+                result = ChatIncidentResult.model_validate(
+                    self._knowledge.query_incidents(
+                        query, timeout_s=deadline.remaining()
+                    )
+                )
+                deadline.remaining()
+                expected = query.model_copy(deep=True)
+                if result.latest_recovered_only:
+                    expected.limit = 1
+                if result.source.query != expected:
+                    raise RuntimeError("사건 조회 조건 불일치")
+            except (ToolInputError, LlmTimeoutError):
+                raise
+            except Exception as exc:
+                raise _SearchUnavailableError("사건 조회 실패") from exc
+            source = result.source
+            text = to_json(result.model_dump(mode="json"))
+            combined = {**texts, source.source_id: text}
+            if len(combined) > 20 or sum(map(len, combined.values())) > 32000:
+                raise ToolInputError(
+                    "사건 근거 상한 초과: 조회 범위나 목록 개수를 줄입니다"
+                )
+            sources[source.source_id] = source
+            texts[source.source_id] = text
+            retrievals.append(
+                {
+                    "tool": "query_incidents",
+                    "query": query.model_dump(mode="json"),
+                    "total": source.total,
+                    "returned": len(result.incidents),
+                }
+            )
+            return text
+
         def browse(data: dict[str, Any], memory: RunMemory) -> str:
             """자유 질문 중 Claude가 참고할 FAQ 주제 또는 질문 목록을 반환한다."""
             deadline.remaining()
@@ -563,12 +650,24 @@ class ToolChatService:
                             ) from exc
                         if not searchable:
                             raise _SearchUnavailableError("검색 대상 상태가 변경됨")
+            for part in draft.parts:
+                if any(
+                    sources[key].kind == "INCIDENT_QUERY"
+                    and sources[key].query.state == "RECOVERED"
+                    and sources[key].query.time_from is None
+                    and sources[key].query.time_to is None
+                    and sources[key].query.incident_id is None
+                    and sources[key].total > 0
+                    for key in part.source_ids
+                ):
+                    part.text += "\n조회 조건에 맞는 가장 최근 회복 사건을 기준으로 안내했습니다. 다른 알림을 말씀하신 것이라면 발생 또는 회복 시간대를 알려 주세요."
+                    break
             response_data = draft.model_dump()
             # 일반 상태 안내는 고정하고, 확인 이유·질문은 아래 별도 검토 후 보존한다.
             if draft.status in {"OK", "OUT_OF_SCOPE"}:
                 response_data["message"] = {
                     "OK": "검색 근거를 바탕으로 안내합니다.",
-                    "OUT_OF_SCOPE": "설비 매뉴얼 내용 · 승인된 정비이력 · FAQ 관련 질문만 안내할 수 있습니다.",
+                    "OUT_OF_SCOPE": "설비 매뉴얼 · 정비이력 · 주의·경고 및 회복 사건 · FAQ 관련 질문을 안내할 수 있습니다.",
                 }[draft.status]
             if draft.status == "NEEDS_CLARIFICATION":
                 # 자유 문구를 그대로 노출하지 않고 이유·질문도 별도 검토한다.
@@ -684,6 +783,12 @@ class ToolChatService:
             system=SYSTEM,
             tools=(
                 AgentTool(
+                    "query_incidents",
+                    "현재 알림(ACTIVE) 또는 회복 사건(RECOVERED)의 정확한 등급별 건수·설비·코드·발생/회복 시각·측정값·판정 기준을 DB에서 조회한다. 시간 미지정 회복 조회는 최근 한 건이다.",
+                    ChatIncidentQuery.model_json_schema(),
+                    incidents,
+                ),
+                AgentTool(
                     "search_knowledge",
                     "공통 열람 대상 매뉴얼/SOP·정비이력을 조건으로 검색한다.",
                     ChatSearchQuery.model_json_schema(),
@@ -714,7 +819,7 @@ class ToolChatService:
                 _Draft.model_json_schema(),
                 submit,
             ),
-            prompt_version="chat-tools-v5",
+            prompt_version="chat-tools-v6",
             max_turns=self._max_turns,
         )
         # '지난달' 같은 상대 날짜 해석을 위해 한국 시간 기준일과 사용자 조건을 함께 준다.

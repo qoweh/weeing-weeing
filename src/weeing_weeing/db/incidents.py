@@ -3,11 +3,15 @@
 계약 전체를 data(JSON)에 넣고 꺼낸다. 칼럼은 목록·필터에 쓰는 값만 뽑은 사본이다.
 """
 
-from datetime import datetime
+import hashlib
+import json
+from datetime import UTC, datetime
 
-from sqlalchemy import select, text
+from sqlalchemy import case, func, select, text
 
 from weeing_weeing.contracts import AnalysisResult, Incident, IncidentStatus
+from weeing_weeing.contracts.chat import ChatIncidentQuery, ChatIncidentSource
+from weeing_weeing.contracts.chat_tools import ChatIncidentItem, ChatIncidentResult
 from weeing_weeing.db.models import AnalysisRow, DeletedIncidentRow, IncidentRow
 from weeing_weeing.db.session import Repository, now, utc
 
@@ -88,6 +92,88 @@ class SqlIncidents(Repository):
                 Incident.model_validate(data)
                 for data in session.scalars(query.limit(limit))
             ]
+
+    def query_incidents(self, query: ChatIncidentQuery) -> ChatIncidentResult:
+        """화면과 동일한 진행 상태를 조회한다. 전체 건수와 목록은 같은 SQL 시점 기준이다."""
+        query = ChatIncidentQuery.model_validate(query.model_dump())
+        latest = (
+            query.state == "RECOVERED"
+            and query.time_from is None
+            and query.time_to is None
+            and query.incident_id is None
+        )
+        if latest:
+            query.limit = 1
+        recovered = query.state == "RECOVERED"
+        at = IncidentRow.recovered_at if recovered else IncidentRow.first_detected_at
+        statuses = ["RECOVERED", "CLOSED"] if recovered else ["OPEN", "ACKNOWLEDGED"]
+        statement = select(
+            IncidentRow.data,
+            func.count().over().label("total"),
+            func.sum(case((IncidentRow.severity == "Warning", 1), else_=0)).over(),
+            func.sum(case((IncidentRow.severity == "Error", 1), else_=0)).over(),
+        ).where(
+            IncidentRow.status.in_(statuses),
+            IncidentRow.severity.in_(["Warning", "Error"]),
+        )
+        if recovered:
+            statement = statement.where(IncidentRow.recovered_at.is_not(None))
+        if query.asset_id is not None:
+            statement = statement.where(IncidentRow.asset_id == query.asset_id)
+        if query.severity is not None:
+            statement = statement.where(IncidentRow.severity == query.severity)
+        if query.incident_id is not None:
+            statement = statement.where(IncidentRow.incident_id == query.incident_id)
+        # JSON 배열의 따옴표까지 비교해 코드 접두사가 비슷한 사건을 섞지 않는다.
+        if query.code is not None:
+            from sqlalchemy import String, cast
+
+            statement = statement.where(
+                cast(IncidentRow.codes, String).contains('"' + query.code + '"')
+            )
+        if query.time_from is not None:
+            statement = statement.where(at >= utc(query.time_from))
+        if query.time_to is not None:
+            statement = statement.where(at <= utc(query.time_to))
+        statement = statement.order_by(at.desc(), IncidentRow.incident_id).limit(
+            query.limit
+        )
+        with self._transaction() as session:
+            rows = session.execute(statement).all()
+        items = [
+            ChatIncidentItem.model_validate(
+                {key: row[0].get(key) for key in ChatIncidentItem.model_fields}
+            )
+            for row in rows
+        ]
+        total, warning, error = rows[0][1:] if rows else (0, 0, 0)
+        observed_at = datetime.now(UTC)
+        snapshot = json.dumps(
+            {
+                "query": query.model_dump(mode="json"),
+                "items": [i.model_dump(mode="json") for i in items],
+                "counts": [total, warning, error],
+                "at": observed_at.isoformat(),
+            },
+            sort_keys=True,
+        )
+        return ChatIncidentResult(
+            source=ChatIncidentSource(
+                source_id="incidents:" + hashlib.sha256(snapshot.encode()).hexdigest(),
+                title="회복된 이상 사건 DB 조회"
+                if recovered
+                else "진행 중인 주의·경고 DB 조회",
+                query=query,
+                total=total,
+                warning_count=warning,
+                error_count=error,
+                retrieved_at=observed_at,
+                incident_ids=[i.incident_id for i in items],
+            ),
+            incidents=items,
+            truncated=total > len(items),
+            latest_recovered_only=latest,
+        )
 
     # --- analysis ---
 

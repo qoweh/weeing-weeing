@@ -76,6 +76,9 @@ def show(response):
                 source.report_version,
                 source.synthetic,
             )
+        elif source.kind == "INCIDENT_QUERY":
+            detail = f"DB 조회 {source.retrieved_at.isoformat()} · 주의 {source.warning_count}건 / 경고 {source.error_count}건"
+            display_key = (source.kind, source.source_id)
         elif source.kind == "HISTORY_QUERY":
             detail = f"DB 승인 보고서 {source.total}건"
             display_key = (source.kind, source.source_id)

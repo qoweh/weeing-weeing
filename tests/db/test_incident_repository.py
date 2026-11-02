@@ -145,3 +145,98 @@ def test_concurrent_first_saves_do_not_conflict(incidents):
         list(pool.map(incidents.save_incident, versions))
 
     assert incidents.get_incident(versions[0].incident_id) == versions[-1]
+
+
+def test_chat_alert_counts_are_full_and_filters_are_exact(incidents):
+    from weeing_weeing.contracts.chat import ChatIncidentQuery
+
+    for number in range(105):
+        incidents.save_incident(
+            make_incident(
+                incident_id=f"INC-{number:03}",
+                severity="Warning" if number < 103 else "Error",
+                status="ACKNOWLEDGED" if number == 0 else "OPEN",
+            )
+        )
+    incidents.save_incident(
+        make_incident(incident_id="recovered", status="RECOVERED", recovered_at=T0)
+    )
+    incidents.save_incident(make_incident(incident_id="unknown", severity="Unknown"))
+    result = incidents.query_incidents(ChatIncidentQuery(limit=3))
+    assert (
+        result.source.total,
+        result.source.warning_count,
+        result.source.error_count,
+    ) == (105, 103, 2)
+    assert len(result.incidents) == 3 and result.truncated
+    filtered = incidents.query_incidents(
+        ChatIncidentQuery(severity="Error", code="BTT2-P03")
+    )
+    assert filtered.source.total == 2
+    assert (
+        incidents.query_incidents(ChatIncidentQuery(code="BTT2-P04")).source.total == 0
+    )
+    assert (
+        incidents.query_incidents(ChatIncidentQuery(asset_id="missing")).source.total
+        == 0
+    )
+
+
+def test_latest_recovery_uses_recovery_time_not_occurrence_or_report(incidents):
+    from weeing_weeing.contracts.chat import ChatIncidentQuery
+
+    # 오래전에 발생했어도 마지막에 회복한 사건이 선택된다.
+    incidents.save_incident(
+        make_incident(
+            incident_id="last-recovery",
+            status="RECOVERED",
+            recovered_at=T0 + timedelta(hours=4),
+        )
+    )
+    incidents.save_incident(
+        make_incident(
+            incident_id="newer-start",
+            status="CLOSED",
+            first_detected_at=T0 + timedelta(hours=1),
+            recovered_at=T0 + timedelta(hours=2),
+        )
+    )
+    incidents.save_incident(make_incident(incident_id="still-active"))
+    result = incidents.query_incidents(ChatIncidentQuery(state="RECOVERED"))
+    assert [i.incident_id for i in result.incidents] == ["last-recovery"]
+    assert (
+        result.latest_recovered_only and result.truncated and result.source.total == 2
+    )
+    ranged = incidents.query_incidents(
+        ChatIncidentQuery(
+            state="RECOVERED",
+            time_from=T0 + timedelta(hours=1),
+            time_to=T0 + timedelta(hours=3),
+        )
+    )
+    assert [i.incident_id for i in ranged.incidents] == ["newer-start"]
+    assert not ranged.latest_recovered_only
+    assert incidents.get_incident("last-recovery") is not None
+
+
+def test_incident_measurements_and_thresholds_are_preserved(incidents):
+    from weeing_weeing.contracts import SensorEvidence
+    from weeing_weeing.contracts.chat import ChatIncidentQuery
+
+    incidents.save_incident(
+        make_incident(
+            evidence=[
+                SensorEvidence(
+                    field="motor_housing_temp_c",
+                    value=91.0,
+                    unit="℃",
+                    threshold=">= 90℃, 10초 지속",
+                    observed="10초 초과 관측",
+                )
+            ]
+        )
+    )
+    result = incidents.query_incidents(ChatIncidentQuery())
+    fact = result.incidents[0].evidence[0]
+    assert fact.value == 91.0 and fact.threshold == ">= 90℃, 10초 지속"
+    assert "plc_context" not in result.incidents[0].model_dump()

@@ -7,7 +7,9 @@ from uuid import uuid4
 from weeing_weeing.agent.interface import load_faq_catalog
 from weeing_weeing.api.chat_knowledge import get_chat_knowledge
 from weeing_weeing.contracts import ChatSearchConditions, FaqSelection
+from weeing_weeing.contracts.chat import ChatIncidentQuery
 from weeing_weeing.contracts.chat_tools import ChatHistoryQuery, ChatSearchQuery
+from weeing_weeing.db.interface import get_incidents
 from weeing_weeing.rag.interface import close_rag_resources
 
 
@@ -31,9 +33,39 @@ def main(argv=None):
         command.add_argument("--date-to")
         command.add_argument("--limit", type=int, default=5)
         command.add_argument("--timeout", type=float, default=120)
+    incidents = commands.add_parser(
+        "incidents", help="현재 주의·경고 또는 최근 회복 사건 DB 조회(LLM·색인 불필요)"
+    )
+    incidents.add_argument("--state", choices=["ACTIVE", "RECOVERED"], default="ACTIVE")
+    incidents.add_argument("--severity", choices=["Warning", "Error"])
+    incidents.add_argument("--asset-id")
+    incidents.add_argument("--code")
+    incidents.add_argument("--incident-id")
+    incidents.add_argument(
+        "--time-from", help="시간대 포함 ISO 시각, 예: 2026-11-02T09:00:00+09:00"
+    )
+    incidents.add_argument("--time-to", help="시간대 포함 ISO 시각")
+    incidents.add_argument("--limit", type=int, default=5)
     args = parser.parse_args(argv)
     try:
-        if args.command == "faq":
+        if args.command == "incidents":
+            output = (
+                get_incidents()
+                .query_incidents(
+                    ChatIncidentQuery(
+                        state=args.state,
+                        severity=args.severity,
+                        asset_id=args.asset_id,
+                        code=args.code,
+                        incident_id=args.incident_id,
+                        time_from=args.time_from,
+                        time_to=args.time_to,
+                        limit=args.limit,
+                    )
+                )
+                .model_dump(mode="json")
+            )
+        elif args.command == "faq":
             # ID는 서버 카탈로그에서 얻으며 DB·검색기·LLM을 만들지 않는다.
             catalog = load_faq_catalog()
             if args.faq_id:
@@ -91,7 +123,7 @@ def main(argv=None):
         print(f"기능 확인 실패: {type(exc).__name__}")
         return 1
     finally:
-        if args.command != "faq":
+        if args.command in {"search", "history"}:
             # 이 CLI는 단일 실행이므로 출력 후 공유 Qdrant를 닫고 폴더 잠금을 반환한다.
             close_rag_resources()
 

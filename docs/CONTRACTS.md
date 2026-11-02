@@ -53,7 +53,7 @@ rag(검색 근거 변환), db(대화 저장), api(인증·조립), hmi/web(상�
 | `ChatAnswerPart` | 매뉴얼 기준/과거 정비 사례/FAQ 본문과 출처 ID 목록. 서로 다른 종류의 근거 혼용 거부 |
 | `ChatResponse` | 요청 ID·의도·상태·적용 검색 조건·안내·본문·출처·추가 질문·오류·생성 시각 |
 
-의도는 `MANUAL`, `MAINTENANCE_HISTORY`, `FAQ`, `COMBINED`, `OUT_OF_SCOPE`다.
+의도는 `MANUAL`, `MAINTENANCE_HISTORY`, `INCIDENT`, `FAQ`, `COMBINED`, `OUT_OF_SCOPE`다.
 모든 챗봇 모델은 알 수 없는 필드를 거부한다. 검색 기간은 실제 조치일의 양 끝 날짜를
 포함하며, 한쪽만 지정하면 열린 구간이다. 기간 길이 제한은 아직 강제하지 않는다.
 결과 개수는 유사 검색 상한이며 정확한 집계의 전체 건수로 해석하지 않는다.
@@ -190,3 +190,26 @@ api 내부에만 두며 contracts의 종류를 늘리지 않는다. 영향 모�
 1. `contracts/` 코드와 이 문서를 같은 PR에서 고친다
 2. PR 본문의 '변경 사항'에 영향받는 모듈과 담당자를 적는다
 3. `tests/contracts/`의 테스트를 함께 고친다
+
+
+## 현재 알림·회복 사건 조회
+
+영향 모듈: contracts, db(사건 집계), api(조회 조립), agent(도구·근거 검토),
+frontend(알림 집계·출처), scripts(터미널 표시). 기존 Incident·보고서 계약과 DB 스키마는 유지한다.
+
+- `ChatIncidentQuery`: ACTIVE/RECOVERED, 선택적 설비·이상 코드·등급·사건 ID,
+  시간대 포함 시작/종료 시각, 목록 상한 1~20. 코드·역전 기간·시간대 누락을 거부한다.
+- `ChatIncidentSource`: `kind=INCIDENT_QUERY`, 적용 조회 조건·전체 건수·Warning/Error별 건수,
+  조회 시각·선택된 사건 ID. `ChatAnswerPart.kind=INCIDENT`에서 인용하며, 다른 자료와 결합하면 COMBINED다.
+- `ChatIncidentItem`/`ChatIncidentResult`: 발생·마지막 감지·회복 시각과 기존 SensorEvidence의
+  측정값·단위·판정 기준·관측 설명을 전달한다. 사번·결재·PLC 문맥은 포함하지 않는다.
+  전체 건수와 제한된 목록을 구분하고 0건도 유효한 조회 근거로 취급한다.
+- ACTIVE는 OPEN/ACKNOWLEDGED이면서 Warning/Error인 사건이다.
+  RECOVERED는 회복 시각이 있는 RECOVERED/CLOSED 사건이며, 회복 시각 내림차순이다.
+  시간 범위와 사건 ID가 없으면 조건에 맞는 최신 회복 한 건을 서버가 선택한다.
+  명시한 시간 범위에 결과가 없을 때 다른 시점의 사건으로 대체하지 않는다.
+- 시간 조건은 ACTIVE의 최초 발생 시각, RECOVERED의 회복 시각 기준이며 양 끝을 포함한다.
+  화면에서 선택한 날짜는 한국 시간의 하루 전체로 변환하고 설비 선택도 보존한다.
+  모델 필터는 사건에 정보가 없으므로 조용히 무시하지 않고 미지원으로 안내한다.
+- 사건 근거는 조회 시점 스냅샷이다. 지속/회복 갱신 때문에 생성 도중 답변을 실패시키지 않으며,
+  인용 사건의 삭제 여부는 반환 전에 재확인한다. 조회 시각을 센서 관측 시각으로 설명하지 않는다.

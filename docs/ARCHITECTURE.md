@@ -141,3 +141,14 @@ HTTP(#91)는 로그인 세션의 사번을 actor_id로 전달해야 하며 요�
 HTTP 경로·상태 코드·실행 방법은 [CHAT_API](CHAT_API.md)를 따른다. 웹 UI와 익명 CLI의
 영구 저장 연결은 포함하지 않는다.
 세부 정책은 [CHAT_STORAGE](CHAT_STORAGE.md)를 따른다.
+
+
+### 챗봇 현재 알림·회복 사건 조회
+
+`ChatKnowledge.query_incidents()`는 API의 `DatabaseChatKnowledge`를 통해 DB 공개
+`IncidentRepository.query_incidents()`에 연결한다. agent는 DB 내부를 import하지 않는다.
+DB가 한 SQL에서 전체 등급별 건수와 제한된 최신 목록을 읽어, 수신 중 건수와 목록의 시점 차이를 막는다.
+시간 미지정 회복 조회는 서버가 가장 최근 회복 한 건을 선택하고 agent가 시간대 정정 안내를 추가한다.
+측정 근거는 기존 Incident.evidence를 사용하며 AI가 사건·보고서·PLC 상태를 변경하지 않는다.
+진행 중인 사건의 상태 기준은 헤더와 동일한 OPEN/ACKNOWLEDGED다.
+챗봇 목록 상한은 LLM 전달량에만 적용하며 헤더의 기존 사건 목록 API·30초 갱신은 유지한다.

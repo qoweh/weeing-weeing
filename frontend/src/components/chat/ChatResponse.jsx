@@ -70,6 +70,8 @@ export default function ChatResponse({ response, onSource }) {
               ) : (
                 <span>
                   {source.title}
+                  {source.kind === 'INCIDENT_QUERY' &&
+                    ` · 주의 ${source.warning_count}건 / 경고 ${source.error_count}건 · 조회 ${source.retrieved_at}`}
                   {source.kind === 'HISTORY_QUERY'
                     ? ` · 보고서 ${source.total}건`
                     : ''}

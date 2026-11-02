@@ -14,7 +14,9 @@ from pydantic import (
 )
 
 NonEmpty = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-ChatIntent = Literal["MANUAL", "MAINTENANCE_HISTORY", "FAQ", "COMBINED", "OUT_OF_SCOPE"]
+ChatIntent = Literal[
+    "MANUAL", "MAINTENANCE_HISTORY", "INCIDENT", "FAQ", "COMBINED", "OUT_OF_SCOPE"
+]
 ChatStatus = Literal[
     "OK", "NEEDS_CLARIFICATION", "INSUFFICIENT_EVIDENCE", "OUT_OF_SCOPE", "FAILED"
 ]
@@ -96,6 +98,53 @@ class ChatHistorySource(ChatModel):
         return self
 
 
+class ChatIncidentQuery(ChatModel):
+    """ACTIVE는 현재 알림, RECOVERED는 회복 이력. 기간은 해당 상태의 발생/회복 시각이다."""
+
+    state: Literal["ACTIVE", "RECOVERED"] = "ACTIVE"
+    asset_id: NonEmpty | None = None
+    code: NonEmpty | None = None
+    severity: Literal["Warning", "Error"] | None = None
+    incident_id: NonEmpty | None = None
+    time_from: AwareDatetime | None = None
+    time_to: AwareDatetime | None = None
+    limit: int = Field(default=5, ge=1, le=20, strict=True)
+
+    @model_validator(mode="after")
+    def _filters(self) -> Self:
+        from weeing_weeing.contracts.codes import CODES
+
+        if self.code is not None and self.code not in CODES:
+            raise ValueError("정의되지 않은 이상 코드")
+        if self.time_from and self.time_to and self.time_from > self.time_to:
+            raise ValueError("조회 시작 시각은 종료 시각보다 늦을 수 없음")
+        return self
+
+
+class ChatIncidentSource(ChatModel):
+    """시시각각 바뀌는 사건의 DB 조회 시점 근거. 목록 상한과 전체 건수를 구분한다."""
+
+    kind: Literal["INCIDENT_QUERY"] = "INCIDENT_QUERY"
+    source_id: NonEmpty
+    title: NonEmpty
+    query: ChatIncidentQuery
+    total: int = Field(ge=0, strict=True)
+    warning_count: int = Field(ge=0, strict=True)
+    error_count: int = Field(ge=0, strict=True)
+    retrieved_at: AwareDatetime
+    incident_ids: list[NonEmpty] = Field(default_factory=list, max_length=20)
+
+    @model_validator(mode="after")
+    def _counts(self) -> Self:
+        if self.total != self.warning_count + self.error_count:
+            raise ValueError("등급별 건수 합계 불일치")
+        if len(self.incident_ids) != min(self.total, self.query.limit):
+            raise ValueError("사건 목록과 전체 건수 불일치")
+        if len(set(self.incident_ids)) != len(self.incident_ids):
+            raise ValueError("사건 ID 중복")
+        return self
+
+
 class ChatFaqSource(ChatModel):
     kind: Literal["FAQ"] = "FAQ"
     source_id: NonEmpty
@@ -104,7 +153,11 @@ class ChatFaqSource(ChatModel):
 
 
 ChatSource = Annotated[
-    ChatDocumentSource | ChatReportSource | ChatFaqSource | ChatHistorySource,
+    ChatDocumentSource
+    | ChatReportSource
+    | ChatFaqSource
+    | ChatHistorySource
+    | ChatIncidentSource,
     Field(discriminator="kind"),
 ]
 
@@ -129,7 +182,7 @@ class ChatFailure(ChatModel):
 class ChatAnswerPart(ChatModel):
     """매뉴얼 기준·과거 사례·FAQ를 구분하는 답변 단위."""
 
-    kind: Literal["MANUAL", "MAINTENANCE_HISTORY", "FAQ"]
+    kind: Literal["MANUAL", "MAINTENANCE_HISTORY", "INCIDENT", "FAQ"]
     text: NonEmpty
     source_ids: list[NonEmpty] = Field(min_length=1, max_length=20)
 
@@ -171,6 +224,7 @@ class ChatResponse(ChatModel):
             "MANUAL": {"DOCUMENT"},
             "MAINTENANCE_HISTORY": {"REPORT", "HISTORY_QUERY"},
             "FAQ": {"FAQ"},
+            "INCIDENT": {"INCIDENT_QUERY"},
         }
         for part in self.parts:
             if self.intent != "COMBINED" and part.kind != self.intent:

@@ -167,3 +167,11 @@ UV_NO_ENV_FILE=1 make check
 `npm run dev`로 실행한 뒤 `http://localhost:3100`에서 로그인하고 챗봇 버튼을 연다.
 백엔드는 기존 `make api`로 실행한다. 자유 질문은 사용자가 서버 인증 설정을 준비한 뒤 직접 실행한다.
 FAQ·내 대화 조회에는 Claude 키가 필요 없다. API 키를 브라우저에 입력하거나 저장하지 않는다.
+
+
+## 챗봇 현재 주의·경고 조회
+
+기존 채팅 메시지 API에서 Claude가 `query_incidents`를 선택하면 DB 사건을 조회한다.
+응답에 `intent/parts.kind=INCIDENT`, `sources.kind=INCIDENT_QUERY`가 추가된다.
+조회 시각과 전체 집계 건수를 출처에 표시한다. 목록 상한은 챗봇 근거 전달에만 적용한다.
+화면 상단 알림은 기존 사건 목록 API와 30초 갱신을 유지한다.

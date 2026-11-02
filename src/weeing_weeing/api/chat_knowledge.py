@@ -20,16 +20,20 @@ from weeing_weeing.contracts import (
     DocumentRecord,
     MaintenanceReport,
 )
+from weeing_weeing.contracts.chat import ChatIncidentQuery, ChatIncidentSource
 from weeing_weeing.contracts.chat_tools import (
     ChatHistoryQuery,
     ChatHistoryResult,
+    ChatIncidentResult,
     ChatSearchHit,
     ChatSearchQuery,
 )
 from weeing_weeing.db.interface import (
     DocumentRepository,
+    IncidentRepository,
     ReportRepository,
     get_documents,
+    get_incidents,
     get_reports,
 )
 from weeing_weeing.rag.interface import (
@@ -64,13 +68,22 @@ class DatabaseChatKnowledge:
 
     def __init__(
         self,
-        retriever: MetadataRetriever,
+        retriever: MetadataRetriever | None,
         documents: DocumentRepository,
         reports: ReportRepository,
+        incidents: IncidentRepository | None = None,
     ):
-        self.retriever = retriever
+        self._retriever = retriever
         self.documents = documents
         self.reports = reports
+        self.incidents = incidents
+
+    @property
+    def retriever(self) -> MetadataRetriever:
+        """사건 DB 조회만 하는 요청은 벡터 저장소나 임베딩 모델을 열지 않는다."""
+        if self._retriever is None:
+            self._retriever = get_retriever()
+        return self._retriever
 
     def _documents(self) -> list[DocumentRecord]:
         """현재 등록된 승인 문서만 고른다. 같은 문서의 구버전 보관 목록은 아니다."""
@@ -301,10 +314,28 @@ class DatabaseChatKnowledge:
             source=source, reports=items, truncated=len(reports) > len(items)
         )
 
+    def query_incidents(
+        self, query: ChatIncidentQuery, *, timeout_s: float
+    ) -> ChatIncidentResult:
+        """벡터 유사 검색 없이 사건 원본을 조회한다. 장애를 0건으로 바꾸지 않는다."""
+        budget = _Budget(timeout_s)
+        if self.incidents is None:
+            raise RuntimeError("사건 저장소가 연결되지 않았습니다")
+        result = self.incidents.query_incidents(query)
+        budget.check()
+        return result
+
     def is_searchable(self, source, *, timeout_s: float) -> bool:
         """검색 이후 자료가 바뀌지 않았는지 재검사한다. 직책별 열람 권한 검사는 아니다."""
         budget = _Budget(timeout_s)
-        if isinstance(source, ChatHistorySource):
+        if isinstance(source, ChatIncidentSource):
+            # 실시간 사건은 계속 갱신되므로 조회 시점 스냅샷으로 인용한다.
+            # 자연스러운 지속/회복 갱신은 허용하지만 명시적으로 삭제된 사건은 반환하지 않는다.
+            result = self.incidents is not None and all(
+                self.incidents.get_incident(key) is not None
+                for key in source.incident_ids
+            )
+        elif isinstance(source, ChatHistorySource):
             # 0건이 1건이 되는 경우도 잡기 위해 집계 대상 전체의 스냅샷을 다시 비교한다.
             current = self.query_history(
                 ChatHistoryQuery(conditions=source.conditions, code=source.code),
@@ -335,7 +366,7 @@ class DatabaseChatKnowledge:
 @lru_cache(maxsize=1)
 def get_chat_knowledge() -> DatabaseChatKnowledge:
     """API·CLI에서 공통 DB와 RAG를 한 번 조립한다. 사용자 직책 ACL은 없다."""
-    return DatabaseChatKnowledge(get_retriever(), get_documents(), get_reports())
+    return DatabaseChatKnowledge(None, get_documents(), get_reports(), get_incidents())
 
 
 def build_chat_service(*, client=None, knowledge=None):

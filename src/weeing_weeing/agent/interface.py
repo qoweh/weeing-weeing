@@ -43,6 +43,8 @@ from weeing_weeing.contracts.chat import (
     ChatContext,
     ChatDocumentSource,
     ChatHistorySource,
+    ChatIncidentQuery,
+    ChatIncidentSource,
     ChatQuestion,
     ChatReportSource,
     ChatResponse,
@@ -51,6 +53,7 @@ from weeing_weeing.contracts.chat import (
 from weeing_weeing.contracts.chat_tools import (
     ChatHistoryQuery,
     ChatHistoryResult,
+    ChatIncidentResult,
     ChatSearchHit,
     ChatSearchQuery,
 )
@@ -189,9 +192,18 @@ class ChatKnowledge(Protocol):
         """DB의 전체 최신 승인 판으로 정확한 건수·제한된 목록·조회 출처를 반환한다."""
         ...
 
+    def query_incidents(
+        self, query: ChatIncidentQuery, *, timeout_s: float
+    ) -> ChatIncidentResult:
+        """현재 주의·경고 또는 회복 사건의 조회 시점 집계·측정 근거를 반환한다."""
+        ...
+
     def is_searchable(
         self,
-        source: ChatDocumentSource | ChatReportSource | ChatHistorySource,
+        source: ChatDocumentSource
+        | ChatReportSource
+        | ChatHistorySource
+        | ChatIncidentSource,
         *,
         timeout_s: float,
     ) -> bool:

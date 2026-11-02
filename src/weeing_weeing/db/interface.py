@@ -18,6 +18,8 @@ from weeing_weeing.contracts import (
     TelemetryRecord,
     UserAccount,
 )
+from weeing_weeing.contracts.chat import ChatIncidentQuery
+from weeing_weeing.contracts.chat_tools import ChatIncidentResult
 from weeing_weeing.db.analysis_jobs import AnalysisConflictError, SqlAnalysisJobs
 from weeing_weeing.db.chats import (
     ChatClaim,
@@ -156,6 +158,10 @@ class IncidentRepository(Protocol):
         ...
 
     def get_incident(self, incident_id: str) -> Incident | None: ...
+
+    def query_incidents(self, query: ChatIncidentQuery) -> ChatIncidentResult:
+        """알림 상태·등급·기간별 정확한 집계와 최신순 사건 목록을 반환한다."""
+        ...
 
     def list_incidents(
         self,

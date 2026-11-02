@@ -88,3 +88,65 @@ def test_zero_history_count_has_a_valid_server_source_and_roundtrips():
         ChatHistoryQuery(
             conditions={"date_from": "2026-10-02", "date_to": "2026-10-01"}
         )
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"state": "ALL"},
+        {"severity": "Normal"},
+        {"code": "UNKNOWN"},
+        {"time_from": "2026-11-02T10:00:00"},
+        {
+            "time_from": "2026-11-02T10:00:00+09:00",
+            "time_to": "2026-11-02T09:00:00+09:00",
+        },
+        {"limit": True},
+        {"role": "관리자"},
+    ],
+)
+def test_incident_query_rejects_invalid_filters(bad):
+    from weeing_weeing.contracts.chat import ChatIncidentQuery
+
+    with pytest.raises(ValidationError):
+        ChatIncidentQuery(**bad)
+
+
+def test_incident_source_and_response_validate_counts_and_citation_kind():
+    from datetime import UTC, datetime
+    from uuid import uuid4
+
+    from weeing_weeing.contracts.chat import ChatIncidentSource, ChatResponse
+
+    source = ChatIncidentSource(
+        source_id="incidents:zero",
+        title="현재 알림 조회",
+        query={},
+        total=0,
+        warning_count=0,
+        error_count=0,
+        retrieved_at=datetime.now(UTC),
+    )
+    response = ChatResponse(
+        request_id=uuid4(),
+        intent="INCIDENT",
+        status="OK",
+        applied_conditions={},
+        message="조회 결과",
+        parts=[
+            dict(
+                kind="INCIDENT",
+                text="조회 시점에 진행 중인 알림은 0건입니다.",
+                source_ids=[source.source_id],
+            )
+        ],
+        sources=[source],
+        generated_at=datetime.now(UTC),
+    )
+    assert ChatResponse.model_validate_json(response.model_dump_json()) == response
+    with pytest.raises(ValidationError):
+        ChatIncidentSource.model_validate(source.model_dump() | {"total": 1})
+    bad = response.model_dump()
+    bad["parts"][0]["kind"] = "MANUAL"
+    with pytest.raises(ValidationError):
+        ChatResponse.model_validate(bad)

@@ -145,6 +145,7 @@ def test_free_question_calls_tools_without_separate_classifier():
     assert "reference_date" in task
     names = {tool["name"] for tool in client.calls[0]["tools"]}
     assert names == {
+        "query_incidents",
         "search_knowledge",
         "query_history",
         "browse_faq",

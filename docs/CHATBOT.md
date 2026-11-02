@@ -393,3 +393,32 @@ PYTHONPATH=src uv run --no-sync --no-env-file python scripts/chat.py --ask-key -
 
 검증은 `uv run --no-sync pytest tests/contracts tests/agent`와 `make check`다.
 실제 상용 API E2E·DB·HMI 실행 검증은 연결 구현 후 각 이슈에서 수행한다.
+
+
+## 현재 주의·경고와 회복 사건
+
+자유 질문에서 Claude가 `query_incidents`를 선택하면 PostgreSQL의 사건을 직접 조회한다.
+매뉴얼·보고서 벡터 검색은 이 조회에 사용하지 않는다. `ANALYSIS_AUTO_ENABLED=true`로
+센서를 수신해 사건이 DB에 저장되어 있어야 한다. 기존 DB 기록도 조회할 수 있다.
+
+- “지금 주의와 경고 현황 요약해줘”: 전체 등급별 건수와 제한된 설비·코드·발생 시각 목록.
+- “이 주의 알림은 왜 발생했어?”: 사건의 측정값과 판정 기준·관측 설명. 실제 고장 원인은 확정하지 않는다.
+- “아까 사라진 경고는 뭐였어?”: 조건에 맞는 가장 최근 회복 사건 한 건과 회복 시각.
+  다른 알림을 의도했다면 발생/회복 시간대를 알려 달라는 안내를 서버가 덧붙인다.
+- “오늘 14시부터 15시 사이 회복된 경고”: 해당 회복 시간 범위로 조회하며 없으면 0건으로 안내한다.
+
+새로운 INCIDENT 본문과 INCIDENT_QUERY 출처는 기존 개인 대화 저장·HTTP·웹 UI·CLI를 통과한다.
+측정값이나 판정 기준이 기록되지 않았으면 누락을 밝힌다. 매뉴얼 기준을 당시 측정값으로 만들지 않는다.
+집계는 조회 시점 DB 기준이며 실시간 수신 상태를 보장하지 않는다. 마지막 이상 감지·회복 시각을 구분한다.
+
+Claude API 키 없이 사건 저장/조회만 확인:
+
+```bash
+make chat-check ARGS='incidents'
+make chat-check ARGS='incidents --severity Warning --asset-id BLDC-001'
+make chat-check ARGS='incidents --state RECOVERED --severity Error'
+make chat-check ARGS='incidents --state RECOVERED --time-from 2026-11-02T14:00:00+09:00 --time-to 2026-11-02T15:00:00+09:00'
+```
+
+화면에서 직접 대화하려면 API·프론트엔드를 재시작한 뒤 기존 채팅 시작 버튼을 사용한다.
+터미널 대화는 `make chat-private ARGS='--asset-id BLDC-001'`로 실행할 수 있다(Claude 비용 발생).
