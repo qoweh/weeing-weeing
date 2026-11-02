@@ -68,8 +68,9 @@ def test_help_runs_without_grep_or_awk():
         ),
     ],
 )
-def test_targets_pass_unicode_arguments_and_python_environment(
-    tmp_path, target, prefix
+@pytest.mark.parametrize("argument_mode", ["inline", "file"])
+def test_targets_pass_arguments_and_python_environment(
+    tmp_path, target, prefix, argument_mode
 ):
     runner = tmp_path / "path with spaces" / "capture.py"
     runner.parent.mkdir()
@@ -81,21 +82,31 @@ def test_targets_pass_unicode_arguments_and_python_environment(
         "ensure_ascii=True))\n",
         encoding="utf-8",
     )
+    raw = '--file "path with spaces/input.json"'
+    option = f"ARGS={raw}"
+    options = []
+    if argument_mode == "file":
+        raw = '--file "한글 공백🚨/입력.json"'
+        arguments_file = tmp_path / "arguments with spaces.txt"
+        arguments_file.write_text(raw + "\n", encoding="utf-8-sig")
+        option = f"ARGS_FILE={arguments_file}"
+        options = ["--args-file", str(arguments_file)]
     output = run_make(
         target,
         f'RUN=uv run --no-sync python "{runner}"',
         "ENV_FILE=",
-        'ARGS=--file "한글 공백/입력.json"',
+        option,
     )
     result = json.loads(output)
-    assert result["args"] == ["python", "scripts/run_make.py", *prefix]
-    assert result["source_args"] == '--file "한글 공백/입력.json"'
+    assert result["args"] == ["python", "scripts/run_make.py", *options, *prefix]
+    assert (result["source_args"] or "") == (raw if argument_mode == "inline" else "")
     assert result["utf8"] == 1
     assert result["stdio"].lower() == "utf-8"
     assert Path(result["path"]).resolve() == ROOT / "src"
 
 
-def test_wrapper_delivers_unicode_arguments_and_exit_code(tmp_path):
+@pytest.mark.parametrize("argument_mode", ["inline", "file"])
+def test_wrapper_delivers_arguments_and_exit_code(tmp_path, argument_mode):
     runner = tmp_path / "capture.py"
     runner.write_text(
         "import json, sys\nprint(json.dumps(sys.argv[1:], ensure_ascii=True))\n"
@@ -106,12 +117,19 @@ def test_wrapper_delivers_unicode_arguments_and_exit_code(tmp_path):
     # 실제 Python 실행기까지 연결한다. 실제 서비스는 부르지 않는다.
     makefile = tmp_path / "probe.mk"
     makefile.write_text(
-        'probe:\n\t@$(RUN) python scripts/run_make.py python "'
+        'probe:\n\t@$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) python "'
         + runner.as_posix()
         + '"\n',
         encoding="utf-8",
     )
     env = dict(os.environ, PYTHONUTF8="0", PYTHONIOENCODING="cp949")
+    argument = "path with spaces/input.json"
+    option = f'ARGS=--file "{argument}"'
+    if argument_mode == "file":
+        argument = "한글 공백🚨/입력.json"
+        arguments_file = tmp_path / "arguments.txt"
+        arguments_file.write_text(f'--file "{argument}"\n', encoding="utf-8-sig")
+        option = f"ARGS_FILE={arguments_file}"
     result = subprocess.run(
         [
             MAKE,
@@ -122,14 +140,14 @@ def test_wrapper_delivers_unicode_arguments_and_exit_code(tmp_path):
             "-f",
             str(makefile),
             "probe",
-            'ARGS=--file "한글 공백/입력.json"',
+            option,
         ],
         cwd=ROOT,
         env=env,
         capture_output=True,
         timeout=30,
     )
-    assert json.loads(result.stdout) == ["--file", "한글 공백/입력.json"]
+    assert json.loads(result.stdout) == ["--file", argument]
     assert result.returncode != 0
     # make·셸의 오류 출력은 Python의 UTF-8 설정과 다른 인코딩일 수 있다.
     assert "실패 메시지".encode("cp949") in result.stderr
@@ -160,3 +178,23 @@ def test_wrapper_preserves_env_policy_and_has_no_shell(monkeypatch):
             "한글 공백/입력.json",
         ]
     ]
+
+
+@pytest.mark.parametrize("case", ["missing", "invalid_utf8", "ambiguous", "no_command"])
+def test_args_file_errors_do_not_launch_child(tmp_path, monkeypatch, case):
+    spec = importlib.util.spec_from_file_location(
+        "run_make", ROOT / "scripts/run_make.py"
+    )
+    wrapper = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(wrapper)
+    arguments_file = tmp_path / "arguments.txt"
+    if case != "missing":
+        arguments_file.write_bytes(b"\xff" if case == "invalid_utf8" else b"--limit 2")
+    monkeypatch.setenv("ARGS", "--limit 1" if case == "ambiguous" else "")
+    commands = []
+    monkeypatch.setattr(wrapper.subprocess, "call", lambda argv: commands.append(argv))
+    argv = ["--args-file", str(arguments_file)]
+    if case != "no_command":
+        argv.append("python")
+    assert wrapper.main(argv) == 2
+    assert not commands

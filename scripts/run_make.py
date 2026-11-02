@@ -4,6 +4,7 @@ import os
 import shlex
 import subprocess
 import sys
+from pathlib import Path
 
 
 def split_arguments(value: str) -> list[str]:
@@ -39,7 +40,13 @@ def main(argv: list[str] | None = None) -> int:
         print("실행할 명령이 필요하다", file=sys.stderr)
         return 2
     try:
-        extra = split_arguments(os.environ.get("ARGS", ""))
+        source = os.environ.get("ARGS", "")
+        if command[0] == "--args-file":
+            if len(command) < 3 or source.strip():
+                raise ValueError("인수 파일과 ARGS는 함께 지정할 수 없다")
+            source = Path(command[1]).read_text(encoding="utf-8-sig").strip()
+            command = command[2:]
+        extra = split_arguments(source)
         return subprocess.call(["uv", "run", "--no-sync", *command, *extra])
     except (OSError, ValueError) as exc:
         print(f"make 명령 실행 실패: {type(exc).__name__}", file=sys.stderr)

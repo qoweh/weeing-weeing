@@ -12,6 +12,8 @@ export PYTHONIOENCODING := utf-8
 export PYTHONPATH := $(CURDIR)/src
 # ARGS를 명령 문자열에 붙이지 않고 Python 실행기가 유니코드로 읽게 한다.
 export ARGS
+# Windows용 make의 ANSI 인자 변환을 피할 때는 UTF-8 파일의 내용을 Python이 읽는다.
+RUN_MAKE_OPTIONS = $(if $(ARGS_FILE),--args-file "$(ARGS_FILE)",)
 
 ENV_FILE := $(if $(wildcard .env),--env-file .env,)
 # 팀 규칙: 프로젝트 자체는 설치하지 않는다(uv sync --no-install-project).
@@ -48,7 +50,7 @@ db-up: ## PostgreSQL 기동
 	docker compose up -d postgres
 
 db-migrate: ## DB 스키마를 최신으로 (API도 시작할 때 자동으로 올린다)
-	$(RUN) python scripts/run_make.py $(ENV_FILE) alembic upgrade head
+	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) $(ENV_FILE) alembic upgrade head
 
 qdrant-up: ## Qdrant 서버 기동 (서버 모드, .env에 QDRANT_URL=http://localhost:6333)
 	docker compose --profile qdrant up -d qdrant
@@ -57,36 +59,36 @@ down: ## 보조 서비스 정지
 	docker compose --profile qdrant down
 
 models: ## 임베딩·리랭커 모델 미리 받기 (새 PC에서 한 번, 약 4.5GB)
-	$(RUN) python scripts/run_make.py $(ENV_FILE) python scripts/download_models.py
+	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) $(ENV_FILE) python scripts/download_models.py
 
 index-reports: ## 승인 보고서 검색 등록 대기 처리 (실패 재시도: ARGS=--retry-failed)
-	$(RUN) python scripts/run_make.py $(ENV_FILE) python scripts/index_reports.py
+	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) $(ENV_FILE) python scripts/index_reports.py
 
 seed-users: ## 시연용 계정 만들기 (DB 필요, 있는 사번은 건너뜀, ARGS=--ask-password)
-	$(RUN) python scripts/run_make.py $(ENV_FILE) python scripts/seed_users.py
+	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) $(ENV_FILE) python scripts/seed_users.py
 
 rag-e2e: ## RAG 실제 문서 E2E 검증·백엔드 비교 (#28, ARGS="--backends qdrant,chroma,qdrant-server")
-	$(RUN) python scripts/run_make.py $(ENV_FILE) python scripts/verify_rag_e2e.py
+	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) $(ENV_FILE) python scripts/verify_rag_e2e.py
 
 llm-check: ## LLM(Claude) 구조화 출력 점검 (ANTHROPIC_API_KEY 필요, ARGS="--model claude-sonnet-5-5 --repeat 3")
-	$(RUN) python scripts/run_make.py $(ENV_FILE) python scripts/check_llm.py
+	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) $(ENV_FILE) python scripts/check_llm.py
 
 llm-eval: ## 모델·effort 비교 계획 (#106). ARGS="--execute"는 유료 실행
-	$(RUN) python scripts/run_make.py $(ENV_FILE) python scripts/compare_llm.py
+	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) $(ENV_FILE) python scripts/compare_llm.py
 
 analyze: ## 사건 하나를 에이전트로 분석 (ANTHROPIC_API_KEY·색인 필요, ARGS="--incident 경로.json")
-	$(RUN) python scripts/run_make.py $(ENV_FILE) python scripts/analyze_incident.py
+	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) $(ENV_FILE) python scripts/analyze_incident.py
 
 api: ## FastAPI 개발 서버 (http://localhost:8000/docs)
-	$(RUN) python scripts/run_make.py $(ENV_FILE) uvicorn --app-dir src weeing_weeing.api.app:app --reload
+	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) $(ENV_FILE) uvicorn --app-dir src weeing_weeing.api.app:app --reload
 
 chat: ## 챗봇 질문 실행 (Claude API 비용 발생, DB·색인 필요, ARGS='"P03 점검 절차는?" --asset-id BLDC-001')
-	$(RUN) python scripts/run_make.py $(ENV_FILE) python scripts/chat.py
+	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) $(ENV_FILE) python scripts/chat.py
 
 .PHONY: chat-check
 chat-check: ## Claude 없이 FAQ·검색·DB 조회 확인 (ARGS='faq' 또는 'search "P03 점검"' 또는 'history')
-	$(RUN) python scripts/run_make.py $(ENV_FILE) python scripts/check_chat.py
+	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) $(ENV_FILE) python scripts/check_chat.py
 
 .PHONY: chat-private
 chat-private: ## .env 자동 로딩 없이 Claude 키를 숨김 입력해 직접 대화 (API 비용 발생)
-	$(RUN) python scripts/run_make.py --no-env-file python scripts/chat.py --interactive --ask-key
+	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) --no-env-file python scripts/chat.py --interactive --ask-key

@@ -46,8 +46,20 @@ Windows와 Linux 모두 GNU make와 uv가 있으면 같은 Makefile을 사용한
 `PYTHONPATH`도 Makefile에서 저장소의 `src` 경로로 자동 설정하므로 PowerShell에서
 `PYTHONPATH=src`를 명령 앞에 붙일 필요가 없다. 추가 옵션은 예를 들어
 `make rag-e2e ARGS="--backends qdrant,chroma"`처럼 전달한다.
-`ARGS`는 환경변수로 Python 실행기에 전달한 뒤 인수 배열로 실행한다. 구형 Windows
-make에서 한글 인수가 명령 문자열 변환 중 손상되는 것을 피하며 공백은 큰따옴표로 묶는다.
+`ARGS`는 환경변수로 Python 실행기에 전달한 뒤 인수 배열로 실행한다. 공백은 큰따옴표로 묶는다.
+Windows용 make는 시스템 언어에 따라 한글·이모지 인자를 Python 실행 전에 손상시킬 수 있다.
+Python의 UTF-8 설정이나 `chcp`만으로는 make의 인자 변환을 고칠 수 없다.
+이 경우 인자를 UTF-8 파일에 적고 ASCII 이름의 파일 경로를 `ARGS_FILE`로 전달한다.
+파일은 인용부호를 포함한 한 줄의 인수 문자열이며, UTF-8 BOM과 마지막 줄바꿈을 허용한다.
+`ARGS`와 `ARGS_FILE`은 함께 지정하지 않는다. 실제 키·토큰을 인수 파일에 적지 않는다.
+
+```powershell
+'"모터 과열 점검 절차" --asset-id BLDC-001' | Set-Content -Encoding utf8 "$env:TEMP\ww-chat-args.txt"
+make chat ARGS_FILE="$env:TEMP\ww-chat-args.txt"
+```
+
+위 `chat` 명령은 실제 Claude API 비용이 발생한다. 터미널의 기존 `ARGS` 설정이 있다면 먼저 비운다.
+임시 폴더 경로에도 시스템 언어로 표현할 수 없는 문자가 있으면 ASCII 경로의 인수 파일을 사용한다.
 CI의 `Make compatibility`는 Windows·Linux에서 실제 make의 환경변수·한글/공백 인수
 전달을 검사한다. DB·Docker·모델·Claude 인증은 각 명령의 기존 실행 요건을 따른다.
 
