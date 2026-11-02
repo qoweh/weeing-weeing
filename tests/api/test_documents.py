@@ -748,3 +748,101 @@ def test_original_pdf_unknown_missing_or_outside_root_is_404(env):
         source="../outside.pdf",
     )
     assert client.get(f"/documents/{'a' * 32}/file").status_code == 404
+
+
+@pytest.mark.parametrize("origin", ["seed", "upload"])
+def test_chat_document_original_returns_exact_registered_file(
+    env, tmp_path, monkeypatch, origin
+):
+    import hashlib
+    from types import SimpleNamespace
+
+    from weeing_weeing.contracts import DocumentRecord
+
+    data_root = tmp_path / "data"
+    data_root.mkdir()
+    path = (data_root if origin == "seed" else env[1]) / "manual.pdf"
+    path.parent.mkdir(exist_ok=True)
+    path.write_bytes(b"%PDF-1.7 sample")
+    record = DocumentRecord(
+        doc_id="CHAT-MANUAL",
+        doc_version="2.0",
+        doc_type="manual",
+        origin=origin,
+        upload_id="a" * 32 if origin == "upload" else None,
+        title="매뉴얼",
+        source=str(path) if origin == "seed" else path.name,
+        source_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
+    )
+    monkeypatch.setattr(
+        documents, "documents", lambda: SimpleNamespace(listed=lambda: [record])
+    )
+    real_from_root = documents.from_root
+    monkeypatch.setattr(
+        documents,
+        "from_root",
+        lambda p: data_root if p == Path("data") else real_from_root(p),
+    )
+    response = TestClient(app).get(
+        "/documents/original", params={"doc_id": record.doc_id, "doc_version": "2.0"}
+    )
+    assert response.status_code == 200
+    assert response.content == path.read_bytes()
+    assert response.headers["cache-control"] == "no-store"
+    assert (
+        TestClient(app)
+        .get(
+            "/documents/original",
+            params={"doc_id": record.doc_id, "doc_version": "1.0"},
+        )
+        .status_code
+        == 404
+    )
+
+
+@pytest.mark.parametrize("reason", ["outside", "changed", "symlink"])
+def test_chat_document_original_rejects_outside_or_changed_file(
+    env, tmp_path, monkeypatch, reason
+):
+    import hashlib
+    from types import SimpleNamespace
+
+    from weeing_weeing.contracts import DocumentRecord
+
+    root = env[1]
+    root.mkdir(exist_ok=True)
+    outside = tmp_path / "private.pdf"
+    outside.write_bytes(b"%PDF-1.7 outside")
+    path = root / "manual.pdf"
+    if reason == "symlink":
+        path.symlink_to(outside)
+    else:
+        path.write_bytes(b"%PDF-1.7 registered")
+    record = DocumentRecord(
+        doc_id="CHAT-MANUAL",
+        doc_version="2.0",
+        doc_type="manual",
+        origin="upload",
+        upload_id="a" * 32,
+        title="매뉴얼",
+        source=str(outside) if reason == "outside" else path.name,
+        source_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
+    )
+    if reason == "changed":
+        path.write_bytes(b"%PDF-1.7 modified")
+    monkeypatch.setattr(
+        documents, "documents", lambda: SimpleNamespace(listed=lambda: [record])
+    )
+    response = TestClient(app).get(
+        "/documents/original", params={"doc_id": record.doc_id, "doc_version": "2.0"}
+    )
+    assert response.status_code == 404
+    assert b"outside" not in response.content and b"private.pdf" not in response.content
+
+
+def test_chat_document_original_requires_login(env):
+    app.dependency_overrides.pop(current_user)
+    response = TestClient(app).get(
+        "/documents/original", params={"doc_id": "MANUAL", "doc_version": "2.0"}
+    )
+    assert response.status_code == 401

@@ -108,3 +108,17 @@ npm run start
 <div align="center">
   <sub>Built with Next.js · React · TypeScript</sub>
 </div>
+
+## 챗봇 패널
+
+로그인 후 오른쪽 아래 챗봇을 열면 서버의 FAQ 목록을 조회합니다. ‘채팅 시작’을 누른 뒤
+질문을 전송하면 기존 챗봇 API로 검색·답변합니다. 여러 답변 부분은 하나의 말풍선에 표시하며
+출처 버튼에서 매뉴얼 PDF와 인용 버전 보고서 내용을 확인합니다. 검색 조건·내 대화·새 대화도
+패널에서 관리합니다. API 키는 화면에서 입력하지 않습니다.
+
+```bash
+npm run test:chat  # API 경로·요청 ID·상태 확인/재시도 회귀 테스트
+npm run build
+```
+
+백엔드·인증·중복 요청·장애 정책은 [CHAT_API](../docs/CHAT_API.md)를 참고하세요.

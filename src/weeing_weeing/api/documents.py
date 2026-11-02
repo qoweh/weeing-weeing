@@ -488,6 +488,62 @@ def delete_document(doc_id: str, body: DeleteDocument) -> dict[str, Any]:
     return {"doc_id": doc_id, "status": "deleted", "removed_chunks": removed}
 
 
+@router.get("/documents/original", dependencies=[Depends(current_user)])
+def get_document_original(
+    doc_id: Annotated[str, Query(pattern=DOC_ID_PATTERN, max_length=128)],
+    doc_version: Annotated[str, Query(pattern=DOC_ID_PATTERN, max_length=128)],
+) -> FileResponse:
+    """챗봇이 인용한 현재 등록 판의 원본만 반환한다. 파일 경로는 입력받지 않는다."""
+    try:
+        record = next(
+            (
+                r
+                for r in documents().listed()
+                if r.doc_id == doc_id and r.doc_version == doc_version
+            ),
+            None,
+        )
+    except db.DatabaseUnavailableError as exc:
+        raise _db_unavailable(exc) from exc
+    if record is None or record.origin not in {"seed", "upload"}:
+        raise HTTPException(
+            status_code=404, detail="인용한 문서 버전의 원본을 찾을 수 없습니다."
+        )
+    # seed도 프로젝트 data 밖의 임의 파일이나 symlink 탈출은 허용하지 않는다.
+    try:
+        root = (
+            upload_dir().resolve()
+            if record.origin == "upload"
+            else from_root(Path("data")).resolve()
+        )
+        path = (
+            (root / record.source).resolve()
+            if record.origin == "upload"
+            else from_root(Path(record.source)).resolve()
+        )
+        if (
+            not path.is_relative_to(root)
+            or path.suffix.lower() != ".pdf"
+            or not path.is_file()
+        ):
+            raise OSError("원본 경로 확인 실패")
+        with path.open("rb") as stream:
+            digest = hashlib.file_digest(stream, "sha256").hexdigest()
+        if digest != record.source_sha256:
+            raise OSError("등록 원본과 내용 불일치")
+    except (OSError, ValueError, RuntimeError) as exc:
+        raise HTTPException(
+            status_code=404, detail="인용한 문서의 원본이 없거나 변경되었습니다."
+        ) from exc
+    return FileResponse(
+        path,
+        media_type="application/pdf",
+        filename=path.name,
+        content_disposition_type="inline",
+        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+    )
+
+
 @router.get("/documents/{upload_id}", dependencies=[Depends(current_user)])
 def get_document_status(upload_id: UUID) -> dict[str, Any]:
     """업로드 건의 현재 처리 상태를 반환한다."""

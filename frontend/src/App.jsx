@@ -162,8 +162,7 @@ export default function App() {
   const openReportDraft = useCallback(
     (incident, reportId = '', row = null) => {
       const selectedIncident =
-        incident ||
-        (row?.incidentId ? { incident_id: row.incidentId } : null)
+        incident || (row?.incidentId ? { incident_id: row.incidentId } : null)
       if (!selectedIncident && !reportId) {
         setError('사건 정보를 찾을 수 없어 보고서를 열 수 없습니다.')
         return
@@ -223,6 +222,7 @@ export default function App() {
 
   return (
     <AppShell
+      onSessionExpired={forgetSession}
       user={user}
       onLogout={logout}
       busy={busy}
@@ -264,11 +264,7 @@ export default function App() {
           onSessionExpired={forgetSession}
           refreshKey={maintenanceRefreshKey}
           onOpen={(reportId, _incidentId, row) =>
-            openReportDraft(
-              row?.incident,
-              reportId,
-              row,
-            )
+            openReportDraft(row?.incident, reportId, row)
           }
         />
       )}
