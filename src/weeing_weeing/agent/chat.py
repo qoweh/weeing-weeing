@@ -142,7 +142,8 @@ class _Draft(ChatModel):
 
 
 class _BrowseFaq(ChatModel):
-    topic_id: str | None = Field(default=None, min_length=1, max_length=64)
+    # 전체 strict 도구의 union 제한(16개)을 지키도록 목록 조회는 빈 문자열로 표현한다.
+    topic_id: str = Field(default="", max_length=64)
 
 
 class _GetFaq(ChatModel):
@@ -592,7 +593,7 @@ class ToolChatService:
             try:
                 items = (
                     self._faq.list_topics()
-                    if topic is None
+                    if topic == ""
                     else self._faq.list_questions(topic)
                 )
             except FaqNotFoundError as exc:
@@ -802,7 +803,7 @@ class ToolChatService:
                 ),
                 AgentTool(
                     "browse_faq",
-                    "topic_id가 null이면 주제 목록, 아니면 해당 질문 목록.",
+                    'topic_id가 빈 문자열("")이면 주제 목록, 아니면 해당 질문 목록.',
                     _BrowseFaq.model_json_schema(),
                     browse,
                 ),

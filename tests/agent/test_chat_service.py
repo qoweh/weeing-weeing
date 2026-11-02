@@ -154,6 +154,50 @@ def test_free_question_calls_tools_without_separate_classifier():
     }
 
 
+def test_chat_request_stays_within_provider_strict_schema_limits():
+    """실제 전송 도구를 검사해 공급자 400 오류를 유료 호출 없이 예방한다."""
+    client = FakeClient(reply(submit("NEEDS_CLARIFICATION")))
+    ask(client)
+    tools = [tool for tool in client.calls[0]["tools"] if tool.get("strict")]
+
+    def counts(node):
+        unions = optional = 0
+        if isinstance(node, dict):
+            unions += int("anyOf" in node or isinstance(node.get("type"), list))
+            optional += len(
+                set(node.get("properties", {})) - set(node.get("required", []))
+            )
+            children = node.values()
+        elif isinstance(node, list):
+            children = node
+        else:
+            return unions, optional
+        for child in children:
+            child_unions, child_optional = counts(child)
+            unions += child_unions
+            optional += child_optional
+        return unions, optional
+
+    totals = [counts(tool["input_schema"]) for tool in tools]
+    assert len(tools) <= 20
+    assert sum(unions for unions, _ in totals) <= 16
+    assert sum(optional for _, optional in totals) <= 24
+
+
+def test_browse_faq_empty_topic_lists_topics_without_document_search():
+    knowledge = CommonKnowledge()
+    client = FakeClient(
+        reply(call("browse_faq", {"topic_id": ""})),
+        reply(submit("NEEDS_CLARIFICATION")),
+    )
+    assert ask(client, knowledge).status == "NEEDS_CLARIFICATION"
+    tool_result = json.loads(client.calls[1]["messages"][2]["content"][0]["content"])
+    assert {item["topic_id"] for item in tool_result} == {
+        topic.topic_id for topic in load_faq_catalog().list_topics()
+    }
+    assert not knowledge.searches
+
+
 @pytest.mark.parametrize(
     "conditions",
     [
