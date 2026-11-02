@@ -1,5 +1,6 @@
 """센서·사건·자동 분석 등록과 결과·작업 완료를 각각 원자적으로 저장한다."""
 
+from datetime import timedelta
 from uuid import uuid4
 
 from sqlalchemy import func, select, text, update
@@ -51,6 +52,17 @@ class SqlAnalysisJobs(SqlIncidents):
         )
         job_id = uuid4().hex
         full = count >= capacity
+        created_at = now()
+        previous_created_at = session.scalar(
+            select(func.max(AnalysisJobRow.created_at)).where(
+                AnalysisJobRow.incident_id == incident.incident_id
+            )
+        )
+        # 시계 해상도가 낮거나 시간이 되돌아가도 재시도를 이전 작업 뒤에 둔다.
+        if previous_created_at is not None:
+            created_at = max(
+                created_at, utc(previous_created_at) + timedelta(microseconds=1)
+            )
         session.execute(
             self._insert(AnalysisJobRow)
             .values(
@@ -61,8 +73,8 @@ class SqlAnalysisJobs(SqlIncidents):
                 snapshot=incident.model_dump(mode="json"),
                 analysis_id=None,
                 error_code="queue_full" if full else None,
-                created_at=now(),
-                updated_at=now(),
+                created_at=created_at,
+                updated_at=created_at,
             )
             .on_conflict_do_nothing()
         )

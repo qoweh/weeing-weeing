@@ -26,7 +26,9 @@ DATA = Path(__file__).resolve().parents[2] / "data/history/synthetic_reports_v1.
 
 
 def report(number=1):
-    value = MaintenanceReport.model_validate_json(DATA.read_text().splitlines()[0])
+    value = MaintenanceReport.model_validate_json(
+        DATA.read_text(encoding="utf-8").splitlines()[0]
+    )
     value.report_id = f"TEST-{number}"
     value.asset_id = "A1"
     value.incident.codes = ["BTT2-P03"]

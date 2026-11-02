@@ -137,7 +137,9 @@ def test_upload_is_indexed_into_store_and_kept_outside_git(env):
     assert "센서 앞 물체" in cases[0].text
     assert "BTT2-P03" in cases[0].metadata["codes"]
     assert "문맥: UP-MANUAL" in cases[0].text
-    assert "P03 / P04 - 센서 장기 점유" in (folder / "chunks.md").read_text()
+    assert "P03 / P04 - 센서 장기 점유" in (folder / "chunks.md").read_text(
+        encoding="utf-8"
+    )
 
 
 def test_new_version_upload_replaces_previous(env):
@@ -815,7 +817,12 @@ def test_chat_document_original_rejects_outside_or_changed_file(
     outside.write_bytes(b"%PDF-1.7 outside")
     path = root / "manual.pdf"
     if reason == "symlink":
-        path.symlink_to(outside)
+        try:
+            path.symlink_to(outside)
+        except OSError as exc:
+            if getattr(exc, "winerror", None) == 1314:
+                pytest.skip("Windows 심볼릭 링크 생성 권한이 없음")
+            raise
     else:
         path.write_bytes(b"%PDF-1.7 registered")
     record = DocumentRecord(

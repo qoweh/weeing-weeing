@@ -94,6 +94,31 @@ def test_failed_manual_retry_is_idempotent_and_not_automatic(jobs, frame):
         jobs.retry(item.incident_id, str(uuid4()))
 
 
+def test_retry_stays_latest_when_clock_does_not_advance(jobs, frame, monkeypatch):
+    from types import SimpleNamespace
+
+    from weeing_weeing.db import analysis_jobs
+
+    fixed_time = analysis_jobs.now()
+    monkeypatch.setattr(analysis_jobs, "now", lambda: fixed_time)
+    identifiers = iter(["f" * 32, "0" * 32])
+    monkeypatch.setattr(
+        analysis_jobs, "uuid4", lambda: SimpleNamespace(hex=next(identifiers))
+    )
+    item = incident(frame)
+    original = jobs.record_frame(frame, [item])[0]
+    job_id, snapshot = jobs.claim()
+    jobs.finish(job_id, result(snapshot, "FAILED"))
+    retried = jobs.retry(item.incident_id, "retry")
+    assert retried["created_at"] > original["created_at"]
+    assert jobs.latest_job(item.incident_id)["job_id"] == retried["job_id"]
+    job_id, snapshot = jobs.claim()
+    jobs.finish(job_id, result(snapshot))
+    assert jobs.retry(item.incident_id, "retry")["job_id"] == retried["job_id"]
+    with pytest.raises(db.AnalysisConflictError):
+        jobs.retry(item.incident_id, "another-retry")
+
+
 def test_restart_never_repeats_running_paid_call(jobs, frame):
     item = incident(frame)
     jobs.record_frame(frame, [item])

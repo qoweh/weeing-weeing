@@ -35,6 +35,21 @@ uv run --no-sync pre-commit install     # 커밋 전 자동 검사 (1회)
 ```
 
 `make`가 있으면 위 명령을 `make setup`, `make check`로 줄여 쓸 수 있다(`make help`).
+Makefile은 하위 프로세스에 `PYTHONUTF8=1`, `PYTHONIOENCODING=utf-8`을 자동 전달한다.
+Windows PowerShell에서도 별도 환경변수 설정 없이 `make check`를 실행하면 Python의
+기본 텍스트 인코딩과 표준 입출력에 UTF-8이 적용된다. Linux에서도 같은 설정을 사용한다.
+이 설정은 해당 make 실행과 하위 프로세스에만 적용하며 터미널의 전역 설정은 바꾸지 않는다.
+`make` 없이 `uv run`을 직접 실행할 때는 필요하면 두 환경변수를 직접 설정한다.
+
+Windows와 Linux 모두 GNU make와 uv가 있으면 같은 Makefile을 사용한다.
+`make help`는 Python으로 명령 목록을 출력하므로 `grep`·`awk`가 필요 없다.
+`PYTHONPATH`도 Makefile에서 저장소의 `src` 경로로 자동 설정하므로 PowerShell에서
+`PYTHONPATH=src`를 명령 앞에 붙일 필요가 없다. 추가 옵션은 예를 들어
+`make rag-e2e ARGS="--backends qdrant,chroma"`처럼 전달한다.
+`ARGS`는 환경변수로 Python 실행기에 전달한 뒤 인수 배열로 실행한다. 구형 Windows
+make에서 한글 인수가 명령 문자열 변환 중 손상되는 것을 피하며 공백은 큰따옴표로 묶는다.
+CI의 `Make compatibility`는 Windows·Linux에서 실제 make의 환경변수·한글/공백 인수
+전달을 검사한다. DB·Docker·모델·Claude 인증은 각 명령의 기존 실행 요건을 따른다.
 
 파일 인코딩은 UTF-8을 기본으로 사용한다. Python 코드에서 텍스트 파일을 읽고 쓸 때는
 `encoding="utf-8"`을 명시해 Windows의 기본 인코딩(CP949)에 영향을 받지 않게 한다.
