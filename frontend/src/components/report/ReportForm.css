@@ -46,7 +46,7 @@
   height: 4px;
   margin-top: 18px;
   background: var(--report-yellow);
-  content: "";
+  content: '';
 }
 
 .report-heading h2 {
@@ -93,28 +93,107 @@
   font-size: 14px;
 }
 
-.report-table { border: 1px solid var(--report-line); }
-.report-table--basic { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.report-cell { display: grid; grid-template-columns: 36% minmax(0, 1fr); min-width: 0; outline: 1px solid var(--report-line); }
-.report-cell--wide, .report-cell--full { grid-template-columns: 36% minmax(0, 1fr); }
-.report-cell--full { grid-column: 1 / -1; }
-.report-cell > strong { display: flex; align-items: center; padding: 10px 14px; background: #f0f3f7; border-right: 1px solid var(--report-line); font-size: 14px; }
-.report-cell > span { padding: 10px 14px; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
-.report-placeholder { color: var(--report-muted); }
-.report-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.report-table {
+  border: 1px solid var(--report-line);
+}
+.report-table--basic {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.report-cell {
+  display: grid;
+  grid-template-columns: 36% minmax(0, 1fr);
+  min-width: 0;
+  outline: 1px solid var(--report-line);
+}
+.report-cell--wide,
+.report-cell--full {
+  grid-template-columns: 36% minmax(0, 1fr);
+}
+.report-cell--full {
+  grid-column: 1 / -1;
+}
+.report-cell > strong {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  background: #f0f3f7;
+  border-right: 1px solid var(--report-line);
+  font-size: 14px;
+}
+.report-cell > span {
+  padding: 10px 14px;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.report-placeholder {
+  color: var(--report-muted);
+}
+.report-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 
-.report-table--recovery { display: grid; grid-template-columns: 36% repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--report-line); }
-.report-th, .report-td { min-width: 0; margin: 0; background: #fff; font-size: 14px; }
-.report-th { display: flex; align-items: center; padding: 10px 14px; background: #f0f3f7; }
-.report-td > span { display: block; padding: 10px 14px; line-height: 1.6; overflow-wrap: anywhere; }
-.report-td--span { grid-column: span 3; }
-.report-analysis-item { display: block; }
-.report-cell-fields { display: flex; flex-wrap: wrap; align-items: start; gap: 8px; padding: 8px; min-width: 0; }
-.report-cell-fields > label { flex: 1 1 180px; }
-.report-cell-fields > label:has(textarea) { flex-basis: 100%; }
-.report-cell-fields > label:has(select) { flex: 0 1 200px; }
-.report-cell-fields > label > span { color: #6d7d96; font-size: 12px; }
-.report-cell-fields textarea { min-height: 44px; }
+.report-table--recovery {
+  display: grid;
+  grid-template-columns: 36% repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--report-line);
+}
+.report-th,
+.report-td {
+  min-width: 0;
+  margin: 0;
+  background: #fff;
+  font-size: 14px;
+}
+.report-th {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  background: #f0f3f7;
+}
+.report-td > span {
+  display: block;
+  padding: 10px 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.report-td--span {
+  grid-column: span 3;
+}
+.report-analysis-item {
+  display: block;
+}
+.report-cell-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: 8px;
+  padding: 8px;
+  min-width: 0;
+}
+.report-cell-fields > label {
+  flex: 1 1 180px;
+}
+.report-cell-fields > label:has(textarea) {
+  flex-basis: 100%;
+}
+.report-cell-fields > label:has(select) {
+  flex: 0 1 200px;
+}
+.report-cell-fields > label > span {
+  color: #6d7d96;
+  font-size: 12px;
+}
+.report-cell-fields textarea {
+  min-height: 44px;
+}
 
 .report-read-grid,
 .report-input-grid,
@@ -208,7 +287,9 @@
   background-image:
     linear-gradient(45deg, transparent 50%, var(--report-muted) 50%),
     linear-gradient(135deg, var(--report-muted) 50%, transparent 50%);
-  background-position: calc(100% - 21px) 50%, calc(100% - 16px) 50%;
+  background-position:
+    calc(100% - 21px) 50%,
+    calc(100% - 16px) 50%;
   background-size: 5px 5px;
   background-repeat: no-repeat;
   cursor: pointer;
@@ -352,9 +433,19 @@
   cursor: pointer;
 }
 
-.report-photo-preview input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; }
-.report-photo-preview:focus-within { outline: 2px solid #81a9ff; outline-offset: 2px; }
-.report-photo-preview strong { color: var(--report-navy); }
+.report-photo-preview input[type='file'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.report-photo-preview:focus-within {
+  outline: 2px solid #81a9ff;
+  outline-offset: 2px;
+}
+.report-photo-preview strong {
+  color: var(--report-navy);
+}
 
 .report-photo-preview p {
   padding: 16px;
@@ -453,16 +544,31 @@
   width: 60px;
   height: 3px;
   background: var(--report-yellow);
-  content: "";
+  content: '';
 }
 
 @media (max-width: 680px) {
-  .report-table--recovery { grid-template-columns: minmax(105px, 32%) minmax(0, 1fr); }
-  .report-td--span { grid-column: auto; }
-  .report-photo-meta { flex-direction: column; gap: 8px; }
-  .report-table--basic { grid-template-columns: 1fr; }
-  .report-cell--full { grid-column: auto; }
-  .report-cell, .report-cell--wide, .report-cell--full { grid-template-columns: minmax(105px, 32%) minmax(0, 1fr); }
+  .report-table--recovery {
+    grid-template-columns: minmax(105px, 32%) minmax(0, 1fr);
+  }
+  .report-td--span {
+    grid-column: auto;
+  }
+  .report-photo-meta {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .report-table--basic {
+    grid-template-columns: 1fr;
+  }
+  .report-cell--full {
+    grid-column: auto;
+  }
+  .report-cell,
+  .report-cell--wide,
+  .report-cell--full {
+    grid-template-columns: minmax(105px, 32%) minmax(0, 1fr);
+  }
   .report-sheet {
     padding: 20px 14px;
   }
@@ -483,14 +589,40 @@
 }
 
 /* 04·05: 칸 안의 입력 항목을 선이 있는 하위 표로 나눈다. */
-.report-table--rows { display: grid; grid-template-columns: 36% minmax(0, 1fr); gap: 1px; background: var(--report-line); }
-.report-table--rows .report-td { min-width: 0; }
+.report-table--rows {
+  display: grid;
+  grid-template-columns: 36% minmax(0, 1fr);
+  gap: 1px;
+  background: var(--report-line);
+}
+.report-table--rows .report-td {
+  min-width: 0;
+}
 
-.report-subtable { display: grid; grid-template-columns: minmax(130px, 26%) minmax(0, 1fr); gap: 1px; background: var(--report-line); }
-.report-subtable > * { min-width: 0; background: #fff; }
-.report-sub-label { display: flex; align-items: center; padding: 10px 14px; background: #f8fafc; color: var(--report-muted); font-size: 13px; font-weight: 700; line-height: 1.5; }
+.report-subtable {
+  display: grid;
+  grid-template-columns: minmax(130px, 26%) minmax(0, 1fr);
+  gap: 1px;
+  background: var(--report-line);
+}
+.report-subtable > * {
+  min-width: 0;
+  background: #fff;
+}
+.report-sub-label {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  background: #f8fafc;
+  color: var(--report-muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+}
 
-.report-sheet .report-field--bare { position: relative; }
+.report-sheet .report-field--bare {
+  position: relative;
+}
 .report-sheet .report-field--bare textarea {
   min-height: 42px;
   padding: 10px 14px;
@@ -499,11 +631,18 @@
   background-color: transparent;
   font-size: 14px;
 }
-.report-sheet ::placeholder { color: var(--report-muted); opacity: 1; }
+.report-sheet ::placeholder {
+  color: var(--report-muted);
+  opacity: 1;
+}
 
 /* 날짜 입력은 비어 있으면 브라우저 기본 문구 대신 안내 문구를 보여준다. */
-.report-field--bare.is-empty input[type="datetime-local"]:not(:focus)::-webkit-datetime-edit,
-.report-field--bare.is-empty input[type="date"]:not(:focus)::-webkit-datetime-edit { opacity: 0; }
+.report-field--bare.is-empty
+  input[type='datetime-local']:not(:focus)::-webkit-datetime-edit,
+.report-field--bare.is-empty
+  input[type='date']:not(:focus)::-webkit-datetime-edit {
+  opacity: 0;
+}
 .report-field--bare.is-empty[data-placeholder]:not(:focus-within)::after {
   position: absolute;
   top: 50%;
@@ -513,15 +652,24 @@
   pointer-events: none;
   transform: translateY(-50%);
 }
-.report-fields:disabled input[type="datetime-local"]::-webkit-calendar-picker-indicator,
-.report-fields:disabled input[type="date"]::-webkit-calendar-picker-indicator { display: none; }
+.report-fields:disabled
+  input[type='datetime-local']::-webkit-calendar-picker-indicator,
+.report-fields:disabled input[type='date']::-webkit-calendar-picker-indicator {
+  display: none;
+}
 
 /* 수정 상태에서만 입력 칸을 옅은 바탕으로 구분한다. */
 .report-fields:not(:disabled) .report-field--bare input:not([readonly]),
 .report-fields:not(:disabled) .report-field--bare select,
-.report-fields:not(:disabled) .report-field--bare textarea { background-color: #f4f7fb; }
+.report-fields:not(:disabled) .report-field--bare textarea {
+  background-color: #f4f7fb;
+}
 
 @media (max-width: 680px) {
-  .report-table--rows { grid-template-columns: minmax(105px, 32%) minmax(0, 1fr); }
-  .report-subtable { grid-template-columns: minmax(90px, 36%) minmax(0, 1fr); }
+  .report-table--rows {
+    grid-template-columns: minmax(105px, 32%) minmax(0, 1fr);
+  }
+  .report-subtable {
+    grid-template-columns: minmax(90px, 36%) minmax(0, 1fr);
+  }
 }
