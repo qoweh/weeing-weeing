@@ -120,7 +120,7 @@ TEST_DATABASE_URL=postgresql://weeing:weeing@localhost:5432/weeing uv run --no-s
 
 ## 5. RAG 색인 (벡터 DB)
 
-문서 목록은 DB `document` 테이블이 원본이다(3절). 먼저 `make models`로 임베딩(`BAAI/bge-m3`)·리랭커(`BAAI/bge-reranker-v2-m3`)를 준비하고, 관제 담당자로 로그인해 HMI의 **문서 등록**에서 PDF를 올린다. 파싱·청킹·임베딩·벡터 저장은 자동으로 진행한다. 원본 PDF는 `storage/uploads/`, 문서 정보와 상태는 DB에 저장한다. 운영 카탈로그나 별도 일괄 색인 명령은 사용하지 않는다. 리랭커를 끄려면 `.env`에 `RERANKER_MODEL=`(빈 값)을 둔다.
+문서 목록은 DB `document` 테이블이 원본이다(3절). 받을 모델은 없다. 기본 설정(`EMBEDDING_PROVIDER=hashing`, `RERANKER_MODEL=` 빈 값)은 외부 호출 없이 서버 안에서 임베딩한다([EMBEDDING_API](EMBEDDING_API.md)). 관제 담당자로 로그인해 HMI의 **문서 등록**에서 PDF를 올린다. 파싱·청킹·임베딩·벡터 저장은 자동으로 진행한다. 원본 PDF는 `storage/uploads/`, 문서 정보와 상태는 DB에 저장한다. 운영 카탈로그나 별도 일괄 색인 명령은 사용하지 않는다. Voyage 임베딩·리랭크 API를 쓰려면 `.env`에 `EMBEDDING_PROVIDER=voyage`·`VOYAGE_API_KEY`·`RERANKER_MODEL=rerank-3-lite`를 넣는다(문서 본문이 외부로 나간다, [AI_DATA_SECURITY](AI_DATA_SECURITY.md)).
 
 기존 문서와 같은 ID를 입력하면 문서 종류와 설비 ID가 동일한 경우에만 교체할 수 있다.
 등록 화면에서 기존 파일과 새 파일을 확인하고 교체를 승인해야 한다. 버전이 같거나 낮으면
@@ -137,11 +137,11 @@ TEST_DATABASE_URL=postgresql://weeing:weeing@localhost:5432/weeing uv run --no-s
 | 용도 | 개발·단위 테스트 | 통합 시험·시연·운영 |
 
 - **한 프로세스만 쓰기**: Qdrant 로컬 모드는 같은 폴더를 한 프로세스만 열 수 있다. API가 로컬 폴더를 사용 중이면 별도 점검 프로그램에서 같은 폴더를 열지 않는다. 동시 접속·대시보드 확인이 필요하면 `QDRANT_URL` 서버 모드를 쓴다. Chroma 내장 모드도 같은 폴더에 여러 프로세스가 동시에 쓰지 않는다.
-- **임베딩 모델·청킹 변경**: 운영 일괄 재구축 명령은 제공하지 않는다. 모델·차원·sparse 토크나이저를 바꾸면 기존 컬렉션과 호환되지 않으므로 새 컬렉션을 준비하고 필요한 문서를 웹에서 재등록한다. 모델 변경 전 기존 DB·원본·컬렉션을 보관한다.
+- **임베딩 공급자·모델·청킹 변경**: 운영 일괄 재구축 명령은 제공하지 않는다. 공급자·모델·차원·sparse 토크나이저를 바꾸면 기존 컬렉션과 호환되지 않으므로 새 컬렉션을 준비하고 필요한 문서를 웹에서 재등록한다. 모델 변경 전 기존 DB·원본·컬렉션을 보관한다.
 - **Chroma로 바꾸기**: `.env`에 `VECTOR_STORE=chroma`. 데이터는 `CHROMA_DIR`에 저장되고 텔레메트리는 꺼져 있다. 하이브리드 검색은 같은 결과를 파이썬에서 계산한다.
 - **Chroma 자원 종료**: `build_store()`가 만든 저장소는 자기 클라이언트를 소유하므로 작업이 끝나면 `store.close()`로 닫는다. 임시 폴더 삭제 전에 닫아야 Windows 파일 잠금을 해제할 수 있다. `ChromaVectorStore`에 외부 클라이언트를 직접 주입한 경우 기본은 빌린 객체(`owns_client=False`)이며, 종료는 클라이언트를 만든 쪽에서 담당한다. 이 기본값은 같은 클라이언트를 공유하는 기존 코드의 동작을 유지한다.
 - **서버 모드 계약 테스트**: `make qdrant-up` 후 `QDRANT_URL=http://localhost:6333 uv run --no-sync pytest tests/rag`. 로컬 모드는 엔진이 달라 주기적으로 서버 모드로도 돌린다.
-- **실제 모델 스모크 테스트**(모델 다운로드 필요): `RAG_SLOW_TESTS=1 EMBEDDING_MODEL=BAAI/bge-m3 uv run --no-sync pytest tests/rag/test_real_model_smoke.py`. 모델을 이미 받았으면 `HF_HUB_OFFLINE=1`을 붙인다(붙이지 않으면 Hub 확인으로 수 분 멈출 수 있다)
+- **실제 임베딩 API 스모크 테스트**(유료, 본인 터미널에서): `RAG_LIVE_API_TESTS=1 uv run --no-sync pytest tests/rag/test_live_embedding_api.py`. `VOYAGE_API_KEY`가 필요하고 수백 토큰을 쓴다
 
 ## 문제가 생기면
 

@@ -2,6 +2,8 @@
 
 실제 문서 3종·실제 임베딩 모델·실제 Indexer로 벡터 DB(#7)를 처음부터 끝까지 확인한 기록이다. 측정 도구는 `make rag-e2e`(`scripts/verify_rag_e2e.py`), 원본 보고서는 [`rag_e2e/`](rag_e2e/)에 날짜별로 둔다.
 
+> **2026-11-03 이후**: 로컬 임베딩·리랭커(bge-m3·bge-reranker-v2-m3)는 제거됐다(D-31). 아래 수치와 명령은 그때의 기록이며 지금 코드로는 그대로 재현되지 않는다. 현재 구성은 [EMBEDDING_API](EMBEDDING_API.md).
+
 ## 2026-10-27 측정 ② 리랭커 실측·Incident 질의 (#8)
 
 #71의 리랭커(`RERANKER_MODEL`, 후보 `RAG_CANDIDATE_K`=30)에 `BAAI/bge-reranker-v2-m3`를 넣어 처음으로 실제 모델 품질을 쟀다. 질의는 Incident 코드 질의 6개를 더해 18개(코드 → `interface.incident_query`와 같은 질의문, 정답은 대응 절 본문 문구).

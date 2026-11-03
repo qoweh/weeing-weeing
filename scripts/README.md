@@ -6,16 +6,6 @@
 SQLite·가짜 Analyzer로 입력→Error→작업 등록→분석→저장을 시연한다. Claude 비용은 없다.
 PowerShell 명령과 실제 유료 연결은 [AUTO_ANALYSIS](../docs/AUTO_ANALYSIS.md)를 따른다.
 
-## 모델 받기 (`download_models.py`)
-
-`.env`의 `EMBEDDING_MODEL`·`RERANKER_MODEL`을 Hugging Face 캐시에 받는다. LLM은 상용 API라 받을 것이 없다. 검색·리랭킹은 실행 중에 모델을 내려받지 않으므로 새 PC에서 웹 문서를 등록하기 전에 한 번 실행한다. 이미 받은 모델은 확인만 하고 넘어간다.
-
-```bash
-make models                     # = PYTHONPATH=src uv run --no-sync python scripts/download_models.py
-```
-
-종료 코드는 0 모두 받음, 1 받지 못한 모델 있음.
-
 ## 시연 계정 (`seed_users.py`, #62)
 
 `data/seed/demo_users_v1.toml`의 계정(관리자 `ADMIN` + 직책 4종)을 DB에 만든다. 이미 있는 사번은 건드리지 않는다. 로그인·권한은 [docs/AUTH.md](../docs/AUTH.md).

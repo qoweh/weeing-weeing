@@ -193,7 +193,7 @@ def _index_locked(repo: db.DocumentRepository, record: DocumentRecord) -> None:
     except InvalidDocumentError as exc:
         repo.update_upload(upload_id, status="failed", error=str(exc))
         return
-    except ValueError as exc:  # 설정 누락 등(예: EMBEDDING_MODEL이 비어 있음)
+    except ValueError as exc:  # 설정 오류 등(예: 알 수 없는 EMBEDDING_PROVIDER)
         repo.update_upload(
             upload_id, status="failed", error=str(exc), error_type=type(exc).__name__
         )

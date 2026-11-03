@@ -96,6 +96,7 @@ def test_summary_excludes_known_control_and_counts_actual_empty_results():
 
 
 def test_default_plan_does_not_create_models_or_output(tmp_path, monkeypatch):
+    monkeypatch.setenv("RERANKER_MODEL", "rerank-3-lite")  # 기본값은 리랭커 끔
     monkeypatch.setattr(
         runner.factory, "build_store", lambda *a, **kw: pytest.fail("모델 실행 금지")
     )

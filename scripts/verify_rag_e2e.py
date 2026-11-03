@@ -1,7 +1,7 @@
 """실제 문서 E2E 검증(#28). 평가 자료 목록 문서를 백엔드마다 새 저장소에 색인하고 비교한다.
 
 입력: data/eval/rag_documents_v1.toml과 그 문서들, data/eval/rag_queries_v1.toml(샘플 질의),
-.env(EMBEDDING_MODEL 등)
+.env(EMBEDDING_PROVIDER·EMBEDDING_MODEL 등)
 출력: 터미널 요약, outputs/rag_e2e/report-<시각>.md(검색 비교표·색인·갱신·질의별 상위 결과)
 종료 코드: 0 모든 검사 통과 / 1 색인·멱등·갱신 검사 실패 / 2 설정·연결·실행 오류
 
@@ -10,9 +10,9 @@
 
 - 저장소는 백엔드마다 임시 폴더(서버는 임시 컬렉션)에 새로 만들고 끝나면 지운다.
   storage/의 실제 색인은 건드리지 않는다.
-- 임베딩 모델은 한 번만 올려 모든 백엔드가 같이 쓴다.
+- 임베더는 한 번만 만들어 모든 백엔드가 같이 쓴다(voyage면 API 호출을 아낀다).
 - 같은 입력의 임베딩을 실행 중 재사용한다. 순수 처리 시간 측정은 --no-embedding-cache.
-- RERANKER_MODEL이 있으면 로컬 리랭커도 한 번만 올려 reranked 결과를 비교한다.
+- RERANKER_MODEL이 있으면 Voyage 리랭커로 reranked 결과를 비교한다(API 비용 발생).
 - 실제 색인에는 #6 Indexer가 rag/factory.py의 indexer_class()에 연결돼 있어야 한다.
 """
 
@@ -118,7 +118,7 @@ def main(argv: list[str] | None = None) -> int:
         help="임베딩 캐시를 사용해도 검색 중 모델을 메모리에 유지한다",
     )
     parser.add_argument(
-        "--reranker-batch-size", type=int, default=16, help="리랭커 추론 배치 크기"
+        "--reranker-batch-size", type=int, default=100, help="리랭크 API 요청당 후보 수"
     )
     args = parser.parse_args(argv)
     if args.reranker_batch_size < 1:
@@ -143,7 +143,7 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as exc:
         return _cannot_start(exc)
 
-    embedder = factory.LazyEmbedder(settings.embedding_model)  # 모델은 한 번만
+    embedder = factory.build_embedder(settings)  # 모든 백엔드가 같이 쓴다
     if not args.no_embedding_cache:
         embedder = EvaluationEmbedder(embedder)
 
@@ -199,9 +199,9 @@ def main(argv: list[str] | None = None) -> int:
         "\n## 실행 설정\n\n"
         f"- 청킹 방식: `{args.chunking}`\n"
         f"- 질의 파일: `{args.queries}` ({len(queries)}개)\n"
-        f"- 임베딩: `{settings.embedding_model}`\n"
+        f"- 임베딩: `{factory.collection_embedding_name(settings)}`\n"
         f"- 리랭커: `{settings.reranker_model or '미사용'}`\n"
-        f"- 리랭커 추론 배치 크기: {args.reranker_batch_size}\n"
+        f"- 리랭크 요청당 후보 수: {args.reranker_batch_size}\n"
         f"- 후보 수: {settings.rag_candidate_k}, 최종 k: {args.k}\n"
         f"- 관련도 하한: {settings.rag_min_relevance}\n"
         f"- 실행 중 임베딩 캐시: {'미사용' if args.no_embedding_cache else '사용'}\n"

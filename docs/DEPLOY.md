@@ -26,12 +26,12 @@ web(Caddy :80/:443) ─┬─ /api/*  → api(FastAPI :8000)  ─┬─ postgres
 |---|---|---|
 | web | `deploy/web.Dockerfile` (Caddy + hmi/web 빌드) | `caddy_data`(인증서) |
 | frontend | `deploy/frontend.Dockerfile` | - |
-| api | `deploy/api.Dockerfile` | `storage`(업로드), `outputs`(사건 이력), `hf_models`(RAG 모델, 지금은 비어 있음) |
+| api | `deploy/api.Dockerfile` | `storage`(업로드), `outputs`(사건 이력) |
 | postgres | `postgres:16-alpine` | `postgres_data` |
 | qdrant | `qdrant/qdrant:v1.20.0` | `qdrant_data` |
 
 - 서버는 빌드하지 않는다. 8GB에서 Next.js 빌드·의존성 설치를 피하고, 이미지 태그로 롤백하기 위해서다
-- 리눅스에서는 CPU판 torch를 쓴다(`pyproject.toml`의 `[tool.uv.sources]`). CUDA판은 nvidia 패키지만 약 5GB다
+- API 이미지에는 torch·로컬 AI 모델이 없다(D-31). 임베딩은 해시 방식 또는 외부 API다
 - 모든 서비스가 `restart: unless-stopped`라 서버를 껐다 켜면 2~3분 뒤 저절로 다시 뜬다
 - 경로: `http://<서버 IP>/`(frontend), `/hmi/`(hmi/web), `/api/health`, `/api/docs`(API 문서)
 
@@ -152,7 +152,7 @@ chmod 600 .env
 - `ANTHROPIC_API_KEY=` 주석을 풀고 키를 넣는다. 콘솔에서 사용량 한도를 걸어 둔다
 - `POSTGRES_PASSWORD`는 새로 만든다(`openssl rand -hex 16`). URL에 들어가므로 영문·숫자만 쓴다. **DB를 처음 띄운 뒤에는 바꿔도 적용되지 않는다**(볼륨에 처음 값이 남는다)
 - `DATABASE_URL`·`QDRANT_URL`·`VECTOR_STORE`는 compose가 컨테이너 주소로 덮어쓰므로 그대로 둬도 된다
-- `RERANKER_MODEL=`(빈 값)으로 둔다. RAG 모델은 지금 받지 않는다([RAG 모델](#rag-모델-지금은-받지-않는다))
+- `EMBEDDING_PROVIDER=hashing`, `RERANKER_MODEL=`(빈 값)이 기본이다. 외부 임베딩 API를 켤 때만 바꾼다([RAG 검색](#rag-검색-로컬-모델-없음))
 - `ANALYSIS_AUTO_ENABLED=true`는 사건마다 Claude API를 호출한다(비용). 시연할 때만 켠다
 - 도메인이 생기면 `SITE_ADDRESS=example.com`을 추가한다. Caddy가 HTTPS 인증서를 자동으로 받는다(443 필요)
 - `IMAGE_TAG`·`IMAGE_PREFIX`는 배포 워크플로가 적는다. 직접 고치지 않는다
@@ -172,24 +172,15 @@ cd ~/weeing-weeing
 docker compose run --rm api python scripts/seed_users.py
 ```
 
-### RAG 모델 (지금은 받지 않는다)
+### RAG 검색 (로컬 모델 없음)
 
-LLM은 Claude API지만, 문서 검색(RAG)은 서버에서 도는 별도 모델을 쓴다. 지금은 디스크·메모리를 아끼려고 **받지 않는다.**
+서버에는 AI 모델을 받지 않는다. 검색은 다음으로 돈다([EMBEDDING_API](EMBEDDING_API.md)).
 
-- compose가 `HF_HUB_OFFLINE=1`로 띄워 실행 중에도 모델을 자동으로 받지 않는다
-- 그동안 문서 업로드 색인·근거 검색·자동 분석은 실패로 기록된다(API·로그인·화면은 정상)
-- RAG를 켜도 리랭커는 끈 채로 둔다(`.env`의 `RERANKER_MODEL=` 빈 값). 검색 정확도는 #8 실측 MRR 0.92 → 0.77
-
-RAG를 켤 때(임베딩 bge-m3 약 2.2GB, 볼륨 `hf_models`에 남아 다음 배포에도 유지):
-
-```
-cd ~/weeing-weeing
-echo 'HF_HUB_OFFLINE=0' >> .env
-docker compose run --rm api python scripts/download_models.py   # 임베딩 약 2.2GB, 5분 안팎
-docker compose up -d api
-```
-
-모델을 준비한 뒤 일반 문서는 웹의 **문서 등록**에서 올린다. 등록 시 파싱·청킹·임베딩·벡터 저장이 자동으로 진행된다. 운영 카탈로그와 `scripts/build_index.py`·`make index`는 사용하지 않는다.
+- 기본: `EMBEDDING_PROVIDER=hashing`(해시 임베딩) + Kiwi BM25 + 리랭커 끔. 외부 호출·토큰 비용이 없다
+- 문서는 웹의 **문서 등록**에서 올린다. 파싱·청킹·임베딩·벡터 저장이 자동으로 진행된다. 운영 카탈로그와 `scripts/build_index.py`·`make index`는 사용하지 않는다
+- 품질이 필요하면 서버 `.env`에 `EMBEDDING_PROVIDER=voyage`·`VOYAGE_API_KEY`(·선택 `RERANKER_MODEL=rerank-3-lite`)를 넣고 `docker compose up -d api`. 문서 본문이 외부로 나가므로 [AI_DATA_SECURITY](AI_DATA_SECURITY.md) 점검표를 먼저 본다
+- 공급자·모델·차원을 바꾸면 기존 컬렉션과 섞을 수 없다. `.env`의 `RAG_COLLECTION`을 새 이름으로 바꾸고 문서를 다시 등록한다
+- 예전 배포에서 남은 `hf_models` 볼륨은 쓰지 않는다. 지우려면 `docker volume ls`로 이름을 확인한 뒤 `docker volume rm <이름>`
 
 ### 확인
 
@@ -232,5 +223,5 @@ scp 'ww-team1:~/weeing-weeing/backup-*.sql' 'ww-team1:~/weeing-weeing/files-*.tg
 | `Connection timed out`(SSH) | 서버가 꺼져 있거나 보안그룹 22번이 닫혀 있음 |
 | `.env가 없습니다` | [서버 .env](#3-서버-env) 작성 |
 | API가 healthy가 안 됨 | `docker compose logs api`. DB 비밀번호 불일치(처음 값과 다름)가 흔하다 |
-| 디스크 부족 | `docker system df`. 배포 때마다 쓰지 않는 이미지를 지운다(`prune -af`). 그래도 차면 모델·볼륨 크기 확인 |
-| 메모리 부족(OOM) | `docker stats`. 임베딩 모델이 약 1.5GB를 쓴다. 필요하면 강사에게 16GB 요청 |
+| 디스크 부족 | `docker system df`. 배포 때마다 쓰지 않는 이미지를 지운다(`prune -af`). 그래도 차면 볼륨 크기 확인 |
+| 메모리 부족(OOM) | `docker stats`. 로컬 임베딩 모델(약 1.5GB)을 뺐으므로 그 전보다 적게 쓴다. 필요하면 강사에게 16GB 요청 |

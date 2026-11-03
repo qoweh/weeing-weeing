@@ -1,6 +1,8 @@
-"""실제 임베딩 모델 스모크 테스트. 모델 다운로드(수 GB)가 필요해 기본으로는 건너뛴다.
+"""실제 Voyage 임베딩 API 스모크 테스트. 유료 API 호출이라 기본으로는 건너뛴다.
 
-RAG_SLOW_TESTS=1 EMBEDDING_MODEL=BAAI/bge-m3 uv run --no-sync pytest tests/rag/test_real_model_smoke.py
+키 확인과 실행은 사용자가 자기 터미널에서 한다(에이전트는 실행하지 않는다).
+    RAG_LIVE_API_TESTS=1 VOYAGE_API_KEY=... uv run --no-sync pytest tests/rag/test_live_embedding_api.py
+문서 3개와 질의 4번이라 토큰은 수백 개 수준이다.
 """
 
 import dataclasses
@@ -13,7 +15,8 @@ from weeing_weeing.rag.factory import build_store
 from weeing_weeing.rag.store import Chunk
 
 pytestmark = pytest.mark.skipif(
-    os.environ.get("RAG_SLOW_TESTS") != "1", reason="RAG_SLOW_TESTS=1일 때만 실행"
+    os.environ.get("RAG_LIVE_API_TESTS") != "1",
+    reason="RAG_LIVE_API_TESTS=1일 때만 실행(유료 API)",
 )
 
 TEXTS = [
@@ -28,7 +31,8 @@ def store(request, tmp_path_factory):
     tmp = tmp_path_factory.mktemp(request.param)
     settings = dataclasses.replace(
         get_settings(),
-        embedding_model=os.environ.get("EMBEDDING_MODEL") or "BAAI/bge-m3",
+        embedding_provider="voyage",
+        embedding_model=os.environ.get("EMBEDDING_MODEL", ""),
         vector_store=request.param,
         qdrant_path=tmp / "qdrant",
         qdrant_url="",

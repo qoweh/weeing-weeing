@@ -1,14 +1,20 @@
-"""모델 다운로드 없이 관련도 정렬·출처 보존·추론 실패 처리를 검증한다."""
+"""실제 API 호출 없이(httpx.MockTransport) 리랭크 정렬·출처 보존·실패 처리를 검증한다."""
 
-import sys
-from types import SimpleNamespace
-from unittest.mock import Mock
+import json
 
+import httpx
 import pytest
 
-from weeing_weeing.rag import reranker
-from weeing_weeing.rag.reranker import CrossEncoderReranker
+from weeing_weeing.rag.embedder import EmbeddingApiError
+from weeing_weeing.rag.reranker import VoyageReranker
 from weeing_weeing.rag.store import Chunk, Hit
+
+KEY = "test-voyage-key"
+
+
+@pytest.fixture(autouse=True)
+def api_key(monkeypatch):
+    monkeypatch.setenv("VOYAGE_API_KEY", KEY)
 
 
 def hits():
@@ -20,85 +26,113 @@ def hits():
     ]
 
 
-def test_lazy_model_reused_and_rrf_scores_preserved(monkeypatch):
-    model = Mock()
-    model.predict.return_value = [-1.0, 5.0, 0.0]
-    load = Mock(return_value=model)
-    monkeypatch.setattr(reranker, "_load_model", load)
-    ranker = CrossEncoderReranker("local-model", batch_size=2)
-    candidates = hits()
-    load.assert_not_called()
+def client(scores=None, *, status=200, body=None, requests=None):
+    def handle(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        if requests is not None:
+            requests.append((request, payload))
+        if body is not None:
+            return httpx.Response(status, json=body)
+        values = scores if scores is not None else [0.0] * len(payload["documents"])
+        data = [{"index": i, "relevance_score": s} for i, s in enumerate(values)]
+        data.sort(key=lambda item: -item["relevance_score"])  # API는 점수 순으로 준다
+        return httpx.Response(
+            status, json={"data": data, "usage": {"total_tokens": 42}}
+        )
 
-    for _ in range(2):
-        found = ranker.rerank("센서 오염", candidates)
-        assert [h.chunk for h in found] == [candidates[i].chunk for i in (1, 2, 0)]
-        assert [h.score for h in found] == [candidates[i].score for i in (1, 2, 0)]
-        assert [h.relevance for h in found] == [5.0, 0.0, -1.0]
-        assert found[0].chunk is candidates[1].chunk
-        assert all(h.relevance is None for h in candidates)  # 원본 후보는 수정하지 않음
-    load.assert_called_once_with("local-model")
-    model.predict.assert_called_with(
-        [("센서 오염", hit.chunk.text) for hit in candidates],
-        batch_size=2,
-        show_progress_bar=False,
+    return httpx.Client(transport=httpx.MockTransport(handle))
+
+
+def test_sorts_by_api_score_and_preserves_rrf():
+    requests = []
+    ranker = VoyageReranker(
+        "rerank-3-lite", client=client([0.1, 0.9, 0.5], requests=requests)
     )
-
-
-def test_tied_scores_keep_hybrid_order(monkeypatch):
-    model = Mock()
-    model.predict.return_value = [0.0, 0.0, 0.0]
-    monkeypatch.setattr(reranker, "_load_model", lambda _: model)
     candidates = hits()
-    found = CrossEncoderReranker("local").rerank("질문", candidates)
+    found = ranker.rerank("센서 오염", candidates)
+    assert [h.chunk for h in found] == [candidates[i].chunk for i in (1, 2, 0)]
+    assert [h.score for h in found] == [candidates[i].score for i in (1, 2, 0)]
+    assert [h.relevance for h in found] == [0.9, 0.5, 0.1]
+    assert all(h.relevance is None for h in candidates)  # 원본 후보는 수정하지 않음
+    request, payload = requests[0]
+    assert payload == {
+        "query": "센서 오염",
+        "documents": [h.chunk.text for h in candidates],
+        "model": "rerank-3-lite",
+        "truncation": True,
+    }
+    assert request.url.path.endswith("/rerank")
+    assert request.headers["Authorization"] == f"Bearer {KEY}"
+    assert ranker.total_tokens == 42
+
+
+def test_results_key_from_sdk_shape_is_accepted():
+    body = {"results": [{"index": 0, "relevance_score": 0.2}]}
+    found = VoyageReranker("r", client=client(body=body)).rerank("질문", hits()[:1])
+    assert [h.relevance for h in found] == [0.2]
+
+
+def test_batches_candidates_by_batch_size():
+    requests = []
+    ranker = VoyageReranker("r", batch_size=2, client=client(requests=requests))
+    assert len(ranker.rerank("질문", hits())) == 3
+    assert [len(p["documents"]) for _, p in requests] == [2, 1]
+
+
+def test_tied_scores_keep_hybrid_order():
+    candidates = hits()
+    found = VoyageReranker("r", client=client([0.0, 0.0, 0.0])).rerank(
+        "질문", candidates
+    )
     assert [h.chunk for h in found] == [h.chunk for h in candidates]
-    assert [h.relevance for h in found] == [0.0, 0.0, 0.0]
 
 
-def test_no_candidates_does_not_load_model(monkeypatch):
-    load = Mock()
-    monkeypatch.setattr(reranker, "_load_model", load)
-    assert CrossEncoderReranker("local").rerank("질문", []) == []
-    load.assert_not_called()
+def test_no_candidates_does_not_call_api():
+    requests = []
+    assert (
+        VoyageReranker("r", client=client(requests=requests)).rerank("질문", []) == []
+    )
+    assert requests == []
 
 
 @pytest.mark.parametrize(
-    "scores", [[0.1], [0.1, float("nan"), 0.2], [float("inf")] * 3]
+    "body",
+    [
+        {"data": [{"index": 0, "relevance_score": 0.1}]},  # 개수 부족
+        {"data": [{"index": 5, "relevance_score": 0.1}]},  # 범위 밖 index
+        {"data": [{"index": 0, "relevance_score": None}]},
+        {"data": [{"index": i, "relevance_score": float("nan")} for i in range(3)]},
+        {"unexpected": []},
+    ],
 )
-def test_invalid_model_scores_are_rejected(monkeypatch, scores):
-    model = Mock()
-    model.predict.return_value = scores
-    monkeypatch.setattr(reranker, "_load_model", lambda _: model)
+def test_invalid_api_scores_are_rejected(body):
     with pytest.raises(ValueError):
-        CrossEncoderReranker("local").rerank("질문", hits())
+        VoyageReranker("r", client=client(body=body)).rerank("질문", hits())
 
 
-def test_model_failure_is_not_no_evidence(monkeypatch):
-    model = Mock()
-    model.predict.side_effect = RuntimeError("추론 실패")
-    monkeypatch.setattr(reranker, "_load_model", lambda _: model)
-    with pytest.raises(RuntimeError, match="추론 실패"):
-        CrossEncoderReranker("local").rerank("질문", hits())
+def test_api_failure_is_not_no_evidence():
+    ranker = VoyageReranker("r", client=client(status=401, body={"detail": "bad key"}))
+    with pytest.raises(EmbeddingApiError, match="HTTP 401") as error:
+        ranker.rerank("질문", hits())
+    assert KEY not in str(error.value)
 
 
-def test_model_loading_is_local_only(monkeypatch):
-    model = SimpleNamespace(num_labels=1)
-    constructor = Mock(return_value=model)
-    monkeypatch.setitem(
-        sys.modules, "sentence_transformers", SimpleNamespace(CrossEncoder=constructor)
-    )
-    assert reranker._load_model("local") is model
-    constructor.assert_called_once_with(
-        "local", local_files_only=True, trust_remote_code=False
-    )
-    model.num_labels = 2
-    with pytest.raises(ValueError, match="점수 하나"):
-        reranker._load_model("classifier")
+def test_missing_key_is_clear_error(monkeypatch):
+    monkeypatch.delenv("VOYAGE_API_KEY")
+    with pytest.raises(EmbeddingApiError, match="VOYAGE_API_KEY"):
+        VoyageReranker("r", client=client()).rerank("질문", hits())
 
 
 @pytest.mark.parametrize(
     "kwargs",
-    [{"model_name": " "}, {"batch_size": 0}, {"batch_size": True}, {"batch_size": 1.5}],
+    [
+        {"model_name": " "},
+        {"batch_size": 0},
+        {"batch_size": 1001},
+        {"batch_size": True},
+        {"batch_size": 1.5},
+    ],
 )
 def test_invalid_configuration(kwargs):
     with pytest.raises((ValueError, TypeError)):
-        CrossEncoderReranker(**{"model_name": "local", **kwargs})
+        VoyageReranker(**{"model_name": "r", **kwargs})

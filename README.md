@@ -70,6 +70,8 @@ tests/  scripts/  docs/
 | [USAGE_TRACKING](docs/USAGE_TRACKING.md) | LLM 사용량 기록(Langfuse): 무엇을 남기는지, 팀원 설정 |
 | [DIRECTION_CHANGES](docs/DIRECTION_CHANGES.md) | 방향 전환 때 없앤 것·바꾼 것 기록(로컬 LLM 폐지 등) |
 | [RAG_RETRIEVAL](docs/RAG_RETRIEVAL.md) | 폴더별 역할, 검색·리랭킹 구조, 공개 연결 방법과 평가 |
+| [EMBEDDING_API](docs/EMBEDDING_API.md) | 임베딩·리랭크 공급자 선정(해시 기본·Voyage), 후보 비교와 가격 |
+| [AI_DATA_SECURITY](docs/AI_DATA_SECURITY.md) | 외부 AI로 나가는 데이터, 기업의 일반적 관리 방식, 도입 전 점검표 |
 | [REPORTS](docs/REPORTS.md) | 보고서 로그인·임시 저장·내 보고서·결재·개정판과 #29 연결 지점 |
 | [data/README](data/README.md) | 데이터·문서 출처 |
 

@@ -18,7 +18,7 @@ class Settings:
     llm_effort: str  # 생각 깊이: low | medium | high | xhigh | max
     llm_timeout_s: float  # API 호출 한 번의 제한 시간
     agent_max_turns: int  # 사건 하나 분석에서 LLM 호출 상한
-    embedding_model: str
+    embedding_model: str  # 비어 있으면 공급자 기본 모델(rag/embedder.py DEFAULT_MODELS)
     vector_store: str  # qdrant | chroma
     rag_collection: str
     upload_dir: Path  # 업로드 문서(git 밖)
@@ -31,7 +31,15 @@ class Settings:
     telemetry_csv: Path
     replay_speed: float
     telemetry_history_dir: Path = Path("outputs/incident_history")
-    reranker_model: str = ""  # 비어 있으면 RRF 순위, 지정하면 로컬 CrossEncoder
+    reranker_model: str = (
+        ""  # 비어 있으면 리랭킹 끔(RRF 순위), 지정하면 Voyage 리랭크 API
+    )
+    # 임베딩 공급자(docs/EMBEDDING_API.md). hashing은 외부 호출·토큰 비용이 없다
+    embedding_provider: str = "hashing"  # hashing | voyage
+    embedding_dim: int = 1024  # voyage는 256·512·1024·2048
+    # Voyage API. 키는 VOYAGE_API_KEY에서 직접 읽는다(설정 객체에 담지 않는다)
+    voyage_base_url: str = "https://ai.mongodb.com/v1"
+    voyage_timeout_s: float = 30
     rag_candidate_k: int = 30  # 리랭킹할 최소 후보 수. 최종 k보다 작으면 k까지 확장
     auth_session_hours: float = 12  # 로그인 세션 유효 시간(교대 근무 한 번)
     rag_min_relevance: float | None = (
@@ -53,7 +61,11 @@ def get_settings() -> Settings:
         llm_effort=env("LLM_EFFORT", "medium"),
         llm_timeout_s=float(env("LLM_TIMEOUT_S", "120")),
         agent_max_turns=int(env("AGENT_MAX_TURNS", "8")),
-        embedding_model=env("EMBEDDING_MODEL", "BAAI/bge-m3"),
+        embedding_model=env("EMBEDDING_MODEL", ""),
+        embedding_provider=env("EMBEDDING_PROVIDER", "hashing").strip().lower(),
+        embedding_dim=int(env("EMBEDDING_DIM", "1024")),
+        voyage_base_url=env("VOYAGE_BASE_URL", "https://ai.mongodb.com/v1"),
+        voyage_timeout_s=float(env("VOYAGE_TIMEOUT_S", "30")),
         vector_store=env("VECTOR_STORE", "qdrant"),
         rag_collection=env("RAG_COLLECTION", "knowledge"),
         upload_dir=Path(env("UPLOAD_DIR", "storage/uploads")),
@@ -75,7 +87,7 @@ def get_settings() -> Settings:
         telemetry_history_dir=Path(
             env("TELEMETRY_HISTORY_DIR", "outputs/incident_history")
         ),
-        reranker_model=env("RERANKER_MODEL", "BAAI/bge-reranker-v2-m3"),
+        reranker_model=env("RERANKER_MODEL", ""),
         rag_candidate_k=int(env("RAG_CANDIDATE_K", "30")),
         rag_min_relevance=float(min_relevance) if min_relevance else None,
         auth_session_hours=float(env("AUTH_SESSION_HOURS", "12")),

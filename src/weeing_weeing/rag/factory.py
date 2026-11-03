@@ -3,18 +3,18 @@
     store = build_store(get_settings())
       ├ VECTOR_STORE=qdrant → QdrantVectorStore(QDRANT_URL 서버 또는 QDRANT_PATH 로컬)
       │              chroma → ChromaVectorStore(CHROMA_DIR, 텔레메트리 끔)
-      ├ embedder = #6 create_embeddings(EMBEDDING_MODEL)
+      ├ embedder = build_embedder: EMBEDDING_PROVIDER=hashing(기본, 비용 0) 또는 voyage(API)
       └ sparse   = KiwiBm25Encoder()
 
-벡터 DB에는 벡터만 남고 모델은 저장되지 않는다. 그래서 색인과 검색 모두 모델이
-메모리에 올라와 있어야 하고, 프로세스마다 build_store를 한 번 불러 재사용한다.
+로컬 모델 가중치는 쓰지 않는다. 색인과 검색은 같은 임베더(같은 공급자·모델·차원)를
+써야 하므로 컬렉션에 "공급자:모델:차원"을 기록하고, 프로세스마다 build_store를 한 번 불러 재사용한다.
 """
 
 from collections.abc import Callable
 
 from weeing_weeing.config import Settings
 from weeing_weeing.rag.interface import Indexer
-from weeing_weeing.rag.reranker import CrossEncoderReranker, Reranker
+from weeing_weeing.rag.reranker import Reranker, VoyageReranker
 from weeing_weeing.rag.retriever import HybridRetriever
 from weeing_weeing.rag.sparse import KiwiBm25Encoder, SparseEncoder
 from weeing_weeing.rag.store import Embedder, VectorStore
@@ -56,33 +56,49 @@ def _chroma_client(settings: Settings):
     )
 
 
-def _default_embedder(model_name: str) -> Embedder:
-    # 모델 로드에 수 초·수 GB가 들어서 필요할 때만 import한다.
-    from weeing_weeing.rag.embedder import EmbeddingConfig, create_embeddings
+def embedding_spec(settings: Settings) -> tuple[str, str, int]:
+    """설정에서 (공급자, 모델, 차원)을 정한다. 잘못된 값은 StoreConfigError."""
+    from weeing_weeing.rag.embedder import DEFAULT_MODELS, PROVIDERS, VOYAGE_DIMS
 
-    return create_embeddings(EmbeddingConfig(model_name=model_name))
+    provider = settings.embedding_provider.strip().lower()
+    if provider not in PROVIDERS:
+        raise StoreConfigError(
+            f"EMBEDDING_PROVIDER={settings.embedding_provider!r}: "
+            f"{' 또는 '.join(PROVIDERS)}만 쓸 수 있다"
+        )
+    model = settings.embedding_model.strip() or DEFAULT_MODELS[provider]
+    dim = settings.embedding_dim
+    if provider == "voyage" and dim not in VOYAGE_DIMS:
+        raise StoreConfigError(f"EMBEDDING_DIM={dim}: voyage는 {VOYAGE_DIMS} 중 하나")
+    if dim < 8:
+        raise StoreConfigError(f"EMBEDDING_DIM={dim}: 8 이상이어야 한다")
+    return provider, model, dim
 
 
-class LazyEmbedder:
-    """첫 임베딩 때 모델을 한 번 올린다.
+def _default_embedder(settings: Settings) -> Embedder:
+    from weeing_weeing.rag.embedder import HashingEmbedder, VoyageEmbedder
 
-    저장소 조립·설정 검사·dry-run은 모델 없이 끝나고, 실제로 임베딩할 때만 비용을 낸다.
-    """
+    provider, model, dim = embedding_spec(settings)
+    if provider == "voyage":
+        return VoyageEmbedder(
+            model,
+            dim=dim,
+            base_url=settings.voyage_base_url,
+            timeout_s=settings.voyage_timeout_s,
+        )
+    return HashingEmbedder(dim)
 
-    def __init__(self, model_name: str) -> None:
-        self.model_name = model_name
-        self._model: Embedder | None = None
 
-    def _get(self) -> Embedder:
-        if self._model is None:
-            self._model = _default_embedder(self.model_name)
-        return self._model
+def build_embedder(settings: Settings) -> Embedder:
+    """설정의 임베더. 외부 호출·형태소 분석기 로드는 첫 임베딩 때 일어난다."""
+    return _default_embedder(settings)
 
-    def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        return self._get().embed_documents(texts)
 
-    def embed_query(self, text: str) -> list[float]:
-        return self._get().embed_query(text)
+def collection_embedding_name(settings: Settings) -> str:
+    """컬렉션에 기록하는 임베딩 이름. 예: "hashing:hashing-kiwi-v1:1024"."""
+    from weeing_weeing.rag.embedder import collection_model_name
+
+    return collection_model_name(*embedding_spec(settings))
 
 
 def build_store(
@@ -93,13 +109,9 @@ def build_store(
     recreate: bool = False,
 ) -> VectorStore:
     """embedder·sparse_encoder를 주면 그것을 쓴다(테스트). recreate는 컬렉션을 새로 만든다."""
-    if not settings.embedding_model.strip():
-        raise StoreConfigError(
-            "EMBEDDING_MODEL이 비어 있다. .env에 임베딩 모델 이름을 적는다(예: BAAI/bge-m3)"
-        )
     kwargs = dict(
-        embedder=embedder or LazyEmbedder(settings.embedding_model),
-        embedding_model=settings.embedding_model,
+        embedder=embedder or build_embedder(settings),
+        embedding_model=collection_embedding_name(settings),
         sparse_encoder=sparse_encoder or KiwiBm25Encoder(),
         collection=settings.rag_collection,
         recreate=recreate,
@@ -138,11 +150,16 @@ def build_indexer(store: VectorStore) -> Indexer:
     return indexer_class()(store)
 
 
-def build_reranker(settings: Settings, *, batch_size: int = 16) -> Reranker | None:
-    """모델을 지정한 경우에만 리랭커를 만든다. 가중치는 첫 검색에서 로드한다."""
+def build_reranker(settings: Settings, *, batch_size: int = 100) -> Reranker | None:
+    """RERANKER_MODEL을 지정한 경우에만 Voyage 리랭커를 만든다. 비어 있으면 끈다(비용 0)."""
     if not settings.reranker_model.strip():
         return None
-    return CrossEncoderReranker(settings.reranker_model, batch_size=batch_size)
+    return VoyageReranker(
+        settings.reranker_model,
+        batch_size=batch_size,
+        base_url=settings.voyage_base_url,
+        timeout_s=settings.voyage_timeout_s,
+    )
 
 
 def build_retriever(
