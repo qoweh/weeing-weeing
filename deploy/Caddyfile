@@ -33,6 +33,14 @@
 	}
 }
 
+# Unreal의 인증서 이름 검증은 DNS 이름을 사용한다. 기존 IP 웹 주소는 유지한다.
+telemetry.<EC2_IP>.sslip.io {
+	handle_path /api/* {
+		reverse_proxy api:8000
+	}
+	respond 404
+}
+
 # Langfuse 대시보드(deploy/langfuse). 공식 이미지는 하위 경로를 지원하지 않아 이름으로 나눈다.
 # LANGFUSE_ADDRESS가 비어 있으면 서버 밖에서 닿지 않는 이름으로 두어 꺼 둔다.
 {$LANGFUSE_ADDRESS:http://langfuse.localhost} {

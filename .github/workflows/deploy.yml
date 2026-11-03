@@ -17,6 +17,10 @@ on:
         description: 'API만 배포 (프론트엔드·웹·DB 컨테이너 유지)'
         type: boolean
         default: false
+      web_only:
+        description: 'Caddy만 배포 (API·프론트엔드·DB 유지, api_only와 동시 선택 금지)'
+        type: boolean
+        default: false
 
 # job마다 필요한 권한만 준다. 서버로 넘기는 deploy job의 토큰은 이미지를 받기만 한다.
 permissions:
@@ -40,8 +44,17 @@ jobs:
       packages: write
     strategy:
       matrix:
-        image: ${{ inputs.api_only && fromJSON('["api"]') || fromJSON('["api", "frontend", "web"]') }}
+        image: ${{ inputs.api_only && fromJSON('["api"]') || inputs.web_only && fromJSON('["web"]') || fromJSON('["api", "frontend", "web"]') }}
     steps:
+      - name: 배포 범위 확인
+        env:
+          API_ONLY: ${{ inputs.api_only && 'true' || 'false' }}
+          WEB_ONLY: ${{ inputs.web_only && 'true' || 'false' }}
+        run: |
+          if [ "$API_ONLY" = true ] && [ "$WEB_ONLY" = true ]; then
+            echo "::error::api_only와 web_only는 동시에 선택할 수 없습니다."
+            exit 1
+          fi
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -108,38 +121,60 @@ jobs:
           ACTOR: ${{ github.actor }}
           TAG: ${{ github.sha }}
           API_ONLY: ${{ inputs.api_only && 'true' || 'false' }}
+          WEB_ONLY: ${{ inputs.web_only && 'true' || 'false' }}
         run: |
           # 토큰은 명령줄이 아니라 표준 입력으로 넘긴다(서버 프로세스 목록에 남지 않게).
           printf '%s' "$TOKEN" | ssh "$EC2" "docker login ghcr.io -u '$ACTOR' --password-stdin"
-          ssh "$EC2" "IMAGE_PREFIX='$IMAGE_PREFIX' TAG='$TAG' API_ONLY='$API_ONLY' bash -s" <<'EOF'
+          ssh "$EC2" "IMAGE_PREFIX='$IMAGE_PREFIX' TAG='$TAG' API_ONLY='$API_ONLY' WEB_ONLY='$WEB_ONLY' bash -s" <<'EOF'
           set -euo pipefail
           # 어느 줄에서 실패해도 로그인 정보를 지운다(trap을 가장 먼저 건다).
           trap 'docker logout ghcr.io >/dev/null' EXIT
           cd ~/weeing-weeing
-          if [ "$API_ONLY" = true ]; then
+          if [ "$API_ONLY" = true ] || [ "$WEB_ONLY" = true ]; then
+            service=api
+            tag_key=API_IMAGE_TAG
+            if [ "$WEB_ONLY" = true ]; then
+              service=web
+              tag_key=WEB_IMAGE_TAG
+            fi
             # 웹용 IMAGE_TAG는 유지한다. rollback에 필요한 이전 API 태그를 별도 보존한다.
-            previous=$(docker inspect --format '{{.Config.Image}}' "$(docker compose ps -q api)")
+            previous=$(docker inspect --format '{{.Config.Image}}' "$(docker compose ps -q "$service")")
             previous_tag=${previous##*:}
-            API_IMAGE_TAG="$TAG" docker compose pull --quiet api
-            sed -i '/^API_IMAGE_TAG=/d' .env
-            printf '\nAPI_IMAGE_TAG=%s\n' "$TAG" >> .env
-            if docker compose up -d --no-deps --wait --wait-timeout 150 api; then
-              printf '%s\n' "$previous" > .api-previous-image
-              echo "API만 교체 완료. 다른 컨테이너와 기존 IMAGE_TAG 유지."
+            env "$tag_key=$TAG" docker compose pull --quiet "$service"
+            sed -i "/^${tag_key}=/d" .env
+            printf '\n%s=%s\n' "$tag_key" "$TAG" >> .env
+            healthy=false
+            if docker compose up -d --no-deps --wait --wait-timeout 150 "$service"; then
+              healthy=true
+              if [ "$service" = web ]; then
+                healthy=false
+                for attempt in $(seq 1 12); do
+                  if curl --fail --silent --show-error --connect-timeout 5 --max-time 10 \
+                    https://telemetry.<EC2_IP>.sslip.io/api/health >/dev/null 2>&1; then
+                    healthy=true
+                    break
+                  fi
+                  sleep 5
+                done
+              fi
+            fi
+            if [ "$healthy" = true ]; then
+              printf '%s\n' "$previous" > ".${service}-previous-image"
+              echo "$service 교체 완료. 다른 컨테이너와 기존 IMAGE_TAG 유지."
             else
-              sed -i '/^API_IMAGE_TAG=/d' .env
-              printf '\nAPI_IMAGE_TAG=%s\n' "$previous_tag" >> .env
-              docker compose up -d --no-deps --wait --wait-timeout 150 api
-              echo "::error::API 배포 실패. 이전 API 이미지로 복원했습니다."
+              sed -i "/^${tag_key}=/d" .env
+              printf '\n%s=%s\n' "$tag_key" "$previous_tag" >> .env
+              docker compose up -d --no-deps --wait --wait-timeout 150 "$service"
+              echo "::error::$service 배포 실패. 이전 이미지로 복원했습니다."
               exit 1
             fi
             exit 0
           fi
           # 지금 배포한 태그를 .env에 남겨 서버 재시작·수동 up에서도 같은 이미지가 뜨게 한다.
-          sed -i '/^IMAGE_TAG=/d;/^IMAGE_PREFIX=/d;/^API_IMAGE_TAG=/d' .env
+          sed -i '/^IMAGE_TAG=/d;/^IMAGE_PREFIX=/d;/^API_IMAGE_TAG=/d;/^WEB_IMAGE_TAG=/d' .env
           # 마지막 줄에 줄바꿈이 없으면 덧붙인 값이 그 줄에 붙으므로 먼저 줄을 바꾼다.
           if [ -s .env ] && [ -n "$(tail -c1 .env)" ]; then echo >> .env; fi
-          printf 'IMAGE_PREFIX=%s\nIMAGE_TAG=%s\nAPI_IMAGE_TAG=%s\n' "$IMAGE_PREFIX" "$TAG" "$TAG" >> .env
+          printf 'IMAGE_PREFIX=%s\nIMAGE_TAG=%s\nAPI_IMAGE_TAG=%s\nWEB_IMAGE_TAG=%s\n' "$IMAGE_PREFIX" "$TAG" "$TAG" "$TAG" >> .env
           docker compose pull --quiet
           docker compose up -d --remove-orphans
           # 실행 중인 컨테이너가 쓰지 않는 이미지는 모두 지운다. SHA 태그 이미지가 배포마다

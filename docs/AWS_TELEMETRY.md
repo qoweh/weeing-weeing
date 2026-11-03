@@ -14,6 +14,10 @@
   → 제한된 메모리 최신 상태 → 인증된 개인 CLI / 팀원 화면
 ```
 
+Unreal WSS 주소는 `wss://telemetry.<EC2_IP>.sslip.io/api/ws/telemetry`다.
+Unreal의 IP 인증서 이름 검사에서 확인된 Hostname mismatch를 DNS 인증서로 해결한다.
+TLS 검증을 끄지 않는다. 기존 IP 웹 주소와 Python 개인 모니터의 기본 주소는 유지한다.
+
 ## 송신 인증과 기존 기능
 
 - 운영 compose는 `TELEMETRY_AUTH_REQUIRED=true`를 강제한다. SHA-256 설정이 없거나

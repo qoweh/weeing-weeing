@@ -60,7 +60,7 @@ services:
 
   web:
     <<: *app
-    image: ${IMAGE_PREFIX:-ghcr.io/qoweh/weeing-weeing}-web:${IMAGE_TAG:-latest}
+    image: ${IMAGE_PREFIX:-ghcr.io/qoweh/weeing-weeing}-web:${WEB_IMAGE_TAG:-${IMAGE_TAG:-latest}}
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:-:80}
       # Langfuse 대시보드 주소(deploy/langfuse). 비우면 끈다
