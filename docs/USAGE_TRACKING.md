@@ -34,11 +34,11 @@ flowchart LR
 
 
 1. 최신 `dev`를 받고 `uv sync --locked --no-install-project`
-2. 김민우에게 **본인 전용** Langfuse 키(공개 키·비밀 키)와 서버 주소를 개별로 받는다
+2. 김민우에게 **본인 전용** Langfuse 키(공개 키·비밀 키)를 개별로 받는다
 3. `.env`에 넣는다(커밋 금지, 화면 공유·로그에 노출 금지)
    ```bash
    LLM_USER=<본인 GitHub 핸들>
-   LANGFUSE_BASE_URL=https://langfuse.<도메인>
+   LANGFUSE_BASE_URL=https://langfuse.<HOME_DOMAIN>
    LANGFUSE_PUBLIC_KEY=pk-lf-...
    LANGFUSE_SECRET_KEY=sk-lf-...
    ```
@@ -56,6 +56,22 @@ flowchart LR
 - 반복 실행·루프 테스트는 가짜 LLM(테스트)으로 한다. 실제 API는 확인이 필요할 때만 부른다.
 - 시연·평가처럼 구분해서 보고 싶으면 `LANGFUSE_TRACING_ENVIRONMENT=demo`처럼 환경 이름을 바꾼다.
 
+## Slack 사용량 알림
+
+홈서버가 Langfuse 기록을 직접 조회해 팀 Slack 채널로 보낸다. 레포 코드나 팀원 설정은 필요 없다.
+
+| 종류 | 언제 | 내용 |
+|---|---|---|
+| 일일 보고 | 매일 09:00 (KST) | 어제 사람별·모델별 비용, 이번 달 누적과 예산 대비 % |
+| 1인 일일 경고 | 매시 확인 | 한 사람이 하루에 **$0.50**(50%), **$1.00**(100%)에 도달 |
+| 팀 월 예산 경고 | 매시 확인 | 이번 달 팀 합계가 예산 **$20**의 50%·80%·100%에 도달 |
+| 조회 실패 | 매시 확인 | 홈서버 Langfuse가 응답하지 않을 때 |
+
+- 같은 경고는 하루에 한 번(월 예산은 한 달에 한 번)만 보낸다.
+- 보내는 것은 GitHub 핸들(`LLM_USER`)·모델 이름·금액뿐이다. 프롬프트·응답은 조회하지 않는다.
+- 금액은 아래 단가로 계산한 **추정치**다. 실제 청구서와 다를 수 있다.
+- **알림만 하고 호출을 막지는 않는다.** 경고를 받으면 본인이 모델·반복 실행을 줄인다(아래 "비용을 아끼는 약속").
+
 ## 단가 등록 키 (서버 관리자용)
 
 비용은 Langfuse에 등록한 모델 단가로 계산한다. 코드가 보내는 토큰 이름이 아래와 같으므로 단가도 같은 이름으로 등록한다.
@@ -66,6 +82,16 @@ flowchart LR
 | `output` | 출력 토큰(생각 단계 포함) |
 | `cache_read_input_tokens` | 프롬프트 캐시에서 읽은 입력 |
 | `cache_creation_input_tokens` | 프롬프트 캐시에 쓴 입력 |
+
+홈서버 Langfuse(4.71.0)의 기본 모델 목록에 아래 세 모델이 위 키 이름 그대로 들어 있어 따로 등록하지 않았다. 2026-10-30에 [공식 가격표](https://platform.claude.com/docs/en/about-claude/pricing)와 대조했다(100만 토큰당 USD).
+
+| 모델 | `input` | `output` | `cache_read_input_tokens` | `cache_creation_input_tokens` (5분) |
+|---|---|---|---|---|
+| `claude-opus-5-5` | 4 | 20 | 0.20 | 5 |
+| `claude-sonnet-5-5` | 2 | 10 | 0.10 | 2.50 |
+| `claude-haiku-5-5` (프롬프트 10만 토큰 이하) | 0.10 | 0.50 | 0.01 | 0.125 |
+
+Haiku 5.5는 프롬프트가 10만 토큰을 넘으면 단가가 5배가 된다(Langfuse 기본 정의에 반영됨). 가격이 바뀌면 Langfuse 프로젝트 설정의 Models에서 같은 이름으로 프로젝트 전용 정의를 만들어 덮어쓴다.
 
 ## 아직 안 한 것
 
