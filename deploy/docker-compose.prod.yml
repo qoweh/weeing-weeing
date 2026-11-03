@@ -37,13 +37,14 @@ services:
 
   api:
     <<: *app
-    image: ${IMAGE_PREFIX:-ghcr.io/qoweh/weeing-weeing}-api:${IMAGE_TAG:-latest}
+    image: ${IMAGE_PREFIX:-ghcr.io/qoweh/weeing-weeing}-api:${API_IMAGE_TAG:-${IMAGE_TAG:-latest}}
     env_file: .env
     # .env의 localhost 주소 대신 컨테이너 이름으로 연결한다(env_file보다 우선).
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       VECTOR_STORE: qdrant
       QDRANT_URL: http://qdrant:6333
+      TELEMETRY_AUTH_REQUIRED: "true"
     volumes:
       - storage:/app/storage
       - outputs:/app/outputs

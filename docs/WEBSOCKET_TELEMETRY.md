@@ -113,9 +113,11 @@ Agent 작업 등록은 이력 처리 성공 후이며 실제 유료 분석은 �
 manifest 정리까지 확인한 최종 무결성 검증을 대신하지 않는다. 재조회에는 HistoryReader.validate()를 쓴다.
 
 LAN 시연은 서버를 --host 0.0.0.0으로 실행하고 송신기의 --url에 서버 IP를 지정한다.
-현재 인증·TLS·다중 worker 상태 공유·수신 무응답 3초 watchdog은 구현하지 않았다.
+운영은 Caddy의 TLS와 송신 전용 Bearer 인증을 사용한다. 로컬은 기본 인증 끔으로 기존
+시연을 유지한다. 설정·읽기 전용 조회·개인 모니터는 [AWS_TELEMETRY](AWS_TELEMETRY.md)를 따른다.
+유효 입력 15초 무응답 시 연결을 닫으며, 다중 worker 상태 공유·PLC 보호 정지용 3초 watchdog은 구현하지 않았다.
 실제 Agent/RAG 자동 연결은 [AUTO_ANALYSIS](AUTO_ANALYSIS.md)의 명시적 설정으로 켠다.
-외부 공개 서비스가 아닌 로컬/통제된 시연용 수신부다.
+인증 없는 기본 로컬 모드를 외부에 공개하지 않는다.
 
 ## 자동 검증
 

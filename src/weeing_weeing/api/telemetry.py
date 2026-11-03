@@ -1,6 +1,8 @@
 """순차 센서 처리와 선택적 DB 작업 등록. LLM은 별도 실행기에서만 호출한다."""
 
 import asyncio
+import hashlib
+import hmac
 import logging
 from datetime import UTC, datetime
 from threading import Lock
@@ -8,6 +10,7 @@ from threading import Lock
 import anyio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from weeing_weeing.api import telemetry_live
 from weeing_weeing.config import get_settings
 from weeing_weeing.contracts import IncidentStatus, Severity
 from weeing_weeing.detector.interface import HistoryDetector
@@ -18,6 +21,7 @@ router = APIRouter(tags=["telemetry"])
 logger = logging.getLogger("uvicorn.error.telemetry")
 # One active producer per process. Use a single Uvicorn worker for this MVP.
 _producer = Lock()
+PRODUCER_IDLE_SECONDS = 15
 
 
 async def _finish_worker(task):
@@ -115,7 +119,7 @@ class TelemetrySession:
             if self.analysis_service
             else {"agent_status": "not_connected"}
         )
-        return {
+        response = {
             "status": "processed",
             "record_id": record.record_id,
             "timestamp": record.timestamp.isoformat(),
@@ -123,6 +127,8 @@ class TelemetrySession:
             "error_entries": entries,
             **analysis,
         }
+        telemetry_live.live_state.publish(self.history.run_path.name, record, response)
+        return response
 
     def receive(self, message):
         return self.receiver.receive(message)
@@ -136,6 +142,25 @@ class TelemetrySession:
 
 @router.websocket("/ws/telemetry")
 async def telemetry_socket(websocket: WebSocket, context: str = "NONE"):
+    settings = get_settings()
+    expected = settings.telemetry_producer_token_sha256.strip().lower()
+    if settings.telemetry_auth_required or expected:
+        authorization = getattr(websocket, "headers", {}).get("authorization", "")
+        scheme, _, token = authorization.partition(" ")
+        configured = len(expected) == 64 and all(
+            c in "0123456789abcdef" for c in expected
+        )
+        if not (
+            configured
+            and scheme.lower() == "bearer"
+            and token
+            and hmac.compare_digest(
+                hashlib.sha256(token.encode()).hexdigest(), expected
+            )
+        ):
+            # Deny before accept, producer lock and history allocation. No token echo.
+            await websocket.close(code=1008)
+            return
     await websocket.accept()
     if context not in {"NONE", "RUN_ONLY", "MINIMAL"}:
         await websocket.send_json({"status": "rejected", "code": "invalid_context"})
@@ -173,6 +198,7 @@ async def telemetry_socket(websocket: WebSocket, context: str = "NONE"):
             "analysis_service",
             None,
         )
+        telemetry_live.live_state.start(session.history.run_path.name, context)
         logger.info(
             "[센서 연결] run=%s context=%s",
             session.history.run_path.name,
@@ -190,8 +216,19 @@ async def telemetry_socket(websocket: WebSocket, context: str = "NONE"):
                 else "not_connected",
             }
         )
+        last_valid = asyncio.get_running_loop().time()
         while True:
-            frame = await websocket.receive()
+            remaining = PRODUCER_IDLE_SECONDS - (
+                asyncio.get_running_loop().time() - last_valid
+            )
+            try:
+                frame = await asyncio.wait_for(
+                    websocket.receive(), timeout=max(0, remaining)
+                )
+            except TimeoutError:
+                await websocket.send_json({"status": "failed", "code": "producer_idle"})
+                await websocket.close(code=1008)
+                return
             if frame["type"] == "websocket.disconnect":
                 break
             message = frame.get("text")
@@ -210,6 +247,8 @@ async def telemetry_socket(websocket: WebSocket, context: str = "NONE"):
                 )
                 await websocket.close(code=1011)
                 return
+            if response.get("status") == "processed":
+                last_valid = asyncio.get_running_loop().time()
             await websocket.send_json(response)
     except (WebSocketDisconnect, OSError):
         # A missing response doesn't prove that the last input wasn't persisted.
@@ -247,4 +286,6 @@ async def telemetry_socket(websocket: WebSocket, context: str = "NONE"):
         except Exception as error:
             logger.error("Telemetry finalization failed: %s", type(error).__name__)
         finally:
+            if session is not None:
+                telemetry_live.live_state.end(session.history.run_path.name)
             _producer.release()

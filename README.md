@@ -59,6 +59,7 @@ tests/  scripts/  docs/
 | [CONTRACTS](docs/CONTRACTS.md) | 데이터 계약 요약, 근거 자료, 미결 사항 |
 | [JSON_INPUT](docs/JSON_INPUT.md) | 공통 JSON 입력 API, CSV 재생과 0.5초 주기 제한 |
 | [WEBSOCKET_TELEMETRY](docs/WEBSOCKET_TELEMETRY.md) | Unreal WebSocket 수신, CSV 테스트 송신기와 터미널 실행 방법 |
+| [AWS_TELEMETRY](docs/AWS_TELEMETRY.md) | AWS 송신 인증, 최신 센서 조회 API, 개인용 터미널 모니터 |
 | [AUTO_ANALYSIS](docs/AUTO_ANALYSIS.md) | Error 자동 분석·저장·조회·무과금 터미널 시연 (#104) |
 | [SENSOR_WINDOWS](docs/SENSOR_WINDOWS.md) | 사건 센서 구간 조회·수치 검증·무료 터미널 시연 (#105) |
 | [LOCAL_SETUP](docs/LOCAL_SETUP.md) | 개발 환경 설치, 실행, 문제 해결 |

@@ -52,6 +52,8 @@ class Settings:
     langfuse_capture_content: bool = True  # 프롬프트·응답 본문까지 보낼지
     analysis_auto_enabled: bool = False  # 유료 자동 호출은 명시적으로 켠다
     telemetry_db_enabled: bool = False  # 분석 작업 없이 센서·사건만 저장
+    telemetry_auth_required: bool = False  # 운영 compose는 항상 true
+    telemetry_producer_token_sha256: str = ""  # 원본 토큰 대신 SHA-256만 보관
 
 
 def get_settings() -> Settings:
@@ -101,4 +103,7 @@ def get_settings() -> Settings:
         in ("1", "true", "yes"),
         telemetry_db_enabled=env("TELEMETRY_DB_ENABLED", "false").lower()
         in ("1", "true", "yes"),
+        telemetry_auth_required=env("TELEMETRY_AUTH_REQUIRED", "false").lower()
+        in ("1", "true", "yes"),
+        telemetry_producer_token_sha256=env("TELEMETRY_PRODUCER_TOKEN_SHA256", ""),
     )

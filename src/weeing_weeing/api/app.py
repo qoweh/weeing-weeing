@@ -13,6 +13,7 @@ from weeing_weeing.api.chat import router as chat_router
 from weeing_weeing.api.documents import router as documents_router
 from weeing_weeing.api.reports import router as reports_router
 from weeing_weeing.api.telemetry import router as telemetry_router
+from weeing_weeing.api.telemetry_live import router as telemetry_live_router
 from weeing_weeing.config import get_settings
 from weeing_weeing.contracts import RULE_VERSION, SCHEMA_VERSION
 from weeing_weeing.db.interface import DatabaseUnavailableError
@@ -50,6 +51,7 @@ app.include_router(auth_router)
 app.include_router(chat_router)
 app.include_router(documents_router)
 app.include_router(telemetry_router)
+app.include_router(telemetry_live_router)
 app.include_router(reports_router)
 
 

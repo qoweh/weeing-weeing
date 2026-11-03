@@ -41,4 +41,5 @@ HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=6 \
 # 분석 서비스·모델이 프로세스 안에 있으므로 워커는 1개로 둔다.
 CMD ["uvicorn", "--app-dir", "src", "weeing_weeing.api.app:app", \
      "--host", "0.0.0.0", "--port", "8000", "--root-path", "/api", \
-     "--proxy-headers", "--forwarded-allow-ips", "*"]
+     "--proxy-headers", "--forwarded-allow-ips", "*", \
+     "--workers", "1", "--ws-max-size", "65536", "--ws-max-queue", "4"]

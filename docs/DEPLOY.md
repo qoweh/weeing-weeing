@@ -163,6 +163,15 @@ docker compose run --rm --no-deps -v "$PWD/.env:/tmp/check.env:ro" api \
 - **수동:** Actions → Deploy (EC2) → Run workflow → `dev` 선택. Environment가 main·dev만 허용하므로 작업 브랜치는 빌드까지만 되고 배포 단계에서 막힌다
 - 워크플로 파일이 기본 브랜치(dev)에 있어야 Run workflow 버튼이 보인다
 
+### API만 배포
+
+Actions → Deploy (EC2) → Run workflow → `dev` → `api_only`를 체크한다.
+API 이미지만 빌드·수신·교체하며 frontend·web·PostgreSQL·Qdrant 컨테이너는 재생성하지 않는다.
+API 태그는 서버의 `API_IMAGE_TAG`에 별도로 기록하고 웹용 `IMAGE_TAG`는 유지한다.
+전체 배포에서는 두 태그를 같은 SHA로 갱신한다. API 상태 검사에 실패하면 이전 API 태그로
+복원한다. API 전용 배포는 다른 컨테이너가 사용할 이미지를 정리하지 않는다.
+센서 송신을 켜려면 [AWS_TELEMETRY](AWS_TELEMETRY.md)의 인증 해시를 먼저 준비한다.
+
 ### 첫 배포 뒤 한 번: 시연 계정
 
 로그인할 계정을 DB에 만든다. 비밀번호는 계정마다 임의로 만들어 **한 번만** 화면에 출력하므로 바로 보관한다(같은 비밀번호로 하려면 `--ask-password`). 이미 있는 사번은 건드리지 않는다. DB 테이블은 API가 처음 DB에 접근할 때 자동으로 만든다.
