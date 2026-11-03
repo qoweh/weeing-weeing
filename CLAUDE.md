@@ -20,8 +20,9 @@
 - 완료 전 make check(= uv run --no-sync로 ruff check ., ruff format --check ., pytest)를 실행한다.
 - .env·.venv·API 키·개인정보는 커밋하지 않고 비밀 값을 로그에 남기지 않는다.
 - 새 환경변수는 비밀 값 없이 .env.example에 기록하고 외부 API에는 타임아웃과 실패 처리를 적용한다.
-- 새 작업은 최신 main에서 브랜치를 만들며 미커밋 변경이 있으면 보존하고 main에 직접 Push하지 않는다.
+- 새 작업은 최신 dev(기본 브랜치)에서 브랜치를 만들고 PR도 dev로 올린다. 미커밋 변경이 있으면 보존하고 main·dev에 직접 Push하지 않는다. main은 release PR(dev → main)로만 바꾼다.
 - git worktree에서는 main·dev를 checkout하지 않는다(한 브랜치는 한 worktree에서만 checkout 가능). 원격 내용 확인·반영은 origin/main·origin/dev를 직접 참조한다.
 - 브랜치·커밋·PR 규칙은 docs/CHANGE_WORKFLOW.md를 따르고 PR은 .github/pull_request_template.md 양식을 채운다.
 - 커밋·Push·PR·병합은 사용자에게 요청받은 범위에서만 수행한다.
 - 변경 내용·검증 결과·미실행 사유·남은 문제를 한국어로 보고하며 검사 실패를 숨기지 않는다.
+- AI 에이전트는 실제 비밀 파일(.env 및 .env.*; .env.example 제외), API 키·토큰 파일과 SDK 인증 프로필을 열거나 출력하지 않는다. 환경변수 덤프·프로세스 환경 조회로 키를 확인하지 않으며, 키 유무/유효성 확인과 실제 유료 LLM 실행은 사용자가 자기 터미널에서 직접 한다. 자동 검증에는 가짜 SDK·클라이언트만 사용하고 실제 .env를 로드하는 명령을 실행하지 않는다. 이는 행동 규칙이며 OS 접근 차단을 대신하지 않는다.

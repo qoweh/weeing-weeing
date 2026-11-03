@@ -1,6 +1,15 @@
 from typing import Any, Protocol
 
 from weeing_weeing.contracts import Incident, TelemetryRecord
+from weeing_weeing.detector.history import HistoryConfig as HistoryConfig
+from weeing_weeing.detector.history import HistoryDetector as HistoryDetector
+from weeing_weeing.detector.history import HistoryError as HistoryError
+from weeing_weeing.detector.history import HistoryReader as HistoryReader
+from weeing_weeing.detector.p03 import P03Detector as P03Detector
+from weeing_weeing.detector.rule_engine import RuleDetector as RuleDetector
+from weeing_weeing.detector.rule_models import DetectionFrame as DetectionFrame
+from weeing_weeing.detector.rule_models import RuleAssessment as RuleAssessment
+from weeing_weeing.detector.rule_models import RulePolicy as RulePolicy
 
 
 class Detector(Protocol):

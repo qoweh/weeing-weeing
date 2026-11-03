@@ -11,7 +11,7 @@ description: weeing-weeing에서 PR을 올리거나 PR 브랜치에 push하기 �
 
 ```bash
 git fetch origin
-git diff --name-only origin/main...HEAD     # 이 브랜치가 바꾼 파일
+git diff --name-only origin/dev...HEAD     # 이 브랜치가 바꾼 파일
 git status --short                          # 아직 커밋 안 한 변경
 ```
 
@@ -59,15 +59,15 @@ uv run --no-sync python scripts/sync_skills.py --check
 | 계약 변경 | `contracts/`가 바뀌었는데 `docs/CONTRACTS.md`·`tests/contracts/`가 안 바뀜 | 같은 PR에서 함께 수정, PR 본문에 영향 모듈 |
 | 의존성 | `pyproject.toml`만 바뀌고 `uv.lock`이 안 바뀜, 명령 C 실패 | 둘 다 커밋, `uv add`로만 추가 |
 | 환경변수 | 코드에 새 `os.environ`/설정 키가 있는데 `.env.example`·`config.py`에 없음 | 셋을 함께, `.env.example`에는 비밀 값 없이 |
-| 외부 호출 | Ollama·HTTP 호출에 timeout이 없음, 실패 시 예외가 그대로 터짐 | timeout 지정, 실패하면 `status=FAILED` 같은 정해진 결과로 |
+| 외부 호출 | LLM API·HTTP 호출에 timeout이 없음, 실패 시 예외가 그대로 터짐 | timeout 지정, 실패하면 `status=FAILED` 같은 정해진 결과로 |
 | 근거 검증 | agent가 근거 없이 OK를 내거나 검증 오류를 삼킴 | `AnalysisResult` 검증 오류는 잡아서 `INSUFFICIENT_EVIDENCE`/`FAILED`로 |
 | AI 작성 금지 칸 | agent 코드가 보고서 `maintenance`·`approval`을 채움 | AI는 `ai_analysis`까지만 |
 | 시크릿 | 명령 D | 통과. `.env`·키·개인정보 없음 |
 | 스킬 | `.claude/skills`를 직접 고침, 명령 E 실패 | 원본 `.agents/skills`만 고치고 `scripts/sync_skills.py`로 복사 |
 | 컨테이너 포트 | compose `ports`가 `127.0.0.1:`로 시작하지 않음 | 로컬 개발은 `127.0.0.1:<포트>:<포트>` |
-| 테스트 | 새 로직에 테스트가 없음, 테스트가 실제 Ollama·네트워크를 부름 | CI에서 돌 수 있게 가짜 객체(`interface`의 Protocol 구현)로 대체 |
+| 테스트 | 새 로직에 테스트가 없음, 테스트가 실제 LLM API·네트워크를 부름 | CI에서 돌 수 있게 가짜 객체(`interface`의 Protocol 구현)로 대체 |
 | 문서와 코드 | 문서·주석의 명령·키 이름·경로가 실제와 다름 | 바꾼 쪽에 맞춰 함께 수정 |
-| 큰 파일 | `git diff --stat origin/main...HEAD`에 수 MB 이상 파일 | `data/README.md`에 출처 기록, 수십 MB 이상은 커밋하지 않음 |
+| 큰 파일 | `git diff --stat origin/dev...HEAD`에 수 MB 이상 파일 | `data/README.md`에 출처 기록, 수십 MB 이상은 커밋하지 않음 |
 
 ### 같은 종류 결함은 전부 찾는다
 

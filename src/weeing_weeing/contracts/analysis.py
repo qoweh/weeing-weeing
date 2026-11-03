@@ -21,6 +21,8 @@ class Evidence(BaseModel):
     text: str
     score: float | None = None
     citation: str  # 사람이 읽는 인용 문자열. 예: "BTT-MANUAL 2.0 3절 P01/P06"
+    # 리랭커 모델 출력. 미사용 시 None(0과 다름). 확률이 아니며 모델별 보정 필요.
+    relevance: float | None = Field(default=None, allow_inf_nan=False)
 
 
 class CauseCandidate(BaseModel):
@@ -41,7 +43,7 @@ class AnalysisResult(BaseModel):
     additional_checks: list[str] = Field(default_factory=list)  # 근거 부족 시 확인할 것
     evidence: list[Evidence] = Field(default_factory=list)
     limitations: str | None = None
-    model: str  # 예: "ollama/<모델명>"
+    model: str  # 예: "anthropic/claude-opus-5-5" (공급자/모델 ID)
     prompt_version: str | None = None
     generated_at: AwareDatetime
 

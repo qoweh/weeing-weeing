@@ -1,0 +1,25 @@
+const navigation = [
+  { icon: '▦', label: '대시보드', id: 'dashboard' },
+  { icon: '◉', label: '이상 사건', id: 'incident-history' },
+  { icon: '◉', label: '이상사건 발생(임시)', id: 'incidents' },
+  { icon: '▤', label: '정비 이력', id: 'maintenance' },
+  { icon: '⌕', label: '문서 검색', id: 'search', pending: true },
+  { icon: '✦', label: '에러 분석', id: 'analysis' },
+  { section: '자료 관리', id: 'manual-section' },
+  { icon: '▤', label: '문서 목록', id: 'manual-list' },
+  { icon: '↥', label: '문서 등록', id: 'documents', role: '관제 담당자' },
+]
+
+export default function Sidebar({ user, page, onNavigate, busy }) {
+  return <aside className="sidebar"><div className="sidebar__label">WORKSPACE</div>
+    <nav aria-label="주 메뉴">{navigation.filter((item) => !item.role || item.role === user?.role).map(({ icon, label, id, pending, section }) => section
+      ? <div className="sidebar__section" key={id}>{section}</div>
+      : pending
+      ? <span key={id} className="nav-item nav-item--disabled" title="준비 중"><span aria-hidden="true">{icon}</span>{label}<small>준비 중</small></span>
+      : <button key={id} type="button" className={`nav-item ${(page === id || (id === 'maintenance' && page === 'report-write')) ? 'nav-item--active' : ''}`}
+          aria-current={(page === id || (id === 'maintenance' && page === 'report-write')) ? 'page' : undefined} disabled={busy} onClick={() => onNavigate(id)}>
+          <span aria-hidden="true">{icon}</span>{label}
+        </button>)}</nav>
+    <div className="sidebar__bottom"><div className="sidebar__notice"><span className="sidebar__notice-icon">✦</span><strong>근거 기반 설비 관리</strong><p>설비 정보를 한눈에 확인하고 필요한 근거를 살펴보세요.</p></div><p className="sidebar__caption">위잉위잉 · 설비 관리</p></div>
+  </aside>
+}

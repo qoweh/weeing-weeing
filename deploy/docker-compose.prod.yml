@@ -1,0 +1,80 @@
+# 운영 서버(EC2)용. 배포 워크플로가 서버의 ~/weeing-weeing/docker-compose.yml로 복사한다.
+# 서버에는 이 파일과 .env만 있다. 이미지는 GitHub Actions가 빌드해 GHCR에 올린다(docs/DEPLOY.md).
+#   docker compose pull && docker compose up -d
+# 로컬 개발용은 레포 루트의 docker-compose.yml이다.
+
+x-app: &app
+  restart: unless-stopped
+
+services:
+  postgres:
+    <<: *app
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?.env에 POSTGRES_USER 필요}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?.env에 POSTGRES_PASSWORD 필요}
+      POSTGRES_DB: ${POSTGRES_DB:?.env에 POSTGRES_DB 필요}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  qdrant:
+    <<: *app
+    # 클라이언트(qdrant-client 1.20)와 같은 minor 버전. 로컬 docker-compose.yml과 맞춘다.
+    image: qdrant/qdrant:v1.20.0
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  api:
+    <<: *app
+    image: ${IMAGE_PREFIX:-ghcr.io/qoweh/weeing-weeing}-api:${IMAGE_TAG:-latest}
+    env_file: .env
+    # .env의 localhost 주소 대신 컨테이너 이름으로 연결한다(env_file보다 우선).
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      VECTOR_STORE: qdrant
+      QDRANT_URL: http://qdrant:6333
+      # 1이면 Hugging Face에서 모델을 받지 않는다(지금은 RAG 모델 없이 운영). 받은 모델만 쓰고,
+      # 없으면 색인·검색이 실패로 기록된다. RAG를 켤 때 .env에 HF_HUB_OFFLINE=0(docs/DEPLOY.md).
+      HF_HUB_OFFLINE: ${HF_HUB_OFFLINE:-1}
+    volumes:
+      - storage:/app/storage
+      - outputs:/app/outputs
+      - hf_models:/models
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+
+  frontend:
+    <<: *app
+    image: ${IMAGE_PREFIX:-ghcr.io/qoweh/weeing-weeing}-frontend:${IMAGE_TAG:-latest}
+
+  web:
+    <<: *app
+    image: ${IMAGE_PREFIX:-ghcr.io/qoweh/weeing-weeing}-web:${IMAGE_TAG:-latest}
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - frontend
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  storage:
+  outputs:
+  hf_models:
+  caddy_data:
+  caddy_config:

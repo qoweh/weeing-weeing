@@ -1,0 +1,30 @@
+{
+  "incident_id": "INC-20261005-001",
+  "process_id": "BAT-TRANSFER-01",
+  "asset_id": "BLDC-001",
+  "codes": ["BTT2-P03"],
+  "severity": "Error",
+  "first_detected_at": "2026-10-05T14:00:23+09:00",
+  "confirmed_at": "2026-10-05T14:00:28+09:00",
+  "last_detected_at": "2026-10-05T14:00:29+09:00",
+  "evidence": [
+    {
+      "field": "infeed_present",
+      "value": true,
+      "threshold": "RUN 중 true 연속 5초 초과면 Error",
+      "observed": "14:00:23~14:00:29 연속 true (6.2초)"
+    },
+    {
+      "field": "rpm",
+      "value": 1480,
+      "unit": "rpm",
+      "note": "정상 범위"
+    },
+    {
+      "field": "outfeed_present",
+      "value": false,
+      "observed": "같은 구간 false 유지"
+    }
+  ],
+  "plc_context": {"run_cmd": true, "mode": "AUTO"}
+}

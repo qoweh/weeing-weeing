@@ -11,15 +11,15 @@ from weeing_weeing.rag.pdf_parser import (
 )
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
-MANUAL = DATA_DIR / "knowledge/btt-manual_v2.0_error_response.pdf"
+MANUAL = DATA_DIR / "manuals/BTT-MANUAL_v2.0.pdf"
 
 
 @pytest.mark.parametrize(
     ("relative_path", "doc_type"),
     [
-        ("knowledge/btt-manual_v2.0_error_response.pdf", "manual"),
-        ("knowledge/btt-rule_v2.0_rulebook.pdf", "rulebook"),
-        ("knowledge/btt-sop-001_draft.pdf", "regulation"),
+        ("manuals/BTT-MANUAL_v2.0.pdf", "manual"),
+        ("rulebase/BTT-RULE_v2.0.pdf", "rulebook"),
+        ("regulations/BTT-SOP-001.pdf", "regulation"),
         ("templates/maintenance_report_form_v1.2.pdf", "report_template"),
     ],
 )

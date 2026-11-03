@@ -1,0 +1,20 @@
+# deploy/*.Dockerfile의 빌드 컨텍스트(레포 루트)에서 뺄 것. 비밀 값과 로컬 산출물이 이미지에 들어가지 않게 한다.
+.git
+.venv
+**/__pycache__
+**/node_modules
+**/.next
+**/dist
+.env
+.env.*
+!.env.example
+*.pem
+*credentials*.csv
+storage
+outputs
+logs
+.claude
+.omc
+.agents
+.pytest_cache
+.ruff_cache

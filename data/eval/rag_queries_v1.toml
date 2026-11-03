@@ -1,0 +1,225 @@
+# RAG E2E 검증용 샘플 질의(#28). scripts/verify_rag_e2e.py가 읽는다.
+# 정답은 청크 ID가 아니라 "기대 문서 + 기대 키워드"로 판정한다. 청크 ID는 #6의 청킹 방식에 따라 달라지기 때문이다.
+#   hit: 상위 k개 안에 doc_id가 같고, 본문에 any_of 키워드 중 하나라도 있는 청크가 있다
+#   where(선택): 저장소 필터. 예: { doc_type = "sop" }
+#   expect_no_evidence = true: 근거 없음이 정답. doc_id·any_of는 쓰지 않는다.
+# 순위 지표는 정답 질의만, 범위 밖 질의는 빈 결과 반환 여부로 별도 집계한다.
+#   codes(query 대신): Incident 코드. 질의문은 rag.query.codes_query로 만든다(#8). 정답 키워드는 코드 목록 표가 아니라
+#   대응 절 본문에만 있는 문구로 정한다(표에도 코드 문자열이 있어 코드만으로는 표가 정답으로 잡힌다).
+# 키워드는 data/parsed/*.md에서 해당 문서에 실제로 있는지 확인했다.
+# #8 평가셋(질문 + 정답 청크)이 생기면 그것으로 바꾸거나 함께 쓴다.
+
+[[queries]]
+id = "q01"
+query = "입구 센서가 계속 감지 상태로 남아 있다. 어떻게 대응하나"
+doc_id = "BTT-MANUAL"
+any_of = ["감지면 오염", "센서 앞 물체 유무"]
+
+[[queries]]
+id = "q02"
+query = "트레이가 출구에 늦게 도착하거나 나오지 않는다"
+doc_id = "BTT-MANUAL"
+any_of = ["후속 설비 수신", "트레이 변형"]
+
+[[queries]]
+id = "q03"
+query = "벨트는 도는데 트레이가 정체된다"
+doc_id = "BTT-MANUAL"
+any_of = ["미끄러짐"]
+
+[[queries]]
+id = "q04"
+query = "BTT2-M01 기동 후 정상 속도에 도달하지 못함"
+doc_id = "BTT-MANUAL"
+any_of = ["원인 제거 전 반복 리셋 금지"]
+
+[[queries]]
+id = "q05"
+query = "RPM 하한 이탈 원인 점검"
+doc_id = "BTT-MANUAL"
+any_of = ["목표속도·기동 유예", "마찰·전달"]
+
+[[queries]]
+id = "q06"
+query = "구동측 진동 RMS 상한 초과 시 점검 항목"
+doc_id = "BTT-MANUAL"
+any_of = ["체결·정렬"]
+
+[[queries]]
+id = "q07"
+query = "첨도 상한 이탈 시 확인할 것"
+doc_id = "BTT-MANUAL"
+any_of = ["투입시각과 충격", "파형 포화"]
+
+[[queries]]
+id = "q08"
+query = "광전센서 감지면 오염 확인 방법"
+doc_id = "BTT-MANUAL"
+any_of = ["오염"]
+
+[[queries]]
+id = "q09"
+query = "정비 전 에너지 격리 절차"
+doc_id = "BTT-SOP-001"
+any_of = ["격리"]
+where = { doc_type = "sop" }
+
+[[queries]]
+id = "q10"
+query = "정비 후 재가동 승인은 누가 하나"
+doc_id = "BTT-SOP-001"
+any_of = ["재가동"]
+
+[[queries]]
+id = "q11"
+query = "정상 이송시간 기준은 몇 초인가"
+doc_id = "BTT-RULE"
+any_of = ["16초", "14~16"]
+
+[[queries]]
+id = "q12"
+query = "센서 값이 결측되면 룰 판정은 어떻게 하나"
+doc_id = "BTT-RULE"
+any_of = ["결측"]
+
+# --- Incident 코드로 만든 질의(#8): 코드·짧은 코드·코드 이름 → 질의문 ---
+
+[[queries]]
+id = "i01"
+codes = ["BTT2-P03"]
+doc_id = "BTT-MANUAL"
+any_of = ["감지면 오염", "센서 앞 물체 유무"]
+
+[[queries]]
+id = "i02"
+codes = ["BTT2-P01"]
+doc_id = "BTT-MANUAL"
+any_of = ["후속 설비 수신", "트레이 변형"]
+
+[[queries]]
+id = "i03"
+codes = ["BTT2-M02"]
+doc_id = "BTT-MANUAL"
+any_of = ["목표속도·기동 유예", "마찰·전달"]
+
+[[queries]]
+id = "i04"
+codes = ["BTT2-M12"]
+doc_id = "BTT-MANUAL"
+any_of = ["체결·정렬"]
+
+[[queries]]
+id = "i05"
+codes = ["BTT2-M14"]
+doc_id = "BTT-MANUAL"
+any_of = ["투입시각과 충격"]
+
+[[queries]]
+id = "i06"
+codes = ["BTT2-M19"]
+doc_id = "BTT-MANUAL"
+any_of = ["절대 크기를 직접 비교"]
+
+# 추가 코드 질의: 코드 목록 표 대신 대응 절의 실제 문구를 정답으로 사용한다.
+[[queries]]
+id = "i07"
+codes = ["BTT2-M01"]
+doc_id = "BTT-MANUAL"
+any_of = ["원인 제거 전 반복 리셋 금지"]
+
+[[queries]]
+id = "i08"
+codes = ["BTT2-M03"]
+doc_id = "BTT-MANUAL"
+any_of = ["RPM 펄스 환산"]
+
+[[queries]]
+id = "i09"
+codes = ["BTT2-P04"]
+doc_id = "BTT-MANUAL"
+any_of = ["감지면 오염", "센서 앞 물체 유무"]
+
+[[queries]]
+id = "i10"
+codes = ["BTT2-P05"]
+doc_id = "BTT-MANUAL"
+any_of = ["상위 설비 공급", "FIFO 대응"]
+
+[[queries]]
+id = "i11"
+codes = ["BTT2-M16"]
+doc_id = "BTT-MANUAL"
+any_of = ["체결·정렬"]
+
+[[queries]]
+id = "i12"
+codes = ["BTT2-M18"]
+doc_id = "BTT-MANUAL"
+any_of = ["투입시각과 충격"]
+
+[[queries]]
+id = "q13"
+query = "모터 속도가 지나치게 높게 표시될 때 무엇을 대조하나"
+doc_id = "BTT-MANUAL"
+any_of = ["RPM 펄스 환산", "독립 측정"]
+
+[[queries]]
+id = "q14"
+query = "진동이 작아졌는데 센서가 떨어진 것인지 확인하려면"
+doc_id = "BTT-MANUAL"
+any_of = ["장착 풀림·센서 분리"]
+
+[[queries]]
+id = "q15"
+query = "센서값이 NaN이면 0으로 채워서 정상 판정해도 되나"
+doc_id = "BTT-MANUAL"
+any_of = ["0으로 대체하지 않고"]
+
+[[queries]]
+id = "q16"
+query = "정비 작업자의 에너지 격리 검증 방법과 기록 항목은"
+doc_id = "BTT-SOP-001"
+any_of = ["LOTO-06", "검증 전 착수 금지"]
+
+[[queries]]
+id = "q17"
+query = "비상정지 버튼을 누르고 RPM이 0이면 정비를 바로 시작해도 되나"
+doc_id = "BTT-SOP-001"
+any_of = ["STOP-07", "정비 착수 허가"]
+
+[[queries]]
+id = "q18"
+query = "AI가 컨베이어 재시작이나 생산 복귀 승인을 직접 할 수 있나"
+doc_id = "BTT-SOP-001"
+any_of = ["ROLE-05", "승인을 발행하지"]
+
+# 범위 밖 질의: 다른 설비·일반 상식과 유사 용어가 있는 경계 질의를 함께 둔다.
+[[queries]]
+id = "o01"
+query = "용접 로봇 토치의 교체 주기와 교정 방법은"
+expect_no_evidence = true
+
+[[queries]]
+id = "o02"
+query = "배터리 셀 화재의 소화약제 종류와 진압 절차는"
+expect_no_evidence = true
+
+[[queries]]
+id = "o03"
+query = "산업용 로봇 그리퍼 공압 실린더 씰 교환 방법은"
+expect_no_evidence = true
+
+[[queries]]
+id = "o04"
+query = "오늘 점심 메뉴를 추천해줘"
+expect_no_evidence = true
+
+[[queries]]
+id = "o05"
+query = "사출기 금형 냉각수 유량과 온도의 권장 설정은"
+expect_no_evidence = true
+
+[[queries]]
+id = "o06"
+query = "리튬이온 배터리 충전 알고리즘과 충전 전압은"
+expect_no_evidence = true

@@ -1,21 +1,215 @@
+"""다른 모듈이 RAG 기능을 사용하는 공개 진입점과 호출 계약.
+
+Indexer·Retriever Protocol은 구현체가 제공할 메서드 형태를 정의한다.
+get_indexer()·get_retriever()는 설정에 맞는 실제 구현체를 만들어 재사용한다.
+웹 업로드 메타데이터 구성도 여기서 노출하므로 외부 모듈은 rag 내부 파일 대신
+이 interface.py와 공통 contracts를 import해 기능을 연결한다.
+"""
+
+from collections.abc import Callable
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Protocol
 
-from weeing_weeing.contracts import Evidence
+from weeing_weeing.contracts import (
+    DocumentRecord,
+    Evidence,
+    Incident,
+    MaintenanceReport,
+)
+
+# 기존 호출자가 공개 인터페이스에서 구현 클래스를 가져갈 수 있도록 다시 노출한다.
+from weeing_weeing.rag.retriever import HybridRetriever as HybridRetriever
+from weeing_weeing.rag.store import Hit as SearchHit
+from weeing_weeing.rag.store import VectorStore
+
+# 색인 진행 단계 이름(예: parsing, chunking)을 받아 화면·로그 등에 전달하는 함수 형식.
+ProgressCallback = Callable[[str], None]
 
 
 class Indexer(Protocol):
-    def index_file(self, path: Path, metadata: dict[str, Any]) -> int:
-        """문서 하나를 색인하고 만든 청크 수를 돌려준다. 같은 문서를 다시 넣으면 교체한다.
+    """문서 색인 구현체의 계약. 실제 파싱·청킹·저장은 DocumentIndexer가 수행한다."""
 
+    def index_file(
+        self,
+        path: Path,
+        metadata: dict[str, Any],
+        *,
+        on_progress: ProgressCallback | None = None,
+    ) -> int:
+        """문서를 색인하고 청크 수를 반환한다.
+
+        같은 문서는 교체하고, on_progress가 있으면 처리 단계를 알린다.
         metadata에는 최소 doc_id, doc_version을 넣는다(인용 문자열 생성에 필요).
+        웹 업로드는 doc_id·doc_version·doc_type·status·title·
+        source_path·source_sha256을 넘긴다. 이 값을 바꾸지 말고 모든 청크의 메타데이터에
+        그대로 넣는다. 청크 ID는 이 doc_id·doc_version으로 만든다. 값을 바꾸면 변경 감지가
+        깨져서 검색 자료와 등록 정보를 일치시킬 수 없다.
         """
+        ...
+
+    def delete_document(self, doc_id: str) -> int:
+        """해당 문서의 모든 청크를 삭제한다. 반복 호출해도 안전하다."""
+        ...
+
+    def delete_report(self, report_id: str) -> int:
+        """승인 보고서의 모든 검색 자료를 삭제한다."""
+        ...
+
+    def index_report(self, report: MaintenanceReport) -> int:
+        """승인 보고서의 사람 작성 칸만 한 사례로 색인하고 이전 판을 교체한다."""
         ...
 
 
 class Retriever(Protocol):
+    """문자열 질문을 받아 출처가 있는 Evidence를 반환하는 검색 구현체의 계약."""
+
     def search(
         self, query: str, *, k: int = 5, filters: dict[str, Any] | None = None
     ) -> list[Evidence]:
-        """관련도 순으로 근거를 돌려준다. filters 예: {"code": "BTT2-P01"}"""
+        """관련도 순으로 최대 k개의 근거를 돌려준다. 없으면 빈 리스트다.
+
+        HybridRetriever에 저장소를 주입해 사용한다. filters의 code는 저장소의
+        codes 별칭이다(둘을 함께 쓰면 오류). 예: {"code": "BTT2-P01"}.
+        나머지 키는 저장소 메타데이터 필터로 전달한다. 여러 키는 AND,
+        리스트 값은 하나라도 일치하면 된다. 빈 리스트·None 값은 허용하지 않는다.
+        query는 공백만 있는 문자열일 수 없고 k는 1 이상의 정수다.
+        score는 원래의 RRF 점수다. 리랭킹을 켜면 반환 순서만 달라지므로
+        score 내림차순을 보장하지 않는다. 확률·근거 충분성 임계값으로 쓰지 않는다.
+        relevance는 별도 리랭커 모델 점수이며 미사용 시 None이다(관련도 미측정).
+        설정한 RAG_MIN_RELEVANCE 미만은 제외하므로 결과 수는 k보다 적거나 0일 수 있다.
+        relevance도 확률이 아니며 기준값은 모델·평가셋에 맞춰 정한다.
+        검색·리랭킹 실패는 예외로 전달한다.
+        """
         ...
+
+
+class MetadataRetriever(Retriever, Protocol):
+    """챗봇 조립용 검색 경계. 기존 Evidence 검색과 동일한 공유 저장소·리랭커 사용."""
+
+    def search_hits(
+        self,
+        query: str,
+        *,
+        k: int = 5,
+        filters: dict[str, Any] | None = None,
+        versions: dict[str, str] | None = None,
+    ) -> list[SearchHit]:
+        """페이지·제목·유형 등을 보존한다. 반환 메타데이터의 최신성은 DB와 재검증한다."""
+        ...
+
+
+class InvalidDocumentError(ValueError):
+    """문서를 색인할 수 없다(형식·내용·입력 정보 문제). 사용자에게 보여 줄 메시지를 담는다."""
+
+
+# #56 업로드 API가 쓰던 이름. 매뉴얼 외 문서도 처리하므로 InvalidDocumentError로 통일했다.
+InvalidManualError = InvalidDocumentError
+
+
+@lru_cache(maxsize=1)
+def _get_store() -> VectorStore:
+    """설정에 맞는 저장소를 처음 한 번 만들고 색인기·검색기에 공유하는 내부 함수.
+
+    lru_cache(maxsize=1)가 반환 객체 하나를 보관한다. 같은 프로세스의 색인·검색이
+    Qdrant 로컬 폴더를 중복 개방하지 않도록 get_indexer()·get_retriever()가 함께 쓴다.
+    """
+    # 생성 시점에 가져와 interface와 factory의 상호 참조가 초기 import를 막지 않게 한다.
+    from weeing_weeing.config import get_settings
+    from weeing_weeing.rag.factory import build_store
+
+    return build_store(get_settings())
+
+
+@lru_cache(maxsize=1)
+def get_retriever() -> MetadataRetriever:
+    """프로세스에서 재사용할 검색기. RERANKER_MODEL이 있으면 리랭킹한다.
+
+    api 또는 실행 스크립트에서 조립해 Agent에 주입한다.
+    저장소·모델은 매 요청마다 생성하지 않는다. 공유 저장소를 호출 중 닫지 않는다.
+    factory가 공유 저장소와 선택적 리랭커를 HybridRetriever에 연결한다.
+    lru_cache가 완성된 검색기 객체를 보관해 이후 호출에도 같은 객체를 반환한다.
+    """
+    from weeing_weeing.config import get_settings
+    from weeing_weeing.rag.factory import build_retriever
+
+    return build_retriever(get_settings(), _get_store())
+
+
+@lru_cache(maxsize=1)
+def get_indexer() -> Indexer:
+    """API 서버용 Indexer. 저장소(.env의 VECTOR_STORE 등)는 프로세스당 한 번만 조립한다.
+
+    웹 업로드와 승인 보고서가 같은 저장소 설정을 쓴다. 업로드 원본 옆에 검토용 미리보기를 남긴다.
+    임베딩 모델은 첫 색인 때 올라온다.
+    lru_cache가 색인기 객체를 재사용하며, 저장소는 get_retriever()와 공유한다.
+    """
+    from weeing_weeing.config import from_root
+    from weeing_weeing.rag.indexer import DocumentIndexer
+
+    return DocumentIndexer(
+        _get_store(),
+        write_previews=True,
+        chunking="structured",
+        report_preview_dir=from_root(Path("storage/report-previews")),
+    )
+
+
+def upload_index_metadata(record: DocumentRecord, upload_dir: Path) -> dict[str, str]:
+    """DB에 접수한 업로드 정보로 파싱·청킹·저장에 사용할 메타데이터를 만든다."""
+    path = (upload_dir / record.source).resolve()
+    standard = {
+        "doc_id": record.doc_id,
+        "doc_version": record.doc_version,
+        "doc_type": record.doc_type,
+        "status": record.doc_status,
+        "title": record.title,
+        "source_path": str(path),
+        "source_sha256": record.source_sha256,
+    }
+    if record.upload_id:
+        standard["upload_id"] = record.upload_id
+    return {**record.extra, **standard}
+
+
+def incident_query(incident: Incident) -> str:
+    """Incident → Retriever.search에 넣을 질의문. 구현은 rag/query.py.
+
+    짧은 코드 + 코드 이름 + 대응 문구. 예: BTT2-P03 →
+    "P03 입구 장기 점유 발생 시 원인 점검과 현장 대응 절차"
+    """
+    from weeing_weeing.rag.query import incident_query as build
+
+    return build(incident)
+
+
+def close_rag_resources() -> None:
+    """모든 작업이 끝난 단일 프로세스 종료 시 공유 저장소·로컬 폴더 잠금을 해제한다.
+
+    요청 처리 중 호출하면 안 된다. CLI가 Python 종료 전에 클라이언트를 명시적으로
+    닫아 Qdrant 소멸자가 이미 종료된 Python 모듈에 접근하는 일을 방지한다.
+    """
+    if _get_store.cache_info().currsize:
+        _get_store().close()
+    get_indexer.cache_clear()
+    get_retriever.cache_clear()
+    _get_store.cache_clear()
+
+
+def report_search_hit(report: MaintenanceReport):
+    """DB의 승인 보고서에서 사번·AI 분석·결재를 제외한 챗봇 근거를 만든다."""
+    from weeing_weeing.contracts.chat import ChatReportSource
+    from weeing_weeing.contracts.chat_tools import ChatSearchHit
+    from weeing_weeing.rag.report import report_chunk
+
+    chunk = report_chunk(report)
+    return ChatSearchHit(
+        source=ChatReportSource(
+            source_id=chunk.chunk_id,
+            title=str(chunk.metadata["title"]),
+            report_id=report.report_id,
+            report_version=report.report_version,
+            synthetic=report.data_origin == "SYNTHETIC",
+        ),
+        text=chunk.text[:8000],
+    )

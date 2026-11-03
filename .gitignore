@@ -19,6 +19,7 @@ wheels/
 # 실행 중 생기는 저장소·산출물
 /storage/
 /outputs/
+/data/chunked/
 *.log
 
 # 에디터·에이전트 로컬 상태
@@ -28,7 +29,6 @@ wheels/
 .omc/
 .claude/worktrees/
 .claude/settings.local.json
-=======
 /storage/chroma/
 
 # macOS
@@ -57,3 +57,16 @@ wheels/
 # 노트북 파일
 /notebooks/
 *.ipynb
+
+# frontend
+node_modules
+
+.next/
+
+frontend/next-env.d.ts
+frontend/*.tsbuildinfo
+.prettierrc.json
+
+# 서버 접속 키·AWS 콘솔 자격증명 (#117)
+*.pem
+*credentials*.csv

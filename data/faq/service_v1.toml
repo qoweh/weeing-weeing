@@ -1,0 +1,83 @@
+# FAQ ID는 재사용하지 않는다. active로 공개 여부를 관리한다.
+# 검토 근거는 현재 코드/문서다. 문의 안내는 담당 직책 기준이며 개인 연락처를 추정하지 않는다.
+# 사용자 합의: 현장 책임자 역할은 안내 대상에서 제외한다.
+# topics의 order: 주제끼리 표시되는 순서
+## faqs의 order: 같은 주제 안에서 질문이 표시되는 순서
+schema_version = 1
+
+[[topics]]
+topic_id = "access"
+title = "접근·권한"
+order = 10
+active = true
+
+[[topics]]
+topic_id = "reports"
+title = "보고서 관련"
+order = 20
+active = true
+
+[[topics]]
+topic_id = "contacts"
+title = "문의 담당 안내"
+order = 30
+active = true
+
+[[faqs]]
+faq_id = "FAQ-ACCESS-001"
+topic_id = "access"
+question = "이상 확인 메뉴에 접근이 안돼요."
+order = 10
+active = true
+answer = "이상 확인 메뉴는 설비에 이상이 발생해 해결되지 않았을 때에만 접근 가능합니다."
+
+[[faqs]]
+faq_id = "FAQ-ACCESS-002"
+topic_id = "access"
+question = "문서에 접근이 안돼요."
+order = 20
+active = true
+answer = "로그인 만료 여부를 확인하세요. 데이터 불러오기 오류라면 관리자에게 문의해주세요."
+
+[[faqs]]
+faq_id = "FAQ-REPORT-001"
+topic_id = "reports"
+question = "보고서를 제출하려면 어떤 내용을 작성해야 하나요?"
+order = 10
+active = true
+answer = "현장 점검자인 작성자가 저장된 사건을 연결하고, 실제 수행 내용 또는 미수행 사유, 확인 원인 또는 미확인 사유, 복구 시험 내용·결과 또는 미실시 사유를 작성해야 합니다. 조치를 수행했다면 조치 시각도 필요합니다. 정지시간을 입력할 때는 정지 시작과 운전 복귀 시각을 함께 입력하세요. 제출 전 입력을 저장하고 제출하면 보전 팀장의 검토 단계로 넘어갑니다."
+
+[[faqs]]
+faq_id = "FAQ-REPORT-002"
+topic_id = "reports"
+question = "제출한 보고서를 수정할 수 있나요?"
+order = 20
+active = true
+answer = "제출된 판의 입력 내용은 고정되어 바로 수정할 수 없습니다. 반려되거나 최종 승인된 보고서는 작성자가 새 개정판을 만들어 수정할 수 있습니다. 새 개정판을 만들어도 이전 판의 내용과 결재 이력은 보존됩니다. 제출 또는 검토 승인 상태에서는 새 개정판을 만들 수 없습니다."
+
+[[faqs]]
+faq_id = "FAQ-REPORT-003"
+topic_id = "reports"
+question = "보고서는 어떤 순서로 승인되나요?"
+order = 30
+active = true
+answer = "현장 점검자가 보고서를 작성·제출하면 보전 팀장이 검토 승인하고, 이후 관제 담당자가 최종 승인합니다. 제출·검토 단계에서는 사유를 적어 반려할 수 있습니다."
+
+
+# AUTH.md의 업무 권한을 기준으로 담당 직책을 안내한다. 별도 고객지원 담당 지정은 아니다.
+[[faqs]]
+faq_id = "FAQ-CONTACT-001"
+topic_id = "contacts"
+question = "보고서 작성·제출 문제는 누구에게 문의하나요?"
+order = 10
+active = true
+answer = "보고서 작성·제출의 업무 담당은 현장 점검자입니다. 해당 보고서 작성자에게 입력 내용과 제출 상태를 먼저 확인하고, 검토 단계의 업무 내용은 보전 팀장에게 확인하세요. 다른 사용자가 작성한 보고서는 열람할 수 있지만 임의로 수정·제출할 수는 없습니다. 작성·수정 권한 문제는 계정 관리자에게 직책 확인을 요청하세요."
+
+
+[[faqs]]
+faq_id = "FAQ-CONTACT-002"
+topic_id = "contacts"
+question = "검토·최종 결재 진행은 누구에게 문의하나요?"
+order = 20
+active = true
+answer = "제출된 보고서의 검토 업무는 보전 팀장, 검토 승인된 보고서의 최종 승인 업무는 관제 담당자에게 확인하세요. 현재 보고서 상태가 제출됨이면 보전 팀장 검토 단계이고, 검토 승인이면 관제 담당자 최종 승인 단계입니다."

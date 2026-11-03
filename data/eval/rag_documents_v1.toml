@@ -1,0 +1,31 @@
+# 검색 평가 전용 입력. 실제 DB 등록·문서 관리에는 사용하지 않는다.
+
+[[documents]]
+doc_id = "BTT-MANUAL"
+doc_version = "2.0"
+doc_type = "manual"
+status = "approved"
+path = "../manuals/BTT-MANUAL_v2.0.pdf"
+title = "에러코드·대응 매뉴얼"
+extra = {asset_id = "BLDC-001"}
+
+[[documents]]
+doc_id = "BTT-RULE"
+doc_version = "2.0"
+doc_type = "rule"
+status = "approved"
+path = "../rulebase/BTT-RULE_v2.0.pdf"
+title = "룰베이스 최종 정의서"
+extra = {asset_id = "BLDC-001"}
+
+[[documents]]
+doc_id = "BTT-SOP-001"
+# 표지에는 버전 표기가 없다. 제19조 ①의 "원문 버전 1.1, status=review_draft"를 따른다.
+# 본문은 "승인 전 제정안"이라고 적혀 있지만, 실제 설비 규정을 구할 수 없어 팀이 만든 문서이고
+# 이 프로젝트에서는 시행 규정으로 쓴다. 그래서 검색·인용에서 초안으로 다루지 않는다(#8).
+doc_version = "1.1"
+doc_type = "sop"
+status = "approved"
+path = "../regulations/BTT-SOP-001.pdf"
+title = "배터리 트레이 자동 이송 공정 사내 규정"
+extra = {asset_id = "BLDC-001"}
