@@ -469,11 +469,6 @@ export default function ReportForm({
               wide: true,
               required: true,
             })}
-            {renderField("causeEvidence", "원인 확인 근거", {
-              type: "textarea",
-              wide: true,
-            })}
-            {renderField("causeCategory", "원인 분류")}
             {renderField("aiAssessment", "AI 제안과 실제 결과 비교", {
               options: ["판단 불가", "일치", "부분 일치", "불일치"],
             })}
@@ -512,14 +507,6 @@ export default function ReportForm({
           </dl>
 
           <div className="report-input-grid">
-            {renderField("followUp", "후속 조치 — 해당 없으면 ‘없음’", {
-              type: "textarea",
-              wide: true,
-            })}
-            {renderField("followUpOwner", "후속 조치 담당자")}
-            {renderField("followUpDue", "후속 조치 기한", {
-              type: "date",
-            })}
             {renderField("confirmedBy", "작성 확인 성명", {
               readOnly: true,
             })}
