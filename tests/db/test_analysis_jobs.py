@@ -94,6 +94,44 @@ def test_failed_manual_retry_is_idempotent_and_not_automatic(jobs, frame):
         jobs.retry(item.incident_id, str(uuid4()))
 
 
+def test_storage_only_error_and_recovery_never_create_work(jobs, frame):
+    from weeing_weeing.db.models import TelemetryRow
+
+    item = incident(frame)
+    for _ in range(2):
+        assert jobs.record_frame(frame, [item], enqueue_analysis=False) == []
+    recovered = item.model_copy(
+        update={
+            "status": IncidentStatus.RECOVERED,
+            "last_detected_at": item.last_detected_at + timedelta(seconds=1),
+        }
+    )
+    assert jobs.record_frame(frame, [recovered], enqueue_analysis=False) == []
+    assert jobs.get_incident(item.incident_id) == recovered
+    assert jobs.latest_job(item.incident_id) is None
+    assert jobs.claim() is None
+    with jobs._transaction() as session:
+        assert len(session.scalars(select(TelemetryRow)).all()) == 1
+        assert session.scalar(select(AnalysisJobRow)) is None
+        assert session.scalar(select(AnalysisRow)) is None
+
+
+@pytest.mark.parametrize("enqueue_analysis", [False, True])
+def test_deleted_incident_is_not_recreated_in_either_mode(
+    jobs, frame, enqueue_analysis
+):
+    from weeing_weeing.db.models import DeletedIncidentRow
+
+    item = incident(frame)
+    with jobs._transaction() as session:
+        session.add(
+            DeletedIncidentRow(incident_id=item.incident_id, deleted_at=frame.timestamp)
+        )
+    assert jobs.record_frame(frame, [item], enqueue_analysis=enqueue_analysis) == []
+    assert jobs.get_incident(item.incident_id) is None
+    assert jobs.latest_job(item.incident_id) is None
+
+
 def test_retry_stays_latest_when_clock_does_not_advance(jobs, frame, monkeypatch):
     from types import SimpleNamespace
 
@@ -156,7 +194,10 @@ def test_pending_survives_reopen(jobs, frame):
     assert reopened.claim()[1] == item
 
 
-def test_job_and_sensor_roll_back_when_incident_insert_fails(jobs, frame):
+@pytest.mark.parametrize("enqueue_analysis", [False, True])
+def test_job_and_sensor_roll_back_when_incident_insert_fails(
+    jobs, frame, enqueue_analysis
+):
     # 같은 트랜잭션 중간의 DB 제약 위반을 재현한다.
     from sqlalchemy.exc import IntegrityError
 
@@ -164,7 +205,7 @@ def test_job_and_sensor_roll_back_when_incident_insert_fails(jobs, frame):
 
     invalid = incident(frame).model_copy(update={"asset_id": None})
     with pytest.raises(IntegrityError):
-        jobs.record_frame(frame, [invalid])
+        jobs.record_frame(frame, [invalid], enqueue_analysis=enqueue_analysis)
     with jobs._transaction() as session:
         assert session.scalar(select(TelemetryRow)) is None
         assert session.scalar(select(AnalysisJobRow)) is None

@@ -3,12 +3,14 @@
 ## 실행 흐름
 
 1. `api/telemetry.py`: JSON 검증 → HistoryDetector 순차 처리 → 로컬 사건 이력 기록.
-2. 자동 분석을 켰으면 `AnalysisService.ingest()`가 `db/analysis_jobs.py`에 전달한다.
-   센서 1행·사건 변경·Error 분석 등록은 한 DB 트랜잭션이다. 롤백되면 ACK의
+2. 자동 분석 또는 저장 전용 모드를 켰으면 `AnalysisService.ingest()`가
+   `db/analysis_jobs.py`에 전달한다. 센서 1행·사건 변경과, 자동 분석이 켜진 경우의
+   Error 분석 등록은 한 DB 트랜잭션이다. 롤백되면 ACK의
    `db_status=failed`, `agent_status=storage_failed`와 로그로 알린다. 탐지는 계속되지만
    해당 입력을 DB에 자동 재전송하지 않는다. 로컬 이력과 원본으로 누락 구간을 확인한다.
    CSV 송신기는 이 ACK에서 전송을 멈춘다.
-3. Warning만으로 분석하지 않는다. 최초 Error 또는 Warning→Error에 PENDING을 만든다.
+3. 자동 분석 모드에서만 최초 Error 또는 Warning→Error에 PENDING을 만든다.
+   저장 전용에서는 Warning·Error·회복 모두 센서·사건만 저장하고 분석 작업을 만들지 않는다.
    같은 incident_id의 반복 Error·회복은 새 자동 분석을 만들지 않는다.
 4. 단일 백그라운드 실행기가 RUNNING으로 선점한 뒤, 등록 시점의 Incident 스냅샷을
    `get_analyzer(get_retriever()).analyze()`에 전달한다. 수신 스레드에서 LLM을 호출하지 않는다.
@@ -21,12 +23,40 @@
 작업 ID·자동/수동 요청 키·입력 스냅샷·시각·결과 FK를 보존한다.
 기존 사건·분석과 같은 저장 형식으로 작업 등록·완료를 묶는 전용 저장소를 사용한다.
 
+## 센서·사건 저장과 자동 분석 설정
+
+| ANALYSIS_AUTO_ENABLED | TELEMETRY_DB_ENABLED | 동작 |
+|---|---|---|
+| false | false (기본) | 수신·탐지·로컬 이력만 기록. 이 수신 경로의 DB 저장·분석은 미연결 |
+| false | true | 센서·사건을 DB에 저장. 분석 작업·worker·Claude/RAG 생성 없음 |
+| true | false 또는 true | 기존 DB 저장과 Error 자동 분석 실행. 실제 API 비용 발생 가능 |
+
+두 설정은 서버 시작 시 읽는다. 파일만 수정해 실행 중인 서버의 모드가 바뀌었다고
+판단하지 않는다. `/health`는 실행 모드를 공개하지 않으므로 시작 로그와 실제 프레임
+ACK를 확인한다. 저장 전용의 정상 ACK는 다음과 같다.
+
+```json
+{"status":"processed","agent_status":"not_connected","db_status":"saved","analysis_jobs":[]}
+```
+
+위는 상태 필드만 발췌한 예시다. 기존 record_id·timestamp·incidents·error_entries는 유지한다.
+handshake의 agent_status는 저장 전용에서도 not_connected이며, DB 저장 성공 여부는
+첫 검증 통과 프레임의 ACK로 확인한다. 저장 실패는 기존처럼 db_status=failed와
+agent_status=storage_failed로 표시하며 해당 입력을 자동 재전송하지 않는다.
+
+저장 전용에서는 기존 PENDING/RUNNING 작업도 선점하거나 중단 복구하지 않는다.
+저장 전용에서 생긴 Error 때문에 나중에 과금될 대기 작업을 남기지 않는다. 다만 과거
+자동 분석 모드에서 이미 생성된 PENDING은 삭제하지 않으며, 나중에 자동 분석을 켜면
+기존 정책대로 처리될 수 있다. 기존 분석 조회는 가능하고 수동 재요청은 503으로 차단한다.
+
+구체적인 무과금 시험 순서는 [DESKTOP_SCENARIOS](DESKTOP_SCENARIOS.md)를 따른다.
+
 ## 비용 없는 터미널 시연
 
 ```powershell
 $env:PYTHONPATH = "src"
 $env:PYTHONUTF8 = "1"
-uv run --no-sync python scripts/demo_auto_analysis.py
+uv run --no-sync --no-env-file python scripts/demo_auto_analysis.py
 ```
 
 실제 Uvicorn·WebSocket·기존 CSV 송신기·Detector·전용 SQLite를 사용한다. 가짜 Analyzer가
@@ -55,6 +85,7 @@ ANALYSIS_AUTO_ENABLED=true
 ```
 
 기본값은 false다. true일 때 센서·사건 DB 저장과 Error 유료 호출이 켜진다.
+DB 저장만 필요하면 위 설정표의 저장 전용 조합을 사용한다.
 환경 파일 변경 뒤 API를 재시작한다. 기존 WebSocket에는 인증이 없으므로 loopback 또는
 접근 통제된 시연 환경에서만 사용한다. 외부 공개 전 별도 인증이 필요하다.
 

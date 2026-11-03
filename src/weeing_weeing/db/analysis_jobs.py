@@ -91,8 +91,8 @@ class SqlAnalysisJobs(SqlIncidents):
         )
         return _job(row)
 
-    def record_frame(self, record, incidents, *, capacity=100):
-        """실패하면 전체 롤백. 유료 AI 호출은 이 트랜잭션 밖에서 실행한다."""
+    def record_frame(self, record, incidents, *, capacity=100, enqueue_analysis=True):
+        """센서·사건은 항상 저장하고, 분석 등록은 옵션이다. 실패하면 전체 롤백."""
         jobs = []
         with self._transaction() as session:
             if self._engine.dialect.name == "sqlite":
@@ -120,9 +120,11 @@ class SqlAnalysisJobs(SqlIncidents):
                         <= statement.excluded.last_detected_at,
                     )
                 )
-                if incident.severity == Severity.ERROR and incident.status not in (
-                    IncidentStatus.RECOVERED,
-                    IncidentStatus.CLOSED,
+                if (
+                    enqueue_analysis
+                    and incident.severity == Severity.ERROR
+                    and incident.status
+                    not in (IncidentStatus.RECOVERED, IncidentStatus.CLOSED)
                 ):
                     jobs.append(
                         self._enqueue(

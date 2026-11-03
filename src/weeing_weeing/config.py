@@ -51,6 +51,7 @@ class Settings:
     langfuse_tracing_environment: str = "dev"  # dev | demo | ci
     langfuse_capture_content: bool = True  # 프롬프트·응답 본문까지 보낼지
     analysis_auto_enabled: bool = False  # 유료 자동 호출은 명시적으로 켠다
+    telemetry_db_enabled: bool = False  # 분석 작업 없이 센서·사건만 저장
 
 
 def get_settings() -> Settings:
@@ -97,5 +98,7 @@ def get_settings() -> Settings:
         langfuse_capture_content=env("LANGFUSE_CAPTURE_CONTENT", "true").lower()
         in ("1", "true", "yes"),
         analysis_auto_enabled=env("ANALYSIS_AUTO_ENABLED", "false").lower()
+        in ("1", "true", "yes"),
+        telemetry_db_enabled=env("TELEMETRY_DB_ENABLED", "false").lower()
         in ("1", "true", "yes"),
     )

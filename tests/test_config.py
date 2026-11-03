@@ -52,3 +52,15 @@ def test_invalid_min_relevance_from_environment(monkeypatch):
     monkeypatch.setenv("RAG_MIN_RELEVANCE", "low")
     with pytest.raises(ValueError):
         get_settings()
+
+
+@pytest.mark.parametrize(
+    "value,enabled",
+    [("false", False), ("0", False), ("true", True), ("1", True), ("yes", True)],
+)
+def test_telemetry_storage_flag_does_not_enable_analysis(monkeypatch, value, enabled):
+    monkeypatch.setenv("TELEMETRY_DB_ENABLED", value)
+    monkeypatch.setenv("ANALYSIS_AUTO_ENABLED", "false")
+    settings = get_settings()
+    assert settings.telemetry_db_enabled is enabled
+    assert settings.analysis_auto_enabled is False

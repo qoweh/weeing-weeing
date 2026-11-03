@@ -104,7 +104,11 @@ class TelemetrySession:
                 self.history.run_path.name,
                 ",".join(incident["codes"]),
                 incident["incident_id"],
-                "등록 시도" if self.analysis_service else "미연결",
+                "등록 시도"
+                if self.analysis_service and self.analysis_service.analysis_enabled
+                else "미연결(DB 저장 전용)"
+                if self.analysis_service
+                else "미연결",
             )
         analysis = (
             self.analysis_service.ingest(record, changes)
@@ -182,6 +186,7 @@ async def telemetry_socket(websocket: WebSocket, context: str = "NONE"):
                 "context_preset": context,
                 "agent_status": "connected"
                 if session.analysis_service
+                and session.analysis_service.analysis_enabled
                 else "not_connected",
             }
         )
