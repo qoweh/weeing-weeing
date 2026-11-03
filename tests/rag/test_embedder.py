@@ -7,6 +7,7 @@ import httpx
 import pytest
 
 from weeing_weeing.rag.embedder import (
+    VOYAGE_BASE_URL,
     VOYAGE_BATCH,
     EmbeddingApiError,
     HashingEmbedder,
@@ -95,7 +96,7 @@ def test_voyage_sends_input_type_and_dimension(api_key):
     assert docs == [[1.0] * 4, [2.0] * 4]
     assert query == [1.0] * 4
     (doc_req, doc_payload), (_, query_payload) = requests
-    assert doc_req.url == "https://ai.mongodb.com/v1/embeddings"
+    assert doc_req.url == f"{VOYAGE_BASE_URL}/embeddings"
     assert doc_req.headers["Authorization"] == f"Bearer {KEY}"
     assert doc_payload == {
         "input": ["가", "나"],

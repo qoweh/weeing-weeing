@@ -21,7 +21,7 @@ ENV_FILE := $(if $(wildcard .env),--env-file .env,)
 # 의존성이 바뀌면(pull 후 등) make setup을 다시 실행한다.
 RUN := uv run --no-sync
 
-.PHONY: help setup lint fmt test check skills db-up db-migrate qdrant-up down api index-reports seed-users rag-e2e llm-check llm-eval analyze chat
+.PHONY: help setup lint fmt test check env-check skills db-up db-migrate qdrant-up down api index-reports seed-users rag-e2e llm-check llm-eval analyze chat
 
 help: ## 명령 목록
 	@$(RUN) python scripts/make_help.py
@@ -42,6 +42,9 @@ test: ## 테스트
 
 check: lint test ## PR 올리기 전 전체 검사
 	$(RUN) python scripts/sync_skills.py --check
+
+env-check: ## 내 .env를 .env.example과 비교 (값은 출력 안 함, ARGS="--file 경로")
+	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) python scripts/check_env.py
 
 skills: ## 스킬 원본(.agents/skills)을 Claude Code용 사본(.claude/skills)으로 복사
 	$(RUN) python scripts/sync_skills.py

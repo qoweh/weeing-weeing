@@ -9,6 +9,7 @@ from fakes import FakeEmbedder, TextIndexer
 from weeing_weeing.config import get_settings
 from weeing_weeing.rag import factory
 from weeing_weeing.rag.chroma_store import ChromaVectorStore
+from weeing_weeing.rag.embedder import DEFAULT_MODELS
 from weeing_weeing.rag.qdrant_store import QdrantVectorStore
 from weeing_weeing.rag.sparse import KiwiBm25Encoder
 from weeing_weeing.rag.store import Chunk
@@ -120,8 +121,9 @@ def test_voyage_dimension_is_validated(tmp_path):
 @pytest.mark.parametrize(
     ("provider", "model", "dim", "expected"),
     [
-        ("hashing", "", 1024, "hashing:hashing-kiwi-v1:1024"),
-        ("voyage", "", 512, "voyage:voyage-4-lite:512"),
+        # 모델을 비우면 공급자 기본 모델. 기본값이 바뀌어도 깨지지 않게 상수로 비교한다
+        ("hashing", "", 1024, f"hashing:{DEFAULT_MODELS['hashing']}:1024"),
+        ("voyage", "", 512, f"voyage:{DEFAULT_MODELS['voyage']}:512"),
         ("voyage", "voyage-4", 1024, "voyage:voyage-4:1024"),
     ],
 )
@@ -148,7 +150,7 @@ def test_voyage_embedder_uses_configured_endpoint(tmp_path):
         )
     )
     assert isinstance(embedder, VoyageEmbedder)
-    assert (embedder.model, embedder.dim) == ("voyage-4-lite", 256)
+    assert (embedder.model, embedder.dim) == (DEFAULT_MODELS["voyage"], 256)
     assert embedder._base_url == "https://example.test/v1"
     assert embedder._timeout_s == 7.0
 
