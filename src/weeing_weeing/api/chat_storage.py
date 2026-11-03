@@ -21,6 +21,7 @@ from weeing_weeing.contracts import (
     ChatSubmission,
     FaqSelection,
 )
+from weeing_weeing.contracts.chat_stream import ChatProgress
 from weeing_weeing.db.interface import SqlChats
 
 
@@ -58,6 +59,7 @@ class StoredChatService:
         *,
         retry: bool = False,
         timeout_s: float = 120,
+        on_progress: ChatProgress | None = None,
     ) -> ChatRequestView:
         """동일 요청은 저장 상태만 반환한다. 실행 전 실패에만 명시적 재시도를 허용한다."""
         if (
@@ -71,6 +73,8 @@ class StoredChatService:
             actor_id, conversation_id, submission, retry=retry
         )
         request = claim.request
+        if on_progress:
+            on_progress("accepted")
 
         # 실행 토큰이 없으면 예약만 하고 반환한다. 이미 실행된 요청은 재실행하지 않는다. (답변은 request.response에 담겨 있다)
         if claim.execution_token is None:
@@ -104,9 +108,21 @@ class StoredChatService:
                 self.repository.start_request(
                     actor_id, conversation_id, request_id, token
                 )
-                response = ChatResponse.model_validate(
-                    service.reply(question, context=context, timeout_s=timeout_s)
-                )
+                progressive = getattr(service, "reply_with_progress", None)
+                if on_progress is not None and callable(progressive):
+                    answer = progressive(
+                        question,
+                        context=context,
+                        timeout_s=timeout_s,
+                        on_progress=on_progress,
+                    )
+                else:
+                    if on_progress:
+                        on_progress("generating")
+                    answer = service.reply(
+                        question, context=context, timeout_s=timeout_s
+                    )
+                response = ChatResponse.model_validate(answer)
         except FaqNotFoundError:
             return self.repository.fail_request(
                 actor_id, conversation_id, request_id, token, code="FAQ_NOT_FOUND"
@@ -117,6 +133,8 @@ class StoredChatService:
                 actor_id, conversation_id, request_id, token
             )
         # 생성 후 저장 실패는 호출자에게 알린다. 실행 전 실패로 바꾸면 중복 과금 위험이 있다.
+        if on_progress:
+            on_progress("saving")
         return self.repository.complete_request(
             actor_id,
             conversation_id,

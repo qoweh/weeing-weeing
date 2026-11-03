@@ -50,6 +50,7 @@ from weeing_weeing.contracts.chat import (
     ChatResponse,
     ChatSearchConditions,
 )
+from weeing_weeing.contracts.chat_stream import ChatProgress
 from weeing_weeing.contracts.chat_tools import (
     ChatHistoryQuery,
     ChatHistoryResult,
@@ -162,6 +163,19 @@ class ChatService(Protocol):
         실행하고 timeout_s 전체 예산을 검색·LLM에 나누어 적용한다(#91).
         """
         ...
+
+
+class ProgressChatService(ChatService, Protocol):
+    """선택적 진행 알림 경계. 미검증 답변 본문을 콜백으로 전달하지 않는다."""
+
+    def reply_with_progress(
+        self,
+        question: ChatQuestion,
+        *,
+        context: ChatContext,
+        timeout_s: float,
+        on_progress: ChatProgress,
+    ) -> ChatResponse: ...
 
 
 class ChatKnowledge(Protocol):

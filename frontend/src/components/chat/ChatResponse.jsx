@@ -1,3 +1,5 @@
+import ChatMarkdown from './ChatMarkdown.js'
+
 const labels = {
   NEEDS_CLARIFICATION: '추가 확인',
   INSUFFICIENT_EVIDENCE: '근거 부족',
@@ -36,9 +38,11 @@ export default function ChatResponse({ response, onSource }) {
         </span>
       )}
       {response.status === 'OK' && response.parts?.length ? (
-        response.parts.map((part, i) => <p key={i}>{part.text}</p>)
+        response.parts.map((part, i) => (
+          <ChatMarkdown key={i}>{part.text}</ChatMarkdown>
+        ))
       ) : (
-        <p>{response.message}</p>
+        <ChatMarkdown>{response.message}</ChatMarkdown>
       )}
       {response.clarification_questions?.length > 0 && (
         <ul>

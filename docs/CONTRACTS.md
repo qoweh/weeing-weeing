@@ -213,3 +213,20 @@ frontend(알림 집계·출처), scripts(터미널 표시). 기존 Incident·보
   모델 필터는 사건에 정보가 없으므로 조용히 무시하지 않고 미지원으로 안내한다.
 - 사건 근거는 조회 시점 스냅샷이다. 지속/회복 갱신 때문에 생성 도중 답변을 실패시키지 않으며,
   인용 사건의 삭제 여부는 반환 전에 재확인한다. 조회 시각을 센서 관측 시각으로 설명하지 않는다.
+
+## 검증 후 채팅 SSE·마크다운
+
+`contracts/chat_stream.py`의 전송 계약이며 기존 ChatResponse·대화 저장 스키마는 유지한다.
+영향 모듈: contracts, agent(선택적 ProgressChatService), api(SSE·저장), frontend(수신·마크다운).
+
+- `ChatStreamProgress`: event=progress, request_id, phase(accepted/generating/searching/verifying/saving).
+  실제 실행 단계만 전송하며 질문·도구 인자·모델 초안은 담지 않는다.
+- `ChatStreamDelta`: event=delta, request_id, text(1~2048자). 공백과 줄바꿈을 보존한다.
+  응답이 검증되고 DB 저장까지 완료된 OK 답변에만 전송한다.
+- `ChatStreamDone`: event=done, request(기존 ChatRequestView). 최종 상태·본문·출처의 기준이다.
+- `ChatStreamError`: event=error, 안전한 message와 status_code. 전송 시작 뒤 오류에 사용한다.
+  request_reserved=False인 경우만 예약 전 거절로 판단한다. 나머지는 접수됐을 가능성이 있어 새로운 ID로 자동 재실행하지 않는다.
+
+본문 `parts.text`는 각 부분이 독립적인 마크다운이다. 프론트엔드는 제목·목록·강조·표·코드를
+렌더링하며 한 번 개행도 실제 줄바꿈으로 보존한다. 원시 HTML·외부 이미지·모델 생성 링크는
+실행/로드하지 않고 기존 출처 버튼을 사용한다.

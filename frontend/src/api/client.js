@@ -1,3 +1,5 @@
+import { readChatStream } from './sse.js';
+
 let accessToken = "";
 
 export function setAccessToken(token) {
@@ -6,7 +8,7 @@ export function setAccessToken(token) {
 
 export async function request(
   path,
-  { method = "GET", body, signal, responseType = "json" } = {},
+  { method = "GET", body, signal, responseType = "json", onEvent } = {},
 ) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 300_000);
@@ -29,6 +31,8 @@ export async function request(
       body: body === undefined || isFormData ? body : JSON.stringify(body),
     });
 
+    if (response.ok && responseType === "stream")
+      return await readChatStream(response, { onEvent, signal: controller.signal });
     if (response.ok && responseType === "blob") return await response.blob();
     const text = await response.text();
     let data;

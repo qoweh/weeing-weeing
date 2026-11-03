@@ -509,3 +509,94 @@ def test_production_replay_needs_no_catalog_or_generation_dependency(
     replay = client.post(endpoint, headers=owner, json=body)
     assert replay.status_code == 200 and replay.json() == saved.json()
     assert fake.calls == calls
+
+
+def stream_events(text):
+    import json
+
+    return [
+        json.loads(line[6:]) for line in text.splitlines() if line.startswith("data: ")
+    ]
+
+
+def test_stream_sends_saved_markdown_and_duplicate_does_not_execute(setup, monkeypatch):
+    client, headers, repo, _, fake = setup
+    path = create(client, headers["owner"])
+    start(client, headers["owner"], path)
+    markdown = (
+        "## 점검\n\n**센서 상태**를 확인합니다.\n\n" + "센서 점검 근거입니다. " * 80
+    )
+
+    def answer(question, *, context, timeout_s):
+        fake.calls += 1
+        return ChatResponse(
+            request_id=question.request_id,
+            intent="MANUAL",
+            status="OK",
+            applied_conditions=question.conditions,
+            message="근거 안내",
+            parts=[dict(kind="MANUAL", text=markdown, source_ids=["doc:1"])],
+            sources=[
+                dict(
+                    kind="DOCUMENT",
+                    source_id="doc:1",
+                    title="매뉴얼",
+                    doc_id="MAN",
+                    doc_version="1",
+                    page=1,
+                )
+            ],
+            generated_at=datetime.now(UTC),
+        )
+
+    monkeypatch.setattr(fake, "reply", answer)
+    body = dict(request_id=str(uuid4()), question="센서 점검")
+    result = client.post(path + "/messages/stream", headers=headers["owner"], json=body)
+    assert result.status_code == 200
+    assert result.headers["content-type"].startswith("text/event-stream")
+    assert result.headers["cache-control"] == "no-store"
+    events = stream_events(result.text)
+    assert events[0]["phase"] == "accepted"
+    assert events[-1]["event"] == "done"
+    stored = events[-1]["request"]
+    assert stored["state"] == "COMPLETED"
+    assert (
+        "".join(e["text"] for e in events if e["event"] == "delta")
+        == stored["response"]["parts"][0]["text"]
+    )
+    assert fake.calls == 1
+    replay = stream_events(
+        client.post(path + "/messages/stream", headers=headers["owner"], json=body).text
+    )
+    assert replay[-1]["request"]["response"] == stored["response"]
+    assert fake.calls == 1
+    assert (
+        client.get(path, headers=headers["owner"]).json()["messages"][-1]["response"]
+        == stored["response"]
+    )
+    assert (
+        client.post(
+            path + "/messages/stream", headers=headers["other"], json=body
+        ).status_code
+        == 404
+    )
+    assert client.post(path + "/messages/stream", json=body).status_code == 401
+
+
+def test_non_ok_stream_has_no_answer_delta_and_conflict_is_sanitized(setup):
+    client, headers, _, _, fake = setup
+    path = create(client, headers["owner"])
+    start(client, headers["owner"], path)
+    body = dict(request_id=str(uuid4()), question="질문")
+    result = client.post(path + "/messages/stream", headers=headers["owner"], json=body)
+    events = stream_events(result.text)
+    assert not any(e["event"] == "delta" for e in events)
+    assert events[-1]["request"]["response"]["status"] == "INSUFFICIENT_EVIDENCE"
+    changed = client.post(
+        path + "/messages/stream",
+        headers=headers["owner"],
+        json=body | {"question": "다른 질문"},
+    )
+    assert stream_events(changed.text)[-1]["status_code"] == 409
+    assert stream_events(changed.text)[-1]["request_reserved"] is False
+    assert fake.calls == 1

@@ -530,3 +530,21 @@ def test_broad_history_question_can_search_without_optional_filters(question_tex
     assert len(knowledge.searches) == 1
     assert knowledge.searches[0].conditions == ChatSearchConditions()
     assert knowledge.searches[0].code is None
+
+
+def test_progress_reports_actual_work_without_exposing_draft():
+    phases = []
+    client = FakeClient(
+        reply(search()), reply(submit(text="## 확인\n\n**센서 상태**를 확인합니다."))
+    )
+    service = get_chat_service(CommonKnowledge(), client=client)
+    result = service.reply_with_progress(
+        ChatQuestion(request_id=uuid4(), question="센서 점검"),
+        context=ChatContext(),
+        timeout_s=10,
+        on_progress=phases.append,
+    )
+    assert result.status == "OK"
+    assert phases == ["generating", "searching", "generating", "verifying"]
+    assert len(client.calls) == 2
+    assert "## 확인" in result.parts[0].text

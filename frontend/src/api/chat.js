@@ -36,7 +36,7 @@ export const getChatRequest = (id, requestId, signal) =>
 export function submitChatRequest(
   id,
   submission,
-  { retry = false, signal } = {},
+  { retry = false, signal, onEvent } = {},
 ) {
   const faq = submission.kind === 'FAQ'
   const body = faq
@@ -49,8 +49,13 @@ export function submitChatRequest(
           : {}),
       }
   return chatRequest(
-    `${path(id)}/${faq ? 'faq-selections' : 'messages'}${retry ? '?retry=true' : ''}`,
-    { method: 'POST', body, signal },
+    `${path(id)}/${faq ? 'faq-selections' : onEvent ? 'messages/stream' : 'messages'}${retry ? '?retry=true' : ''}`,
+    {
+      method: 'POST',
+      body,
+      signal,
+      ...(!faq && onEvent ? { responseType: 'stream', onEvent } : {}),
+    },
   )
 }
 export const processing = (view) =>

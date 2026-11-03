@@ -9,6 +9,7 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi.responses import StreamingResponse
 from pydantic import Field, field_validator
 
 from weeing_weeing.agent.interface import (
@@ -20,6 +21,7 @@ from weeing_weeing.agent.interface import (
 )
 from weeing_weeing.api.auth import CurrentUser
 from weeing_weeing.api.chat_storage import StoredChatService
+from weeing_weeing.api.chat_stream import stream_chat
 from weeing_weeing.contracts import (
     ChatConversation,
     ChatConversationPage,
@@ -251,6 +253,50 @@ def send_message(
             service.submit, user.employee_no, conversation_id, submission, retry=retry
         ),
         response,
+    )
+
+
+@router.post(
+    "/conversations/{conversation_id}/messages/stream",
+    response_class=StreamingResponse,
+    responses={
+        200: {
+            "content": {"text/event-stream": {}},
+            "description": "진행 상태와 검증·저장 후 답변 전송",
+        }
+    },
+)
+def stream_message(
+    conversation_id: UUID,
+    body: ChatQuestion,
+    user: CurrentUser,
+    service: Stored,
+    repo: Chats,
+    retry: bool = False,
+):
+    # 인증·소유권은 헤더 전송 전에도 검사한다. 예약·실행 때 DB가 다시 검사한다.
+    _call(repo.get_conversation, user.employee_no, conversation_id, limit=1)
+    submission = ChatSubmission(
+        kind="CHAT",
+        request_id=body.request_id,
+        question=body.question,
+        conditions=body.conditions if "conditions" in body.model_fields_set else None,
+    )
+
+    def execute(progress):
+        return _call(
+            service.submit,
+            user.employee_no,
+            conversation_id,
+            submission,
+            retry=retry,
+            on_progress=progress,
+        )
+
+    return StreamingResponse(
+        stream_chat(body.request_id, execute),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
     )
 
 

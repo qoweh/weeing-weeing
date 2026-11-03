@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import * as api from '../../api/chat.js'
+import { createVerifiedReveal } from './reveal.js'
 
 export const defaultConditions = {
   asset_id: null,
@@ -25,6 +26,7 @@ export default function useChatSession(
   const [faqError, setFaqError] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [stream, setStream] = useState(null)
   const [pending, setPending] = useState(null)
   const [rejectedDraft, setRejectedDraft] = useState(null)
   const [chatMode, setChatMode] = useState(false)
@@ -56,6 +58,7 @@ export default function useChatSession(
     const controller = new AbortController()
     active.current = controller
     setBusy(true)
+    setStream(null)
     setError('')
     try {
       await task(controller.signal)
@@ -65,7 +68,34 @@ export default function useChatSession(
       if (mounted.current) {
         lock.current = false
         setBusy(false)
+        setStream(null)
       }
+    }
+  }
+  function receiveStream(requestId, signal) {
+    setStream({ requestId, phase: 'accepted', text: '' })
+    const reveal = createVerifiedReveal({
+      signal,
+      append: (text) => {
+        guard(signal)
+        setStream((previous) => ({
+          requestId,
+          phase: 'delivering',
+          text: (previous?.text || '') + text,
+        }))
+      },
+    })
+    return async (event) => {
+      guard(signal)
+      const id = event.request_id || event.request?.submission?.request_id
+      if (id !== requestId) throw new Error('채팅 스트림의 요청 ID가 다릅니다.')
+      if (event.event === 'progress')
+        setStream((previous) => ({
+          ...previous,
+          requestId,
+          phase: event.phase,
+        }))
+      if (event.event === 'delta') await reveal(event.text)
     }
   }
   async function loadList(signal, append = false) {
@@ -122,6 +152,7 @@ export default function useChatSession(
     guard(signal)
     if (final.state === 'COMPLETED') {
       await loadMessages(final.conversation_id, signal)
+      setStream(null)
       setPending(null)
       await loadList(signal)
     }
@@ -193,6 +224,7 @@ export default function useChatSession(
     faqError,
     error,
     busy,
+    stream,
     pending,
     rejectedDraft,
     chatMode,
@@ -289,7 +321,12 @@ export default function useChatSession(
           view = await api.submitChatRequest(
             current.conversation_id,
             submission,
-            { signal },
+            {
+              signal,
+              ...(kind === 'CHAT'
+                ? { onEvent: receiveStream(submission.request_id, signal) }
+                : {}),
+            },
           )
         } catch (failure) {
           guard(signal)
@@ -343,7 +380,15 @@ export default function useChatSession(
         const view = await api.submitChatRequest(
           pending.conversation_id,
           pending.submission,
-          { retry: true, signal },
+          {
+            retry: true,
+            signal,
+            ...(pending.submission.kind === 'CHAT'
+              ? {
+                  onEvent: receiveStream(pending.submission.request_id, signal),
+                }
+              : {}),
+          },
         )
         guard(signal)
         await finish(view, signal)

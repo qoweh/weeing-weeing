@@ -152,3 +152,14 @@ DB가 한 SQL에서 전체 등급별 건수와 제한된 최신 목록을 읽어
 측정 근거는 기존 Incident.evidence를 사용하며 AI가 사건·보고서·PLC 상태를 변경하지 않는다.
 진행 중인 사건의 상태 기준은 헤더와 동일한 OPEN/ACKNOWLEDGED다.
 챗봇 목록 상한은 LLM 전달량에만 적용하며 헤더의 기존 사건 목록 API·30초 갱신은 유지한다.
+
+### 마크다운과 검증 후 스트리밍
+
+기존 ChatService.reply와 JSON API는 유지한다. 선택적 ProgressChatService.reply_with_progress는
+단계 이름만 알리고 초안은 공개하지 않는다. api/chat_stream.py가 기존 StoredChatService.submit을
+작업 스레드에서 실행하고 progress를 SSE로 보낸다. DB에 완료된 OK 응답의 parts를 공백·줄바꿈을
+보존하는 delta로 전송한 뒤 원래 ChatRequestView를 done으로 반환한다. 생성 중인 LLM 토큰을
+직접 노출하는 방식이 아니며, 검증 전 대기 시간은 남는다. 서버는 지연 없이 전송하고
+프론트엔드는 검증된 텍스트를 최대 6초 동안 순차 표시한다. 모션 줄이기 설정에서는 즉시 표시한다.
+전송이 끊겨도 이미 시작한 실행·저장은 마치고, 클라이언트는 같은 요청 ID를 GET으로 확인한다.
+진행 표시·부분 전송은 메모리에서만 관리하고 DB에는 기존 최종 응답만 저장한다.

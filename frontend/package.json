@@ -8,14 +8,17 @@
     "build": "next build --webpack",
     "start": "next start -p 3100",
     "format": "prettier --write \"src/**/*.tsx\"",
-    "test:chat": "node --test tests/chat-api.test.mjs"
+    "test:chat": "node --test tests/chat-*.test.mjs"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.3",
     "next": "^16.4.3",
     "postcss": "^8.5.32",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "react-markdown": "^10.1.0",
+    "remark-breaks": "^4.0.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

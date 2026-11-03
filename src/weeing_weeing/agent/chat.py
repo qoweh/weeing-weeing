@@ -43,6 +43,7 @@ from weeing_weeing.contracts.chat import (
     ChatResponse,
     ChatSource,
 )
+from weeing_weeing.contracts.chat_stream import ChatProgress
 from weeing_weeing.contracts.chat_tools import (
     ChatHistoryQuery,
     ChatHistoryResult,
@@ -54,7 +55,7 @@ from weeing_weeing.contracts.chat_tools import (
 if TYPE_CHECKING:
     from weeing_weeing.agent.interface import ChatKnowledge, FaqCatalog, LlmClient
 
-SYSTEM = """너는 배터리 트레이 이송 공정의 자료 안내 챗봇이다. 한국어로 답한다.
+SYSTEM = """너는 배터리 트레이 이송 공정의 자료 안내 챗봇이다. 한국어로 답한다. 답변 본문은 마크다운으로 작성한다. 필요한 곳에 제목·목록·굵은 글씨·표를 쓰고, 전체 답변을 코드 블록으로 감싸지 않는다. 각 parts.text는 독립적인 마크다운으로 작성한다.
 매뉴얼·SOP·승인된 정비이력·현재 알림과 회복 사건·FAQ를 안내한다. 범위 밖 질문은 OUT_OF_SCOPE로 답한다.
 
 질문의 핵심 키워드와 의도를 파악해 search_knowledge의 검색 문장을 만든다.
@@ -170,9 +171,15 @@ class _Deadline:
 class _BudgetClient:
     """도구 루프와 근거 검토의 호출 예산·추적·사용량을 같은 요청에 묶는다."""
 
-    def __init__(self, client: "LlmClient", deadline: _Deadline) -> None:
+    def __init__(
+        self,
+        client: "LlmClient",
+        deadline: _Deadline,
+        on_progress: ChatProgress | None = None,
+    ) -> None:
         self.client = client
         self.deadline = deadline
+        self.on_progress = on_progress
         self.calls: list[ChatCallUsage] = []
         self.tracer = getattr(client, "tracer", NULL_TRACER)
 
@@ -190,6 +197,10 @@ class _BudgetClient:
         called = False
         try:
             remaining = self.deadline.remaining()
+            if self.on_progress:
+                self.on_progress(
+                    "verifying" if purpose == "grounding" else "generating"
+                )
             called = True
             response = invoke(remaining)
             self.deadline.remaining()
@@ -254,7 +265,12 @@ class ToolChatService:
         self.last_run: ChatRunUsage | None = None
 
     def reply(
-        self, question: ChatQuestion, *, context: ChatContext, timeout_s: float
+        self,
+        question: ChatQuestion,
+        *,
+        context: ChatContext,
+        timeout_s: float,
+        on_progress: ChatProgress | None = None,
     ) -> ChatResponse:
         """질문 한 건을 처리하고 시간 초과·검색·생성 실패를 공통 응답으로 변환한다."""
         deadline = _Deadline(timeout_s)
@@ -267,8 +283,8 @@ class ToolChatService:
             acquired = self._lock.acquire(timeout=deadline.remaining())
             if not acquired:
                 raise LlmTimeoutError("대화 처리 대기 시간 초과")
-            client = _BudgetClient(self._client, deadline)
-            return self._reply(question, context, deadline, client, memory)
+            client = _BudgetClient(self._client, deadline, on_progress)
+            return self._reply(question, context, deadline, client, memory, on_progress)
         except LlmTimeoutError:
             return self._failed(question, "TIMEOUT", True)
         except _SearchUnavailableError:
@@ -296,6 +312,18 @@ class ToolChatService:
                 )
                 self._lock.release()
 
+    def reply_with_progress(
+        self,
+        question: ChatQuestion,
+        *,
+        context: ChatContext,
+        timeout_s: float,
+        on_progress: ChatProgress,
+    ) -> ChatResponse:
+        return self.reply(
+            question, context=context, timeout_s=timeout_s, on_progress=on_progress
+        )
+
     @staticmethod
     def _failed(question: ChatQuestion, code, retryable: bool) -> ChatResponse:
         return ChatResponse(
@@ -315,6 +343,7 @@ class ToolChatService:
         deadline: _Deadline,
         client: _BudgetClient,
         memory: RunMemory,
+        on_progress: ChatProgress | None = None,
     ) -> ChatResponse:
         """Claude의 도구 선택→서버 검색→근거 전달→답변 제출 흐름을 구성한다."""
         # 이번 요청에서 실제로 얻은 근거만 보관한다. 이전 대화의 인용을 그대로 신뢰하지 않는다.
@@ -392,6 +421,8 @@ class ToolChatService:
         def search(data: dict[str, Any], memory: RunMemory) -> str:
             """search_knowledge 도구: 모델 입력 검증 후 관련 문서·정비 사례를 찾는다."""
             nonlocal applied, search_count, conditions_locked
+            if on_progress:
+                on_progress("searching")
             query = ChatSearchQuery.model_validate(data)
             if search_count >= 8:
                 raise ToolInputError("검색 호출은 최대 8회다")
@@ -456,6 +487,8 @@ class ToolChatService:
         def history(data: dict[str, Any], memory: RunMemory) -> str:
             """query_history 도구: top-k 검색 대신 DB에서 정확한 기간 목록·건수를 구한다."""
             nonlocal applied, search_count, conditions_locked
+            if on_progress:
+                on_progress("searching")
             query = ChatHistoryQuery.model_validate(data)
             # 전체 근거 상한 20개 중 1개는 집계 출처로 예약한다. DB 직접 조회는 20건까지 가능하다.
             query.conditions.limit = min(query.conditions.limit, 19)
@@ -518,6 +551,8 @@ class ToolChatService:
         def incidents(data: dict[str, Any], memory: RunMemory) -> str:
             """현재 알림·최근 회복을 서버의 동일한 상태 정책과 전체 집계로 조회한다."""
             nonlocal search_count
+            if on_progress:
+                on_progress("searching")
             query = ChatIncidentQuery.model_validate(data)
             if search_count >= 8:
                 raise ToolInputError("조회 호출은 최대 8회다")
@@ -588,6 +623,8 @@ class ToolChatService:
 
         def browse(data: dict[str, Any], memory: RunMemory) -> str:
             """자유 질문 중 Claude가 참고할 FAQ 주제 또는 질문 목록을 반환한다."""
+            if on_progress:
+                on_progress("searching")
             deadline.remaining()
             topic = _BrowseFaq.model_validate(data).topic_id
             try:
@@ -602,6 +639,8 @@ class ToolChatService:
 
         def get_faq(data: dict[str, Any], memory: RunMemory) -> str:
             """FAQ ID로 고정 답변을 가져와 이번 요청의 근거로 등록한다."""
+            if on_progress:
+                on_progress("searching")
             deadline.remaining()
             selection = _GetFaq.model_validate(data)
             try:
@@ -820,7 +859,7 @@ class ToolChatService:
                 _Draft.model_json_schema(),
                 submit,
             ),
-            prompt_version="chat-tools-v6",
+            prompt_version="chat-tools-v7",
             max_turns=self._max_turns,
         )
         # '지난달' 같은 상대 날짜 해석을 위해 한국 시간 기준일과 사용자 조건을 함께 준다.

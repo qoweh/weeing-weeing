@@ -1,3 +1,5 @@
+import ChatMarkdown from './ChatMarkdown.js'
+
 import { useEffect, useRef, useState } from 'react'
 import useChatSession, { defaultConditions } from './useChatSession.js'
 import ChatResponse from './ChatResponse.jsx'
@@ -28,7 +30,7 @@ export default function ChatWidget({ screenZoom = 100, onSessionExpired }) {
       : chat.conversations
   useEffect(() => {
     if (body.current) body.current.scrollTop = body.current.scrollHeight
-  }, [chat.messages, chat.pending, chat.busy])
+  }, [chat.messages, chat.pending, chat.busy, chat.stream])
   useEffect(() => {
     if (chat.rejectedDraft) setText(chat.rejectedDraft.text)
   }, [chat.rejectedDraft])
@@ -374,8 +376,40 @@ export default function ChatWidget({ screenZoom = 100, onSessionExpired }) {
                 </div>
               )}
             {chat.busy && (
-              <p role="status">답변과 대화 상태를 확인하고 있습니다…</p>
+              <p role="status">
+                {{
+                  accepted: '요청을 확인하고 있습니다…',
+                  searching: '자료 검색 중…',
+                  generating: '답변 작성 중…',
+                  verifying: '근거 검토 중…',
+                  saving: '답변을 저장하고 있습니다…',
+                  delivering: '검증된 답변을 표시하고 있습니다…',
+                }[chat.stream?.phase] ||
+                  '답변과 대화 상태를 확인하고 있습니다…'}
+              </p>
             )}
+            {chat.busy &&
+              chat.stream?.text &&
+              !chat.messages.some(
+                (message) =>
+                  message.role === 'assistant' &&
+                  message.request_id === chat.stream.requestId,
+              ) && (
+                <div
+                  className="chat-dialog__message-row chat-dialog__message-row--assistant"
+                  aria-live="off"
+                >
+                  <span
+                    className="chat-dialog__message-icon"
+                    aria-hidden="true"
+                  >
+                    ✦
+                  </span>
+                  <div className="chat-dialog__message">
+                    <ChatMarkdown>{chat.stream.text}</ChatMarkdown>
+                  </div>
+                </div>
+              )}
             {pending && !chat.busy && (
               <div className="chat-pending" role="status">
                 {pending.response ? (
