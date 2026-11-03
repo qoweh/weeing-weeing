@@ -13,9 +13,11 @@ FROM node:24-alpine
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1
-COPY --from=build /app/package.json ./
+COPY --from=build /app/package.json /app/next.config.mjs ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/.next ./.next
+# next start는 public/(아이콘·이미지·글꼴)을 실행 위치에서 서빙한다. 빠지면 /assets/*가 404다.
+COPY --from=build /app/public ./public
 USER node
 EXPOSE 3100
 CMD ["node_modules/.bin/next", "start", "-H", "0.0.0.0", "-p", "3100"]
