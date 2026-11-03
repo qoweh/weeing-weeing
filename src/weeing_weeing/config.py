@@ -38,7 +38,7 @@ class Settings:
     embedding_provider: str = "hashing"  # hashing | voyage
     embedding_dim: int = 1024  # voyage는 256·512·1024·2048
     # Voyage API. 키는 VOYAGE_API_KEY에서 직접 읽는다(설정 객체에 담지 않는다)
-    voyage_base_url: str = "https://ai.mongodb.com/v1"
+    voyage_base_url: str = "https://api.voyageai.com/v1"
     voyage_timeout_s: float = 30
     rag_candidate_k: int = 30  # 리랭킹할 최소 후보 수. 최종 k보다 작으면 k까지 확장
     auth_session_hours: float = 12  # 로그인 세션 유효 시간(교대 근무 한 번)
@@ -65,7 +65,7 @@ def get_settings() -> Settings:
         embedding_model=env("EMBEDDING_MODEL", ""),
         embedding_provider=env("EMBEDDING_PROVIDER", "hashing").strip().lower(),
         embedding_dim=int(env("EMBEDDING_DIM", "1024")),
-        voyage_base_url=env("VOYAGE_BASE_URL", "https://ai.mongodb.com/v1"),
+        voyage_base_url=env("VOYAGE_BASE_URL", "https://api.voyageai.com/v1"),
         voyage_timeout_s=float(env("VOYAGE_TIMEOUT_S", "30")),
         vector_store=env("VECTOR_STORE", "qdrant"),
         rag_collection=env("RAG_COLLECTION", "knowledge"),

@@ -23,7 +23,8 @@ PROVIDERS = ("hashing", "voyage")
 DEFAULT_MODELS = {"hashing": "hashing-kiwi-v1", "voyage": "voyage-4-lite"}
 HASHING_DIMS = 1024
 VOYAGE_DIMS = (256, 512, 1024, 2048)
-VOYAGE_BASE_URL = "https://ai.mongodb.com/v1"
+# 팀 키는 Voyage 대시보드에서 받는다. MongoDB Atlas 키는 https://ai.mongodb.com/v1
+VOYAGE_BASE_URL = "https://api.voyageai.com/v1"
 # 한 요청에 넣는 문장 수. API 상한(1,000개)보다 작게 둬 요청당 토큰 상한도 넘지 않게 한다.
 VOYAGE_BATCH = 128
 # 429·5xx·연결 오류는 이 횟수만큼 다시 시도한다. 그래도 실패하면 예외로 알린다.
