@@ -55,7 +55,7 @@
 3. 표시를 지우고 저장 → `git add <파일>`
 4. 모든 파일이 끝나면
    ```bash
-   python .agents/skills/ww-pr/scripts/ww_git.py markers   # 0줄이어야 함
+   uv run --no-sync python .agents/skills/ww-pr/scripts/ww_git.py markers   # 0줄이어야 함
    make check                                              # 합친 결과가 실제로 도는지
    git commit --no-edit                                    # merge 커밋 완료
    ```
@@ -115,7 +115,7 @@ git push
 ## F. base에 새 커밋이 있다 / GitHub에 "This branch has conflicts"
 
 ```bash
-python .agents/skills/ww-pr/scripts/ww_git.py sync
+uv run --no-sync python .agents/skills/ww-pr/scripts/ww_git.py sync
 ```
 충돌이 나면 C. 끝나면 `make check` → `git push`. PR은 자동으로 갱신된다.
 GitHub 웹 편집기로도 풀 수 있지만 테스트를 못 돌리므로 로컬에서 푼다.
@@ -145,8 +145,8 @@ gh pr create --base dev ...
 ## I. 충돌 표시가 남아 있다 / 이미 커밋됐다
 
 ```bash
-python .agents/skills/ww-pr/scripts/ww_git.py markers          # 이 브랜치 변경분
-python .agents/skills/ww-pr/scripts/ww_git.py markers --all    # 저장소 전체
+uv run --no-sync python .agents/skills/ww-pr/scripts/ww_git.py markers          # 이 브랜치 변경분
+uv run --no-sync python .agents/skills/ww-pr/scripts/ww_git.py markers --all    # 저장소 전체
 ```
 표시 줄과 그 사이 내용을 올바르게 정리하고 `fix: 남은 충돌 표시 제거`로 커밋한다. 표시 사이 내용이 둘 다 필요한지 꼭 확인한다(중복된 설정이면 하나만).
 

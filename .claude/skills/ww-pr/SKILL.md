@@ -12,7 +12,7 @@ git에 익숙하지 않은 팀원도 같은 순서로 안전하게 PR을 올리�
 | `scripts/ww_git.py` | 상태 진단(`diagnose`), base 반영(`sync`), 충돌 표시 검사(`markers`) |
 | `references/conflicts.md` | `diagnose`·`sync`가 알려준 글자(A~L)의 절만 읽는다 |
 
-명령은 저장소 루트에서 `python .agents/skills/ww-pr/scripts/ww_git.py <명령>`으로 실행한다(Windows는 `python`, 없으면 `uv run --no-sync python`).
+명령은 저장소 루트에서 `uv run --no-sync python .agents/skills/ww-pr/scripts/ww_git.py <명령>`으로 실행한다(팀 규칙대로 uv의 Python 3.12를 쓴다. 시스템 `python3`는 버전이 달라 쓰지 않는다).
 
 ## 반드시 지킬 것
 
@@ -28,7 +28,7 @@ git에 익숙하지 않은 팀원도 같은 순서로 안전하게 PR을 올리�
 
 ### 0. 진단
 ```bash
-python .agents/skills/ww-pr/scripts/ww_git.py diagnose
+uv run --no-sync python .agents/skills/ww-pr/scripts/ww_git.py diagnose
 ```
 `[A]`~`[L]`이 나오면 `references/conflicts.md`의 그 절을 먼저 처리하고 다시 진단한다. "PR 진행 가능"이 나와야 다음 단계로 간다. base 브랜치도 여기서 확인한다(GitHub 기본 브랜치, 지금은 `dev`).
 
@@ -47,7 +47,7 @@ git commit -m "<종류>: <한국어 제목>" -m "<무엇을 왜 - 불릿>"
 
 ### 3. base 반영 (충돌은 여기서 푼다)
 ```bash
-python .agents/skills/ww-pr/scripts/ww_git.py sync
+uv run --no-sync python .agents/skills/ww-pr/scripts/ww_git.py sync
 ```
 백업 브랜치를 만들고 `origin/<base>`를 merge한다. rebase는 쓰지 않는다(force push가 필요해지므로).
 - 종료 코드 0: 충돌 없음 → 4단계
@@ -56,7 +56,7 @@ python .agents/skills/ww-pr/scripts/ww_git.py sync
 
 ### 4. 검사
 ```bash
-python .agents/skills/ww-pr/scripts/ww_git.py markers   # 0줄
+uv run --no-sync python .agents/skills/ww-pr/scripts/ww_git.py markers   # 0줄
 make check
 ```
 `ww-review-before-pr`를 통과했는지 확인한다. 안 했으면 먼저 하자고 제안한다.

@@ -1,11 +1,13 @@
 """release(dev → main) 전 점검. 표준 라이브러리만 쓴다.
 
-    python .agents/skills/ww-release/scripts/release_check.py            # 전체 점검
-    python .agents/skills/ww-release/scripts/release_check.py --no-tests # 테스트 생략
+    uv run --no-sync python .agents/skills/ww-release/scripts/release_check.py            # 전체 점검
+    uv run --no-sync python .agents/skills/ww-release/scripts/release_check.py --no-tests # 테스트 생략
 
 origin/dev를 깨끗한 임시 worktree에 받아 검사하므로 지금 작업 중인 파일과 무관하다.
 종료 코드: 0 release 가능, 1 막는 문제 있음, 2 실행 불가(네트워크·git).
 """
+
+from __future__ import annotations
 
 import argparse
 import json

@@ -22,8 +22,9 @@ description: weeing-weeing에서 dev에 모인 작업을 main에 반영(release)
 
 ### 1. 점검
 ```bash
-python .agents/skills/ww-release/scripts/release_check.py
+uv run --no-sync python .agents/skills/ww-release/scripts/release_check.py
 ```
+팀 규칙대로 `uv run`으로 실행한다(시스템 `python3`는 버전이 달라 쓰지 않는다).
 확인하는 것: 반영할 커밋·PR 목록, `main`에만 있는 커밋, dev → main merge 충돌, 충돌 표시, `uv.lock` 정합, 스킬 사본, 깨끗한 환경의 `ruff`·`pytest`, 이미 열린 release PR, 아직 `dev`로 열려 있는 PR.
 
 - ⚠️ "main에만 있는 커밋"이 있어도 merge 충돌이 없으면 진행할 수 있다(이전 squash release 흔적). 보고에 적는다

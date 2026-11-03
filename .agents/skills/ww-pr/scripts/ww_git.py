@@ -3,13 +3,15 @@
 git에 익숙하지 않은 팀원도 같은 순서로 안전하게 PR을 올리도록, 위험한 상황을 먼저 찾아
 references/conflicts.md의 해당 절을 알려준다. 표준 라이브러리만 쓴다(어느 환경에서든 실행).
 
-    python .agents/skills/ww-pr/scripts/ww_git.py diagnose   # 지금 상태와 다음 할 일
-    python .agents/skills/ww-pr/scripts/ww_git.py sync       # 백업 후 origin/<base>를 merge
-    python .agents/skills/ww-pr/scripts/ww_git.py markers    # 남은 충돌 표시(<<<<<<< 등) 검사
+    uv run --no-sync python .agents/skills/ww-pr/scripts/ww_git.py diagnose   # 지금 상태와 다음 할 일
+    uv run --no-sync python .agents/skills/ww-pr/scripts/ww_git.py sync       # 백업 후 origin/<base>를 merge
+    uv run --no-sync python .agents/skills/ww-pr/scripts/ww_git.py markers    # 남은 충돌 표시(<<<<<<< 등) 검사
 
 base 브랜치는 WW_BASE 환경변수 → GitHub 기본 브랜치 → dev 순서로 정한다.
 종료 코드: 0 정상, 1 충돌·충돌 표시 발견, 2 진행 전에 사람이 정리해야 할 상태.
 """
+
+from __future__ import annotations
 
 import argparse
 import json
