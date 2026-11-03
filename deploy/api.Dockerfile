@@ -1,6 +1,6 @@
 # API(FastAPI) 운영 이미지. 빌드 위치는 레포 루트다(docs/DEPLOY.md).
 #   docker build -f deploy/api.Dockerfile -t weeing-api .
-# RAG 모델(약 4.5GB)은 이미지에 넣지 않고 /models 볼륨에 한 번 받는다(HF_HOME).
+# 로컬 AI 모델은 없다. 임베딩은 해시 방식(기본) 또는 외부 API(docs/EMBEDDING_API.md).
 FROM python:3.12-slim
 
 COPY --from=ghcr.io/astral-sh/uv:0.13.1 /uv /bin/uv
@@ -24,13 +24,12 @@ COPY data ./data
 
 # 볼륨으로 붙는 폴더를 미리 만들어 두면 새 볼륨이 이 소유자를 물려받는다.
 RUN useradd --create-home --uid 1000 app \
-    && mkdir -p /app/storage /app/outputs /models \
-    && chown -R app:app /app/storage /app/outputs /models
+    && mkdir -p /app/storage /app/outputs \
+    && chown -R app:app /app/storage /app/outputs
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH=/app/src \
-    PYTHONUNBUFFERED=1 \
-    HF_HOME=/models
+    PYTHONUNBUFFERED=1
 
 USER app
 EXPOSE 8000

@@ -1,7 +1,14 @@
 # 서버 입구. 경로 규칙은 docs/DEPLOY.md 참고.
-# SITE_ADDRESS가 비어 있으면 :80(IP로 HTTP). 도메인을 넣으면 Caddy가 HTTPS 인증서를 자동으로 받는다.
+# SITE_ADDRESS가 비어 있으면 :80(IP로 HTTP). IP나 도메인을 넣으면 Caddy가 HTTPS 인증서를 자동으로 받고
+# http 접속을 https로 넘긴다.
 {
 	admin off
+	# IP로 접속하면 브라우저가 SNI(접속 이름)를 보내지 않는다. 그때 SITE_ADDRESS의 인증서를 쓴다.
+	default_sni {$SITE_ADDRESS:localhost}
+	# Let's Encrypt는 IP 주소에 shortlived 프로필(약 6일, 자동 갱신)로만 인증서를 준다. 도메인에도 그대로 쓴다.
+	cert_issuer acme {
+		profile shortlived
+	}
 }
 
 {$SITE_ADDRESS::80} {
@@ -24,4 +31,11 @@
 	handle {
 		reverse_proxy frontend:3100
 	}
+}
+
+# Langfuse 대시보드(deploy/langfuse). 공식 이미지는 하위 경로를 지원하지 않아 이름으로 나눈다.
+# LANGFUSE_ADDRESS가 비어 있으면 서버 밖에서 닿지 않는 이름으로 두어 꺼 둔다.
+{$LANGFUSE_ADDRESS:http://langfuse.localhost} {
+	encode zstd gzip
+	reverse_proxy langfuse-web:3000
 }

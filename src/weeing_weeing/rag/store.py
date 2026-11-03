@@ -17,7 +17,7 @@ rag 모듈 안에서만 쓴다. 다른 모듈은 rag/interface.py만 import한�
   None과 빈 리스트는 키째 뺀다. dict 등 허용하지 않는 타입은 거부한다.
 - 임베딩 모델 이름은 생성자에서 embedding_model로 따로 받아 컬렉션에 기록하고,
   다른 모델로 열면 StoreMismatchError를 낸다. 모델을 바꾸면 전체를 다시 색인한다.
-- 저장소 객체는 프로세스당 한 번 만든다(모델 로드에 수 초·수 GB). 조립은 factory.
+- 저장소 객체는 프로세스당 한 번 만든다(DB 연결·로컬 폴더 잠금). 조립은 factory.
 """
 
 import math
@@ -95,7 +95,7 @@ class DocInfo:
 
 
 class Embedder(Protocol):
-    """LangChain Embeddings와 같은 모양. HuggingFaceEmbeddings를 그대로 주입할 수 있다."""
+    """LangChain Embeddings와 같은 모양. 구현은 rag/embedder.py(hashing·Voyage)."""
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]: ...
 

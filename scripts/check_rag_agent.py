@@ -110,9 +110,7 @@ def main(argv=None):
         )
         try:
             corpus = load_corpus("data/eval/rag_documents_v1.toml")
-            embedder = EvaluationEmbedder(
-                factory.LazyEmbedder(settings.embedding_model)
-            )
+            embedder = EvaluationEmbedder(factory.build_embedder(settings))
             store = factory.build_store(settings, embedder=embedder)
             resources.callback(store.close)
             indexed = sync(

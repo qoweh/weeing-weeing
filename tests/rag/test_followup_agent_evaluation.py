@@ -19,6 +19,7 @@ spec.loader.exec_module(runner)
 def test_evaluation_uses_real_registry_and_agent_but_no_paid_client(
     tmp_path, monkeypatch
 ):
+    monkeypatch.setenv("RERANKER_MODEL", "rerank-3-lite")  # 기본값은 리랭커 끔
     write = runner.write_json
 
     def checked_write(path, value):

@@ -43,7 +43,6 @@ def test_help_runs_without_grep_or_awk():
     ("target", "prefix"),
     [
         ("db-migrate", ["alembic", "upgrade", "head"]),
-        ("models", ["python", "scripts/download_models.py"]),
         ("index-reports", ["python", "scripts/index_reports.py"]),
         ("seed-users", ["python", "scripts/seed_users.py"]),
         ("rag-e2e", ["python", "scripts/verify_rag_e2e.py"]),

@@ -48,7 +48,7 @@ uv run --no-sync python scripts/demo_auto_analysis.py
 
 ## 실제 Unreal·Claude 연결 (유료)
 
-키·RAG 모델·색인·PostgreSQL을 준비하고 .env에 다음을 설정한다.
+키·문서 색인·PostgreSQL을 준비하고 .env에 다음을 설정한다.
 
 ```dotenv
 ANALYSIS_AUTO_ENABLED=true

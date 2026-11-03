@@ -36,7 +36,7 @@ from weeing_weeing.rag.structured_chunker import structured_chunk_documents
 
 __all__ = ["DocumentIndexer", "InvalidDocumentError"]
 
-# 같은 프로세스(API 서버) 안에서 색인을 한 번에 하나씩 처리한다. 모델 로드·로컬 DB 쓰기 보호.
+# 같은 프로세스(API 서버) 안에서 색인을 한 번에 하나씩 처리한다. 임베딩 API 호출·로컬 DB 쓰기 보호.
 _INDEX_LOCK = Lock()
 # 매뉴얼·룰 정의서의 "03 이송·광전 현장 대응 절차", SOP의 "제2장 이상 대응 및 에너지 격리"
 _SECTION = re.compile(r"^(?:\d{2}\s+\S|제\s*\d+\s*장\s+\S)")

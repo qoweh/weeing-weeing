@@ -250,17 +250,25 @@ def test_filter_rejects_missing_or_invalid_model_score(relevance):
 
 def test_relevance_filter_with_model_and_each_store_backend(store, monkeypatch):
     from weeing_weeing.rag import reranker
-    from weeing_weeing.rag.reranker import CrossEncoderReranker
+    from weeing_weeing.rag.reranker import VoyageReranker
 
     store.replace_document(
         "BTT-MANUAL", [chunk(i, citation=f"인용 {i}") for i in range(3)]
     )
     candidates = store.hybrid_query("센서", k=30)
-    model = Mock()
-    model.predict.return_value = [0.01, 0.9, 0.5]
-    monkeypatch.setattr(reranker, "_load_model", lambda _: model)
+    scores = [0.01, 0.9, 0.5]
+
+    def post(path, payload, **kwargs):
+        return {
+            "data": [
+                {"index": i, "relevance_score": scores[i]}
+                for i in range(len(payload["documents"]))
+            ]
+        }
+
+    monkeypatch.setattr(reranker, "voyage_post", post)
     retriever = HybridRetriever(
-        store, reranker=CrossEncoderReranker("local"), min_relevance=0.5
+        store, reranker=VoyageReranker("rerank-3-lite"), min_relevance=0.5
     )
     found = retriever.search("센서", k=1)
     assert len(found) == 1
@@ -268,6 +276,6 @@ def test_relevance_filter_with_model_and_each_store_backend(store, monkeypatch):
     assert found[0].relevance == 0.9
     assert found[0].score == candidates[1].score
     assert found[0].citation == candidates[1].chunk.metadata["citation"]
-    model.predict.return_value = [0.01, 0.02, 0.03]
+    scores[:] = [0.01, 0.02, 0.03]
     assert retriever.search("용접 로봇", k=2) == []
     assert retriever.search("센서", filters={"doc_id": "없는 문서"}) == []

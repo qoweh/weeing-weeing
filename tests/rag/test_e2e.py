@@ -430,7 +430,7 @@ def cli(ws, tmp_path, monkeypatch):
         encoding="utf-8",
     )
     monkeypatch.setenv("EMBEDDING_MODEL", "fake-embedder-v1")
-    monkeypatch.setenv("RERANKER_MODEL", "")  # 기본값(실제 모델)을 쓰지 않는다
+    monkeypatch.setenv("RERANKER_MODEL", "")  # 리랭크 API를 부르지 않는다
     monkeypatch.delenv("QDRANT_URL", raising=False)
     monkeypatch.setattr(factory, "_default_embedder", lambda name: FakeEmbedder())
 
@@ -523,22 +523,28 @@ def test_cli_keeps_finished_results_when_a_backend_cannot_start(
 
 
 def test_cli_configured_reranker_is_measured(cli, monkeypatch):
-    from unittest.mock import Mock
-
     from weeing_weeing.rag import reranker
 
-    model = Mock()
-    model.predict.side_effect = lambda pairs, **kw: [1.0] * len(pairs)
-    load = Mock(return_value=model)
-    monkeypatch.setenv("RERANKER_MODEL", "local-model")
-    monkeypatch.setattr(reranker, "_load_model", load)
+    calls = []
+
+    def post(path, payload, **kwargs):
+        calls.append(payload)
+        return {
+            "data": [
+                {"index": i, "relevance_score": 1.0}
+                for i in range(len(payload["documents"]))
+            ]
+        }
+
+    monkeypatch.setenv("RERANKER_MODEL", "rerank-3-lite")
+    monkeypatch.setattr(reranker, "voyage_post", post)
     assert cli("--backends", "qdrant,chroma", "--reranker-batch-size", "2") == 0
     report = cli.out.read_text(encoding="utf-8")
     assert "| qdrant | reranked |" in report
     assert "| chroma | reranked |" in report
-    load.assert_called_once_with("local-model")
-    assert all(call.kwargs["batch_size"] == 2 for call in model.predict.call_args_list)
-    assert "리랭커 추론 배치 크기: 2" in report
+    assert calls and all(len(c["documents"]) <= 2 for c in calls)
+    assert all(c["model"] == "rerank-3-lite" for c in calls)
+    assert "리랭크 요청당 후보 수: 2" in report
 
 
 def test_cli_rejects_nonpositive_reranker_batch_size(cli):
@@ -551,12 +557,15 @@ def test_cli_reranker_failure_is_reported_as_failure(cli, monkeypatch, capsys):
     from unittest.mock import Mock
 
     from weeing_weeing.rag import reranker
+    from weeing_weeing.rag.embedder import EmbeddingApiError
 
-    monkeypatch.setenv("RERANKER_MODEL", "missing-local-model")
-    monkeypatch.setattr(reranker, "_load_model", Mock(side_effect=OSError("모델 없음")))
+    monkeypatch.setenv("RERANKER_MODEL", "rerank-3-lite")
+    monkeypatch.setattr(
+        reranker, "voyage_post", Mock(side_effect=EmbeddingApiError("API 실패"))
+    )
     assert cli("--backends", "qdrant") == 2
     assert "검증 실패" in capsys.readouterr().err
-    assert "모델 없음" in cli.out.read_text(encoding="utf-8")
+    assert "API 실패" in cli.out.read_text(encoding="utf-8")
 
 
 # --- Incident 코드 질의 (#8) ---

@@ -6,6 +6,24 @@
 
 ---
 
+## 2026-11-03 로컬 임베딩·리랭커 모델 제거 (D-31)
+
+| 영역 | 전 | 후 |
+|---|---|---|
+| 임베딩 | 로컬 `BAAI/bge-m3`(약 2.2GB, `rag/embedder.py`의 HuggingFaceEmbeddings) | `EMBEDDING_PROVIDER=hashing`(기본, 외부 호출 없음) 또는 `voyage`(Voyage AI API) |
+| 리랭커 | 로컬 CrossEncoder `BAAI/bge-reranker-v2-m3`(기본 켜짐) | `RERANKER_MODEL` 빈 값이면 끔(기본). 지정하면 Voyage 리랭크 API |
+| 의존성 | torch(CPU판 인덱스 설정 포함)·sentence-transformers·langchain-huggingface | 제거. API 호출은 기존 httpx |
+| 모델 받기 | `make models`·`scripts/download_models.py` | 제거 |
+| 배포 | `HF_HUB_OFFLINE=1`, `hf_models` 볼륨, `HF_HOME=/models` | 제거 |
+| 설정 | `EMBEDDING_MODEL=BAAI/bge-m3`, `RERANKER_MODEL=BAAI/bge-reranker-v2-m3` | `EMBEDDING_PROVIDER`·`EMBEDDING_MODEL`(빈 값=공급자 기본)·`EMBEDDING_DIM`·`VOYAGE_BASE_URL`·`VOYAGE_TIMEOUT_S`·`VOYAGE_API_KEY`(키), `RERANKER_MODEL=` |
+| 컬렉션 기록 | 모델 이름 | `공급자:모델:차원`. 바꾸면 새 컬렉션에서 문서 재등록 |
+| 스모크 테스트 | `test_real_model_smoke.py`(`RAG_SLOW_TESTS=1`) | `test_live_embedding_api.py`(`RAG_LIVE_API_TESTS=1`, 유료, 사용자가 실행) |
+
+### 그대로 둔 것
+
+- 저장소(Qdrant·Chroma)의 dense + Kiwi BM25 + RRF 하이브리드 구조, 리랭커 끄기 설정(빈 값), `RAG_MIN_RELEVANCE`(리랭커 있을 때만).
+- 과거 실측 기록(RAG_E2E·RAG_HOLDOUT 등)은 지우지 않고 "재현되지 않음" 안내만 붙였다.
+
 ## 2026-10-29 문서 관리를 웹·PostgreSQL로 통일
 
 - 운영 카탈로그 파일, 카탈로그의 DB seed 동기화·중복 검사, `RAG_CATALOG`, `make index`와 전용 실행 스크립트를 제거한다(D-28).
@@ -47,7 +65,7 @@
 
 ### 그대로 둔 것
 
-- 임베딩·리랭커(bge-m3·bge-reranker-v2-m3)는 계속 로컬에서 돈다. RAG 검색 구조(D-08~D-22)는 바뀌지 않았다.
+- 임베딩·리랭커(bge-m3·bge-reranker-v2-m3)는 계속 로컬에서 돈다. RAG 검색 구조(D-08~D-22)는 바뀌지 않았다. (2026-11-03 로컬 모델 제거로 바뀜, 위 절)
 - `AnalysisResult` 계약과 "근거가 없으면 멈춘다" 규칙.
 - 평가 사례(`data/eval/llm_cases_v1.toml`). 같은 사례로 전후를 비교할 수 있다.
 - 과거 실측(D-21의 qwen3:8b 수치)은 기록으로 남긴다.

@@ -105,9 +105,52 @@ def test_qdrant_server_mode_uses_url_and_timeout(tmp_path, monkeypatch):
     assert seen == {"url": "http://qdrant:6333", "timeout": 3.0}
 
 
-def test_missing_embedding_model_is_clear_error(tmp_path):
-    with pytest.raises(factory.StoreConfigError, match="EMBEDDING_MODEL"):
-        factory.build_store(settings(tmp_path, embedding_model=" "))
+def test_unknown_embedding_provider_is_clear_error(tmp_path):
+    with pytest.raises(factory.StoreConfigError, match="EMBEDDING_PROVIDER"):
+        factory.build_store(settings(tmp_path, embedding_provider="bge-local"))
+
+
+def test_voyage_dimension_is_validated(tmp_path):
+    with pytest.raises(factory.StoreConfigError, match="EMBEDDING_DIM"):
+        factory.build_store(
+            settings(tmp_path, embedding_provider="voyage", embedding_dim=300)
+        )
+
+
+@pytest.mark.parametrize(
+    ("provider", "model", "dim", "expected"),
+    [
+        ("hashing", "", 1024, "hashing:hashing-kiwi-v1:1024"),
+        ("voyage", "", 512, "voyage:voyage-4-lite:512"),
+        ("voyage", "voyage-4", 1024, "voyage:voyage-4:1024"),
+    ],
+)
+def test_collection_name_records_provider_model_and_dim(
+    tmp_path, provider, model, dim, expected
+):
+    configured = settings(
+        tmp_path, embedding_provider=provider, embedding_model=model, embedding_dim=dim
+    )
+    assert factory.collection_embedding_name(configured) == expected
+
+
+def test_voyage_embedder_uses_configured_endpoint(tmp_path):
+    from weeing_weeing.rag.embedder import VoyageEmbedder
+
+    embedder = factory.build_embedder(
+        settings(
+            tmp_path,
+            embedding_provider="voyage",
+            embedding_model="",
+            embedding_dim=256,
+            voyage_base_url="https://example.test/v1",
+            voyage_timeout_s=7.0,
+        )
+    )
+    assert isinstance(embedder, VoyageEmbedder)
+    assert (embedder.model, embedder.dim) == ("voyage-4-lite", 256)
+    assert embedder._base_url == "https://example.test/v1"
+    assert embedder._timeout_s == 7.0
 
 
 def test_unknown_backend_is_rejected(tmp_path):
@@ -125,20 +168,31 @@ def test_locked_local_folder_explains_fix(tmp_path):
     first._client.close()
 
 
-def test_default_embedder_is_issue_6_model_loaded_once_on_first_use(
-    tmp_path, monkeypatch
-):
-    calls = []
-    monkeypatch.setattr(
-        factory, "_default_embedder", lambda name: calls.append(name) or FakeEmbedder()
-    )
-    store = factory.build_store(settings(tmp_path, vector_store="chroma"))
-    assert calls == []  # 조립만으로는 모델을 올리지 않는다
+def test_default_is_hashing_embedder_without_external_calls(tmp_path, monkeypatch):
+    """기본 설정은 로컬 모델·외부 API 없이 색인·검색까지 된다(토큰 비용 0)."""
+    import httpx
 
-    store.query("이송")  # 빈 저장소는 임베딩하지 않는다
-    store.replace_document("A", [Chunk("A:1:0000", "A", "1", "이송", {})])
-    store.query("이송")
-    assert calls == ["fake-embedder-v1"]
+    from weeing_weeing.rag.embedder import HashingEmbedder
+
+    def no_network(*args, **kwargs):
+        raise AssertionError("기본 설정에서 외부 API를 호출하면 안 된다")
+
+    monkeypatch.setattr(httpx.Client, "post", no_network)
+    configured = settings(tmp_path, vector_store="chroma", embedding_model="")
+    assert isinstance(factory.build_embedder(configured), HashingEmbedder)
+    store = factory.build_store(configured)
+    try:
+        store.replace_document(
+            "A",
+            [
+                Chunk("A:1:0000", "A", "1", "입구 광전센서 차단 점검", {}),
+                Chunk("A:1:0001", "A", "1", "모터 베어링 진동 점검", {}),
+            ],
+        )
+        assert store.query("광전센서", k=1)[0].chunk.chunk_id == "A:1:0000"
+        assert store.hybrid_query("베어링", k=1)[0].chunk.chunk_id == "A:1:0001"
+    finally:
+        store.close()
 
 
 def test_build_indexer_uses_indexer_class(monkeypatch):
@@ -159,10 +213,15 @@ def test_build_retriever_uses_configured_reranker(tmp_path, monkeypatch):
     from weeing_weeing.rag import reranker
     from weeing_weeing.rag.store import Hit
 
-    model = Mock()
-    model.predict.return_value = [0.1, 0.9]
-    load = Mock(return_value=model)
-    monkeypatch.setattr(reranker, "_load_model", load)
+    post = Mock(
+        return_value={
+            "data": [
+                {"index": 1, "relevance_score": 0.9},
+                {"index": 0, "relevance_score": 0.1},
+            ]
+        }
+    )
+    monkeypatch.setattr(reranker, "voyage_post", post)
     store = Mock()
     store.hybrid_query.return_value = [
         Hit(Chunk(f"MAN:1:{i:04d}", "MAN", "1", text), 0.03 - i * 0.01)
@@ -170,16 +229,25 @@ def test_build_retriever_uses_configured_reranker(tmp_path, monkeypatch):
     ]
     retriever = factory.build_retriever(
         settings(
-            tmp_path, reranker_model="local", rag_candidate_k=12, rag_min_relevance=0.5
+            tmp_path,
+            reranker_model="rerank-3-lite",
+            rag_candidate_k=12,
+            rag_min_relevance=0.5,
         ),
         store,
     )
-    load.assert_not_called()
+    post.assert_not_called()
     found = retriever.search("센서", k=2)
     assert len(found) == 1
     assert found[0].text == "광전 센서 점검"
     assert found[0].relevance == 0.9
     store.hybrid_query.assert_called_once_with("센서", k=12, where=None)
+    assert post.call_args.args[1]["model"] == "rerank-3-lite"
+
+
+def test_empty_reranker_model_turns_reranking_off(tmp_path):
+    assert factory.build_reranker(settings(tmp_path, reranker_model="")) is None
+    assert factory.build_reranker(settings(tmp_path, reranker_model="  ")) is None
 
 
 def test_factory_rejects_relevance_filter_without_reranker(tmp_path):

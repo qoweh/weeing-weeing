@@ -21,7 +21,7 @@ ENV_FILE := $(if $(wildcard .env),--env-file .env,)
 # 의존성이 바뀌면(pull 후 등) make setup을 다시 실행한다.
 RUN := uv run --no-sync
 
-.PHONY: help setup lint fmt test check skills db-up db-migrate qdrant-up down api models index-reports seed-users rag-e2e llm-check llm-eval analyze chat
+.PHONY: help setup lint fmt test check skills db-up db-migrate qdrant-up down api index-reports seed-users rag-e2e llm-check llm-eval analyze chat
 
 help: ## 명령 목록
 	@$(RUN) python scripts/make_help.py
@@ -57,9 +57,6 @@ qdrant-up: ## Qdrant 서버 기동 (서버 모드, .env에 QDRANT_URL=http://loc
 
 down: ## 보조 서비스 정지
 	docker compose --profile qdrant down
-
-models: ## 임베딩·리랭커 모델 미리 받기 (새 PC에서 한 번, 약 4.5GB)
-	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) $(ENV_FILE) python scripts/download_models.py
 
 index-reports: ## 승인 보고서 검색 등록 대기 처리 (실패 재시도: ARGS=--retry-failed)
 	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) $(ENV_FILE) python scripts/index_reports.py

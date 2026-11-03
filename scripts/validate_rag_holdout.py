@@ -130,7 +130,7 @@ def main(argv=None):
         "candidate_k": settings.rag_candidate_k,
         "k": 5,
         "chunking": "structured",
-        "embedding_model": settings.embedding_model,
+        "embedding_model": factory.collection_embedding_name(settings),
         "reranker_model": settings.reranker_model,
         "reranker_batch_size": 2,
         "thresholds": [None, args.minimum],
@@ -152,7 +152,7 @@ def main(argv=None):
             vector_store="qdrant",
             rag_min_relevance=None,
         )
-        embedder = EvaluationEmbedder(factory.LazyEmbedder(settings.embedding_model))
+        embedder = EvaluationEmbedder(factory.build_embedder(settings))
         store = factory.build_store(settings, embedder=embedder)
         try:
             corpus = load_corpus(args.documents)
