@@ -170,6 +170,37 @@
 .report-analysis-item {
   display: block;
 }
+
+.report-analysis-content {
+  min-width: 0;
+  padding: 12px 14px;
+  overflow-wrap: anywhere;
+}
+.report-analysis-list {
+  margin: 0;
+  padding-left: 20px;
+  line-height: 1.7;
+}
+.report-analysis-list li + li {
+  margin-top: 6px;
+}
+ol.report-analysis-list {
+  list-style-type: decimal;
+}
+ul.report-analysis-list {
+  list-style-type: disc;
+}
+.report-analysis-list li > strong {
+  background: none;
+  padding: 0;
+}
+.report-table--observations {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.report-table--observations > .report-cell--wide {
+  grid-column: 1 / -1;
+}
 .report-cell-fields {
   display: flex;
   flex-wrap: wrap;
@@ -382,6 +413,7 @@
 .report-sensors span {
   padding: 10px;
   font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
 .report-sensors strong {

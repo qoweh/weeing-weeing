@@ -8,7 +8,8 @@
     "build": "next build --webpack",
     "start": "next start -p 3100",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
-    "test:chat": "node --test tests/chat-*.test.mjs"
+    "test:chat": "node --test tests/chat-*.test.mjs",
+    "test:report": "node --test tests/report-*.test.*"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.3",

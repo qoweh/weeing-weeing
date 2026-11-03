@@ -73,6 +73,13 @@ def test_warning_error_repeated_recovered_and_snapshot(jobs, frame):
     jobs.finish(job_id, result(snapshot))
     assert jobs.latest_job(error.incident_id)["status"] == "COMPLETED"
     assert jobs.latest_analysis(error.incident_id).status == "INSUFFICIENT_EVIDENCE"
+    assert jobs.analysis_input(jobs.latest_analysis(error.incident_id)) == snapshot
+    assert (
+        jobs.analysis_input(
+            result(snapshot).model_copy(update={"observed_facts": "다른 결과"})
+        )
+        is None
+    )
     assert jobs.claim() is None
     assert jobs.record_frame(frame, [error])[0]["job_id"] == first["job_id"]
 
@@ -92,6 +99,28 @@ def test_failed_manual_retry_is_idempotent_and_not_automatic(jobs, frame):
     assert jobs.retry(item.incident_id, request_id)["job_id"] == retried["job_id"]
     with pytest.raises(db.AnalysisConflictError):
         jobs.retry(item.incident_id, str(uuid4()))
+
+
+def test_analysis_input_keeps_older_saved_report_separate_from_reanalysis(jobs, frame):
+    item = incident(frame)
+    jobs.record_frame(frame, [item])
+    first_id, first_input = jobs.claim()
+    first = result(first_input, "FAILED")
+    jobs.finish(first_id, first)
+    jobs.retry(item.incident_id, str(uuid4()))
+    second_id, second_input = jobs.claim()
+    second = result(second_input).model_copy(
+        update={"generated_at": first.generated_at + timedelta(seconds=1)}
+    )
+    jobs.finish(second_id, second)
+    assert jobs.analysis_input(first) == first_input
+    assert jobs.analysis_input(second) == second_input
+    assert (
+        jobs.analysis_input(
+            first.model_copy(update={"incident_id": "another-incident"})
+        )
+        is None
+    )
 
 
 def test_storage_only_error_and_recovery_never_create_work(jobs, frame):

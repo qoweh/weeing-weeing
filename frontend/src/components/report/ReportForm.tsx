@@ -22,18 +22,30 @@ export type ReportIncident = {
   process_id?: string
   asset_id?: string
   first_detected_at?: string
+  last_detected_at?: string
   codes?: string[]
   evidence?: SensorEvidence[]
+}
+export type ReportTelemetry = {
+  record_id: string
+  timestamp: string
+  process_id: string
+  asset_id: string
+  [field: string]: string | number | boolean | null | undefined
 }
 export type Analysis = {
   incident_id: string
   status: string
   observed_facts?: string
-  suspected_causes?: { cause: string; basis: string; evidence_ids?: string[] }[]
+  suspected_causes?: {
+    cause: string
+    basis: string
+    evidence_ids?: string[]
+  }[]
   recommended_checks?: string[]
   recommended_actions?: string[]
   actions_requiring_approval?: string[]
-  evidence?: { citation: string }[]
+  evidence?: { citation: string; evidence_id?: string }[]
   limitations?: string
 }
 type Values = Record<string, string>
@@ -338,6 +350,10 @@ function formatTime(value: string | null | undefined) {
 export default function ReportForm({
   incident = null,
   analysis = null,
+  analysisInput = null,
+  telemetry = null,
+  telemetryAnchor = null,
+  telemetryNotes = [],
   reportId = '',
   assetName = '',
   savedValues = {},
@@ -352,6 +368,10 @@ export default function ReportForm({
 }: {
   incident?: ReportIncident | null
   analysis?: Analysis | null
+  analysisInput?: ReportIncident | null
+  telemetry?: ReportTelemetry | null
+  telemetryAnchor?: string | null
+  telemetryNotes?: string[]
   reportId?: string
   assetName?: string
   savedValues?: Values
@@ -399,19 +419,39 @@ export default function ReportForm({
   }
 
   function getSensor(field: string) {
-    const item = incident?.evidence?.find(
-      (evidence) => evidence.field === field,
+    if (
+      !incident ||
+      !telemetry ||
+      telemetry?.process_id !== incident.process_id ||
+      telemetry?.asset_id !== incident.asset_id
     )
-
-    return item?.valid === false ? null : item?.value
+      return null
+    const value = telemetry[field]
+    return typeof value === 'boolean' ||
+      (typeof value === 'number' && Number.isFinite(value))
+      ? value
+      : null
   }
+
+  const observedIncident = linkedAnalysis
+    ? analysisInput?.incident_id === incident?.incident_id &&
+      analysisInput?.process_id === incident?.process_id &&
+      analysisInput?.asset_id === incident?.asset_id
+      ? analysisInput
+      : null
+    : incident
 
   const sensors = [
     ['회전속도 r/min', 'rpm'],
     ['DC 입력 전류 A', 'dc_input_current_a'],
+    ['DC 버스 전압 V', 'dc_bus_voltage_v'],
     ['모터 하우징 온도 °C', 'motor_housing_temp_c'],
     ['입구 감지', 'infeed_present'],
     ['출구 감지', 'outfeed_present'],
+    ['구동측 진동 RMS g', 'de_vibration_rms_g'],
+    ['구동측 첨도', 'de_kurtosis'],
+    ['반구동측 진동 RMS g', 'nde_vibration_rms_g'],
+    ['반구동측 첨도', 'nde_kurtosis'],
   ]
 
   const hasDowntime =
@@ -534,15 +574,39 @@ export default function ReportForm({
           </Section>
 
           <Section number="02" title="발생 현상 및 주요 측정값">
-            <div className="report-table">
+            <div className="report-table report-table--observations">
               <div className="report-cell report-cell--wide">
-                <strong>알람 및 관측 현상</strong>
+                <strong>알람 코드</strong>
+                <span>{incident?.codes?.join(', ') || '알람 미확인'}</span>
+              </div>
+              <div className="report-cell report-cell--wide">
+                <strong>관측 현상</strong>
                 <span style={{ whiteSpace: 'pre-line' }}>
                   {alarmDescriptions(incident, linkedAnalysis).join('\n') ||
                     '알람 미확인'}
-                  {incident?.evidence?.length
-                    ? `\n${incident.evidence.map(measurementSummary).join('\n')}`
+                  {observedIncident?.evidence?.length
+                    ? `\n${observedIncident.evidence.map(measurementSummary).join('\n')}`
                     : ''}
+                </span>
+              </div>
+              <div className="report-cell">
+                <strong>최초 감지</strong>
+                <span>
+                  {formatTime(incident?.first_detected_at) || '시각 미확인'}
+                </span>
+              </div>
+              <div className="report-cell">
+                <strong>마지막 감지</strong>
+                <span>
+                  {formatTime(incident?.last_detected_at) || '시각 미확인'}
+                </span>
+              </div>
+              <div className="report-cell report-cell--wide">
+                <strong>측정값 표본 시각</strong>
+                <span>
+                  {formatTime(telemetry?.timestamp) || '표본 없음'}
+                  {telemetryAnchor &&
+                    ` · 조회 기준: ${formatTime(telemetryAnchor)}`}
                 </span>
               </div>
             </div>
@@ -554,9 +618,17 @@ export default function ReportForm({
                 </div>
               ))}
             </div>
+            {telemetryNotes.map((note) => (
+              <p className="report-note" key={note}>
+                {note}
+              </p>
+            ))}
           </Section>
 
-          <ReportAnalysisSection analysis={linkedAnalysis} />
+          <ReportAnalysisSection
+            analysis={linkedAnalysis}
+            incident={incident}
+          />
 
           <Section number="04" title="실제 점검 및 조치 결과">
             <div className="report-table report-table--rows">

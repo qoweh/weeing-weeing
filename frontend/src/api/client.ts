@@ -31,7 +31,19 @@ export function setAccessToken(token: string) {
 
 export async function request(
   path: string,
-  { method = 'GET', body, signal, responseType = 'json', onEvent }: { method?: string; body?: unknown; signal?: AbortSignal; responseType?: 'json' | 'blob' | 'stream'; onEvent?: (event: any) => void | Promise<void> } = {},
+  {
+    method = 'GET',
+    body,
+    signal,
+    responseType = 'json',
+    onEvent,
+  }: {
+    method?: string
+    body?: unknown
+    signal?: AbortSignal
+    responseType?: 'json' | 'blob' | 'stream'
+    onEvent?: (event: any) => void | Promise<void>
+  } = {},
 ) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 300_000)
@@ -58,7 +70,10 @@ export async function request(
     })
 
     if (response.ok && responseType === 'stream')
-      return await readChatStream(response, { onEvent, signal: controller.signal })
+      return await readChatStream(response, {
+        onEvent,
+        signal: controller.signal,
+      })
     if (response.ok && responseType === 'blob') return await response.blob()
     const text = await response.text()
     let data
@@ -185,6 +200,11 @@ export function listIncidents(): Promise<Incident[]> {
 }
 export function getIncidentAnalysis(id: string) {
   return request(`/incidents/${encodeURIComponent(id)}/analysis`)
+}
+
+export function getIncidentReportContext(id: string, reportId?: string) {
+  const query = reportId ? `?report_id=${encodeURIComponent(reportId)}` : ''
+  return request(`/incidents/${encodeURIComponent(id)}/report-context${query}`)
 }
 export function listReports(scope = 'mine'): Promise<ReportSummary[]> {
   return request(`/reports?scope=${encodeURIComponent(scope)}`)

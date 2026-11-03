@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  getIncidentAnalysis,
+  getIncidentReportContext,
   getReport,
   listReports,
   saveReport,
 } from '../../api/client'
-import ReportForm, { type ReportIncident, type Analysis } from './ReportForm'
+import ReportForm, {
+  type ReportIncident,
+  type Analysis,
+  type ReportTelemetry,
+} from './ReportForm'
 
 type DraftIncident = ReportIncident & { asset_name?: string; model?: string }
 type DraftDocument = {
@@ -54,6 +58,13 @@ export default function ReportDraftModal({
   const dialog = useRef<HTMLDialogElement>(null)
   const [document, setDocument] = useState<DraftDocument | null>(null)
   const [analysis, setAnalysis] = useState<Analysis | null>(null)
+  const [context, setContext] = useState<{
+    incident: ReportIncident
+    analysis_incident: ReportIncident | null
+    telemetry: ReportTelemetry | null
+    telemetry_anchor: string | null
+    telemetry_notes: string[]
+  } | null>(null)
   const [loading, setLoading] = useState(Boolean(reportId || incident))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -71,6 +82,7 @@ export default function ReportDraftModal({
   useEffect(() => {
     if (previewOnly) {
       setAnalysis(null)
+      setContext(null)
       setLoading(false)
       return
     }
@@ -82,6 +94,8 @@ export default function ReportDraftModal({
     async function loadDraft() {
       setLoading(true)
       setError('')
+      setLoadError(false)
+      setContext(null)
       try {
         let selectedId: string | undefined = reportId
         if (!selectedId && incident?.incident_id) {
@@ -92,15 +106,22 @@ export default function ReportDraftModal({
               report.report_status === 'DRAFT',
           )?.report_id
         }
-        const [saved, analysisResult] = await Promise.all([
-          selectedId ? getReport(selectedId) : Promise.resolve(null),
-          incident?.incident_id
-            ? getIncidentAnalysis(incident.incident_id).catch(() => null)
-            : Promise.resolve(null),
-        ])
+        const saved = selectedId ? await getReport(selectedId) : null
+        const id = saved?.incident_id || incident?.incident_id
+        if (!id) throw new Error('연결 사건이 없습니다.')
+        const reportContext = await getIncidentReportContext(id, selectedId)
+        if (
+          reportContext.incident?.incident_id !== id ||
+          (saved?.incident_id &&
+            incident?.incident_id &&
+            saved.incident_id !== incident.incident_id)
+        ) {
+          throw new Error('보고서와 조회한 사건이 일치하지 않습니다.')
+        }
         if (!active) return
-        setDocument(saved)
-        setAnalysis(saved?.ai_analysis || analysisResult?.analysis || null)
+        setDocument(reportContext.document || null)
+        setAnalysis(reportContext.analysis || null)
+        setContext(reportContext)
       } catch (failure) {
         if (!active) return
         setError(
@@ -139,8 +160,12 @@ export default function ReportDraftModal({
           ? `${document.report_id}:${document.revision}`
           : incident?.incident_id
       }
-      incident={document?.incident || incident}
+      incident={document?.incident || context?.incident || incident}
       analysis={analysis}
+      analysisInput={context?.analysis_incident}
+      telemetry={context?.telemetry}
+      telemetryAnchor={context?.telemetry_anchor}
+      telemetryNotes={context?.telemetry_notes}
       reportId={document?.report_id || ''}
       assetName={
         document?.asset_name ||

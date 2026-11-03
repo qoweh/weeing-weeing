@@ -112,8 +112,10 @@ def delete_incident(incident_id: str, user: CurrentUser, repo: Reports) -> dict:
 
 
 @router.get("/incidents/{incident_id}/report-context")
-def incident_report_context(incident_id: str, user: CurrentUser, repo: Reports) -> dict:
-    """작성자 초안과 사건 확정 시점에 저장된 센서 표본을 조회한다."""
+def incident_report_context(
+    incident_id: str, user: CurrentUser, repo: Reports, report_id: str | None = None
+) -> dict:
+    """보고서 분석의 실제 입력 시각에 대응하는 DB 표본을 읽기만 한다."""
     incident = db.get_incidents().get_incident(incident_id)
     if incident is None:
         raise HTTPException(status_code=404, detail="저장된 사건이 없습니다.")
@@ -122,18 +124,60 @@ def incident_report_context(incident_id: str, user: CurrentUser, repo: Reports) 
         if user.role in (Role.INSPECTOR, Role.MAINT_LEAD)
         else None
     )
-    anchor = incident.confirmed_at or incident.first_detected_at
-    rows = db.get_telemetry().between(
-        incident.asset_id,
-        anchor - timedelta(seconds=2),
-        anchor + timedelta(microseconds=1),
-        process_id=incident.process_id,
-        limit=100,
+    document = (
+        _call(repo.get_report, user.employee_no, report_id) if report_id else draft
     )
+    if document and document.incident_id != incident_id:
+        raise HTTPException(409, "보고서와 사건이 일치하지 않습니다.")
+    jobs = db.get_analysis_jobs()
+    analysis = (
+        document.ai_analysis
+        if document and document.ai_analysis is not None
+        else jobs.latest_analysis(incident_id)
+    )
+    analysis_incident = jobs.analysis_input(analysis) if analysis else None
+    notes = []
+    if analysis_incident and (
+        analysis_incident.incident_id != incident_id
+        or analysis_incident.process_id != incident.process_id
+        or analysis_incident.asset_id != incident.asset_id
+    ):
+        raise HTTPException(409, "분석 입력과 사건의 설비가 일치하지 않습니다.")
+    anchor = (
+        analysis_incident.last_detected_at
+        if analysis_incident
+        else None
+        if analysis
+        else incident.confirmed_at or incident.first_detected_at
+    )
+    if analysis and analysis_incident is None:
+        notes.append(
+            "분석 입력 스냅샷이 없어 분석 시점의 센서 표본을 확인할 수 없습니다."
+        )
+    rows = (
+        db.get_telemetry().between(
+            incident.asset_id,
+            anchor - timedelta(seconds=2),
+            anchor + timedelta(microseconds=1),
+            process_id=incident.process_id,
+            limit=100,
+        )
+        if anchor
+        else []
+    )
+    if anchor and not rows:
+        notes.append("기준 시각 이전 2초 이내에 저장된 센서 표본이 없습니다.")
+    elif rows and rows[-1].timestamp != anchor:
+        notes.append("기준 시각의 정확한 표본이 없어 이전 2초 이내 표본을 표시합니다.")
     return {
         "incident": incident,
         "draft": draft,
+        "document": document,
         "telemetry": rows[-1] if rows else None,
+        "analysis": analysis,
+        "analysis_incident": analysis_incident,
+        "telemetry_anchor": anchor,
+        "telemetry_notes": notes,
     }
 
 
