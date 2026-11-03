@@ -8,7 +8,9 @@ from weeing_weeing.api.report_index import process_pending_reports
 from weeing_weeing.contracts import (
     AnalysisResult,
     Incident,
+    IncidentStatus,
     Role,
+    Severity,
     TelemetryRecord,
     UserAccount,
 )
@@ -167,6 +169,154 @@ def test_incident_report_context_returns_own_draft_and_matching_sensor(client):
         ).status_code
         == 404
     )
+
+
+def test_report_context_uses_error_input_not_warning_or_recovered_values(
+    client, sample_rows
+):
+    original = db.get_incidents().get_incident("INC-1")
+    start = original.first_detected_at
+    warning = original.model_copy(
+        update={
+            "codes": ["BTT2-M08"],
+            "severity": Severity.WARNING,
+            "confirmed_at": start,
+        }
+    )
+    frame = TelemetryRecord.model_validate(sample_rows[0]).model_copy(
+        update={
+            "record_id": "warning",
+            "process_id": "P1",
+            "asset_id": "A1",
+            "timestamp": start,
+            "dc_bus_voltage_v": 25.7,
+        }
+    )
+    jobs = db.get_analysis_jobs()
+    jobs.record_frame(frame, [warning])
+    error_time = start + timedelta(seconds=25)
+    error_frame = frame.model_copy(
+        update={
+            "record_id": "error",
+            "timestamp": error_time,
+            "dc_bus_voltage_v": 27.603,
+            "rpm": 0.0,
+            "infeed_present": False,
+            "outfeed_present": True,
+        }
+    )
+    error = warning.model_copy(
+        update={"severity": Severity.ERROR, "last_detected_at": error_time}
+    )
+    jobs.record_frame(error_frame, [error])
+    job_id, snapshot = jobs.claim()
+    analysis = AnalysisResult(
+        incident_id="INC-1",
+        status="INSUFFICIENT_EVIDENCE",
+        observed_facts="가짜 분석: API 호출 없음",
+        model="fake/no-api",
+        generated_at=error_time + timedelta(seconds=1),
+    )
+    jobs.finish(job_id, analysis)
+    draft = create(client, "I1", form_data={})
+    recovered = error.model_copy(
+        update={
+            "status": IncidentStatus.RECOVERED,
+            "last_detected_at": start + timedelta(seconds=60),
+        }
+    )
+    jobs.record_frame(
+        frame.model_copy(
+            update={
+                "record_id": "recovered",
+                "timestamp": recovered.last_detected_at,
+                "dc_bus_voltage_v": 24.0,
+            }
+        ),
+        [recovered],
+    )
+    db.get_telemetry().save_many(
+        [
+            error_frame.model_copy(
+                update={
+                    "record_id": "wrong-process",
+                    "process_id": "OTHER",
+                    "dc_bus_voltage_v": 999.0,
+                }
+            ),
+            error_frame.model_copy(
+                update={
+                    "record_id": "future",
+                    "timestamp": error_time + timedelta(seconds=0.5),
+                    "dc_bus_voltage_v": 888.0,
+                }
+            ),
+        ]
+    )
+    response = client.get(
+        f"/incidents/INC-1/report-context?report_id={draft['report_id']}",
+        headers=auth(client),
+    )
+    assert response.status_code == 200
+    context = response.json()
+    assert context["incident"]["status"] == "RECOVERED"
+    assert context["analysis_incident"] == snapshot.model_dump(mode="json")
+    assert context["analysis"] == analysis.model_dump(mode="json")
+    assert context["document"]["revision"] == draft["revision"]
+    assert context["document"]["ai_analysis"] == context["analysis"]
+    assert context["telemetry"]["record_id"] == "error"
+    assert context["telemetry"]["dc_bus_voltage_v"] == 27.603
+    assert (
+        context["telemetry"]["rpm"] == 0
+        and context["telemetry"]["infeed_present"] is False
+    )
+    assert context["telemetry_notes"] == []
+    db.get_incidents().save_analysis(
+        analysis.model_copy(
+            update={
+                "observed_facts": "나중에 저장된 다른 분석",
+                "generated_at": analysis.generated_at + timedelta(seconds=60),
+            }
+        )
+    )
+    old_report_context = client.get(
+        f"/incidents/INC-1/report-context?report_id={draft['report_id']}",
+        headers=auth(client),
+    ).json()
+    assert old_report_context["analysis"] == analysis.model_dump(mode="json")
+    assert old_report_context["telemetry"]["record_id"] == "error"
+    assert (
+        client.get(
+            f"/incidents/INC-1/report-context?report_id={draft['report_id']}",
+            headers=auth(client, "I2"),
+        ).status_code
+        == 200
+    )
+    add_incident("INC-other")
+    assert (
+        client.get(
+            f"/incidents/INC-other/report-context?report_id={draft['report_id']}",
+            headers=auth(client),
+        ).status_code
+        == 409
+    )
+
+
+def test_report_context_does_not_invent_input_for_legacy_analysis(client):
+    db.get_incidents().save_analysis(
+        AnalysisResult(
+            incident_id="INC-1",
+            status="INSUFFICIENT_EVIDENCE",
+            observed_facts="스냅샷 없는 과거 분석",
+            model="fake/no-api",
+            generated_at=datetime.now(timezone.utc),
+        )
+    )
+    context = client.get("/incidents/INC-1/report-context", headers=auth(client)).json()
+    assert context["analysis_incident"] is None
+    assert context["telemetry"] is None
+    assert context["telemetry_anchor"] is None
+    assert "입력 스냅샷" in context["telemetry_notes"][0]
 
 
 def test_incident_overview_separates_recovery_from_report_approval(client):

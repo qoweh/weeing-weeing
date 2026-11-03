@@ -91,8 +91,8 @@ class SqlAnalysisJobs(SqlIncidents):
         )
         return _job(row)
 
-    def record_frame(self, record, incidents, *, capacity=100):
-        """실패하면 전체 롤백. 유료 AI 호출은 이 트랜잭션 밖에서 실행한다."""
+    def record_frame(self, record, incidents, *, capacity=100, enqueue_analysis=True):
+        """센서·사건은 항상 저장하고, 분석 등록은 옵션이다. 실패하면 전체 롤백."""
         jobs = []
         with self._transaction() as session:
             if self._engine.dialect.name == "sqlite":
@@ -120,9 +120,11 @@ class SqlAnalysisJobs(SqlIncidents):
                         <= statement.excluded.last_detected_at,
                     )
                 )
-                if incident.severity == Severity.ERROR and incident.status not in (
-                    IncidentStatus.RECOVERED,
-                    IncidentStatus.CLOSED,
+                if (
+                    enqueue_analysis
+                    and incident.severity == Severity.ERROR
+                    and incident.status
+                    not in (IncidentStatus.RECOVERED, IncidentStatus.CLOSED)
                 ):
                     jobs.append(
                         self._enqueue(
@@ -142,6 +144,23 @@ class SqlAnalysisJobs(SqlIncidents):
                     )
                 )
             )
+
+    def analysis_input(self, result: AnalysisResult) -> Incident | None:
+        """저장된 분석과 정확히 일치하는 실행 입력. 최신 재분석과 섞지 않는다."""
+        with self._transaction() as session:
+            rows = session.execute(
+                select(AnalysisJobRow.snapshot, AnalysisRow.data)
+                .join(AnalysisRow, AnalysisJobRow.analysis_id == AnalysisRow.id)
+                .where(
+                    AnalysisJobRow.incident_id == result.incident_id,
+                    AnalysisRow.incident_id == result.incident_id,
+                    AnalysisRow.generated_at == utc(result.generated_at),
+                )
+            )
+            for snapshot, data in rows:
+                if AnalysisResult.model_validate(data) == result:
+                    return Incident.model_validate(snapshot)
+        return None
 
     def retry(self, incident_id, request_id, *, capacity=100):
         with self._transaction() as session:

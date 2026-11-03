@@ -1,8 +1,9 @@
-"""실제 Voyage 임베딩 API 스모크 테스트. 유료 API 호출이라 기본으로는 건너뛴다.
+"""실제 Voyage 임베딩·리랭크 API 스모크 테스트. 유료 API 호출이라 기본으로는 건너뛴다.
 
 키 확인과 실행은 사용자가 자기 터미널에서 한다(에이전트는 실행하지 않는다).
-    RAG_LIVE_API_TESTS=1 VOYAGE_API_KEY=... uv run --no-sync pytest tests/rag/test_live_embedding_api.py
-문서 3개와 질의 4번이라 토큰은 수백 개 수준이다.
+    RAG_LIVE_API_TESTS=1 uv run --no-sync --env-file .env pytest tests/rag/test_live_embedding_api.py
+문서 3개와 질의 4번, 리랭크 2번(후보 3개)이라 토큰은 수천 개 수준이다.
+리랭크 테스트는 .env에 RERANKER_MODEL이 있을 때만 돈다.
 """
 
 import dataclasses
@@ -11,7 +12,7 @@ import os
 import pytest
 
 from weeing_weeing.config import get_settings
-from weeing_weeing.rag.factory import build_store
+from weeing_weeing.rag.factory import build_reranker, build_store
 from weeing_weeing.rag.store import Chunk
 
 pytestmark = pytest.mark.skipif(
@@ -64,3 +65,13 @@ def test_dense_query_finds_meaning(store):
 def test_hybrid_query_finds_code(store):
     hits = store.hybrid_query("M12 베어링", k=1)
     assert hits[0].chunk.chunk_id == "BTT-MANUAL:2.0:0002"
+
+
+def test_reranker_puts_relevant_chunk_first(store):
+    reranker = build_reranker(get_settings())
+    if reranker is None:
+        pytest.skip("RERANKER_MODEL이 비어 있어 리랭크를 건너뛴다")
+    query = "입구 광전센서가 계속 가려져 있을 때 무엇을 확인하나"
+    hits = reranker.rerank(query, store.hybrid_query(query, k=3))
+    assert hits[0].chunk.chunk_id == "BTT-MANUAL:2.0:0001"
+    assert all(0.0 <= h.relevance <= 1.0 for h in hits)

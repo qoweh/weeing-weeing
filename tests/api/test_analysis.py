@@ -1,12 +1,13 @@
 """가짜 Analyzer와 실제 SQLite로 수신과 분석 분리·조회·권한을 검증한다."""
 
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from threading import Event, Thread
 from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import func, select
 
 from weeing_weeing.api.analysis import AnalysisService
 from weeing_weeing.api.app import app
@@ -19,6 +20,7 @@ from weeing_weeing.contracts import (
     UserAccount,
 )
 from weeing_weeing.db import interface as db
+from weeing_weeing.db.models import AnalysisJobRow, AnalysisRow, TelemetryRow
 
 
 @pytest.fixture
@@ -38,10 +40,188 @@ def setup(tmp_path, sample_rows, monkeypatch):
     )
     monkeypatch.setattr(db, "get_analysis_jobs", lambda: repo)
     monkeypatch.setenv("ANALYSIS_AUTO_ENABLED", "false")
+    monkeypatch.setenv("TELEMETRY_DB_ENABLED", "false")
     monkeypatch.setenv("TELEMETRY_HISTORY_DIR", str(tmp_path / "history"))
     yield repo, frame, item
     app.dependency_overrides.clear()
     repo._engine.dispose()
+
+
+@pytest.mark.parametrize(
+    "automatic,store", [(False, False), (False, True), (True, False), (True, True)]
+)
+def test_startup_modes_preserve_automatic_analysis(
+    setup, monkeypatch, automatic, store
+):
+    repo, frame, _ = setup
+    monkeypatch.setenv("ANALYSIS_AUTO_ENABLED", str(automatic))
+    monkeypatch.setenv("TELEMETRY_DB_ENABLED", str(store))
+    starts = []
+    monkeypatch.setattr(
+        AnalysisService,
+        "start",
+        lambda service: starts.append(service.analysis_enabled),
+    )
+    with TestClient(app) as client:
+        service = app.state.analysis_service
+        assert (service is not None) == (automatic or store)
+        if service:
+            assert service.analysis_enabled == automatic
+        with client.websocket_connect("/ws/telemetry") as ws:
+            expected = "connected" if automatic else "not_connected"
+            assert ws.receive_json()["agent_status"] == expected
+            ws.send_json(frame.model_dump(mode="json"))
+            ack = ws.receive_json()
+            assert ack["agent_status"] == expected
+            assert ack.get("db_status") == ("saved" if service else None)
+    assert starts == ([True] if automatic else [])
+    with repo._transaction() as session:
+        assert session.scalar(select(func.count()).select_from(TelemetryRow)) == int(
+            automatic or store
+        )
+
+
+@pytest.mark.parametrize("code", ["BTT2-P03", "BTT2-M10"])
+def test_storage_only_websocket_saves_error_and_recovery_without_ai(
+    setup, monkeypatch, caplog, code
+):
+    from weeing_weeing.api import analysis
+
+    repo, frame, _ = setup
+    monkeypatch.setenv("TELEMETRY_DB_ENABLED", "true")
+    monkeypatch.setattr(
+        analysis,
+        "get_analyzer",
+        lambda *a, **k: pytest.fail("Analyzer must not be created"),
+    )
+    monkeypatch.setattr(
+        analysis, "get_retriever", lambda *a, **k: pytest.fail("RAG must not be opened")
+    )
+    caplog.set_level("INFO", logger="uvicorn.error.telemetry")
+    seen_error = False
+    with TestClient(app) as client:
+        assert app.state.analysis_service.thread is None
+        with client.websocket_connect("/ws/telemetry?context=RUN_ONLY") as ws:
+            assert ws.receive_json()["agent_status"] == "not_connected"
+            for index in range(56):
+                active = index < 27
+                row = frame.model_copy(
+                    update={
+                        "record_id": f"storage-{index}",
+                        "timestamp": frame.timestamp + timedelta(seconds=index / 2),
+                        "rpm": 1015.0,
+                        "infeed_present": active and code == "BTT2-P03",
+                        "outfeed_present": False,
+                        "motor_housing_temp_c": 95.0
+                        if active and code == "BTT2-M10"
+                        else 65.0,
+                    }
+                )
+                ws.send_json(row.model_dump(mode="json"))
+                ack = ws.receive_json()
+                assert ack["status"] == "processed"
+                assert ack["record_id"] == row.record_id
+                assert ack["db_status"] == "saved"
+                assert ack["agent_status"] == "not_connected"
+                assert ack["analysis_jobs"] == []
+                seen_error |= any(
+                    code in event["codes"] and event["severity"] == "Error"
+                    for event in ack["error_entries"]
+                )
+        assert app.state.analysis_service.thread is None
+    assert seen_error
+    [incident] = [item for item in repo.list_incidents() if code in item.codes]
+    assert incident.severity == "Error" and incident.status == "RECOVERED"
+    assert repo.latest_job(incident.incident_id) is None
+    with repo._transaction() as session:
+        assert session.scalar(select(func.count()).select_from(TelemetryRow)) == 56
+        assert session.scalar(select(func.count()).select_from(AnalysisJobRow)) == 0
+        assert session.scalar(select(func.count()).select_from(AnalysisRow)) == 0
+    assert "미연결(DB 저장 전용)" in caplog.text
+
+
+def test_storage_only_never_consumes_existing_pending_or_running_jobs(
+    setup, monkeypatch
+):
+    repo, frame, item = setup
+    repo.record_frame(frame, [item])
+    running = item.model_copy(update={"incident_id": "INC-existing-running"})
+    repo.record_frame(frame, [running])
+    running_id, _ = repo.claim()
+    before = {
+        entry.incident_id: repo.latest_job(entry.incident_id)
+        for entry in (item, running)
+    }
+    assert {job["status"] for job in before.values()} == {"PENDING", "RUNNING"}
+    monkeypatch.setattr(repo, "claim", lambda: pytest.fail("Must not claim old jobs"))
+    monkeypatch.setattr(
+        repo, "recover_interrupted", lambda: pytest.fail("Must not modify old jobs")
+    )
+    service = AnalysisService(
+        lambda: repo, lambda: pytest.fail("No AI"), analysis_enabled=False
+    )
+    try:
+        service.start()
+        assert service.thread is None
+        assert not service.process_one()
+        ack = service.ingest(
+            frame, [item.model_copy(update={"incident_id": "INC-new-storage"})]
+        )
+        assert ack["analysis_jobs"] == []
+        assert repo.latest_job("INC-new-storage") is None
+        assert {
+            entry.incident_id: repo.latest_job(entry.incident_id)
+            for entry in (item, running)
+        } == before
+        assert running_id in {job["job_id"] for job in before.values()}
+    finally:
+        service.stop()
+
+
+def test_storage_only_keeps_analysis_readable_but_blocks_retry(setup, monkeypatch):
+    repo, frame, item = setup
+    repo.record_frame(frame, [item])
+    job_id, snapshot = repo.claim()
+    repo.finish(
+        job_id,
+        AnalysisResult(
+            incident_id=snapshot.incident_id,
+            status="INSUFFICIENT_EVIDENCE",
+            observed_facts="fake",
+            model="fake/no-api",
+            generated_at=datetime.now(UTC),
+        ),
+    )
+    monkeypatch.setenv("TELEMETRY_DB_ENABLED", "true")
+    app.dependency_overrides[current_user] = lambda: UserAccount(
+        employee_no="C1", name="test", role=Role.CONTROL
+    )
+    with TestClient(app) as client:
+        path = f"/incidents/{item.incident_id}/analysis"
+        assert client.get(path).json()["analysis"]["model"] == "fake/no-api"
+        assert (
+            client.post(path + "/retry", json={"request_id": str(uuid4())}).status_code
+            == 503
+        )
+    assert repo.latest_job(item.incident_id)["status"] == "COMPLETED"
+
+
+def test_storage_only_db_failure_is_reported_without_ai(setup, caplog):
+    _, frame, item = setup
+
+    def offline():
+        raise db.DatabaseUnavailableError("SECRET must not be logged")
+
+    service = AnalysisService(
+        offline, lambda: pytest.fail("No AI"), analysis_enabled=False
+    )
+    assert service.ingest(frame, [item]) == {
+        "agent_status": "storage_failed",
+        "db_status": "failed",
+        "analysis_jobs": [],
+    }
+    assert not service.process_one()
+    assert "SECRET" not in caplog.text
 
 
 def test_blocked_analyzer_does_not_block_websocket(setup):

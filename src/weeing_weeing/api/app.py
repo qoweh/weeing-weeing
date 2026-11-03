@@ -20,14 +20,23 @@ from weeing_weeing.db.interface import DatabaseUnavailableError
 
 @asynccontextmanager
 async def lifespan(app):
-    service = AnalysisService() if get_settings().analysis_auto_enabled else None
+    settings = get_settings()
+    service = (
+        AnalysisService(analysis_enabled=settings.analysis_auto_enabled)
+        if settings.analysis_auto_enabled or settings.telemetry_db_enabled
+        else None
+    )
     app.state.analysis_service = service
-    if service:
+    if service and service.analysis_enabled:
         service.start()
     else:
         logging.getLogger("uvicorn.error.analysis").info(
             "[분석 비활성] ANALYSIS_AUTO_ENABLED=true로 자동 호출 활성화(비용 발생)"
         )
+        if service:
+            logging.getLogger("uvicorn.error.analysis").info(
+                "[DB 저장 활성] 센서·사건만 저장; 분석 작업 등록·호출 없음"
+            )
     try:
         yield
     finally:

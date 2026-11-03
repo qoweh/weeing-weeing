@@ -149,6 +149,13 @@ chmod 600 .env
 - `ANALYSIS_AUTO_ENABLED=true`는 사건마다 Claude API를 호출한다(비용). 시연할 때만 켠다
 - `SITE_ADDRESS=<EC2_IP>`로 HTTPS를 켠다. 자세한 내용은 [HTTPS·Langfuse·내부 서비스 접속](#httpslangfuse내부-서비스-접속)
 - `IMAGE_TAG`·`IMAGE_PREFIX`는 배포 워크플로가 적는다. 직접 고치지 않는다
+- 새 버전을 배포한 뒤에는 서버 `.env`에 빠진·낡은 변수가 없는지 점검한다. 값과 키는 출력하지 않는다
+
+```
+cd ~/weeing-weeing
+docker compose run --rm --no-deps -v "$PWD/.env:/tmp/check.env:ro" api \
+  python scripts/check_env.py --file /tmp/check.env --no-shell-check
+```
 
 ## 배포
 

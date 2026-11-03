@@ -33,13 +33,13 @@ RERANKER_MODEL=
 EMBEDDING_PROVIDER=voyage
 EMBEDDING_MODEL=voyage-4-lite        # 비우면 voyage-4-lite
 EMBEDDING_DIM=1024                   # 256·512·1024·2048
-VOYAGE_API_KEY=...                   # MongoDB Atlas > AI Model APIs에서 발급. 커밋 금지
+VOYAGE_API_KEY=...                   # Voyage 대시보드(dash.voyageai.com)에서 발급. 커밋 금지
 RERANKER_MODEL=rerank-3-lite         # 선택. 비우면 리랭킹 끔
 ```
 
 - 컬렉션에는 `공급자:모델:차원`(예: `hashing:hashing-kiwi-v1:1024`)이 기록된다. 공급자·모델·차원을 바꾸면 이전 벡터와 섞을 수 없어서 `StoreMismatchError`가 난다. 새 `RAG_COLLECTION` 이름을 쓰고 웹에서 문서를 다시 등록한다.
 - 키 확인과 실제 API 스모크 테스트는 본인 터미널에서 한다: `RAG_LIVE_API_TESTS=1 uv run --no-sync pytest tests/rag/test_live_embedding_api.py`(문서 3개·질의 4번, 수백 토큰).
-- Atlas에서 만든 키는 기본 주소(`https://ai.mongodb.com/v1`)를 쓴다. 예전 Voyage 대시보드 키는 `VOYAGE_BASE_URL=https://api.voyageai.com/v1`.
+- 팀 키는 Voyage 대시보드(dash.voyageai.com, `pa-…`)에서 받고 기본 주소(`https://api.voyageai.com/v1`)를 쓴다. MongoDB Atlas > AI Models에서 만든 키는 `VOYAGE_BASE_URL=https://ai.mongodb.com/v1`. 키와 주소가 안 맞으면 HTTP 403("This API key cannot access this endpoint")이다. 2026-11-03 Voyage 대시보드 키로 `voyage-4-lite`·`rerank-3-lite` 라이브 스모크 6개 통과.
 - API 호출에는 타임아웃(`VOYAGE_TIMEOUT_S`, 기본 30초)과 429·5xx 재시도 2회가 걸려 있다. 그래도 실패하면 예외를 낸다. 문서 등록은 실패 상태로 남고, 분석은 `FAILED`, 챗봇은 "검색 불가"가 된다. 키는 로그·오류 메시지에 남기지 않는다.
 
 ## 왜 Voyage인가 (키를 쓸 때)

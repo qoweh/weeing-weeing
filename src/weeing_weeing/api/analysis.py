@@ -23,9 +23,15 @@ class AnalysisService:
     """API 프로세스당 하나. 운영은 --workers 1, replica 1개만 지원한다."""
 
     def __init__(
-        self, repository=db.get_analysis_jobs, analyzer=None, *, poll_seconds=0.5
+        self,
+        repository=db.get_analysis_jobs,
+        analyzer=None,
+        *,
+        poll_seconds=0.5,
+        analysis_enabled=True,
     ):
         self.repository = repository
+        self.analysis_enabled = analysis_enabled
         self.analyzer = analyzer or (
             lambda: get_analyzer(
                 get_retriever(), sensor_reader=sensor_reader(db.get_telemetry())
@@ -41,6 +47,8 @@ class AnalysisService:
         self.pending_result = None
 
     def start(self):
+        if not self.analysis_enabled:
+            return
         self.thread = Thread(target=self._loop, name="incident-analysis", daemon=True)
         self.thread.start()
 
@@ -57,7 +65,9 @@ class AnalysisService:
     def ingest(self, record, incidents):
         try:
             with self.write_lock:
-                jobs = self.repository().record_frame(record, incidents)
+                jobs = self.repository().record_frame(
+                    record, incidents, enqueue_analysis=self.analysis_enabled
+                )
                 for job in jobs:
                     if job["job_id"] not in self.notified:
                         logger.info(
@@ -70,9 +80,12 @@ class AnalysisService:
                         if len(self.notified) >= 1000:
                             self.notified.clear()
                         self.notified.add(job["job_id"])
-            self.wakeup.set()
+            if self.analysis_enabled:
+                self.wakeup.set()
             return {
-                "agent_status": "connected",
+                "agent_status": "connected"
+                if self.analysis_enabled
+                else "not_connected",
                 "db_status": "saved",
                 "analysis_jobs": jobs,
             }
@@ -89,6 +102,8 @@ class AnalysisService:
             }
 
     def process_one(self):
+        if not self.analysis_enabled:
+            return False
         repo = self.repository()
         if self.pending_result is not None:
             # LLM 응답 뒤 DB가 끊겨도 유료 호출은 반복하지 않고 저장만 재시도한다.
@@ -201,7 +216,7 @@ class RetryAnalysis(BaseModel):
 )
 def retry_analysis(incident_id: str, body: RetryAnalysis, request: Request):
     service = getattr(request.app.state, "analysis_service", None)
-    if service is None:
+    if service is None or not service.analysis_enabled:
         raise HTTPException(503, "자동 분석이 비활성 상태입니다")
     try:
         with service.write_lock:
