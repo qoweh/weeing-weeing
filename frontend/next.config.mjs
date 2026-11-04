@@ -33,6 +33,7 @@ const securityHeaders = [
 /** @type {import('next').NextConfig} */
 const config = {
   poweredByHeader: false,
+  env: { NEXT_PUBLIC_API_ORIGIN: new URL(apiOrigin).origin },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }]
   },

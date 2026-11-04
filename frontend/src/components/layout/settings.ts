@@ -8,6 +8,9 @@ export type Settings = {
 const storageKey = 'weeing-settings'
 
 export const refreshIntervals = [
+  { value: 500, label: '0.5초' },
+  { value: 1000, label: '1초' },
+  { value: 5000, label: '5초' },
   { value: 30000, label: '30초' },
   { value: 60000, label: '1분' },
   { value: 300000, label: '5분' },
@@ -17,7 +20,7 @@ export const defaultSettings: Settings = {
   notifyWarning: true,
   notifyError: true,
   autoOpenError: false,
-  refreshInterval: 30000,
+  refreshInterval: 1000,
 }
 
 // 설정은 이 브라우저에만 저장한다. 저장소를 쓸 수 없으면 기본값으로 동작한다.

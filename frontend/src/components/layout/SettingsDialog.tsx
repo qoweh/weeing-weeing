@@ -294,7 +294,10 @@ export default function SettingsDialog({
                 ))}
               </ul>
               <h4>갱신 주기</h4>
-              <p>진행 중인 사건 목록을 다시 불러오는 간격입니다.</p>
+              <p>
+                실시간 사건 변경이 들어올 때 알림 목록을 갱신하는 최소
+                간격입니다.
+              </p>
               <div
                 className="settings-segment"
                 role="radiogroup"
@@ -313,8 +316,8 @@ export default function SettingsDialog({
                 ))}
               </div>
               <p className="settings-hint">
-                기본값은 30초입니다. 주기를 늘리면 최신 사건이 늦게 보일 수
-                있습니다.
+                기본값은 1초입니다. 사건 변경이 없으면 목록을 반복 조회하지
+                않습니다.
               </p>
             </>
           )}

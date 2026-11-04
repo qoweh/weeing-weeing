@@ -70,7 +70,7 @@ def get_settings() -> Settings:
         voyage_base_url=env("VOYAGE_BASE_URL", "https://api.voyageai.com/v1"),
         voyage_timeout_s=float(env("VOYAGE_TIMEOUT_S", "30")),
         vector_store=env("VECTOR_STORE", "qdrant"),
-        rag_collection=env("RAG_COLLECTION", "knowledge"),
+        rag_collection=env("RAG_COLLECTION", "knowledge_voyage"),
         upload_dir=Path(env("UPLOAD_DIR", "storage/uploads")),
         qdrant_path=Path(env("QDRANT_PATH", "storage/qdrant")),
         qdrant_url=env("QDRANT_URL", ""),

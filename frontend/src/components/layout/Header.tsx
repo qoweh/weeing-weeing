@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { listIncidents, type Incident } from '../../api/client'
+import { listIncidents, watchTelemetry, type Incident } from '../../api/client'
 import Button from '../ui/Button'
 import { dateLabel } from '../ui/library'
 import SettingsDialog from './SettingsDialog'
@@ -18,6 +18,7 @@ export default function Header({
   sidebarCollapsed,
   onChangeSidebarCollapsed,
   onIncidentSelect,
+  onSessionExpired,
 }: {
   theme: string
   onToggleTheme: () => void
@@ -31,6 +32,7 @@ export default function Header({
   sidebarCollapsed: boolean
   onChangeSidebarCollapsed: (value: boolean) => void
   onIncidentSelect: (incident: Incident) => void
+  onSessionExpired: () => void
 }) {
   const [incidents, setIncidents] = useState<Incident[] | null>(null),
     [error, setError] = useState(''),
@@ -64,6 +66,11 @@ export default function Header({
   }, [])
   useEffect(() => {
     let active = true
+    let pending: ReturnType<typeof setTimeout> | undefined
+    let retry: ReturnType<typeof setTimeout> | undefined
+    let lastRefresh = 0
+    let lastIncidents = ''
+    const controller = new AbortController()
     async function refresh() {
       try {
         const rows = await listIncidents()
@@ -95,12 +102,53 @@ export default function Header({
       }
     }
     refresh()
-    const timer = setInterval(refresh, settings.refreshInterval)
+    function scheduleRefresh() {
+      if (pending) return
+      pending = setTimeout(
+        () => {
+          pending = undefined
+          lastRefresh = Date.now()
+          void refresh()
+          window.dispatchEvent(new Event('weeing-incidents-changed'))
+        },
+        Math.max(0, settings.refreshInterval - (Date.now() - lastRefresh)),
+      )
+    }
+    async function connect() {
+      try {
+        await watchTelemetry(controller.signal, (state) => {
+          const current = JSON.stringify(state.incidents)
+          if (current !== lastIncidents) {
+            lastIncidents = current
+            scheduleRefresh()
+          }
+          if (
+            state.db_status === 'storage_failed' ||
+            state.db_status === 'not_connected'
+          ) {
+            // The incident list is DB-backed; a live event alone does not prove persistence.
+            if (state.db_status === 'storage_failed')
+              setError('센서 사건을 DB에 저장하지 못했습니다.')
+          }
+        })
+      } catch (e) {
+        if (!active) return
+        if (e && typeof e === 'object' && 'status' in e && e.status === 401) {
+          onSessionExpired()
+          return
+        }
+        setError('실시간 연결이 끊어져 재연결 중입니다.')
+      }
+      if (active) retry = setTimeout(connect, 3000)
+    }
+    void connect()
     return () => {
       active = false
-      clearInterval(timer)
+      controller.abort()
+      clearTimeout(pending)
+      clearTimeout(retry)
     }
-  }, [settings.refreshInterval])
+  }, [settings.refreshInterval, onSessionExpired])
   useEffect(() => {
     if (!severity) return
     function positionPopup() {
@@ -421,7 +469,7 @@ export default function Header({
           <p className="header-alert-popup__note">
             {error
               ? `사건 목록을 불러오지 못했습니다. ${error}`
-              : '최근 조회된 사건 기준 · 30초마다 갱신'}
+              : '사건 변경 수신 시 설정한 주기로 갱신'}
           </p>
         </section>
       )}

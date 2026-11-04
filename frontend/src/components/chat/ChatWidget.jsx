@@ -208,11 +208,11 @@ export default function ChatWidget({ screenZoom = 100, onSessionExpired }) {
         >
           <div className="chat-dialog__identity">
             <span className="chat-dialog__mark" aria-hidden="true">
-              ✦
+              <span />
             </span>
             <div>
               <h2 id="chat-title">설비 지원 챗봇</h2>
-              <p>{chat.chatMode ? '자유 대화' : 'FAQ 안내'}</p>
+              <p><img src="/assets/chat/status.svg" alt="" />{chat.chatMode ? '자유 대화' : 'FAQ 안내'}</p>
             </div>
           </div>
           <button
@@ -220,7 +220,7 @@ export default function ChatWidget({ screenZoom = 100, onSessionExpired }) {
             aria-label="챗봇 닫기"
             onClick={close}
           >
-            ✕
+            <img src="/assets/chat/close.svg" alt="" />
           </button>
         </header>
         <div className="chat-controls">
@@ -320,7 +320,7 @@ export default function ChatWidget({ screenZoom = 100, onSessionExpired }) {
         <div ref={body} className="chat-dialog__body">
           {!chat.messages.length && (
             <div className="chat-dialog__message">
-              <strong>무엇을 도와드릴까요?</strong>
+              <strong>안녕하세요!</strong>
               <p>
                 FAQ 주제와 질문을 선택하거나, 채팅 시작을 눌러 매뉴얼·정비이력을
                 물어보세요.
@@ -451,7 +451,7 @@ export default function ChatWidget({ screenZoom = 100, onSessionExpired }) {
           )}
           {!chat.chatMode && (
             <section className="chat-dialog__examples" aria-label="FAQ 목록">
-              <h3>{chat.topic?.title || 'FAQ 주제'}</h3>
+              <h3>{chat.topic?.title || '이런 내용을 물어볼 수 있어요'}</h3>
               {chat.topic && (
                 <button type="button" onClick={() => chat.loadFaq()}>
                   주제 목록으로
@@ -488,7 +488,7 @@ export default function ChatWidget({ screenZoom = 100, onSessionExpired }) {
                     type="button"
                     onClick={() => chat.loadFaq(t)}
                   >
-                    {t.title} <span aria-hidden="true">›</span>
+                    {t.title} <img src="/assets/chat/chevron.svg" alt="" />
                   </button>
                 ))
               ) : (
@@ -534,7 +534,7 @@ export default function ChatWidget({ screenZoom = 100, onSessionExpired }) {
                 }}
               />
               <button disabled={blocked || !text.trim()} aria-label="질문 전송">
-                ↑
+                {blocked || !text.trim() ? <img src="/assets/chat/send-disabled.svg" alt="" /> : '→'}
               </button>
             </form>
           )}

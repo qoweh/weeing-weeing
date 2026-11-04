@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   listIncidents,
-  listReports,
+  listIncidentOverview,
   type Incident,
   type ReportSummary,
 } from '../api/client'
@@ -16,10 +16,13 @@ const labels: Record<string, string> = {
   REJECTED: '반려',
 }
 const activeStatuses = ['OPEN', 'ACKNOWLEDGED']
-const historyStatuses = ['RECOVERED', 'CLOSED']
 const issueLimit = 3
+const refreshIntervalMs = 2000
 // 아직 접수되지 않은 사건(OPEN)을 먼저, 같은 상태에서는 최근 발생한 사건을 먼저 둔다.
-const urgency = (incident: Incident) => activeStatuses.indexOf(incident.status)
+const urgency = (incident: Incident) => {
+  const index = activeStatuses.indexOf(incident.status)
+  return index < 0 ? activeStatuses.length : index
+}
 const byUrgency = (a: Incident, b: Incident) =>
   urgency(a) - urgency(b) ||
   String(b.first_detected_at).localeCompare(String(a.first_detected_at))
@@ -60,36 +63,72 @@ export default function IncidentsPage({
     [error, setError] = useState(''),
     [reload, setReload] = useState(0)
   useEffect(() => {
+    const changed = () => setReload((n) => n + 1)
+    window.addEventListener('weeing-incidents-changed', changed)
+    return () => window.removeEventListener('weeing-incidents-changed', changed)
+  }, [])
+  useEffect(() => {
     let active = true
-    setLoading(true)
-    setError('')
-    Promise.all([listReports('all'), listIncidents()])
-      .then(([reports, incidents]) => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    async function refresh() {
+      try {
+        const overview = await listIncidentOverview()
         if (!active) return
-        const errors = incidents.filter((i) => i.severity === 'Error')
+        const row = (item: (typeof overview)[number]) =>
+          toRow(
+            item.incident,
+            item.report_id
+              ? [
+                  {
+                    report_id: item.report_id,
+                    incident_id: item.incident.incident_id,
+                    report_status: item.report_status || '',
+                    author_name: '',
+                    asset_id: item.incident.asset_id,
+                    updated_at: '',
+                  },
+                ]
+              : [],
+          )
         setIssues(
-          errors
-            .filter((i) => activeStatuses.includes(i.status))
-            .sort(byUrgency)
-            .map((i) => toRow(i, reports)),
+          overview
+            .filter((item) => !item.has_approved_report)
+            .sort((a, b) => byUrgency(a.incident, b.incident))
+            .map(row),
         )
-        setHistory(
-          errors
-            .filter((i) => historyStatuses.includes(i.status))
-            .map((i) => toRow(i, reports)),
-        )
-      })
-      .catch((e) => {
+        setHistory(overview.filter((item) => item.has_approved_report).map(row))
+        setError('')
+      } catch (e) {
         if (active) {
-          setError(e.message)
-          if (e.status === 401) onSessionExpired()
+          setError(e instanceof Error ? e.message : '목록 조회에 실패했습니다.')
+          if (e && typeof e === 'object' && 'status' in e && e.status === 401)
+            onSessionExpired()
+          else {
+            try {
+              const incidents = await listIncidents()
+              if (active)
+                setIssues(
+                  incidents
+                    .filter((i) => i.severity === 'Error')
+                    .sort(byUrgency)
+                    .map((i) => toRow(i, [])),
+                )
+            } catch {
+              /* Preserve the last known list when both requests fail. */
+            }
+          }
         }
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
+      } finally {
+        if (active) {
+          setLoading(false)
+          timer = setTimeout(refresh, refreshIntervalMs)
+        }
+      }
+    }
+    refresh()
     return () => {
       active = false
+      clearTimeout(timer)
     }
   }, [reload, refreshKey, onSessionExpired])
   return (
@@ -114,11 +153,7 @@ export default function IncidentsPage({
             rows={issues.slice(0, issueLimit)}
             totalCount={issues.length}
             initialSort={{ key: 'number', direction: 1 }}
-            hint={
-              issues.length > issueLimit
-                ? `위험도 순 상위 ${issueLimit}건만 표시합니다`
-                : '위험도 순으로 표시합니다'
-            }
+            hint={`보고서 승인 전 사건 중 우선순위 상위 ${issueLimit}건을 표시합니다 (최근 200건)`}
             onOpen={(r: ReturnType<typeof toRow>) =>
               onOpen(r.reportId, r.incidentId, r)
             }

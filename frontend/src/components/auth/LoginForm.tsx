@@ -1,5 +1,15 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import Button from '../ui/Button'
+
+const savedEmployeeNoKey = 'weeing-saved-employee-no'
+
+function readSavedEmployeeNo() {
+  try {
+    return localStorage.getItem(savedEmployeeNoKey) || ''
+  } catch {
+    return ''
+  }
+}
 
 export function EyeIcon({ off = false }: { off?: boolean }) {
   return (
@@ -32,11 +42,27 @@ export default function LoginForm({
   onForgotPassword: () => void
   sessionError?: string
 }) {
-  const [id, setId] = useState('')
+  const [savedEmployeeNo] = useState(readSavedEmployeeNo)
+  const [id, setId] = useState(savedEmployeeNo)
+  const [rememberEmployeeNo, setRememberEmployeeNo] = useState(
+    Boolean(savedEmployeeNo),
+  )
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+
+  useEffect(() => {
+    try {
+      if (rememberEmployeeNo && id.trim()) {
+        localStorage.setItem(savedEmployeeNoKey, id.trim())
+      } else {
+        localStorage.removeItem(savedEmployeeNoKey)
+      }
+    } catch {
+      // 브라우저 저장소를 사용할 수 없어도 로그인은 계속할 수 있다.
+    }
+  }, [id, rememberEmployeeNo])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -104,8 +130,14 @@ export default function LoginForm({
         </p>
       )}
       <div className="login-options">
-        <label title="준비 중">
-          <input type="checkbox" disabled /> 로그인 상태 유지
+        <label>
+          <input
+            type="checkbox"
+            checked={rememberEmployeeNo}
+            onChange={(event) => setRememberEmployeeNo(event.target.checked)}
+            disabled={busy}
+          />{' '}
+          사번 저장
         </label>
         <button
           type="button"

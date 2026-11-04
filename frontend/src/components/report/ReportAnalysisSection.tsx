@@ -24,9 +24,11 @@ function Items({
 export default function ReportAnalysisSection({
   analysis,
   incident = null,
+  showTitle = true,
 }: {
   analysis: Analysis | null
   incident?: ReportIncident | null
+  showTitle?: boolean
 }) {
   const ready = analysis?.status === 'OK'
   const linkedIncident =
@@ -40,9 +42,11 @@ export default function ReportAnalysisSection({
         : 'AI 분석에 실패했습니다. 담당자 확인이 필요합니다.'
   return (
     <section className="report-section">
-      <h3 className="report-section-title">
-        <span>03</span>AI 분석 및 대응 권고
-      </h3>
+      {showTitle && (
+        <h3 className="report-section-title">
+          <span>03</span>AI 분석 및 대응 권고
+        </h3>
+      )}
       <div className="report-table">
         <div className="report-cell report-cell--wide">
           <strong>추정 원인 및 근거</strong>

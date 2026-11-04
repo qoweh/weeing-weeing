@@ -127,6 +127,7 @@ export default function AppShell({
         sidebarCollapsed={sidebarCollapsed}
         onChangeSidebarCollapsed={changeSidebarCollapsed}
         onIncidentSelect={onIncidentSelect}
+        onSessionExpired={onSessionExpired}
       />
       <Sidebar
         page={page}

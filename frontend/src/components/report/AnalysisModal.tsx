@@ -92,6 +92,7 @@ export default function AnalysisModal({
         <div className="report-sheet analysis-dialog__sheet">
           <ReportAnalysisSection
             analysis={pending ? null : (analysis ?? null)}
+            showTitle={false}
           />
         </div>
       </div>

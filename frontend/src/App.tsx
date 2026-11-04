@@ -6,9 +6,7 @@ import {
   setAccessToken,
 } from "./api/client";
 import AppShell from "./components/layout/AppShell";
-// 기존 대시보드는 src/views/DashboardPage.jsx에 보관한다. 복구 시 아래 주석을 푼다.
-// import DashboardPage from './views/DashboardPage'
-import PreparingPage from "./views/PreparingPage";
+import DashboardPage from "./views/DashboardPage";
 import LoginPage from "./views/LoginPage";
 import { ManualPage, ManualUploadPage } from "./views/ManualPages";
 import IncidentsPage from "./views/IncidentsPage";
@@ -279,8 +277,7 @@ export default function App() {
         </p>
       )}
       <div hidden={page !== "dashboard"}>
-        {/* <DashboardPage /> */}
-        <PreparingPage onNavigate={navigate} />
+        <DashboardPage />
       </div>
       {page === "mypage" && (
         <MyPage

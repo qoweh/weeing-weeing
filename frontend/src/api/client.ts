@@ -16,6 +16,16 @@ export type ReportSummary = {
   asset_id: string
   updated_at: string
 }
+export type IncidentOverview = {
+  incident: Incident
+  has_approved_report: boolean
+  report_id: string | null
+  report_status: string | null
+}
+
+export function listIncidentOverview(): Promise<IncidentOverview[]> {
+  return request('/incidents/overview?limit=200')
+}
 
 class ApiError extends Error {
   status?: number
@@ -27,6 +37,55 @@ let accessToken = ''
 
 export function setAccessToken(token: string) {
   accessToken = token
+}
+
+export async function watchTelemetry(
+  signal: AbortSignal,
+  onSnapshot: (state: { incidents: Incident[]; db_status: string }) => void,
+) {
+  const response = await fetch('/api/telemetry/stream', {
+    cache: 'no-store',
+    signal,
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+  })
+  if (!response.ok || !response.body) {
+    const error = new ApiError(`실시간 연결 실패: HTTP ${response.status}`)
+    error.status = response.status
+    throw error
+  }
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  try {
+    while (!signal.aborted) {
+      const { value, done } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n')
+      let boundary
+      while ((boundary = buffer.indexOf('\n\n')) !== -1) {
+        const frame = buffer.slice(0, boundary)
+        buffer = buffer.slice(boundary + 2)
+        const data = frame
+          .split('\n')
+          .filter((line) => line.startsWith('data:'))
+          .map((line) => line.slice(5).trimStart())
+          .join('\n')
+        if (!data) continue
+        const event = JSON.parse(data)
+        if (event.event === 'error') {
+          const error = new ApiError(event.message)
+          error.status = event.status_code
+          throw error
+        }
+        if (event.event === 'snapshot') onSnapshot(event.state)
+      }
+      if (buffer.length > 1_000_000)
+        throw new Error('실시간 데이터가 너무 큽니다.')
+    }
+  } finally {
+    await reader.cancel().catch(() => {})
+    reader.releaseLock()
+  }
 }
 
 export async function request(
