@@ -1,0 +1,114 @@
+# 새 독립 검색 검증 질의. 원 평가셋·holdout_v1과 문장 중복 없이 구성.
+# 같은 3개 문서 코퍼스를 사용하므로 코퍼스·주제까지 독립인 외부 검증셋은 아니다.
+
+[[queries]]
+id = "u01"
+query = "DC 입력전류가 낮게 잡혔을 때 곧바로 모터 고장으로 결론 내리지 않으려면 무엇을 확인하나"
+doc_id = "BTT-MANUAL"
+any_of = ["낮은 전류 단독으로 모터 고장 판정 금지", "무부하·동력 분리·센서 스케일"]
+
+[[queries]]
+id = "u02"
+query = "센서 데이터 표본 사이가 2초 넘게 벌어지거나 실시간 수신이 끊겼을 때 어떻게 처리하나"
+doc_id = "BTT-MANUAL"
+any_of = ["표본 간격>2초", "LIVE 무응답>3초 watchdog"]
+
+[[queries]]
+id = "u03"
+query = "필수 센서 값이 NULL이나 무한대로 들어오면 0으로 바꿔 계산해도 되나"
+doc_id = "BTT-MANUAL"
+any_of = ["0으로 대체하지 않고 해당 룰 Unknown"]
+
+[[queries]]
+id = "u04"
+query = "내부에서 붙인 BTT 고장 코드와 실제 드라이버 제조사 알람 코드는 같은 뜻으로 봐도 되나"
+doc_id = "BTT-MANUAL"
+any_of = ["BTT2-P/M/D 코드", "제조사 실제 알람과 내부 코드 구분"]
+
+[[queries]]
+id = "u05"
+query = "정비 뒤 시험 결과를 남길 때 단순히 RPM이 0이 된 사실만으로 작업 허가나 격리 검증을 대신할 수 있나"
+doc_id = "BTT-MANUAL"
+any_of = ["시험 조건 확정", "작업 허가"]
+
+[[queries]]
+id = "u06"
+query = "기존 고장 후보와 실제로 한 조치, 시험 결과를 정비 기록에 어떻게 연결해야 하나"
+doc_id = "BTT-MANUAL"
+any_of = ["원인 후보와 확정 원인", "조치 내용·담당자"]
+
+[[queries]]
+id = "u07"
+query = "시험 중 트레이 출구 센서가 한 번 켜졌다면 이송 완료와 시험 합격을 확정해도 되나"
+doc_id = "BTT-MANUAL"
+any_of = ["출구 ON은 도달이며 통과 완료와 구분한다", "출구 에지 하나만으로"]
+
+[[queries]]
+id = "u08"
+query = "현재 설비에서 승인된 정상 시험 속도와 적재량이 문서에 정해져 있지 않으면 임의 값으로 시험해도 되나"
+doc_id = "BTT-MANUAL"
+any_of = ["새 공통 시험 수치·속도를 정하지 않는다", "시험 속도·적재"]
+
+[[queries]]
+id = "u09"
+query = "보호 알람이 사라졌으면 원인을 제거하지 않아도 반복 리셋을 해도 되나"
+doc_id = "BTT-MANUAL"
+any_of = ["원인 제거 전 반복 리셋 금지"]
+
+[[queries]]
+id = "u10"
+query = "진동 RMS가 높다는 사실 하나만으로 베어링 교체를 확정할 수 있나"
+doc_id = "BTT-MANUAL"
+any_of = ["베어링 손상 단정 금지", "RMS·첨도만으로 고장 단정"]
+
+[[queries]]
+id = "u11"
+query = "AI가 정비 보고서의 실제 원인과 부품 교체 내역을 확정해서 기록해도 되나"
+doc_id = "BTT-MANUAL"
+any_of = ["AI 설명이나 RPM=0", "실제 원인·조치·부품"]
+
+[[queries]]
+id = "u12"
+query = "센서나 계측 기준을 바꾼 다음에는 이전 기준을 그대로 사용해 자동 정상 판정을 해도 되나"
+doc_id = "BTT-MANUAL"
+any_of = ["Unknown 이후", "미관측 기간을 정상으로 소급 표시하지 않음"]
+
+[[queries]]
+id = "x01"
+query = "BLDC-001 모터의 제조사 보증 기간과 유상 수리 공임은 얼마인가"
+expect_no_evidence = true
+
+[[queries]]
+id = "x02"
+query = "이 설비에 설치된 드라이버의 정확한 모델명과 정격 출력 전력은 무엇인가"
+expect_no_evidence = true
+
+[[queries]]
+id = "x03"
+query = "현재 장착된 모터 축 커플링의 제조사와 주문 가능한 품번을 알려줘"
+expect_no_evidence = true
+
+[[queries]]
+id = "x04"
+query = "BLDC-001 모터의 권선 저항 공칭값과 절연 시험 전압은 얼마인가"
+expect_no_evidence = true
+
+[[queries]]
+id = "x05"
+query = "현장 PLC의 관리자 비밀번호 초기값과 원격 접속 주소를 알려줘"
+expect_no_evidence = true
+
+[[queries]]
+id = "x06"
+query = "배터리 셀 화재 때 사용할 소화약제와 현장 진압 순서를 알려줘"
+expect_no_evidence = true
+
+[[queries]]
+id = "x07"
+query = "이번 주말 서울에서 부산으로 가는 KTX 시간표와 최저 운임은 얼마인가"
+expect_no_evidence = true
+
+[[queries]]
+id = "x08"
+query = "설비 보전 담당자의 휴대전화 번호와 이번 달 당직 일정을 알려줘"
+expect_no_evidence = true
