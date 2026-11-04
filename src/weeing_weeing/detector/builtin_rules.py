@@ -6,7 +6,7 @@
 
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from math import isfinite
 from statistics import median
 from typing import Any
@@ -19,6 +19,7 @@ from weeing_weeing.contracts import (
 )
 from weeing_weeing.contracts.codes import CODES
 from weeing_weeing.detector.rule_models import RuleAssessment, RulePolicy
+from weeing_weeing.detector.source_tracking import evaluate_source_tracking
 
 # 필드, A하한, A상한, B, C, 하한 코드, 상한 코드, 단위, 지속시간
 NUMERIC_RULES = (
@@ -81,6 +82,9 @@ def valid(value: object) -> bool:
 
 
 def run_age(record: TelemetryRecord, context: dict[str, Any]) -> float | None:
+    if "simulation_run_age_seconds" in context:
+        age = context["simulation_run_age_seconds"]
+        return age if valid(age) and age >= 0 else None
     started = context.get("run_started_at")
     if isinstance(started, str):
         try:
@@ -117,6 +121,13 @@ class _History:
     startup_complete: bool = False
     stopped_since: datetime | None = None
     context_key: tuple[object, ...] | None = None
+    source_epoch: str | None = None
+    source_sequence: int | None = None
+    source_previous_at: datetime | None = None
+    source_previous_seconds: float | None = None
+    source_last_in_seconds: float | None = None
+    source_last_out_seconds: float | None = None
+    source_pending: deque = field(default_factory=deque)
     invalid_previous: set[str] = field(default_factory=set)
 
     def clear_transfer_history(self) -> None:
@@ -265,7 +276,12 @@ class BuiltinRules:
                         Severity.UNKNOWN,
                         "RUN·기동 3초·고정 속도 문맥 필요",
                     )
-                    context_missing = True
+                    context_missing = type(context.get("run_cmd")) is not bool or (
+                        running
+                        and (
+                            age is None or type(context.get("fixed_speed")) is not bool
+                        )
+                    )
                 elif name == "dc_input_current_a" and (
                     not running
                     or age is None
@@ -277,7 +293,16 @@ class BuiltinRules:
                         Severity.UNKNOWN,
                         "기동 3초·동일 속도/하중 문맥 필요",
                     )
-                    context_missing = True
+                    context_missing = type(context.get("run_cmd")) is not bool or (
+                        running
+                        and (
+                            age is None
+                            or any(
+                                type(context.get(key)) is not bool
+                                for key in ("same_load", "fixed_speed")
+                            )
+                        )
+                    )
                 elif (
                     name == "motor_housing_temp_c"
                     and direction == "L"
@@ -287,7 +312,9 @@ class BuiltinRules:
                         Severity.UNKNOWN,
                         "저온 평가에는 정상 운전 예열 600초 필요",
                     )
-                    context_missing = True
+                    context_missing = type(context.get("run_cmd")) is not bool or (
+                        running and age is None
+                    )
                 elif name.startswith(("de_", "nde_")) and (
                     not running or context.get("vibration_comparable") is not True
                 ):
@@ -295,7 +322,10 @@ class BuiltinRules:
                         Severity.UNKNOWN,
                         "동일 속도·하중·특징 추출 조건 확인 필요",
                     )
-                    context_missing = True
+                    context_missing = type(context.get("run_cmd")) is not bool or (
+                        running
+                        and type(context.get("vibration_comparable")) is not bool
+                    )
                 elif lower <= value <= upper:
                     status = Severity.NORMAL
                 elif (direction == "L" and value < lower) or (
@@ -338,6 +368,10 @@ class BuiltinRules:
             code
             for code, result in results.items()
             if not code.startswith("BTT2-D")
+            and (
+                context.get("quality_rule_codes") is None
+                or code in context["quality_rule_codes"]
+            )
             and result.severity == Severity.UNKNOWN
             and result.context_missing
         ]
@@ -484,6 +518,11 @@ class BuiltinRules:
             state.clear_transfer_history()
             state.normal_intervals = 0
             return
+        if "source_tracking" in context:
+            evaluate_source_tracking(
+                record, context, state, put, self._completed_transfer
+            )
+            return
         if (
             context.get("tracking_reset") is True
             and not record.infeed_present
@@ -596,10 +635,16 @@ class BuiltinRules:
             state.last_in = record.timestamp
 
     def _completed_transfer(self, record, context, state, put, elapsed, entered):
-        state.transfers.append((record.timestamp, elapsed))
+        # Internal window clock only; incident UTC timestamps remain untouched.
+        clock = context.get("source_event_simulation_seconds")
+        window_at = (
+            datetime(2000, 1, 1, tzinfo=UTC) + timedelta(seconds=clock)
+            if clock is not None
+            else record.timestamp
+        )
+        state.transfers.append((window_at, elapsed))
         while (
-            state.transfers
-            and (record.timestamp - state.transfers[0][0]).total_seconds() > 60
+            state.transfers and (window_at - state.transfers[0][0]).total_seconds() > 60
         ):
             state.transfers.popleft()
         state.normal_transfers = (
@@ -623,11 +668,11 @@ class BuiltinRules:
             state.trend_window.clear()
             return
         # 60초 내 유효 5개, 서로 겹치지 않는 창만 누적한다.
-        state.trend_window.append((record.timestamp, elapsed))
+        state.trend_window.append((window_at, elapsed))
         state.trend_window = [
             (at, t)
             for at, t in state.trend_window
-            if (record.timestamp - at).total_seconds() <= 60
+            if (window_at - at).total_seconds() <= 60
         ]
         if len(state.trend_window) < 5:
             return

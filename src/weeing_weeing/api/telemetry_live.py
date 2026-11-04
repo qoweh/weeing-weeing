@@ -31,6 +31,7 @@ class LiveTelemetry:
         self.incidents = {}
         self.db_status = "not_connected"
         self.agent_status = "not_connected"
+        self.rule_coverage = None
 
     def start(self, run_id, context):
         with self.lock:
@@ -40,6 +41,7 @@ class LiveTelemetry:
             self.record = self.received_at = self.received_clock = None
             self.incidents = {}
             self.db_status = self.agent_status = "not_connected"
+            self.rule_coverage = None
             self.sequence += 1
 
     def publish(self, run_id, record, response):
@@ -51,6 +53,7 @@ class LiveTelemetry:
             self.received_clock = time.monotonic()
             self.db_status = response.get("db_status", "not_connected")
             self.agent_status = response.get("agent_status", "not_connected")
+            self.rule_coverage = response.get("rule_coverage")
             for incident in response["incidents"]:
                 self.incidents.pop(incident["incident_id"], None)
                 self.incidents[incident["incident_id"]] = {
@@ -96,6 +99,7 @@ class LiveTelemetry:
                     "incidents": list(self.incidents.values()),
                     "db_status": self.db_status,
                     "agent_status": self.agent_status,
+                    "rule_coverage": self.rule_coverage,
                 }
             )
 

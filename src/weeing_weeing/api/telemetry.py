@@ -11,6 +11,7 @@ import anyio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from weeing_weeing.api import telemetry_live
+from weeing_weeing.api.simulator_context import COVERAGE, ENABLED, parse_simulator_frame
 from weeing_weeing.config import get_settings
 from weeing_weeing.contracts import IncidentStatus, Severity
 from weeing_weeing.detector.interface import HistoryDetector
@@ -62,12 +63,16 @@ class TelemetrySession:
         self.run_started_at = None
         self.history = HistoryDetector(
             output,
+            enabled_codes=ENABLED if context_preset == "UNREAL_STATE" else None,
             source={
                 "kind": "websocket",
                 "input_path": "WebSocket -> JsonTelemetryInput -> HistoryDetector",
                 "context_preset": context_preset,
                 "assumptions": (
-                    "SIM_RPM LOCAL TEST ONLY: fixed speed assumed; run start is "
+                    "UNREAL SIMULATOR: operating state and actor events; not a real PLC. "
+                    "M04/M19 explicitly not evaluated."
+                    if context_preset == "UNREAL_STATE"
+                    else "SIM_RPM LOCAL TEST ONLY: fixed speed assumed; run start is "
                     "the first valid sample; not verified operational PLC context"
                     if context_preset == "SIM_RPM"
                     else "No operational context supplied"
@@ -83,6 +88,10 @@ class TelemetrySession:
         if self.asset is not None and asset != self.asset:
             raise TelemetryInputError("One process/asset per connection")
         context = {} if self.context_preset == "NONE" else {"run_cmd": True}
+        if self.context_preset == "UNREAL_STATE":
+            if _plc_context is None:
+                raise TelemetryInputError("Simulator context required")
+            context = _plc_context
         if self.context_preset == "SIM_RPM":
             if self.run_started_at is None:
                 self.run_started_at = record.timestamp
@@ -152,10 +161,15 @@ class TelemetrySession:
             "error_entries": entries,
             **analysis,
         }
+        if self.context_preset == "UNREAL_STATE":
+            response["rule_coverage"] = COVERAGE
         telemetry_live.live_state.publish(self.history.run_path.name, record, response)
         return response
 
     def receive(self, message):
+        if self.context_preset == "UNREAL_STATE":
+            wire, context = parse_simulator_frame(message)
+            return self.receiver.receive(wire, context)
         return self.receiver.receive(message)
 
     def close(self):
@@ -187,8 +201,14 @@ async def telemetry_socket(websocket: WebSocket, context: str = "NONE"):
             await websocket.close(code=1008)
             return
     await websocket.accept()
-    if context not in {"NONE", "RUN_ONLY", "MINIMAL", "SIM_RPM"}:
+    if context not in {"NONE", "RUN_ONLY", "MINIMAL", "SIM_RPM", "UNREAL_STATE"}:
         await websocket.send_json({"status": "rejected", "code": "invalid_context"})
+        await websocket.close(code=1008)
+        return
+    if context == "UNREAL_STATE" and not settings.telemetry_unreal_context_enabled:
+        await websocket.send_json(
+            {"status": "rejected", "code": "unreal_context_disabled"}
+        )
         await websocket.close(code=1008)
         return
     if context == "SIM_RPM" and not _simulation_rpm_allowed(websocket, settings):

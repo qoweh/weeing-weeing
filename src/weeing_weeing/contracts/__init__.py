@@ -52,10 +52,12 @@ from weeing_weeing.contracts.report_workflow import (
     ReportFormData,
     ReportSummary,
 )
+from weeing_weeing.contracts.simulator_context import SimulatorOperatingContext
 from weeing_weeing.contracts.telemetry import SCHEMA_VERSION, TelemetryRecord
 from weeing_weeing.contracts.user import UserAccount
 
 __all__ = [
+    "SimulatorOperatingContext",
     "ChatSubmission",
     "ChatRequestState",
     "ChatRequestView",

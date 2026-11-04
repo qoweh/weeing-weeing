@@ -55,6 +55,7 @@ class Settings:
     telemetry_auth_required: bool = False  # 운영 compose는 항상 true
     telemetry_producer_token_sha256: str = ""  # 원본 토큰 대신 SHA-256만 보관
     telemetry_simulation_rpm_enabled: bool = False  # loopback RPM 시나리오 시험만
+    telemetry_unreal_context_enabled: bool = False  # 명시적 시뮬레이터 상태 프레임 수신
 
 
 def get_settings() -> Settings:
@@ -109,6 +110,10 @@ def get_settings() -> Settings:
         telemetry_producer_token_sha256=env("TELEMETRY_PRODUCER_TOKEN_SHA256", ""),
         telemetry_simulation_rpm_enabled=env(
             "TELEMETRY_SIMULATION_RPM_ENABLED", "false"
+        ).lower()
+        in ("1", "true", "yes"),
+        telemetry_unreal_context_enabled=env(
+            "TELEMETRY_UNREAL_CONTEXT_ENABLED", "false"
         ).lower()
         in ("1", "true", "yes"),
     )

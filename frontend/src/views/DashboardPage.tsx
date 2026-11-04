@@ -184,6 +184,12 @@ export default function DashboardPage({
         </div>
       </div>
       <div className="sensor-dashboard__connection">
+        {state?.context_preset === "UNREAL_STATE" && (
+          <strong>
+            Unreal 시뮬레이터 상태·트레이 이벤트 연결 · 실제 PLC 확인이
+            아닙니다. M04(1초 격자)·M19(승인 기준)는 미평가입니다.
+          </strong>
+        )}
         {state?.context_preset === "SIM_RPM" && (
           <strong>
             로컬 RPM 시나리오 시험 · 고정 속도를 가정합니다. 실제 PLC 운전

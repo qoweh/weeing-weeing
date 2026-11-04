@@ -1,5 +1,39 @@
 # 데이터 계약 (초안 v0.1)
 
+## 선택적 Unreal 상태 문맥 v1
+
+영향 모듈: contracts, api, detector, frontend, 외부 Unreal 송신기.
+`SimulatorOperatingContext`는 기존 `TelemetryRecord` 15개 필드를 변경하지 않는
+선택적 계약이다. `UNREAL_STATE`에서만 외피
+`{message_type: "telemetry_with_context_v1", telemetry: <기존 15필드>, context: <문맥>}`를 받는다.
+기존 CSV·ML 수집·NONE/RUN_ONLY/MINIMAL/SIM_RPM 입력은 그대로 유지한다.
+
+- `version=unreal-state-v1`, `source_id`: 실행별 원천 식별자.
+- `run_cmd`, `run_started_at`: 시뮬레이터 RUN 상태와 실제 시작 시각.
+- `simulation_seconds`, `run_started_simulation_seconds`,
+  `last_infeed_simulation_seconds`, `last_outfeed_simulation_seconds`와 각 이벤트·재고의
+  `simulation_seconds`: pause·RUN 해제에 멈추는 누적 Unreal RUN 시계다. 이송·투입·예열 기간과
+  P02/P07의 60초 창에만 사용한다. UTC 측정·사건·보고서 시각은 변경하지 않는다.
+- `fixed_speed`, `same_load`, `vibration_comparable`: 합성 레시피 비교 조건. 미확인은
+  null이며 실제 PLC·물리 하중·승인 진동 기준을 확인했다는 뜻이 아니다.
+- `recipe_id`, `config_version`: 합성 설정 식별자. 변경 시 판정 시간창을 끊는다.
+- `downstream_ready`: 독립형 시뮬레이터의 명시적 하류 가용 설정.
+- `origin_verified_empty`: 실제 트레이 액터 재고와 양쪽 센서를 확인한 빈 상태에서
+  시작해 추적을 유지했다는 원천 선언. 센서 false 두 개만으로 추정하지 않는다.
+- `events_complete`, `sequence`: 이벤트 누락 여부와 증가하는 원천 순번.
+- `events`: 최대 128개, 트레이 ID·UTC 시각·순번·infeed/outfeed. 다중 충돌 컴포넌트를
+  트레이 한 개로 중복 제거하며, 표본 사이의 짧은 통과도 이벤트로 전달한다.
+- `pending`: 최대 64개, 입구를 통과하고 출구 통과 전인 트레이의 ID·입구 시각·순번.
+  새 연결의 체크포인트이며 과거 이송 통계나 기존 미회복 사건의 회복 근거는 아니다.
+- `last_infeed_at`, `last_outfeed_at`: 원천 마지막 통과 시각 또는 null.
+
+추가 필드·중복 JSON 키·비정상 순번·미래/시간대 없는 시각은 거부한다.
+이벤트 연속성·FIFO·재고 불일치는 D04, 활성 규칙에 필요한 비교 문맥 누락은 D05다.
+알려진 기동 유예·예열 대기는 미평가이며 문맥 누락으로 집계하지 않는다.
+이 프로필에서 M04와 M19는 필요한 근거가 없어 명시적으로 제외하며,
+ACK와 latest/stream의 `rule_coverage.excluded`에 사유를 제공한다.
+미평가를 정상으로 표시하거나 승인된 기준을 만들어 넣지 않는다.
+
 코드 위치: `src/weeing_weeing/contracts/`. 이 문서는 요약이고, 필드의 정확한 정의는 코드가 기준이다.
 
 > **상태: 초안.** 노션 자료를 옮겨 만든 첫 버전이다. 각 담당자가 1차 개발을 하면서 필요한 필드를 PR로 고친다.
