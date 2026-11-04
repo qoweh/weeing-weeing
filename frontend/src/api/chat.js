@@ -27,6 +27,8 @@ export const createChatConversation = (body = {}, signal) =>
   request(root, { method: 'POST', body, signal })
 export const updateChatConversation = (id, body, signal) =>
   request(path(id), { method: 'PATCH', body, signal })
+export const deleteChatConversation = (id, signal) =>
+  request(path(id), { method: 'DELETE', signal })
 export const getChatMessages = (id, after = 0, signal) =>
   request(`${path(id)}?limit=200&after_sequence=${after}`, { signal })
 export const getChatRequest = (id, requestId, signal) =>

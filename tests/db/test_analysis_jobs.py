@@ -54,6 +54,37 @@ def result(item, status="INSUFFICIENT_EVIDENCE"):
     )
 
 
+def test_single_analysis_preserves_input_and_current_recovery(jobs, frame):
+    original = incident(frame)
+    recovered = original.model_copy(update={"status": IncidentStatus.RECOVERED})
+    jobs.record_frame(frame, [recovered], enqueue_analysis=False)
+    analysis = result(original)
+    analysis_id = jobs.save_analysis_with_input(analysis, original)
+    assert jobs.latest_job(original.incident_id)["analysis_id"] == analysis_id
+    assert jobs.latest_job(original.incident_id)["status"] == "COMPLETED"
+    assert jobs.analysis_input(analysis) == original
+    assert jobs.get_incident(original.incident_id).status == IncidentStatus.RECOVERED
+    assert jobs.claim() is None
+
+
+def test_single_analysis_does_not_replace_active_job(jobs, frame):
+    original = incident(frame)
+    queued = jobs.record_frame(frame, [original])[0]
+    with pytest.raises(db.AnalysisConflictError):
+        jobs.save_analysis_with_input(result(original), original)
+    assert jobs.latest_job(original.incident_id)["job_id"] == queued["job_id"]
+    assert jobs.latest_analysis(original.incident_id) is None
+
+
+def test_single_analysis_rejects_other_equipment(jobs, frame):
+    original = incident(frame)
+    jobs.record_frame(frame, [original], enqueue_analysis=False)
+    wrong = original.model_copy(update={"asset_id": "OTHER"})
+    with pytest.raises(db.AnalysisConflictError):
+        jobs.save_analysis_with_input(result(wrong), wrong)
+    assert jobs.latest_analysis(original.incident_id) is None
+
+
 def test_warning_error_repeated_recovered_and_snapshot(jobs, frame):
     warning = incident(frame, severity=Severity.WARNING)
     assert jobs.record_frame(frame, [warning]) == []

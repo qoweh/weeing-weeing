@@ -53,7 +53,12 @@ type Change = ChangeEvent<
   HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
 >
 
-import { alarmDescriptions, measurementSummary } from './reportPresentation'
+import {
+  alarmDescriptions,
+  measurementSummary,
+  reportEquipmentLabel,
+  formatReportMeasurement,
+} from './reportPresentation'
 import './ReportForm.css'
 import ReportAnalysisSection from './ReportAnalysisSection'
 
@@ -329,14 +334,6 @@ function PhotoField({
   )
 }
 
-function formatSensor(value: boolean | number | null | undefined) {
-  if (value == null) return '미수집'
-  if (typeof value === 'boolean') {
-    return value ? '감지' : '미감지'
-  }
-  return String(value)
-}
-
 function formatTime(value: string | null | undefined) {
   if (!value) return ''
 
@@ -539,7 +536,9 @@ export default function ReportForm({
               <div className="report-cell">
                 <strong>설비명 모델</strong>
                 <span>
-                  <Auto>{assetName}</Auto>
+                  <Auto>
+                    {reportEquipmentLabel(incident?.asset_id, assetName)}
+                  </Auto>
                 </span>
               </div>
               <div className="report-cell">
@@ -614,7 +613,9 @@ export default function ReportForm({
               {sensors.map(([label, field]) => (
                 <div key={field}>
                   <strong>{label}</strong>
-                  <span>{formatSensor(getSensor(field))}</span>
+                  <span>
+                    {formatReportMeasurement(field, getSensor(field))}
+                  </span>
                 </div>
               ))}
             </div>

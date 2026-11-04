@@ -219,10 +219,12 @@ export default function ReportDraftModal({
     }
   }
 
+  const permissionNotice = !loading && !loadError && !canEdit && !document
+
   return (
     <dialog
       ref={dialog}
-      className="report-draft-dialog"
+      className={`report-draft-dialog${permissionNotice ? ' report-draft-dialog--notice' : ''}`}
       aria-labelledby="report-draft-title"
       onCancel={(event) => {
         event.preventDefault()
@@ -232,7 +234,7 @@ export default function ReportDraftModal({
         if (event.target === event.currentTarget) onClose()
       }}
     >
-      <header className="report-draft-dialog__header">
+      {!permissionNotice && <header className="report-draft-dialog__header">
         <div>
           <p>
             {previewOnly
@@ -253,8 +255,15 @@ export default function ReportDraftModal({
         >
           ×
         </button>
-      </header>
-      {loading ? (
+      </header>}
+      {permissionNotice ? (
+        <div className="report-draft-dialog__notice" role="alert">
+          <span className="report-draft-dialog__notice-icon" aria-hidden="true">!</span>
+          <h2 id="report-draft-title">보고서 작성 권한 안내</h2>
+          <p>새 보고서는 현장 점검자만 작성할 수 있습니다.</p>
+          <button type="button" onClick={onClose} autoFocus>확인</button>
+        </div>
+      ) : loading ? (
         <p className="report-draft-dialog__state" role="status">
           사건과 기존 초안을 불러오는 중입니다.
         </p>

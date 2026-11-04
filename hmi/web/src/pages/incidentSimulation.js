@@ -1,3 +1,5 @@
+import { newRequestId } from '../api/requestId.js'
+
 const abortError = () => new DOMException('중단됨', 'AbortError')
 
 function wait(ms, signal) {
@@ -34,10 +36,46 @@ function nextMessage(socket, signal, timeout = 15000) {
   })
 }
 
-export async function simulateIncident({ values, duration, signal, onProgress, onEvents }) {
+export const demoNormalValues = Object.freeze({
+  infeed_present: false, outfeed_present: false, rpm: 1015,
+  dc_input_current_a: 0.0918, dc_bus_voltage_v: 24, motor_housing_temp_c: 65,
+  de_vibration_rms_g: 0.06, de_kurtosis: 5, nde_vibration_rms_g: 0.055,
+  nde_kurtosis: 4.5,
+})
+
+// 한 연결의 탐지 상태를 유지해야 같은 사건의 발생과 회복을 관찰할 수 있다.
+export async function runDashboardSimulation({ signal, getMode, onFrame, onConnected }) {
+  const runId = newRequestId()
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const socket = new WebSocket(`${protocol}//${window.location.host}/api/ws/telemetry?context=MINIMAL`)
-  const runId = crypto.randomUUID()
+  try {
+    const ready = await nextMessage(socket, signal)
+    if (ready.status !== 'connected') throw new Error(ready.code === 'producer_busy' ? '다른 센서 전송이 진행 중입니다. 먼저 해당 전송을 중단해 주세요.' : `연결이 거부됐습니다: ${ready.code || ready.status}`)
+    onConnected()
+    for (let count = 0; !signal.aborted; count += 1) {
+      const startedAt = performance.now()
+      const mode = getMode()
+      const record = {
+        record_id: `DEMO-${runId}-${count}`, timestamp: new Date().toISOString(),
+        process_id: 'BAT-TRANSFER-01', asset_id: 'BLDC-001', schema_version: '3.0.0',
+        ...demoNormalValues, motor_housing_temp_c: mode === 'error' ? 95 : 65,
+      }
+      const pending = nextMessage(socket, signal)
+      socket.send(JSON.stringify(record))
+      const response = await pending
+      if (response.status !== 'processed' || response.record_id !== record.record_id || response.db_status !== 'saved') throw new Error('센서값 처리 또는 DB 저장에 실패했습니다. 연결을 확인해 주세요.')
+      onFrame(record, response)
+      await wait(Math.max(0, 1000 - (performance.now() - startedAt)), signal)
+    }
+  } finally {
+    socket.close()
+  }
+}
+
+export async function simulateIncident({ values, duration, signal, onProgress, onEvents }) {
+  const runId = newRequestId()
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const socket = new WebSocket(`${protocol}//${window.location.host}/api/ws/telemetry?context=MINIMAL`)
   try {
     const ready = await nextMessage(socket, signal)
     if (ready.status !== 'connected') {

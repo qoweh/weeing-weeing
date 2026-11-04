@@ -1027,6 +1027,37 @@ class SqlReports(Repository):
                 for v in session.scalars(query)
             ]
 
+    def requeue_indexed_reports(self) -> int:
+        """최신 승인 판 중 indexed인 작업을 pending으로 되돌린다. 바꾼 개수를 돌려준다.
+
+        벡터 컬렉션을 바꾼 뒤(예: knowledge → knowledge_voyage) 승인 보고서를 새 컬렉션에
+        다시 등록할 때 쓴다. 실패 작업은 건드리지 않는다(재시도 옵션으로 처리).
+        """
+        latest = (
+            select(
+                ReportVersionRow.report_id,
+                func.max(ReportVersionRow.version_no).label("version"),
+            )
+            .where(ReportVersionRow.report_status == ReportStatus.APPROVED)
+            .group_by(ReportVersionRow.report_id)
+            .subquery()
+        )
+        with self._transaction() as session:
+            jobs = session.scalars(
+                select(ReportIndexJobRow)
+                .join(
+                    latest,
+                    (ReportIndexJobRow.report_id == latest.c.report_id)
+                    & (ReportIndexJobRow.version_no == latest.c.version),
+                )
+                .where(ReportIndexJobRow.status == "indexed")
+                # 집계 서브쿼리는 잠글 수 없으므로(PostgreSQL) 작업 행만 잠근다.
+                .with_for_update(of=ReportIndexJobRow)
+            ).all()
+            for job in jobs:
+                job.status = "pending"
+            return len(jobs)
+
     @contextmanager
     def locked_index_job(
         self, report_id: str, *, include_failed: bool = False

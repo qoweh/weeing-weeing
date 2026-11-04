@@ -85,7 +85,7 @@ function IncidentTable({ title, items, onSelect, active = false }) {
   </section>
 }
 
-export default function IncidentHistoryPage({ onSessionExpired, onOpenDraft, onOpenReport, onBusyChange, user, busy }) {
+export default function IncidentHistoryPage({ focus, onFocusHandled, onSessionExpired, onOpenDraft, onOpenReport, onBusyChange, user, busy }) {
   const [incidents, setIncidents] = useState([])
   const [selected, setSelected] = useState(null)
   const [result, setResult] = useState(null)
@@ -98,20 +98,30 @@ export default function IncidentHistoryPage({ onSessionExpired, onOpenDraft, onO
   const [deleteError, setDeleteError] = useState('')
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [notice, setNotice] = useState('')
+  const handledFocus = useRef(null)
 
   useEffect(() => {
     let active = true
     listIncidentOverview().then((items) => {
-      if (active) setIncidents(items.map(({ incident, has_approved_report, report_status, report_id }) => ({
-        ...incident, has_approved_report, report_id, report_status, equipment: equipmentStatus(incident), processing: report_status ? (reportStatuses[report_status] || report_status) : '보고서 미작성',
-      })))
+      if (active) {
+        const rows = items.map(({ incident, has_approved_report, report_status, report_id }) => ({
+          ...incident, has_approved_report, report_id, report_status, equipment: equipmentStatus(incident), processing: report_status ? (reportStatuses[report_status] || report_status) : '보고서 미작성',
+        }))
+        setIncidents(rows)
+        if (focus && handledFocus.current !== focus.key) {
+          const focused = rows.find((row) => row.incident_id === focus.id)
+          handledFocus.current = focus.key
+          if (focused) { setResult(null); setReports(null); setSelected(focused) }
+          onFocusHandled(focus.key)
+        }
+      }
     }).catch((failure) => {
       if (!active) return
       setError(failure.message)
       if (failure.status === 401) onSessionExpired()
     }).finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [reload, onSessionExpired])
+  }, [reload, onSessionExpired, focus, onFocusHandled])
 
   useEffect(() => {
     if (!selected) return

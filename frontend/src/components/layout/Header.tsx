@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { listIncidents, type Incident } from '../../api/client'
+import { listIncidents, watchTelemetry, type Incident } from '../../api/client'
 import Button from '../ui/Button'
 import { dateLabel } from '../ui/library'
 import SettingsDialog from './SettingsDialog'
-import { readSettings, saveSettings } from './settings'
+import type { Settings } from './settings'
 
 export default function Header({
   theme,
@@ -18,6 +18,9 @@ export default function Header({
   sidebarCollapsed,
   onChangeSidebarCollapsed,
   onIncidentSelect,
+  onSessionExpired,
+  settings,
+  onChangeSettings,
 }: {
   theme: string
   onToggleTheme: () => void
@@ -31,6 +34,9 @@ export default function Header({
   sidebarCollapsed: boolean
   onChangeSidebarCollapsed: (value: boolean) => void
   onIncidentSelect: (incident: Incident) => void
+  onSessionExpired: () => void
+  settings: Settings
+  onChangeSettings: (settings: Settings) => void
 }) {
   const [incidents, setIncidents] = useState<Incident[] | null>(null),
     [error, setError] = useState(''),
@@ -40,7 +46,6 @@ export default function Header({
     right: number
     maxWidth: number
   } | null>(null)
-  const [settings, setSettings] = useState(readSettings)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const knownIncidents = useRef<Set<string> | null>(null)
   const autoOpenError = useRef(false)
@@ -64,6 +69,11 @@ export default function Header({
   }, [])
   useEffect(() => {
     let active = true
+    let pending: ReturnType<typeof setTimeout> | undefined
+    let retry: ReturnType<typeof setTimeout> | undefined
+    let lastRefresh = 0
+    let lastIncidents = ''
+    const controller = new AbortController()
     async function refresh() {
       try {
         const rows = await listIncidents()
@@ -95,12 +105,53 @@ export default function Header({
       }
     }
     refresh()
-    const timer = setInterval(refresh, settings.refreshInterval)
+    function scheduleRefresh() {
+      if (pending) return
+      pending = setTimeout(
+        () => {
+          pending = undefined
+          lastRefresh = Date.now()
+          void refresh()
+          window.dispatchEvent(new Event('weeing-incidents-changed'))
+        },
+        Math.max(0, settings.refreshInterval - (Date.now() - lastRefresh)),
+      )
+    }
+    async function connect() {
+      try {
+        await watchTelemetry(controller.signal, (state) => {
+          const current = JSON.stringify(state.incidents)
+          if (current !== lastIncidents) {
+            lastIncidents = current
+            scheduleRefresh()
+          }
+          if (
+            state.db_status === 'storage_failed' ||
+            state.db_status === 'not_connected'
+          ) {
+            // The incident list is DB-backed; a live event alone does not prove persistence.
+            if (state.db_status === 'storage_failed')
+              setError('센서 사건을 DB에 저장하지 못했습니다.')
+          }
+        })
+      } catch (e) {
+        if (!active) return
+        if (e && typeof e === 'object' && 'status' in e && e.status === 401) {
+          onSessionExpired()
+          return
+        }
+        setError('실시간 연결이 끊어져 재연결 중입니다.')
+      }
+      if (active) retry = setTimeout(connect, 3000)
+    }
+    void connect()
     return () => {
       active = false
-      clearInterval(timer)
+      controller.abort()
+      clearTimeout(pending)
+      clearTimeout(retry)
     }
-  }, [settings.refreshInterval])
+  }, [settings.refreshInterval, onSessionExpired])
   useEffect(() => {
     if (!severity) return
     function positionPopup() {
@@ -195,49 +246,6 @@ export default function Header({
                   <p>{user.role}</p>
                 </div>
                 <div className="header-account__section">
-                  <div className="header-account__zoom">
-                    <span>비율조정</span>
-                    <div
-                      className="header-account__zoom-controls"
-                      role="group"
-                      aria-label="화면 확대 및 축소"
-                    >
-                      <button
-                        type="button"
-                        aria-label="화면 축소"
-                        disabled={screenZoom <= 80}
-                        onClick={() =>
-                          onChangeScreenZoom((value) =>
-                            Math.max(80, value - 10),
-                          )
-                        }
-                      >
-                        −
-                      </button>
-                      <button
-                        type="button"
-                        className="header-account__zoom-reset"
-                        aria-label={`현재 ${screenZoom}%, 화면 비율 기본값 ${defaultScreenZoom}%로 초기화`}
-                        onClick={onResetScreenZoom}
-                      >
-                        {screenZoom}%
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="화면 확대"
-                        disabled={screenZoom >= 120}
-                        onClick={() =>
-                          onChangeScreenZoom((value) =>
-                            Math.min(120, value + 10),
-                          )
-                        }
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                <div className="header-account__section">
                   <button
                     type="button"
                     className="header-account__item"
@@ -269,48 +277,6 @@ export default function Header({
                       aria-hidden="true"
                     >
                       ›
-                    </span>
-                  </button>
-                </div>
-                <div className="header-account__section">
-                  <button
-                    type="button"
-                    className="header-account__item"
-                    onClick={onToggleTheme}
-                    aria-label={`테마변경: ${theme === 'light' ? '다크 모드로 전환' : '라이트 모드로 전환'}`}
-                  >
-                    <span className="header-account__item-label">
-                      {theme === 'light' ? (
-                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                          <circle
-                            cx="12"
-                            cy="12"
-                            r="4"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                          />
-                          <path
-                            d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42m0-14.14-1.42 1.42M6.35 17.65l-1.42 1.42"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                          />
-                        </svg>
-                      ) : (
-                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                          <path
-                            d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      )}
-                      테마변경
-                    </span>
-                    <span className="header-account__item-note">
-                      {theme === 'light' ? '라이트' : '다크'}
                     </span>
                   </button>
                 </div>
@@ -421,7 +387,7 @@ export default function Header({
           <p className="header-alert-popup__note">
             {error
               ? `사건 목록을 불러오지 못했습니다. ${error}`
-              : '최근 조회된 사건 기준 · 30초마다 갱신'}
+              : '사건 변경 수신 시 설정한 주기로 갱신'}
           </p>
         </section>
       )}
@@ -437,10 +403,7 @@ export default function Header({
           sidebarCollapsed={sidebarCollapsed}
           onChangeSidebarCollapsed={onChangeSidebarCollapsed}
           settings={settings}
-          onChangeSettings={(next) => {
-            setSettings(next)
-            saveSettings(next)
-          }}
+          onChangeSettings={onChangeSettings}
           onLogout={onLogout}
           busy={busy}
           onClose={() => setSettingsOpen(false)}

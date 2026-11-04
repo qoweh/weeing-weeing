@@ -149,7 +149,7 @@ chmod 600 .env
 - `ANALYSIS_AUTO_ENABLED=true`는 사건마다 Claude API를 호출한다(비용). 시연할 때만 켠다
 - `SITE_ADDRESS=<EC2_IP>`로 HTTPS를 켠다. 자세한 내용은 [HTTPS·Langfuse·내부 서비스 접속](#httpslangfuse내부-서비스-접속)
 - `IMAGE_TAG`·`IMAGE_PREFIX`는 배포 워크플로가 적는다. 직접 고치지 않는다
-- 새 버전을 배포한 뒤에는 서버 `.env`에 빠진·낡은 변수가 없는지 점검한다. 값과 키는 출력하지 않는다
+- 새 버전을 배포한 뒤에는 서버 `.env`에 빠진·낡은 변수가 없는지 점검한다. 값과 키는 출력하지 않는다. **기존 서버 `.env`를 `.env.example`로 통째로 덮어쓰지 않는다.** `POSTGRES_PASSWORD`가 예시 값으로 바뀌면 DB가 처음 값을 그대로 쓰고 있어 `password authentication failed`가 나고 로그인이 HTTP 503이 된다. 빠진 줄만 추가한다
 
 ```
 cd ~/weeing-weeing
@@ -162,6 +162,21 @@ docker compose run --rm --no-deps -v "$PWD/.env:/tmp/check.env:ro" api \
 - **자동:** release PR(dev → main)이 머지되면 `Deploy (EC2)` 워크플로가 돈다
 - **수동:** Actions → Deploy (EC2) → Run workflow → `dev` 선택. Environment가 main·dev만 허용하므로 작업 브랜치는 빌드까지만 되고 배포 단계에서 막힌다
 - 워크플로 파일이 기본 브랜치(dev)에 있어야 Run workflow 버튼이 보인다
+
+### API만 배포
+
+Actions → Deploy (EC2) → Run workflow → `dev` → `api_only`를 체크한다.
+API 이미지만 빌드·수신·교체하며 frontend·web·PostgreSQL·Qdrant 컨테이너는 재생성하지 않는다.
+API 태그는 서버의 `API_IMAGE_TAG`에 별도로 기록하고 웹용 `IMAGE_TAG`는 유지한다.
+전체 배포에서는 두 태그를 같은 SHA로 갱신한다. API 상태 검사에 실패하면 이전 API 태그로
+복원한다. API 전용 배포는 다른 컨테이너가 사용할 이미지를 정리하지 않는다.
+센서 송신을 켜려면 [AWS_TELEMETRY](AWS_TELEMETRY.md)의 인증 해시를 먼저 준비한다.
+
+Caddy 경로·인증서만 수정할 때는 `web_only`를 선택한다. `api_only`와 동시 선택은 거부한다.
+이 경우 Caddy 이미지·컨테이너만 교체하고 `WEB_IMAGE_TAG`를 별도로 기록한다.
+새 센서 도메인의 `/api/health`가 인증서 검증을 통과해 응답해야 성공이며, 실패하면 이전 Caddy 태그로 복원한다.
+Unreal 송신 전용 호스트는 `telemetry.<EC2_IP>.sslip.io`이며 `/api/*`만 API에 전달한다.
+기존 IP 웹·Langfuse 경로와 프론트엔드 컨테이너는 유지한다.
 
 ### 첫 배포 뒤 한 번: 시연 계정
 
@@ -179,7 +194,17 @@ docker compose run --rm api python scripts/seed_users.py
 - 기본: `EMBEDDING_PROVIDER=hashing`(해시 임베딩) + Kiwi BM25 + 리랭커 끔. 외부 호출·토큰 비용이 없다
 - 문서는 웹의 **문서 등록**에서 올린다. 파싱·청킹·임베딩·벡터 저장이 자동으로 진행된다. 운영 카탈로그와 `scripts/build_index.py`·`make index`는 사용하지 않는다
 - 품질이 필요하면 서버 `.env`에 `EMBEDDING_PROVIDER=voyage`·`VOYAGE_API_KEY`(·선택 `RERANKER_MODEL=rerank-3-lite`)를 넣고 `docker compose up -d api`. 문서 본문이 외부로 나가므로 [AI_DATA_SECURITY](AI_DATA_SECURITY.md) 점검표를 먼저 본다
-- 공급자·모델·차원을 바꾸면 기존 컬렉션과 섞을 수 없다. `.env`의 `RAG_COLLECTION`을 새 이름으로 바꾸고 문서를 다시 등록한다
+- 공급자·모델·차원을 바꾸면 기존 컬렉션과 섞을 수 없다. `.env`의 `RAG_COLLECTION`을 새 이름으로 바꾸고 문서를 다시 등록한다(아래 "팀 문서 미리 등록")
+- 팀 문서(매뉴얼·룰·규정)는 웹에서 하나씩 올리지 않고 미리 등록한다. 같은 파일이 이미 임베딩돼 있으면 건너뛰므로 여러 번 실행해도 비용이 다시 들지 않는다(D-32)
+
+  ```
+  ops/aws.sh seed-docs          # = docker compose exec -T api python scripts/seed_documents.py
+  ops/aws.sh reindex-reports    # 컬렉션을 바꾼 뒤 승인 보고서 전부 다시 등록
+  ops/aws.sh rag                # 컬렉션 포인트 수와 DB 상태 확인
+  ```
+
+  - 목록은 `data/seed/documents_v1.toml`. 웹에서 다른 파일로 교체한 문서는 `seed-docs --replace`로만 덮어쓴다
+  - 웹에서 삭제한 문서도 이 명령을 다시 돌리면 다시 등록된다. 시연 문서를 뺄 때는 목록에서도 지운다
 - 예전 배포에서 남은 `hf_models` 볼륨은 쓰지 않는다. 지우려면 `docker volume ls`로 이름을 확인한 뒤 `docker volume rm <이름>`
 
 ### 확인

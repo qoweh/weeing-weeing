@@ -64,7 +64,8 @@ def review(report_id: str): ...
 
 **매뉴얼 관리**: 문서 목록(`GET /documents`)과 업로드 상태 조회는 로그인한 사용자가 할 수 있다. 등록(`POST /documents`)과 삭제(`DELETE /documents/{doc_id}`)는 관제 담당자(`Role.CONTROL`)만 할 수 있다. `is_admin=True`여도 다른 직책이면 등록·삭제할 수 없다. 화면에서는 관제 담당자에게만 문서 등록 메뉴를 표시하고, 다른 직책이 등록 화면에 접근하면 폼 대신 권한 안내와 문서 목록 이동 버튼을 제공한다.
 
-**아직 걸지 않은 곳**: 센서 WebSocket.
+센서 WebSocket은 사람의 로그인과 별개인 송신 전용 Bearer 인증을 사용한다.
+운영 필수화·로컬 호환 설정과 읽기 전용 로그인 조회는 [AWS_TELEMETRY](AWS_TELEMETRY.md)를 따른다.
 
 ## 직책별 권한표 (제안, 미확정)
 

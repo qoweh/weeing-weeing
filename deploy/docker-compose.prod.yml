@@ -37,13 +37,16 @@ services:
 
   api:
     <<: *app
-    image: ${IMAGE_PREFIX:-ghcr.io/qoweh/weeing-weeing}-api:${IMAGE_TAG:-latest}
+    image: ${IMAGE_PREFIX:-ghcr.io/qoweh/weeing-weeing}-api:${API_IMAGE_TAG:-${IMAGE_TAG:-latest}}
     env_file: .env
     # .env의 localhost 주소 대신 컨테이너 이름으로 연결한다(env_file보다 우선).
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       VECTOR_STORE: qdrant
       QDRANT_URL: http://qdrant:6333
+      TELEMETRY_AUTH_REQUIRED: "true"
+      # 승인된 상태·이벤트 연결. 클라이언트는 UNREAL_STATE를 명시해야 한다.
+      TELEMETRY_UNREAL_CONTEXT_ENABLED: "true"
     volumes:
       - storage:/app/storage
       - outputs:/app/outputs
@@ -59,7 +62,7 @@ services:
 
   web:
     <<: *app
-    image: ${IMAGE_PREFIX:-ghcr.io/qoweh/weeing-weeing}-web:${IMAGE_TAG:-latest}
+    image: ${IMAGE_PREFIX:-ghcr.io/qoweh/weeing-weeing}-web:${WEB_IMAGE_TAG:-${IMAGE_TAG:-latest}}
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:-:80}
       # Langfuse 대시보드 주소(deploy/langfuse). 비우면 끈다

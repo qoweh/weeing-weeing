@@ -1,0 +1,6 @@
+# sync_skills.py compares this generated notice to an LF byte string.
+.claude/skills/README.md text eol=lf
+# ops/server.sh는 서버 bash로 보내 실행한다. Windows 체크아웃에서도 CRLF로 바꾸지 않는다.
+*.sh text eol=lf
+# PowerShell 5.1이 한글을 읽도록 ops/*.ps1은 BOM 있는 UTF-8로 두고 줄바꿈은 CRLF로 둔다.
+ops/*.ps1 text eol=crlf

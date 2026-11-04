@@ -46,7 +46,7 @@ def _memory(tmp_path):
 
 
 @contextmanager
-def _qdrant(client: QdrantClient, collection: str = "knowledge"):
+def _qdrant(client: QdrantClient, collection: str = "knowledge_voyage"):
     """같은 client로 저장소를 다시 만들면 '같은 DB를 다시 연 것'이 된다."""
 
     def make(*, embedder=None, embedding_model=MODEL, **kwargs):

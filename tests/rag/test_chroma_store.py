@@ -29,7 +29,7 @@ def make(client, **kwargs):
 def test_collection_is_cosine_without_embedding_function(client):
     make(client).replace_document("BTT-MANUAL", manual_chunks())
 
-    col = client.get_collection("knowledge")
+    col = client.get_collection("knowledge_voyage")
     assert col.configuration["hnsw"]["space"] == "cosine"
     assert col.configuration["embedding_function"] is None
     assert col.metadata == {
@@ -107,7 +107,7 @@ def test_sparse_encoder_name_is_recorded(client):
     make(client, sparse_encoder=KiwiBm25Encoder()).replace_document(
         "BTT-MANUAL", manual_chunks()
     )
-    assert client.get_collection("knowledge").metadata["sparse_encoder"] == (
+    assert client.get_collection("knowledge_voyage").metadata["sparse_encoder"] == (
         KiwiBm25Encoder.NAME
     )
 
@@ -160,7 +160,7 @@ def test_write_interrupted_midway_is_marked_incomplete(client, monkeypatch):
     store = make(client)
     store.replace_document("BTT-MANUAL", manual_chunks())
     monkeypatch.setattr(client, "get_max_batch_size", lambda: 1)
-    col = client.get_collection("knowledge")
+    col = client.get_collection("knowledge_voyage")
     real_update = type(col).update
     calls = []
 

@@ -231,6 +231,12 @@ export default function SettingsDialog({
                   ))}
                 </ul>
               </div>
+              <h4 className="settings-section">챗봇 표시 방식</h4>
+              <p>선택한 방식은 챗봇을 다음에 열 때 적용됩니다.</p>
+              <div className="settings-segment" role="radiogroup" aria-label="챗봇 표시 방식">
+                <button type="button" role="radio" aria-checked={settings.chatDisplay === 'modal'} onClick={() => update({ chatDisplay: 'modal' })}>모달</button>
+                <button type="button" role="radio" aria-checked={settings.chatDisplay === 'drawer'} onClick={() => update({ chatDisplay: 'drawer' })}>서랍</button>
+              </div>
               <h4 className="settings-section">사이드 메뉴</h4>
               <ul className="settings-list settings-list--single">
                 <li>
@@ -294,7 +300,10 @@ export default function SettingsDialog({
                 ))}
               </ul>
               <h4>갱신 주기</h4>
-              <p>진행 중인 사건 목록을 다시 불러오는 간격입니다.</p>
+              <p>
+                실시간 사건 변경이 들어올 때 알림 목록을 갱신하는 최소
+                간격입니다.
+              </p>
               <div
                 className="settings-segment"
                 role="radiogroup"
@@ -313,8 +322,8 @@ export default function SettingsDialog({
                 ))}
               </div>
               <p className="settings-hint">
-                기본값은 30초입니다. 주기를 늘리면 최신 사건이 늦게 보일 수
-                있습니다.
+                기본값은 1초입니다. 사건 변경이 없으면 목록을 반복 조회하지
+                않습니다.
               </p>
             </>
           )}

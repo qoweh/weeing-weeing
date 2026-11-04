@@ -1,4 +1,4 @@
-import AuthHero from '../components/auth/AuthHero'
+import { AuthBrand } from '../components/auth/AuthHero'
 import LoginForm from '../components/auth/LoginForm'
 import '../components/auth/login.scss'
 
@@ -14,8 +14,8 @@ export default function LoginPage({
   error?: string
 }) {
   return (
-    <main className="login-page">
-      <AuthHero />
+    <main className="login-page login-page--sign-in">
+      <AuthBrand />
       <section className="login-card" aria-labelledby="login-title">
         <p className="login-card__eyebrow">WELCOME BACK</p>
         <h1 id="login-title">로그인</h1>

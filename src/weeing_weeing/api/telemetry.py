@@ -1,6 +1,8 @@
 """순차 센서 처리와 선택적 DB 작업 등록. LLM은 별도 실행기에서만 호출한다."""
 
 import asyncio
+import hashlib
+import hmac
 import logging
 from datetime import UTC, datetime
 from threading import Lock
@@ -8,6 +10,8 @@ from threading import Lock
 import anyio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from weeing_weeing.api import telemetry_live
+from weeing_weeing.api.simulator_context import COVERAGE, ENABLED, parse_simulator_frame
 from weeing_weeing.config import get_settings
 from weeing_weeing.contracts import IncidentStatus, Severity
 from weeing_weeing.detector.interface import HistoryDetector
@@ -18,6 +22,19 @@ router = APIRouter(tags=["telemetry"])
 logger = logging.getLogger("uvicorn.error.telemetry")
 # One active producer per process. Use a single Uvicorn worker for this MVP.
 _producer = Lock()
+PRODUCER_IDLE_SECONDS = 15
+
+
+def _simulation_rpm_allowed(websocket, settings):
+    return (
+        settings.telemetry_simulation_rpm_enabled
+        and not settings.telemetry_auth_required
+        and not settings.telemetry_producer_token_sha256.strip()
+        and not settings.analysis_auto_enabled
+        and websocket.client is not None
+        and websocket.client.host in {"127.0.0.1", "::1"}
+        and websocket.url.hostname in {"127.0.0.1", "localhost", "::1"}
+    )
 
 
 async def _finish_worker(task):
@@ -43,14 +60,22 @@ class TelemetrySession:
         self.failed = False
         self.processed_count = 0
         self.analysis_service = None
+        self.run_started_at = None
         self.history = HistoryDetector(
             output,
+            enabled_codes=ENABLED if context_preset == "UNREAL_STATE" else None,
             source={
                 "kind": "websocket",
                 "input_path": "WebSocket -> JsonTelemetryInput -> HistoryDetector",
                 "context_preset": context_preset,
                 "assumptions": (
-                    "No operational context supplied"
+                    "UNREAL SIMULATOR: operating state and actor events; not a real PLC. "
+                    "M04/M19 explicitly not evaluated."
+                    if context_preset == "UNREAL_STATE"
+                    else "SIM_RPM LOCAL TEST ONLY: fixed speed assumed; run start is "
+                    "the first valid sample; not verified operational PLC context"
+                    if context_preset == "SIM_RPM"
+                    else "No operational context supplied"
                     if context_preset == "NONE"
                     else "SIMULATION ONLY; not verified operational PLC context"
                 ),
@@ -63,6 +88,19 @@ class TelemetrySession:
         if self.asset is not None and asset != self.asset:
             raise TelemetryInputError("One process/asset per connection")
         context = {} if self.context_preset == "NONE" else {"run_cmd": True}
+        if self.context_preset == "UNREAL_STATE":
+            if _plc_context is None:
+                raise TelemetryInputError("Simulator context required")
+            context = _plc_context
+        if self.context_preset == "SIM_RPM":
+            if self.run_started_at is None:
+                self.run_started_at = record.timestamp
+            context.update(
+                run_started_at=self.run_started_at,
+                fixed_speed=True,
+                recipe_id="SIM_RPM_LOCAL_ONLY",
+                config_version="SIM_RPM_V1",
+            )
         if self.context_preset == "MINIMAL":
             context.update(
                 events_reliable=True,
@@ -115,7 +153,7 @@ class TelemetrySession:
             if self.analysis_service
             else {"agent_status": "not_connected"}
         )
-        return {
+        response = {
             "status": "processed",
             "record_id": record.record_id,
             "timestamp": record.timestamp.isoformat(),
@@ -123,8 +161,15 @@ class TelemetrySession:
             "error_entries": entries,
             **analysis,
         }
+        if self.context_preset == "UNREAL_STATE":
+            response["rule_coverage"] = COVERAGE
+        telemetry_live.live_state.publish(self.history.run_path.name, record, response)
+        return response
 
     def receive(self, message):
+        if self.context_preset == "UNREAL_STATE":
+            wire, context = parse_simulator_frame(message)
+            return self.receiver.receive(wire, context)
         return self.receiver.receive(message)
 
     def close(self):
@@ -136,9 +181,40 @@ class TelemetrySession:
 
 @router.websocket("/ws/telemetry")
 async def telemetry_socket(websocket: WebSocket, context: str = "NONE"):
+    settings = get_settings()
+    expected = settings.telemetry_producer_token_sha256.strip().lower()
+    if settings.telemetry_auth_required or expected:
+        authorization = getattr(websocket, "headers", {}).get("authorization", "")
+        scheme, _, token = authorization.partition(" ")
+        configured = len(expected) == 64 and all(
+            c in "0123456789abcdef" for c in expected
+        )
+        if not (
+            configured
+            and scheme.lower() == "bearer"
+            and token
+            and hmac.compare_digest(
+                hashlib.sha256(token.encode()).hexdigest(), expected
+            )
+        ):
+            # Deny before accept, producer lock and history allocation. No token echo.
+            await websocket.close(code=1008)
+            return
     await websocket.accept()
-    if context not in {"NONE", "RUN_ONLY", "MINIMAL"}:
+    if context not in {"NONE", "RUN_ONLY", "MINIMAL", "SIM_RPM", "UNREAL_STATE"}:
         await websocket.send_json({"status": "rejected", "code": "invalid_context"})
+        await websocket.close(code=1008)
+        return
+    if context == "UNREAL_STATE" and not settings.telemetry_unreal_context_enabled:
+        await websocket.send_json(
+            {"status": "rejected", "code": "unreal_context_disabled"}
+        )
+        await websocket.close(code=1008)
+        return
+    if context == "SIM_RPM" and not _simulation_rpm_allowed(websocket, settings):
+        await websocket.send_json(
+            {"status": "rejected", "code": "simulation_context_disabled"}
+        )
         await websocket.close(code=1008)
         return
     if not _producer.acquire(blocking=False):
@@ -173,6 +249,7 @@ async def telemetry_socket(websocket: WebSocket, context: str = "NONE"):
             "analysis_service",
             None,
         )
+        telemetry_live.live_state.start(session.history.run_path.name, context)
         logger.info(
             "[센서 연결] run=%s context=%s",
             session.history.run_path.name,
@@ -190,8 +267,19 @@ async def telemetry_socket(websocket: WebSocket, context: str = "NONE"):
                 else "not_connected",
             }
         )
+        last_valid = asyncio.get_running_loop().time()
         while True:
-            frame = await websocket.receive()
+            remaining = PRODUCER_IDLE_SECONDS - (
+                asyncio.get_running_loop().time() - last_valid
+            )
+            try:
+                frame = await asyncio.wait_for(
+                    websocket.receive(), timeout=max(0, remaining)
+                )
+            except TimeoutError:
+                await websocket.send_json({"status": "failed", "code": "producer_idle"})
+                await websocket.close(code=1008)
+                return
             if frame["type"] == "websocket.disconnect":
                 break
             message = frame.get("text")
@@ -210,6 +298,8 @@ async def telemetry_socket(websocket: WebSocket, context: str = "NONE"):
                 )
                 await websocket.close(code=1011)
                 return
+            if response.get("status") == "processed":
+                last_valid = asyncio.get_running_loop().time()
             await websocket.send_json(response)
     except (WebSocketDisconnect, OSError):
         # A missing response doesn't prove that the last input wasn't persisted.
@@ -247,4 +337,6 @@ async def telemetry_socket(websocket: WebSocket, context: str = "NONE"):
         except Exception as error:
             logger.error("Telemetry finalization failed: %s", type(error).__name__)
         finally:
+            if session is not None:
+                telemetry_live.live_state.end(session.history.run_path.name)
             _producer.release()

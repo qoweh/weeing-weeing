@@ -1,15 +1,80 @@
-import MetricCard from '../components/dashboard/MetricCard.jsx'
-import ChartCard from '../components/dashboard/ChartCard.jsx'
-import IncidentTable from '../components/dashboard/IncidentTable.jsx'
-import AssistantPanel from '../components/dashboard/AssistantPanel.jsx'
-import '../components/dashboard/dashboard.scss'
-const metrics = [
-  { title: '모니터링 설비', value: '1', unit: '대', note: '확인 대상 설비', tone: 'neutral', icon: '▦' },
-  { title: '진행 중인 이상', value: '2', unit: '건', note: '담당자 확인 필요', tone: 'warning', icon: '◉' },
-  { title: '검토 완료', value: '8', unit: '건', note: '최근 7일 기준', tone: 'success', icon: '✓' },
-  { title: '연결 상태', value: '—', unit: '', note: '실제 연결 전', tone: 'neutral', icon: '⌁' },
+import { useEffect, useRef, useState } from 'react'
+import { demoNormalValues, runDashboardSimulation } from './incidentSimulation'
+import './dashboard-demo.scss'
+
+const sensorLabels = [
+  ['motor_housing_temp_c', '모터 외함 온도', '℃'],
+  ['rpm', '모터 회전 속도', 'rpm'],
+  ['dc_input_current_a', 'DC 입력 전류', 'A'],
+  ['dc_bus_voltage_v', 'DC 버스 전압', 'V'],
+  ['de_vibration_rms_g', '구동측 진동', 'g'],
+  ['nde_vibration_rms_g', '반구동측 진동', 'g'],
 ]
-const bars = [32, 51, 40, 78, 48, 64, 38]
-export default function DashboardPage() {
-  return <div className="dashboard"><div className="dashboard__heading"><div><div className="eyebrow">OVERVIEW</div><h1>설비 대시보드</h1><p>설비 상태와 최근 이상 현황을 한눈에 확인하세요.</p></div><div className="period-label"><span aria-hidden="true">◷</span> 최근 7일 <span>·</span> 예시 데이터</div></div><div className="sample-banner"><span aria-hidden="true">ⓘ</span><span><strong>화면 미리보기</strong> · 아래 수치와 사건은 예시이며 실제 설비와 연결되어 있지 않습니다.</span></div><div className="dashboard__grid"><div className="dashboard__column"><div className="metrics">{metrics.map((item) => <MetricCard key={item.title} {...item} />)}</div><ChartCard title="센서 추이" description="시간에 따른 센서값 변화" className="trend"><div className="trend__summary"><span>센서값 예시</span><strong>— <small>단위 미정</small></strong><p>데이터 연동 전 미리보기</p></div><div className="trend__graph"><svg viewBox="0 0 600 190" role="img" aria-label="화면 예시를 위한 임의의 센서 추이 그래프" preserveAspectRatio="none"><defs><linearGradient id="chart-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--primary)" stopOpacity=".22"/><stop offset="100%" stopColor="var(--primary)" stopOpacity="0"/></linearGradient></defs><path className="grid-line" d="M0 35H600 M0 85H600 M0 135H600 M0 185H600"/><path d="M0 140 L45 128 L90 135 L135 105 L180 116 L225 92 L270 108 L315 70 L360 82 L405 48 L450 67 L495 42 L540 55 L600 28 L600 185 L0 185 Z" fill="url(#chart-fill)"/><path d="M0 140 L45 128 L90 135 L135 105 L180 116 L225 92 L270 108 L315 70 L360 82 L405 48 L450 67 L495 42 L540 55 L600 28" fill="none" stroke="var(--primary)" strokeWidth="3" vectorEffect="non-scaling-stroke"/></svg><div className="graph-labels"><span>7일 전</span><span>5일 전</span><span>3일 전</span><span>오늘</span></div></div></ChartCard><IncidentTable /></div><div className="dashboard__column"><ChartCard title="요일별 이상 현황" description="최근 7일의 발생 현황"><div className="bar-chart" role="img" aria-label="화면 예시를 위한 임의의 요일별 막대그래프">{bars.map((height, i) => <div className="bar-chart__item" key={i}><div className={`bar-chart__bar ${i === 3 ? 'bar-chart__bar--active' : ''}`} style={{ height: `${height}%` }} /><span>{['월', '화', '수', '목', '금', '토', '일'][i]}</span></div>)}</div></ChartCard><ChartCard title="사건 처리 현황" description="최근 7일 기준"><div className="status-list"><div><span><i className="status-dot status-dot--warning" />확인 대기</span><strong>1건</strong></div><div><span><i className="status-dot status-dot--primary" />검토 중</span><strong>1건</strong></div><div><span><i className="status-dot status-dot--success" />검토 완료</span><strong>8건</strong></div></div></ChartCard><AssistantPanel /></div></div></div>
+
+export default function DashboardPage({ onNavigate }) {
+  const [connection, setConnection] = useState('stopped')
+  const [phase, setPhase] = useState('normal')
+  const [values, setValues] = useState(demoNormalValues)
+  const [incident, setIncident] = useState(null)
+  const [error, setError] = useState('')
+  const mode = useRef('normal')
+  const target = useRef(null)
+  const previousStates = useRef(new Map())
+  const controller = useRef(null)
+  useEffect(() => () => controller.current?.abort(), [])
+
+  async function start() {
+    if (controller.current) return
+    const run = new AbortController()
+    controller.current = run
+    mode.current = 'normal'; target.current = null; previousStates.current.clear()
+    setConnection('connecting'); setPhase('normal'); setIncident(null); setError('')
+    try {
+      await runDashboardSimulation({
+        signal: run.signal,
+        getMode: () => mode.current,
+        onConnected: () => setConnection('connected'),
+        onFrame: (record, response) => {
+          setValues(record)
+          const changes = response.incidents || []
+          const match = changes.find((item) => item.codes.includes('BTT2-M10') && item.severity === 'Error')
+          if (match && !target.current && !['RECOVERED', 'CLOSED'].includes(match.status)) {
+            target.current = match.incident_id
+            setIncident(match); setPhase('detected')
+          }
+          const recovered = changes.find((item) => item.incident_id === target.current && item.status === 'RECOVERED')
+          if (recovered) { setIncident(recovered); setPhase('recovered') }
+          let changed = false
+          for (const item of changes) {
+            const state = `${item.severity}:${item.status}`
+            if (previousStates.current.get(item.incident_id) !== state) changed = true
+            previousStates.current.set(item.incident_id, state)
+          }
+          if (changed) window.dispatchEvent(new Event('weeing:incidents-changed'))
+        },
+      })
+    } catch (failure) {
+      if (!run.signal.aborted) setError(failure.message)
+    } finally {
+      if (controller.current === run) { controller.current = null; setConnection('stopped') }
+    }
+  }
+  function inject() { mode.current = 'error'; target.current = null; setIncident(null); setPhase('waiting') }
+  function recover() { mode.current = 'normal'; setPhase(target.current ? 'recovering' : 'normal') }
+  const labels = { normal: '정상 운전', waiting: '고온 감지 대기', detected: '고온 오류 감지', recovering: '정상 복구 확인 중', recovered: '정상 회복' }
+  return <div className="demo-dashboard">
+    <div className="demo-dashboard__heading"><div><span className="demo-dashboard__eyebrow">SIMULATION</span><h1>설비 시뮬레이션</h1><p>가상 센서값으로 이상 감지부터 복구까지 확인합니다.</p></div><span className={`demo-dashboard__badge demo-dashboard__badge--${connection}`}>{connection === 'connected' ? '● 전송 중' : connection === 'connecting' ? '연결 중' : '전송 중지'}</span></div>
+    <div className="demo-dashboard__notice">시뮬레이션 데이터는 실제 DB에 저장됩니다. Error 발생 시 AI 분석이 실행되어 API 비용이 발생할 수 있습니다.</div>
+    {error && <p className="demo-dashboard__error" role="alert">{error}</p>}
+    <div className="demo-dashboard__grid">
+      <section className="demo-dashboard__card"><div className="demo-dashboard__card-head"><div><span className="demo-dashboard__eyebrow">BLDC-001</span><h2>센서 전송 제어</h2></div><span className={`demo-dashboard__phase demo-dashboard__phase--${phase}`}>{connection === 'connected' ? labels[phase] : '대기'}</span></div>
+        <p>시뮬레이션을 시작하면 1초 간격으로 가상 센서값을 보냅니다. 다른 페이지에서도 전송은 계속됩니다.</p>
+        <div className="demo-dashboard__actions"><button type="button" className="demo-dashboard__primary" onClick={start} disabled={connection !== 'stopped'}>시뮬레이션 시작</button><button type="button" onClick={() => controller.current?.abort()} disabled={connection === 'stopped'}>전송 중지</button></div>
+        <div className="demo-dashboard__scenario"><div><strong>BTT2-M10 · 모터 외함 고온</strong><p>온도 95℃를 전송합니다. Error 확정까지 약 10초가 필요합니다.</p></div><button type="button" className="demo-dashboard__danger" onClick={inject} disabled={connection !== 'connected' || ['waiting', 'detected', 'recovering'].includes(phase)}>고온 오류 발생</button></div>
+        <div className="demo-dashboard__scenario"><div><strong>조치 후 정상값 전송</strong><p>온도를 65℃로 바꿉니다. 정상 상태가 약 10초 유지되면 회복됩니다.</p></div><button type="button" className="demo-dashboard__success" onClick={recover} disabled={connection !== 'connected' || !['waiting', 'detected'].includes(phase)}>조치 완료</button></div>
+        {incident && <div className="demo-dashboard__incident"><span>{incident.codes.join(', ')} · {incident.incident_id}</span><button type="button" onClick={() => onNavigate('incident-history')}>이상현황 보기 →</button></div>}
+      </section>
+      <section className="demo-dashboard__card"><div className="demo-dashboard__card-head"><div><span className="demo-dashboard__eyebrow">LIVE TEST DATA</span><h2>현재 전송값</h2></div><span>가상 데이터</span></div><div className="demo-dashboard__sensors">{sensorLabels.map(([key, label, unit]) => <div key={key}><span>{label}</span><strong>{connection === 'connected' ? values[key] : '—'} <small>{unit}</small></strong></div>)}</div><p className="demo-dashboard__hint">입구·출구 센서: 물체 없음 · 운전 조건은 시연용 가정입니다.</p></section>
+    </div>
+  </div>
 }

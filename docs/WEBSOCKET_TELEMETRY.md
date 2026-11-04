@@ -102,6 +102,37 @@ Agent 작업 등록은 이력 처리 성공 후이며 실제 유료 분석은 �
 이들은 운영에서 확인된 사실이 아니다. 실제 Unreal 운전 문맥 전달은 별도 작업이다.
 고정 속도·동일 하중·진동 비교 가능·승인 기준을 임의 제공하지 않는다.
 
+### 로컬 RPM 시나리오 시험: SIM_RPM
+
+M02/M03의 그래프·사건·알림 연결을 시험할 때만 별도 `context=SIM_RPM`을 사용한다.
+`RUN_ONLY`와 `MINIMAL`의 의미는 바꾸지 않는다. 이 모드는 `run_cmd=True`,
+`fixed_speed=True`, 첫 유효 센서 표본을 `run_started_at`으로 명시적으로 가정한다.
+첫 3초는 기동 유예이며, 재접속하면 기동 시각도 다시 시작한다.
+동일 하중·진동 비교 가능·원천 이벤트 신뢰성·승인 기준은 제공하지 않는다.
+따라서 다른 룰의 Unknown과 D04/D05는 남을 수 있다. 실제 PLC 문맥 전달이나
+ML 감지를 검증한 것으로 해석하지 않는다. 웹과 실행 manifest에도 시험 가정을 표시한다.
+
+허용 조건은 아래 모두 충족해야 한다.
+
+- 서버 프로세스에 `TELEMETRY_SIMULATION_RPM_ENABLED=true`를 명시
+- 송신 클라이언트 주소와 대상 호스트 모두 loopback
+- 송신 인증 모드 꺼짐, 송신 토큰 해시 미설정, `ANALYSIS_AUTO_ENABLED=false`
+
+기본 설정은 false이며 운영 인증 서버에서는 거부한다. 시험 서버는 별도 시험 DB를
+사용하고 `127.0.0.1`에만 바인딩한다. 실제 `.env`나 운영 설정을 바꿔 실행하지 않는다.
+서버 준비 후 노트북 Unreal을 닫고 Python 저장소에서 실행한다. AWS 토큰은 필요 없다.
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\LaunchLocalRpmTest.ps1 -Project 'C:\Unreal_Projects\Weeing_Weeing_UE\Weeing_Weeing_UE.uproject'
+```
+
+설치 경로가 다르면 `-Executable`로 지정한다. Unreal 소스 수정·재빌드는 필요 없다.
+M03을 선택하고 F5로 시작하면 1035 rpm 구간에서 3초 지속 후 Warning,
+1045 rpm 구간에서 3초 지속 후 같은 사건이 Error로 승격된다. 약 55초 뒤
+정상 범위로 돌아오고 정상 10초 지속 후 같은 사건이 RECOVERED가 되어야 한다.
+상단 진행 알림 해제와 DB 이력도 확인한다. F7은 시나리오만 해제하며 서버 회복은
+별도 지속 조건을 충족해야 한다. 자동 AI 분석은 실행하지 않는다.
+
 초기 지원은 단일 프로세스·동시에 하나의 생산자 연결·한 연결당 하나의 공정/설비다.
 다른 연결은 producer_busy 응답 후 1013 종료한다. 새 접속마다 새 탐지기·고유 이력 실행을
 만든다. 재접속은 이전 후보/추적/사건 상태를 복원하지 않으며 연속 운전이라고 해석하면 안 된다.
@@ -113,9 +144,11 @@ Agent 작업 등록은 이력 처리 성공 후이며 실제 유료 분석은 �
 manifest 정리까지 확인한 최종 무결성 검증을 대신하지 않는다. 재조회에는 HistoryReader.validate()를 쓴다.
 
 LAN 시연은 서버를 --host 0.0.0.0으로 실행하고 송신기의 --url에 서버 IP를 지정한다.
-현재 인증·TLS·다중 worker 상태 공유·수신 무응답 3초 watchdog은 구현하지 않았다.
+운영은 Caddy의 TLS와 송신 전용 Bearer 인증을 사용한다. 로컬은 기본 인증 끔으로 기존
+시연을 유지한다. 설정·읽기 전용 조회·개인 모니터는 [AWS_TELEMETRY](AWS_TELEMETRY.md)를 따른다.
+유효 입력 15초 무응답 시 연결을 닫으며, 다중 worker 상태 공유·PLC 보호 정지용 3초 watchdog은 구현하지 않았다.
 실제 Agent/RAG 자동 연결은 [AUTO_ANALYSIS](AUTO_ANALYSIS.md)의 명시적 설정으로 켠다.
-외부 공개 서비스가 아닌 로컬/통제된 시연용 수신부다.
+인증 없는 기본 로컬 모드를 외부에 공개하지 않는다.
 
 ## 자동 검증
 

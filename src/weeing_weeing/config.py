@@ -52,6 +52,10 @@ class Settings:
     langfuse_capture_content: bool = True  # 프롬프트·응답 본문까지 보낼지
     analysis_auto_enabled: bool = False  # 유료 자동 호출은 명시적으로 켠다
     telemetry_db_enabled: bool = False  # 분석 작업 없이 센서·사건만 저장
+    telemetry_auth_required: bool = False  # 운영 compose는 항상 true
+    telemetry_producer_token_sha256: str = ""  # 원본 토큰 대신 SHA-256만 보관
+    telemetry_simulation_rpm_enabled: bool = False  # loopback RPM 시나리오 시험만
+    telemetry_unreal_context_enabled: bool = False  # 명시적 시뮬레이터 상태 프레임 수신
 
 
 def get_settings() -> Settings:
@@ -65,10 +69,10 @@ def get_settings() -> Settings:
         embedding_model=env("EMBEDDING_MODEL", ""),
         embedding_provider=env("EMBEDDING_PROVIDER", "hashing").strip().lower(),
         embedding_dim=int(env("EMBEDDING_DIM", "1024")),
-        voyage_base_url=env("VOYAGE_BASE_URL", "https://api.voyageai.com/v1"),
+        voyage_base_url=env("VOYAGE_BASE_URL", "https://api.voyageai.com/v1").strip(),
         voyage_timeout_s=float(env("VOYAGE_TIMEOUT_S", "30")),
         vector_store=env("VECTOR_STORE", "qdrant"),
-        rag_collection=env("RAG_COLLECTION", "knowledge"),
+        rag_collection=env("RAG_COLLECTION", "knowledge_voyage").strip(),
         upload_dir=Path(env("UPLOAD_DIR", "storage/uploads")),
         qdrant_path=Path(env("QDRANT_PATH", "storage/qdrant")),
         qdrant_url=env("QDRANT_URL", ""),
@@ -100,5 +104,16 @@ def get_settings() -> Settings:
         analysis_auto_enabled=env("ANALYSIS_AUTO_ENABLED", "false").lower()
         in ("1", "true", "yes"),
         telemetry_db_enabled=env("TELEMETRY_DB_ENABLED", "false").lower()
+        in ("1", "true", "yes"),
+        telemetry_auth_required=env("TELEMETRY_AUTH_REQUIRED", "false").lower()
+        in ("1", "true", "yes"),
+        telemetry_producer_token_sha256=env("TELEMETRY_PRODUCER_TOKEN_SHA256", ""),
+        telemetry_simulation_rpm_enabled=env(
+            "TELEMETRY_SIMULATION_RPM_ENABLED", "false"
+        ).lower()
+        in ("1", "true", "yes"),
+        telemetry_unreal_context_enabled=env(
+            "TELEMETRY_UNREAL_CONTEXT_ENABLED", "false"
+        ).lower()
         in ("1", "true", "yes"),
     )

@@ -4,6 +4,7 @@ import type { Incident } from '../../api/client'
 import Header from './Header'
 import Sidebar from './Sidebar'
 import './layout.scss'
+import { readSettings, saveSettings, type Settings } from './settings'
 
 export default function AppShell({
   theme,
@@ -28,6 +29,11 @@ export default function AppShell({
   onSessionExpired: () => void
   children: ReactNode
 }) {
+  const [settings, setSettings] = useState(readSettings)
+  function changeSettings(next: Settings) {
+    setSettings(next)
+    saveSettings(next)
+  }
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
       return localStorage.getItem('weeing-sidebar') === 'collapsed'
@@ -127,6 +133,9 @@ export default function AppShell({
         sidebarCollapsed={sidebarCollapsed}
         onChangeSidebarCollapsed={changeSidebarCollapsed}
         onIncidentSelect={onIncidentSelect}
+        onSessionExpired={onSessionExpired}
+        settings={settings}
+        onChangeSettings={changeSettings}
       />
       <Sidebar
         page={page}
@@ -138,7 +147,7 @@ export default function AppShell({
       <main className="shell__content" id="main-content">
         {children}
       </main>
-      <ChatWidget screenZoom={screenZoom} onSessionExpired={onSessionExpired} />
+      <ChatWidget screenZoom={screenZoom} displayMode={settings.chatDisplay} onSessionExpired={onSessionExpired} />
     </div>
   )
 }

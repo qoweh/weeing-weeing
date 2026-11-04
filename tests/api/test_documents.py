@@ -698,14 +698,14 @@ def test_physical_delete_and_identical_reupload_with_qdrant(env, tmp_path, monke
         )
         monkeypatch.setattr(interface, "get_indexer", lambda: DocumentIndexer(store))
         body = upload(MANUAL.read_bytes(), doc_id="BTT-MANUAL").json()
-        assert client.count("knowledge").count > 0
+        assert client.count("knowledge_voyage").count > 0
         assert delete(body, "BTT-MANUAL").status_code == 200
-        assert client.count("knowledge").count == 0
+        assert client.count("knowledge_voyage").count == 0
         assert db.get_documents().get_upload(body["upload_id"]) is None
         assert db.get_documents().managed_documents() == []
         again = upload(MANUAL.read_bytes(), doc_id="BTT-MANUAL")
         assert again.status_code == 202, again.text
-        assert client.count("knowledge").count > 0
+        assert client.count("knowledge_voyage").count > 0
         assert len(db.get_documents().managed_documents()) == 1
     finally:
         client.close()

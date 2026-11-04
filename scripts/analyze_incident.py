@@ -1,7 +1,7 @@
 """사건 하나를 사건 분석 에이전트로 분석한다 (#102, make analyze).
 
 Claude가 근거 검색 도구를 골라 부르고 원인 후보를 제출한다. 결과는 AnalysisResult JSON과
-도구 호출 기록이다. DB에는 저장하지 않는다(탐지 결과 저장 연결은 #61).
+도구 호출 기록이다. 기본은 DB 미저장이며 --save-db로 기존 사건에 결과만 저장한다.
 
 입력: --incident Incident JSON 파일(기본 data/eval/incident_p03_demo.json),
       .env(ANTHROPIC_API_KEY·LLM_MODEL·LLM_EFFORT·AGENT_MAX_TURNS), 웹에서 문서를 등록한 벡터 DB
@@ -15,6 +15,7 @@ Claude가 근거 검색 도구를 골라 부르고 원인 후보를 제출한다
 """
 
 import argparse
+import getpass
 import hashlib
 import json
 import sys
@@ -29,7 +30,7 @@ from weeing_weeing.agent.interface import SensorBatch, get_analyzer, get_llm_cli
 from weeing_weeing.config import PROJECT_ROOT, get_settings
 from weeing_weeing.contracts import Incident
 from weeing_weeing.db import interface as db
-from weeing_weeing.rag.interface import get_retriever
+from weeing_weeing.rag.interface import close_rag_resources, get_retriever
 
 DEMO = PROJECT_ROOT / "data/eval/incident_p03_demo.json"
 
@@ -68,6 +69,17 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--incident", type=Path, default=DEMO)
     parser.add_argument(
+        "--ask-key", action="store_true", help="본인 터미널에서 API 키 숨김 입력"
+    )
+    parser.add_argument(
+        "--result-out", type=Path, help="결과 JSON. 기존 파일은 덮어쓰지 않음"
+    )
+    parser.add_argument(
+        "--save-db",
+        action="store_true",
+        help="현재 DB의 같은 사건에 분석만 저장. --result-out 필수",
+    )
+    parser.add_argument(
         "--evaluation-out",
         type=Path,
         help="실측 지표 JSON 경로. 기존 파일은 덮어쓰지 않음",
@@ -78,14 +90,41 @@ def main(argv: list[str] | None = None) -> int:
         help="현재 DB의 사건 센서 구간 조회 도구를 제공한다(Claude 유료 호출)",
     )
     args = parser.parse_args(argv)
+    if args.save_db and not args.result_out:
+        parser.error("--save-db에는 호출 후 결과를 보존할 --result-out이 필요합니다.")
+    if args.ask_key and not sys.stdin.isatty():
+        parser.error("--ask-key는 사용자가 직접 연 일반 터미널에서 실행하세요.")
 
     try:
+        if args.result_out:
+            if args.result_out.exists():
+                raise ValueError(
+                    "분석 결과 파일이 이미 있습니다. 유료 호출을 반복하지 않습니다."
+                )
+            if (
+                args.evaluation_out
+                and args.result_out.resolve() == args.evaluation_out.resolve()
+            ):
+                raise ValueError("결과 파일과 평가 지표 파일은 달라야 합니다.")
+            args.result_out.parent.mkdir(parents=True, exist_ok=True)
         if args.evaluation_out:
             if args.evaluation_out.exists():
                 raise ValueError("평가 결과 파일이 이미 있다")
             args.evaluation_out.parent.mkdir(parents=True, exist_ok=True)
         incident_bytes = args.incident.read_bytes()
         incident = Incident.model_validate_json(incident_bytes)
+        result_repository = None
+        if args.save_db:
+            result_repository = db.get_analysis_jobs()
+            saved = result_repository.get_incident(incident.incident_id)
+            if saved is None or (saved.process_id, saved.asset_id) != (
+                incident.process_id,
+                incident.asset_id,
+            ):
+                raise ValueError("DB에 같은 공정·설비의 사건이 없습니다.")
+            job = result_repository.latest_job(incident.incident_id)
+            if job and job["status"] in ("PENDING", "RUNNING"):
+                raise ValueError("대기 또는 실행 중인 분석이 있습니다.")
         reader = None
         if args.sensor_window:
             repository = db.get_telemetry()
@@ -103,7 +142,16 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 return SensorBatch(rows, latest.timestamp)
 
-        client = get_llm_client(entrypoint="analyze")
+        api_key = None
+        if args.ask_key:
+            api_key = getpass.getpass(
+                "Claude API 키 (숨김; 실제 API 비용 발생): "
+            ).strip()
+            if not api_key:
+                print("API 키가 입력되지 않았습니다.", file=sys.stderr)
+                return 2
+        client = get_llm_client(entrypoint="analyze", api_key=api_key)
+        api_key = None
         analyzer = get_analyzer(get_retriever(), client=client, sensor_reader=reader)
     except (OSError, ValidationError, ValueError, db.DatabaseUnavailableError) as exc:
         print(f"시작하지 못함: {exc}", file=sys.stderr)
@@ -117,6 +165,33 @@ def main(argv: list[str] | None = None) -> int:
         )
     result = analyzer.analyze(incident)
     elapsed = time.perf_counter() - started
+    if args.result_out or args.save_db:
+        if result.incident_id != incident.incident_id:
+            print("분석 사건 ID가 입력과 다릅니다. 저장하지 않습니다.", file=sys.stderr)
+            return 2
+        try:
+            if args.result_out:
+                with args.result_out.open("x", encoding="utf-8") as file:
+                    file.write(result.model_dump_json(indent=2))
+            if result_repository is not None:
+                analysis_id = result_repository.save_analysis_with_input(
+                    result, incident
+                )
+                print(
+                    f"[단건 분석 저장] incident={incident.incident_id} analysis={analysis_id}"
+                )
+        except (
+            OSError,
+            db.DatabaseUnavailableError,
+            db.UnknownIncidentError,
+            db.AnalysisConflictError,
+        ) as exc:
+            print(
+                f"분석 저장 실패: {type(exc).__name__}. 결과 파일을 확인하세요. "
+                "유료 분석을 자동 재실행하지 않습니다.",
+                file=sys.stderr,
+            )
+            return 2
     flush_started = time.perf_counter()
     client.tracer.flush()  # 짧은 스크립트라 끝나기 전에 기록을 보낸다
     flush_seconds = time.perf_counter() - flush_started
@@ -156,4 +231,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    finally:
+        close_rag_resources()

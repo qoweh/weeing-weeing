@@ -241,6 +241,24 @@ export default function useChatSession(
     },
     moreHistory: () => run((signal) => loadList(signal, true)),
     selectConversation,
+    renameConversation: (id, title) => run(async (signal) => {
+      const updated = await api.updateChatConversation(id, { title }, signal)
+      guard(signal)
+      setConversation((current) => current?.conversation_id === id ? updated : current)
+      await loadList(signal)
+    }),
+    deleteConversation: (id) => run(async (signal) => {
+      await api.deleteChatConversation(id, signal)
+      guard(signal)
+      if (conversation?.conversation_id === id) {
+        setConversation(null)
+        setMessages([])
+        setPending(null)
+        setChatMode(false)
+        loadFaq()
+      }
+      await loadList(signal)
+    }),
     newConversation: () =>
       run(async (signal) => {
         const created = await api.createChatConversation({}, signal)

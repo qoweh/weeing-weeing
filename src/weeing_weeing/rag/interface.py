@@ -155,6 +155,18 @@ def get_indexer() -> Indexer:
     )
 
 
+def indexed_documents() -> dict[str, str | None]:
+    """지금 컬렉션에 저장된 문서별 원본 SHA-256. 저장이 중간에 끊긴 문서는 None.
+
+    문서 시드가 "이미 같은 파일이 임베딩돼 있으면 건너뛰기"를 판단할 때 쓴다.
+    컬렉션이 아직 없으면 빈 dict다.
+    """
+    return {
+        doc_id: info.source_sha256 if info.complete else None
+        for doc_id, info in _get_store().documents().items()
+    }
+
+
 def upload_index_metadata(record: DocumentRecord, upload_dir: Path) -> dict[str, str]:
     """DB에 접수한 업로드 정보로 파싱·청킹·저장에 사용할 메타데이터를 만든다."""
     path = (upload_dir / record.source).resolve()

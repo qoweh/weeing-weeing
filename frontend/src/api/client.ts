@@ -1,4 +1,9 @@
 import { readChatStream } from './sse.js'
+import {
+  parseTelemetrySnapshot,
+  readTelemetryStream,
+  type TelemetrySnapshot,
+} from './telemetry.js'
 
 export type Incident = {
   incident_id: string
@@ -16,6 +21,16 @@ export type ReportSummary = {
   asset_id: string
   updated_at: string
 }
+export type IncidentOverview = {
+  incident: Incident
+  has_approved_report: boolean
+  report_id: string | null
+  report_status: string | null
+}
+
+export function listIncidentOverview(): Promise<IncidentOverview[]> {
+  return request('/incidents/overview?limit=200')
+}
 
 class ApiError extends Error {
   status?: number
@@ -29,6 +44,56 @@ export function setAccessToken(token: string) {
   accessToken = token
 }
 
+export async function watchTelemetry(
+  signal: AbortSignal,
+  onSnapshot: (state: TelemetrySnapshot) => void,
+) {
+  const controller = new AbortController()
+  const cancel = () => controller.abort()
+  if (signal.aborted) controller.abort()
+  signal.addEventListener('abort', cancel, { once: true })
+  let timer: ReturnType<typeof setTimeout>
+  const armTimeout = () => {
+    clearTimeout(timer)
+    timer = setTimeout(() => controller.abort(), 10_000)
+  }
+  armTimeout()
+  try {
+    const response = await fetch('/api/telemetry/stream', {
+      cache: 'no-store',
+      signal: controller.signal,
+      headers: {
+        Accept: 'text/event-stream',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+    })
+    if (!response.ok) {
+      await response.body?.cancel().catch(() => {})
+      const error = new ApiError(`실시간 연결 실패: HTTP ${response.status}`)
+      error.status = response.status
+      throw error
+    }
+    await readTelemetryStream(
+      response,
+      controller.signal,
+      onSnapshot,
+      armTimeout,
+    )
+  } finally {
+    clearTimeout(timer!)
+    signal.removeEventListener('abort', cancel)
+    controller.abort()
+  }
+}
+
+export async function getLatestTelemetry(
+  signal: AbortSignal,
+): Promise<TelemetrySnapshot> {
+  return parseTelemetrySnapshot(
+    await request('/telemetry/latest', { signal, timeoutMs: 10_000 }),
+  )
+}
+
 export async function request(
   path: string,
   {
@@ -37,16 +102,18 @@ export async function request(
     signal,
     responseType = 'json',
     onEvent,
+    timeoutMs = 300_000,
   }: {
     method?: string
     body?: unknown
     signal?: AbortSignal
     responseType?: 'json' | 'blob' | 'stream'
     onEvent?: (event: any) => void | Promise<void>
+    timeoutMs?: number
   } = {},
 ) {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 300_000)
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
   const isFormData = body instanceof FormData
   const cancel = () => controller.abort()
   if (signal?.aborted) controller.abort()

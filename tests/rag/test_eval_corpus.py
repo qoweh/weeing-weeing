@@ -286,7 +286,7 @@ def test_interrupted_write_is_reindexed_next_run(ws):
     store = MemoryVectorStore(storage, embedder=FakeEmbedder(), embedding_model="m")
     indexer = TextIndexer(store)
     sync(ws.corpus(), indexer, store)
-    points = storage["knowledge"]["points"]
+    points = storage["knowledge_voyage"]["points"]
     del points["MAN:1.0:0001"]  # 2개 중 1개만 남은 상태(쓰다 끊김)
     assert store.documents()["MAN"].complete is False
 

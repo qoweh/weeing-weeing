@@ -620,6 +620,73 @@ ul.report-analysis-list {
   }
 }
 
+/* 화면에서는 보고서도 선택한 테마를 따르고, 인쇄 시에는 종이 양식을 유지한다. */
+@media screen {
+  :root[data-theme='dark'] .report-sheet {
+    --report-navy: var(--text);
+    --report-line: var(--border);
+    --report-muted: var(--muted);
+
+    background: var(--surface);
+    border-top-color: var(--border);
+    color: var(--text);
+  }
+
+  :root[data-theme='dark'] .report-sheet .report-section-title > span,
+  :root[data-theme='dark'] .report-sheet .report-sensors strong,
+  :root[data-theme='dark'] .report-sheet .report-photo h4 {
+    background: #243e5b;
+  }
+
+  :root[data-theme='dark'] .report-sheet .report-cell > strong,
+  :root[data-theme='dark'] .report-sheet .report-th,
+  :root[data-theme='dark'] .report-sheet .report-read-value dt,
+  :root[data-theme='dark'] .report-sheet .report-photo-preview,
+  :root[data-theme='dark'] .report-sheet .report-empty,
+  :root[data-theme='dark'] .report-sheet .report-sub-label {
+    background: var(--surface-hover);
+  }
+
+  :root[data-theme='dark'] .report-sheet .report-td,
+  :root[data-theme='dark'] .report-sheet .report-read-value,
+  :root[data-theme='dark'] .report-sheet .report-sensors > div,
+  :root[data-theme='dark'] .report-sheet .report-subtable > * {
+    background: var(--surface);
+  }
+
+  :root[data-theme='dark'] .report-sheet .report-subtable > .report-sub-label {
+    background: var(--surface-hover);
+  }
+
+  :root[data-theme='dark'] .report-sheet input,
+  :root[data-theme='dark'] .report-sheet textarea,
+  :root[data-theme='dark'] .report-sheet select,
+  :root[data-theme='dark'] .report-sheet .report-fields:not(:disabled) .report-field--bare input:not([readonly]),
+  :root[data-theme='dark'] .report-sheet .report-fields:not(:disabled) .report-field--bare select,
+  :root[data-theme='dark'] .report-sheet .report-fields:not(:disabled) .report-field--bare textarea {
+    background-color: var(--library-input);
+    color: var(--text);
+  }
+
+  :root[data-theme='dark'] .report-sheet .report-fields:disabled input,
+  :root[data-theme='dark'] .report-sheet .report-fields:disabled textarea,
+  :root[data-theme='dark'] .report-sheet .report-fields:disabled select,
+  :root[data-theme='dark'] .report-sheet .report-field--bare input[readonly] {
+    background-color: transparent;
+    color: var(--text);
+    -webkit-text-fill-color: var(--text);
+  }
+
+  :root[data-theme='dark'] .report-sheet .report-cell-fields > label > span {
+    color: var(--report-muted);
+  }
+
+  :root[data-theme='dark'] .report-sheet .report-feedback {
+    background: var(--primary-soft);
+    color: var(--text);
+  }
+}
+
 /* 04·05: 칸 안의 입력 항목을 선이 있는 하위 표로 나눈다. */
 .report-table--rows {
   display: grid;

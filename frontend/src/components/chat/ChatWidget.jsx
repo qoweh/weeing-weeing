@@ -6,28 +6,61 @@ import ChatResponse from './ChatResponse.jsx'
 import ChatSourceDialog from './ChatSourceDialog.jsx'
 import './chat.scss'
 
-export default function ChatWidget({ screenZoom = 100, onSessionExpired }) {
+export default function ChatWidget({ screenZoom = 100, displayMode = 'modal', onSessionExpired }) {
   const dialog = useRef(null),
     body = useRef(null),
     launcher = useRef(null),
-    input = useRef(null)
+    input = useRef(null),
+    historyButton = useRef(null),
+    drawerClose = useRef(null),
+    filterButton = useRef(null),
+    filterClose = useRef(null),
+    closeTimer = useRef(null)
   const resize = useRef(null),
+    drawerResize = useRef(null),
     drag = useRef(null)
   const [open, setOpen] = useState(false),
     [text, setText] = useState('')
   const [size, setSize] = useState(null),
     [position, setPosition] = useState({ x: 0, y: 0 })
+  const [drawerWidth, setDrawerWidth] = useState(null)
   const [source, setSource] = useState(null)
+  const [activeDisplay, setActiveDisplay] = useState(displayMode)
+  const [closing, setClosing] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [menuId, setMenuId] = useState(null)
+  const [menuPosition, setMenuPosition] = useState({ left: 0, top: 0 })
   const chat = useChatSession(open, onSessionExpired, () => setText(''))
   const conditions = chat.conversation?.conditions || defaultConditions
   const blocked = chat.busy || Boolean(chat.pending)
-  const history =
-    chat.conversation &&
-    !chat.conversations.some(
-      (c) => c.conversation_id === chat.conversation.conversation_id,
-    )
-      ? [chat.conversation, ...chat.conversations]
-      : chat.conversations
+  const history = chat.conversation
+    ? chat.conversations.some(
+        (c) => c.conversation_id === chat.conversation.conversation_id,
+      )
+      ? chat.conversations.map((c) =>
+          c.conversation_id === chat.conversation.conversation_id
+            ? chat.conversation
+            : c,
+        )
+      : [chat.conversation, ...chat.conversations]
+    : chat.conversations
+  const menuConversation = history.find((c) => c.conversation_id === menuId)
+  function openHistoryMenu(event, conversationId, fromButton = false) {
+    event.preventDefault()
+    event.stopPropagation()
+    const drawer = event.currentTarget.closest('.chat-history-drawer')
+    const rect = drawer.getBoundingClientRect()
+    const anchor = event.currentTarget.getBoundingClientRect()
+    const zoom = screenZoom / 100
+    const x = fromButton ? anchor.left : event.clientX
+    const y = fromButton ? anchor.bottom : event.clientY
+    setMenuPosition({
+      left: Math.max(0, Math.min((x - rect.left) / zoom, rect.width / zoom - 160)),
+      top: Math.max(0, Math.min((y - rect.top) / zoom, rect.height / zoom - 92)),
+    })
+    setMenuId(conversationId)
+  }
   useEffect(() => {
     if (body.current) body.current.scrollTop = body.current.scrollHeight
   }, [chat.messages, chat.pending, chat.busy, chat.stream])
@@ -38,6 +71,13 @@ export default function ChatWidget({ screenZoom = 100, onSessionExpired }) {
     if (chat.chatMode && !chat.busy) input.current?.focus()
   }, [chat.chatMode, chat.busy])
   useEffect(() => {
+    if (historyOpen) drawerClose.current?.focus({ preventScroll: true })
+  }, [historyOpen])
+  useEffect(() => {
+    if (filterOpen) filterClose.current?.focus({ preventScroll: true })
+  }, [filterOpen])
+  useEffect(() => () => clearTimeout(closeTimer.current), [])
+  useEffect(() => {
     const fit = () => {
       setPosition({ x: 0, y: 0 })
       setSize(null)
@@ -46,7 +86,7 @@ export default function ChatWidget({ screenZoom = 100, onSessionExpired }) {
     return () => window.removeEventListener('resize', fit)
   }, [])
   function startResize(event) {
-    if (event.button !== 0) return
+    if (activeDisplay === 'drawer' || event.button !== 0) return
     const rect = dialog.current.getBoundingClientRect()
     resize.current = {
       x: event.clientX,
@@ -87,8 +127,33 @@ export default function ChatWidget({ screenZoom = 100, onSessionExpired }) {
       height: Math.max(360, rect.height / (screenZoom / 100) + height),
     })
   }
+  function clampDrawerWidth(width) {
+    const max = window.innerWidth / (screenZoom / 100)
+    return Math.min(max, Math.max(Math.min(280, max), width))
+  }
+  function startDrawerResize(event) {
+    if (event.button !== 0) return
+    drawerResize.current = {
+      x: event.clientX,
+      width: dialog.current.getBoundingClientRect().width / (screenZoom / 100),
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+    event.preventDefault()
+  }
+  function moveDrawerResize(event) {
+    if (!drawerResize.current) return
+    const start = drawerResize.current
+    setDrawerWidth(clampDrawerWidth(start.width + (start.x - event.clientX) / (screenZoom / 100)))
+  }
+  function keyboardDrawerResize(event) {
+    if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return
+    event.preventDefault()
+    const width = dialog.current.getBoundingClientRect().width / (screenZoom / 100)
+    setDrawerWidth(clampDrawerWidth(width + (event.key === 'ArrowLeft' ? 20 : -20)))
+  }
   function startDrag(event) {
     if (
+      activeDisplay === 'drawer' ||
       event.button !== 0 ||
       event.target.closest('button, input, select, summary')
     )
@@ -121,6 +186,7 @@ export default function ChatWidget({ screenZoom = 100, onSessionExpired }) {
   function saveConditions(event) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
+    closeFilter()
     chat.saveConditions({
       ...conditions,
       ...Object.fromEntries(
@@ -137,10 +203,33 @@ export default function ChatWidget({ screenZoom = 100, onSessionExpired }) {
     const value = text.trim()
     chat.submit('CHAT', value)
   }
+  function closeHistory() {
+    setHistoryOpen(false)
+    setMenuId(null)
+    historyButton.current?.focus()
+  }
+  function closeFilter() {
+    setFilterOpen(false)
+    filterButton.current?.focus()
+  }
   function close() {
-    dialog.current.close()
-    setOpen(false)
-    launcher.current?.focus()
+    if (closing) return
+    setHistoryOpen(false)
+    setFilterOpen(false)
+    setMenuId(null)
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      dialog.current.close()
+      setOpen(false)
+      launcher.current?.focus()
+      return
+    }
+    setClosing(true)
+    closeTimer.current = setTimeout(() => {
+      dialog.current?.close()
+      setOpen(false)
+      setClosing(false)
+      launcher.current?.focus()
+    }, activeDisplay === 'drawer' ? 240 : 180)
   }
   const pending = chat.pending
   return (
@@ -152,7 +241,15 @@ export default function ChatWidget({ screenZoom = 100, onSessionExpired }) {
         aria-expanded={open}
         aria-controls="chat-panel"
         onClick={() => {
-          if (!dialog.current.open) dialog.current.show()
+          clearTimeout(closeTimer.current)
+          setClosing(false)
+          if (!dialog.current.open) {
+            setActiveDisplay(displayMode)
+            setPosition({ x: 0, y: 0 })
+            setSize(null)
+            if (displayMode === 'modal') dialog.current.showModal()
+            else dialog.current.show()
+          }
           setOpen(true)
         }}
       >
@@ -160,18 +257,43 @@ export default function ChatWidget({ screenZoom = 100, onSessionExpired }) {
       </button>
       <dialog
         ref={dialog}
-        className="chat-dialog"
+        className={`chat-dialog chat-dialog--${activeDisplay}${closing ? ' chat-dialog--closing' : ''}`}
         id="chat-panel"
         aria-labelledby="chat-title"
+        data-active-drawer={filterOpen ? 'filter' : historyOpen ? 'history' : undefined}
+        inert={closing}
         style={{
-          ...(size || {}),
-          transform: `translate(${position.x}px, ${position.y}px)`,
+          ...(activeDisplay === 'modal' ? size || {} : {}),
+          ...(activeDisplay === 'drawer' && drawerWidth !== null ? { width: drawerWidth } : {}),
+          ...(activeDisplay === 'modal' ? { transform: `translate(${position.x}px, ${position.y}px)` } : {}),
         }}
         onClose={() => setOpen(false)}
         onKeyDown={(event) => {
-          if (event.key === 'Escape') close()
+          if (event.key === 'Escape') {
+            event.preventDefault()
+            if (menuId) setMenuId(null)
+            else if (historyOpen) closeHistory()
+            else if (filterOpen) closeFilter()
+            else close()
+          }
         }}
       >
+        {activeDisplay === 'drawer' && (
+          <button
+            type="button"
+            className="chat-dialog__drawer-resize"
+            aria-label="챗봇 서랍 너비 조절"
+            title="드래그하거나 좌우 방향키로 너비 조절"
+            onPointerDown={startDrawerResize}
+            onPointerMove={moveDrawerResize}
+            onPointerUp={() => { drawerResize.current = null }}
+            onPointerCancel={() => { drawerResize.current = null }}
+            onLostPointerCapture={() => { drawerResize.current = null }}
+            onKeyDown={keyboardDrawerResize}
+          >
+            <span aria-hidden="true" />
+          </button>
+        )}
         <button
           type="button"
           className="chat-dialog__resize"
@@ -208,11 +330,11 @@ export default function ChatWidget({ screenZoom = 100, onSessionExpired }) {
         >
           <div className="chat-dialog__identity">
             <span className="chat-dialog__mark" aria-hidden="true">
-              ✦
+              <span />
             </span>
             <div>
               <h2 id="chat-title">설비 지원 챗봇</h2>
-              <p>{chat.chatMode ? '자유 대화' : 'FAQ 안내'}</p>
+              <p><img src="/assets/chat/status.svg" alt="" />{chat.chatMode ? '자유 대화' : 'FAQ 안내'}</p>
             </div>
           </div>
           <button
@@ -220,54 +342,55 @@ export default function ChatWidget({ screenZoom = 100, onSessionExpired }) {
             aria-label="챗봇 닫기"
             onClick={close}
           >
-            ✕
+            <img src="/assets/chat/close.svg" alt="" />
           </button>
         </header>
         <div className="chat-controls">
-          <label>
-            내 대화
-            <select
-              value={chat.conversation?.conversation_id || ''}
-              onChange={(event) => chat.selectConversation(event.target.value)}
-              disabled={chat.busy}
-            >
-              <option value="">대화를 선택하세요</option>
-              {history.map((c) => (
-                <option key={c.conversation_id} value={c.conversation_id}>
-                  {c.title} ·{' '}
-                  {new Date(c.updated_at).toLocaleDateString('ko-KR')}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="button"
-            onClick={() => {
-              setText('')
-              chat.newConversation()
-            }}
-            disabled={chat.busy}
-          >
-            새 대화
+          <button ref={historyButton} type="button" className="chat-history-trigger" aria-expanded={historyOpen} aria-controls="chat-history-drawer" onClick={() => { setFilterOpen(false); setHistoryOpen(true) }}>
+            <span aria-hidden="true">☰</span> 내 대화
           </button>
-          {chat.moreConversations && (
-            <button
-              type="button"
-              onClick={chat.moreHistory}
-              disabled={chat.busy}
-            >
-              목록 더 보기
-            </button>
-          )}
+          <span className="chat-controls__title">{chat.conversation?.title || '새 대화'}</span>
+          <button ref={filterButton} type="button" className="chat-filter-trigger" aria-expanded={filterOpen} aria-controls="chat-filter-drawer" onClick={() => { setHistoryOpen(false); setFilterOpen(true) }}>검색 조건</button>
         </div>
-        <details className="chat-conditions">
-          <summary>
-            검색 조건 ·{' '}
-            {['asset_id', 'model', 'date_from', 'date_to']
-              .map((key) => conditions[key])
-              .filter(Boolean)
-              .join(' / ') || '전체 자료'}
-          </summary>
+          <div className={`chat-history-overlay${historyOpen ? ' is-open' : ''}`} aria-hidden={!historyOpen} inert={!historyOpen} onKeyDown={(event) => {
+            if (event.key !== 'Tab') return
+            const buttons = [...event.currentTarget.querySelectorAll('.chat-history-drawer button:not(:disabled)')]
+            const first = buttons[0], last = buttons[buttons.length - 1]
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+          }}>
+            <button type="button" className="chat-history-overlay__backdrop" aria-label="대화 목록 닫기" tabIndex={-1} onClick={closeHistory} />
+            <section id="chat-history-drawer" className="chat-history-drawer" aria-label="내 대화" onClick={(event) => { if (!event.target.closest('.chat-history-entry__menu')) setMenuId(null) }}>
+              <div className="chat-history-drawer__header">
+                <h3>내 대화</h3>
+                <button ref={drawerClose} type="button" aria-label="대화 목록 닫기" onClick={closeHistory}>×</button>
+              </div>
+              <button type="button" className="chat-history-drawer__new" disabled={chat.busy} onClick={() => { setText(''); chat.newConversation(); closeHistory() }}>
+                <span aria-hidden="true">＋</span> 새 대화
+              </button>
+              <div className="chat-history-drawer__list" onScroll={() => setMenuId(null)}>
+                <p className="chat-history-drawer__label">대화 기록</p>
+                {history.length ? history.map((c) => (
+                  <div key={c.conversation_id} className="chat-history-entry" onContextMenu={(event) => openHistoryMenu(event, c.conversation_id)}>
+                  <button type="button" className={`chat-history-drawer__item${c.conversation_id === chat.conversation?.conversation_id ? ' is-active' : ''}`} aria-current={c.conversation_id === chat.conversation?.conversation_id ? 'true' : undefined} disabled={chat.busy} onClick={() => { chat.selectConversation(c.conversation_id); closeHistory() }}>
+                    <span>{c.title || '새 대화'}</span>
+                    <small>{new Date(c.updated_at).toLocaleDateString('ko-KR')}</small>
+                  </button>
+                  <button type="button" className="chat-history-entry__menu-button" aria-label={`${c.title || '새 대화'} 메뉴`} aria-expanded={menuId === c.conversation_id} onClick={(event) => { if (menuId === c.conversation_id) setMenuId(null); else openHistoryMenu(event, c.conversation_id, true) }}>⋯</button>
+                  </div>
+                )) : <p className="chat-history-drawer__empty">아직 저장된 대화가 없습니다.</p>}
+                {chat.moreConversations && <button type="button" className="chat-history-drawer__more" onClick={chat.moreHistory} disabled={chat.busy}>목록 더 보기</button>}
+              </div>
+              {menuConversation && <div className="chat-history-entry__menu" style={menuPosition}>
+                <button type="button" disabled={chat.busy} onClick={() => { const title = window.prompt('대화 이름을 입력하세요', menuConversation.title || ''); setMenuId(null); if (title?.trim()) chat.renameConversation(menuConversation.conversation_id, title.trim().slice(0, 100)) }}>이름 변경</button>
+                <button type="button" disabled={chat.busy} onClick={() => { setMenuId(null); if (window.confirm('이 대화를 삭제할까요? 대화 내용도 함께 삭제됩니다.')) chat.deleteConversation(menuConversation.conversation_id) }}>삭제</button>
+              </div>}
+            </section>
+          </div>
+        <div className={`chat-history-overlay chat-filter-overlay${filterOpen ? ' is-open' : ''}`} aria-hidden={!filterOpen} inert={!filterOpen}>
+          <button type="button" className="chat-history-overlay__backdrop" aria-label="검색 조건 닫기" tabIndex={-1} onClick={closeFilter} />
+          <section id="chat-filter-drawer" className="chat-history-drawer chat-filter-drawer chat-conditions" aria-label="검색 조건">
+            <div className="chat-history-drawer__header"><h3>검색 조건</h3><button ref={filterClose} type="button" aria-label="검색 조건 닫기" onClick={closeFilter}>×</button></div>
           <form
             key={`${chat.conversation?.conversation_id}:${JSON.stringify(conditions)}`}
             onSubmit={saveConditions}
@@ -316,11 +439,12 @@ export default function ChatWidget({ screenZoom = 100, onSessionExpired }) {
             </p>
             <button disabled={blocked}>조건 적용</button>
           </form>
-        </details>
+          </section>
+        </div>
         <div ref={body} className="chat-dialog__body">
           {!chat.messages.length && (
             <div className="chat-dialog__message">
-              <strong>무엇을 도와드릴까요?</strong>
+              <strong>안녕하세요!</strong>
               <p>
                 FAQ 주제와 질문을 선택하거나, 채팅 시작을 눌러 매뉴얼·정비이력을
                 물어보세요.
@@ -451,7 +575,7 @@ export default function ChatWidget({ screenZoom = 100, onSessionExpired }) {
           )}
           {!chat.chatMode && (
             <section className="chat-dialog__examples" aria-label="FAQ 목록">
-              <h3>{chat.topic?.title || 'FAQ 주제'}</h3>
+              <h3>{chat.topic?.title || '이런 내용을 물어볼 수 있어요'}</h3>
               {chat.topic && (
                 <button type="button" onClick={() => chat.loadFaq()}>
                   주제 목록으로
@@ -488,7 +612,7 @@ export default function ChatWidget({ screenZoom = 100, onSessionExpired }) {
                     type="button"
                     onClick={() => chat.loadFaq(t)}
                   >
-                    {t.title} <span aria-hidden="true">›</span>
+                    {t.title}
                   </button>
                 ))
               ) : (
@@ -534,7 +658,7 @@ export default function ChatWidget({ screenZoom = 100, onSessionExpired }) {
                 }}
               />
               <button disabled={blocked || !text.trim()} aria-label="질문 전송">
-                ↑
+                {blocked || !text.trim() ? <img src="/assets/chat/send-disabled.svg" alt="" /> : '→'}
               </button>
             </form>
           )}

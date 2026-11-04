@@ -17,7 +17,7 @@ EXAMPLE = """\
 LLM_MODEL=claude-sonnet-5-5
 VOYAGE_BASE_URL=https://ai.mongodb.com/v1
 POSTGRES_PASSWORD=weeing
-RAG_COLLECTION=knowledge
+RAG_COLLECTION=knowledge_voyage
 """
 FAKE_KEY = "fake-voyage-value-000"
 
@@ -50,7 +50,7 @@ def test_reports_each_kind_without_secret_values(tmp_path, capsys):
     assert "HF_HOME (5번 줄)" in out
     assert "VOYAGE_BASE_URL (4번 줄)" in out  # 주석이라 적용 안 됨
     assert "VOYAGE_BASE_URL = https://ai.mongodb.com/v1" in out  # 기본값 사용
-    assert "RAG_COLLECTION = knowledge" in out
+    assert "RAG_COLLECTION = knowledge_voyage" in out
     assert "LLM_MODEL = claude-haiku-5-5  (기본 claude-sonnet-5-5)" in out
 
 
@@ -85,7 +85,7 @@ def test_quotes_export_and_inline_comment(tmp_path, capsys):
     )
     assert code == 0
     assert "LLM_MODEL = claude-haiku-5-5" in out
-    assert "RAG_COLLECTION = kv  (기본 knowledge)" in out
+    assert "RAG_COLLECTION = kv  (기본 knowledge_voyage)" in out
 
 
 def test_missing_file_exit_2(tmp_path):

@@ -6,6 +6,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from weeing_weeing.agent.errors import LlmUsage
 from weeing_weeing.agent.tracing import NULL_TRACER
 from weeing_weeing.contracts import AnalysisResult
@@ -75,3 +77,103 @@ def test_existing_metrics_path_rejected_before_api(tmp_path, monkeypatch):
     monkeypatch.setattr(module, "get_llm_client", forbidden)
     assert module.main(["--evaluation-out", str(output)]) == 2
     assert output.read_text("utf-8") == "keep"
+
+
+def test_hidden_key_refuses_non_terminal_before_client(monkeypatch):
+    module = script()
+    monkeypatch.setattr(module.sys.stdin, "isatty", lambda: False)
+    monkeypatch.setattr(
+        module, "get_llm_client", lambda **kw: pytest.fail("client created")
+    )
+    with pytest.raises(SystemExit):
+        module.main(["--ask-key"])
+
+
+@pytest.mark.parametrize("fail_save", [False, True])
+def test_single_analysis_saves_result_before_db_and_never_repeats_existing_output(
+    tmp_path, monkeypatch, capsys, fail_save
+):
+    module = script()
+    incident = module.Incident.model_validate_json(module.DEMO.read_bytes())
+    result = AnalysisResult(
+        incident_id=incident.incident_id,
+        status="INSUFFICIENT_EVIDENCE",
+        observed_facts="No evidence in fake test",
+        model="fake/model",
+        generated_at=datetime.now(UTC),
+    )
+    output = tmp_path / "result.json"
+    calls = []
+
+    def client(**kw):
+        assert kw["api_key"] == "FAKE_SECRET_SENTINEL"
+        calls.append("client")
+        return SimpleNamespace(tracer=NULL_TRACER)
+
+    def save(value, snapshot):
+        assert output.exists() and value == result
+        assert snapshot == incident
+        if fail_save:
+            raise module.db.DatabaseUnavailableError("fake DB failure")
+        calls.append("saved")
+        return 1
+
+    monkeypatch.setattr(module.sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(module.getpass, "getpass", lambda _: "FAKE_SECRET_SENTINEL")
+    monkeypatch.setattr(module, "get_llm_client", client)
+    monkeypatch.setattr(module, "get_retriever", lambda: object())
+    monkeypatch.setattr(
+        module,
+        "get_analyzer",
+        lambda *a, **kw: SimpleNamespace(analyze=lambda _: result),
+    )
+    monkeypatch.setattr(
+        module.db,
+        "get_analysis_jobs",
+        lambda: SimpleNamespace(
+            get_incident=lambda _: incident,
+            latest_job=lambda _: None,
+            save_analysis_with_input=save,
+        ),
+    )
+    args = ["--ask-key", "--save-db", "--result-out", str(output)]
+    assert module.main(args) == (2 if fail_save else 0)
+    assert json.loads(output.read_text("utf-8"))["incident_id"] == incident.incident_id
+    assert module.main(args) == 2
+    assert calls.count("client") == 1
+    captured = capsys.readouterr()
+    assert "FAKE_SECRET_SENTINEL" not in captured.out + captured.err
+
+
+def test_unknown_db_incident_stops_before_paid_client(tmp_path, monkeypatch):
+    module = script()
+    monkeypatch.setattr(
+        module.db,
+        "get_analysis_jobs",
+        lambda: SimpleNamespace(get_incident=lambda _: None),
+    )
+    monkeypatch.setattr(
+        module, "get_llm_client", lambda **kw: pytest.fail("client created")
+    )
+    assert (
+        module.main(["--save-db", "--result-out", str(tmp_path / "result.json")]) == 2
+    )
+
+
+def test_active_job_stops_before_paid_client(tmp_path, monkeypatch):
+    module = script()
+    incident = module.Incident.model_validate_json(module.DEMO.read_bytes())
+    monkeypatch.setattr(
+        module.db,
+        "get_analysis_jobs",
+        lambda: SimpleNamespace(
+            get_incident=lambda _: incident,
+            latest_job=lambda _: {"status": "PENDING"},
+        ),
+    )
+    monkeypatch.setattr(
+        module, "get_llm_client", lambda **kw: pytest.fail("client created")
+    )
+    assert (
+        module.main(["--save-db", "--result-out", str(tmp_path / "result.json")]) == 2
+    )

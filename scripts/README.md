@@ -21,6 +21,18 @@ make seed-users ARGS=--ask-password     # 모든 시연 계정을 같은 비밀�
 
 종료 코드는 0 성공, 2 DB 연결 실패·비밀번호 규칙 위반.
 
+## 팀 문서 미리 등록 (`seed_documents.py`, D-32)
+
+`data/seed/documents_v1.toml`의 매뉴얼·룰·규정 PDF를 웹 업로드와 같은 방식(DB 행 + 업로드 폴더 원본 + 벡터 청크)으로 등록한다. 같은 파일(SHA-256)이 지금 컬렉션에 이미 임베딩돼 있으면 건너뛰므로 여러 번 실행해도 임베딩 비용이 다시 들지 않는다. 컬렉션을 바꿨으면 다시 임베딩한다.
+
+```bash
+make seed-docs                   # 로컬
+ops/aws.sh seed-docs             # 운영 서버(api 컨테이너 안)
+make seed-docs ARGS=--replace    # 웹에서 다른 파일로 교체한 문서도 덮어씀
+```
+
+승인 보고서를 새 컬렉션에 전부 다시 등록할 때는 `make index-reports ARGS=--all`(서버 `ops/aws.sh reindex-reports`). 종료 코드는 0 성공·건너뜀, 1 실패 문서 있음, 2 목록·DB 오류.
+
 ## 웹 문서 등록·관리
 
 문서는 HMI의 **문서 등록 / 문서 목록**에서 관리한다. 관제 담당자가 PDF를 등록하면 DB에 접수 정보를 저장하고 파싱·청킹·임베딩·벡터 저장까지 자동으로 진행한다. 다른 문서 ID에 같은 파일 해시가 있으면 중복 등록을 거부한다.
@@ -31,7 +43,7 @@ make seed-users ARGS=--ask-password     # 모든 시연 계정을 같은 비밀�
 
 삭제 확인 후 벡터 청크를 제거하고 PostgreSQL 문서 행도 실제 삭제한다. 실패 시 재시도 상태를 남긴다. 삭제한 PDF가 필요해지면 웹에서 다시 올린다. 원본 파일은 업로드 폴더에 보관한다.
 
-운영 카탈로그와 `make index`·일괄 색인 스크립트는 제거했다. `make rag-e2e`는 평가용 문서 목록으로 임시 저장소만 만들어 검색 품질을 검사하며 실제 DB에 문서를 등록하지 않는다.
+운영 카탈로그와 `make index`·자동 동기화는 제거했다(팀 문서 3개만 위 시드 명령으로 수동 등록). `make rag-e2e`는 평가용 문서 목록으로 임시 저장소만 만들어 검색 품질을 검사하며 실제 DB에 문서를 등록하지 않는다.
 
 ## RAG E2E 검증 (`verify_rag_e2e.py`, #28)
 
@@ -68,7 +80,7 @@ make llm-check ARGS="--effort low"                            # 생각 깊이 �
 
 ## 사건 분석 에이전트 (`analyze_incident.py`, #102)
 
-사건 JSON 하나를 사건 분석 에이전트로 분석한다. Claude가 `search_evidence` 도구로 근거를 찾고 `submit_analysis`로 결과를 낸다. 웹에서 등록한 검색 자료와 API 키가 필요하다. DB에는 저장하지 않는다.
+사건 JSON 하나를 사건 분석 에이전트로 분석한다. Claude가 `search_evidence` 도구로 근거를 찾고 `submit_analysis`로 결과를 낸다. 검색 자료와 API 키가 필요하다. 기본은 DB 미저장이며 아래 옵션으로 기존 사건에 저장할 수 있다.
 
 ```bash
 make analyze                                     # data/eval/incident_p03_demo.json
@@ -77,6 +89,18 @@ make analyze ARGS="--incident 사건.json"
 
 - 출력: `AnalysisResult` JSON, 도구 호출 기록, 토큰 수
 - 종료 코드 0 OK·INSUFFICIENT_EVIDENCE / 1 FAILED / 2 입력·설정 문제
+
+`--ask-key`는 사용자가 직접 연 터미널에서 API 키를 숨김 입력한다. IDE 자동 문맥에
+열린 파일이 포함될 수 있으므로 키를 편집기·채팅·명령 인자에 넣지 않는다.
+`uv run --no-sync --no-env-file`로 실행하면 `.env`를 자동 로드하지 않는다.
+`--result-out 새파일.json`은 결과를 별도로 보존하고 기존 파일이 있으면 호출 전에 멈춘다.
+`--save-db`는 현재 DB에 같은 공정·설비의 사건이 있을 때 분석 결과와 입력 스냅샷을
+완료 작업으로 함께 추가한다. 대기·실행 중인 분석이 있으면 유료 호출 전에 중단한다.
+이 옵션에는 `--result-out`이 필수이며, 결과 파일 저장 후 DB 저장을 시도한다.
+사건 회복·승인 상태와 정비·결재 칸은 바꾸지 않는다. 저장 전용 API에서도 기존
+분석 조회로 확인할 수 있으며, 자동 분석이나 백그라운드 worker를 켤 필요가 없다.
+단건 분석도 여러 도구·LLM 호출로 구성되어 비용이 발생한다. DB 저장 실패 후에는
+보존된 결과 파일을 확인하고 유료 분석을 자동 반복하지 않는다.
 
 ## 사건 센서 이력 저장
 

@@ -5,7 +5,7 @@
     @router.post("/reports/{id}/approve", dependencies=[Depends(require_roles(Role.MAINT_LEAD))])
 
 인증은 `Authorization: Bearer <토큰>`. 토큰은 POST /auth/login이 주고, DB 세션 행으로 확인한다.
-문서 등록·삭제는 관제 담당자로 제한한다. 센서 WebSocket에는 아직 걸지 않았다(docs/AUTH.md).
+문서 등록·삭제는 관제 담당자로 제한한다. 센서 WebSocket은 별도 송신 인증을 쓴다(docs/AUTH.md).
 """
 
 import logging

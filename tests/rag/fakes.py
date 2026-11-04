@@ -75,7 +75,7 @@ class MemoryVectorStore:
         embedder,
         embedding_model: str,
         sparse_encoder=None,
-        collection: str = "knowledge",
+        collection: str = "knowledge_voyage",
     ) -> None:
         self._storage = storage
         self._embedder = embedder

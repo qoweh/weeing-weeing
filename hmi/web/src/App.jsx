@@ -27,8 +27,13 @@ export default function App() {
   const [page, setPage] = useState(() => sessionStorage.getItem('weeing-document-completed') ? 'documents' : 'dashboard')
   const [reportSelection, setReportSelection] = useState({ key: 0 })
   const [maintenanceTab, setMaintenanceTab] = useState(null)
+  const [incidentFocus, setIncidentFocus] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+
+  const clearIncidentFocus = useCallback((key) => {
+    setIncidentFocus((current) => current?.key === key ? null : current)
+  }, [])
 
   const forgetSession = useCallback(() => {
     setAccessToken('')
@@ -37,6 +42,7 @@ export default function App() {
     setAuthPage('login')
     setPage('dashboard')
     setMaintenanceTab(null)
+    setIncidentFocus(null)
   }, [])
 
   useEffect(() => { window.scrollTo(0, 0) }, [page])
@@ -120,12 +126,13 @@ export default function App() {
     : <LoginPage onLogin={login} onSignup={() => setAuthPage('signup')} error={error} />
 
   return <AppShell user={user} onLogout={logout} busy={busy} page={page} onNavigate={setPage}
+    onSessionExpired={forgetSession} onIncidentSelect={(id) => { setIncidentFocus({ id, key: Date.now() }); setPage('incident-history') }}
     theme={theme} onToggleTheme={() => setTheme((current) => current === 'light' ? 'dark' : 'light')}>
     {error && <p className="workspace-error" role="alert">{error}</p>}
-    <div hidden={page !== 'dashboard'}><DashboardPage /></div>
+    <div hidden={page !== 'dashboard'}><DashboardPage onNavigate={setPage} /></div>
     {page === 'maintenance' && <MaintenancePage user={user} busy={busy} selectedTab={maintenanceTab} onSelectTab={setMaintenanceTab} onOpen={openMaintenanceReport} onSessionExpired={forgetSession} />}
     {page === 'incidents' && <IncidentTestPage onSessionExpired={forgetSession} />}
-    {page === 'incident-history' && <IncidentHistoryPage user={user} busy={busy} onBusyChange={setBusy} onOpenDraft={openIncidentDraft} onOpenReport={openMaintenanceReport} onSessionExpired={forgetSession} />}
+    {page === 'incident-history' && <IncidentHistoryPage focus={incidentFocus} onFocusHandled={clearIncidentFocus} user={user} busy={busy} onBusyChange={setBusy} onOpenDraft={openIncidentDraft} onOpenReport={openMaintenanceReport} onSessionExpired={forgetSession} />}
     <div hidden={page === 'dashboard' || page === 'maintenance' || page === 'incidents' || page === 'incident-history'}>
       <RagWorkspace tab={page} user={user} onSessionExpired={forgetSession} onBusyChange={setBusy} workspaceBusy={busy} onNavigate={setPage} reportSelection={reportSelection} />
     </div>
