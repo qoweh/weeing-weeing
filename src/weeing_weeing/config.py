@@ -56,6 +56,10 @@ class Settings:
     telemetry_producer_token_sha256: str = ""  # 원본 토큰 대신 SHA-256만 보관
     telemetry_simulation_rpm_enabled: bool = False  # loopback RPM 시나리오 시험만
     telemetry_unreal_context_enabled: bool = False  # 명시적 시뮬레이터 상태 프레임 수신
+    ml_prediction_enabled: bool = False
+    ml_model_path: Path = Path("models/future_error.joblib")
+    ml_model_sha256: str = ""
+    ml_prediction_dir: Path = Path("outputs/ml_live")
 
 
 def get_settings() -> Settings:
@@ -112,6 +116,11 @@ def get_settings() -> Settings:
             "TELEMETRY_SIMULATION_RPM_ENABLED", "false"
         ).lower()
         in ("1", "true", "yes"),
+        ml_prediction_enabled=env("ML_PREDICTION_ENABLED", "false").lower()
+        in ("1", "true", "yes"),
+        ml_model_path=Path(env("ML_MODEL_PATH", "models/future_error.joblib")),
+        ml_model_sha256=env("ML_MODEL_SHA256", "").strip().lower(),
+        ml_prediction_dir=Path(env("ML_PREDICTION_DIR", "outputs/ml_live")),
         telemetry_unreal_context_enabled=env(
             "TELEMETRY_UNREAL_CONTEXT_ENABLED", "false"
         ).lower()

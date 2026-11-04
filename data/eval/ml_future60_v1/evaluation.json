@@ -1,0 +1,6025 @@
+{
+  "train": {
+    "accuracy": 0.9892197125256673,
+    "macro_f1": 0.986780248729727,
+    "classification_report": {
+      "NO_ERROR": {
+        "precision": 1.0,
+        "recall": 0.9828990228013029,
+        "f1-score": 0.9913757700205339,
+        "support": 1228.0
+      },
+      "BTT2-M02": {
+        "precision": 0.967741935483871,
+        "recall": 1.0,
+        "f1-score": 0.9836065573770492,
+        "support": 180.0
+      },
+      "BTT2-M07": {
+        "precision": 0.9782608695652174,
+        "recall": 1.0,
+        "f1-score": 0.989010989010989,
+        "support": 180.0
+      },
+      "BTT2-M10": {
+        "precision": 0.972972972972973,
+        "recall": 1.0,
+        "f1-score": 0.9863013698630136,
+        "support": 180.0
+      },
+      "BTT2-M12": {
+        "precision": 0.967741935483871,
+        "recall": 1.0,
+        "f1-score": 0.9836065573770492,
+        "support": 180.0
+      },
+      "accuracy": 0.9892197125256673,
+      "macro avg": {
+        "precision": 0.9773435427011865,
+        "recall": 0.9965798045602605,
+        "f1-score": 0.986780248729727,
+        "support": 1948.0
+      },
+      "weighted avg": {
+        "precision": 0.9895324375929507,
+        "recall": 0.9892197125256673,
+        "f1-score": 0.989252582565849,
+        "support": 1948.0
+      }
+    },
+    "confusion_matrix": [
+      [
+        1207,
+        6,
+        4,
+        5,
+        6
+      ],
+      [
+        0,
+        180,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        180,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        180,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        180
+      ]
+    ],
+    "confusion_matrix_labels": [
+      "NO_ERROR",
+      "BTT2-M02",
+      "BTT2-M07",
+      "BTT2-M10",
+      "BTT2-M12"
+    ],
+    "no_error_false_alarm_rate": 0.01710097719869707,
+    "no_error_support": 1228,
+    "per_run": {
+      "ml-M02-fault-01-007e9ebce40c58d49cee7044f209f0ac-c93e932c": {
+        "accuracy": 0.9649122807017544,
+        "macro_f1": 0.3849206349206349,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.9459459459459459,
+            "f1-score": 0.9722222222222222,
+            "support": 37.0
+          },
+          "BTT2-M02": {
+            "precision": 0.9090909090909091,
+            "recall": 1.0,
+            "f1-score": 0.9523809523809523,
+            "support": 20.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.9649122807017544,
+          "macro avg": {
+            "precision": 0.38181818181818183,
+            "recall": 0.3891891891891892,
+            "f1-score": 0.3849206349206349,
+            "support": 57.0
+          },
+          "weighted avg": {
+            "precision": 0.9681020733652312,
+            "recall": 0.9649122807017544,
+            "f1-score": 0.9652603731551099,
+            "support": 57.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            35,
+            2,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            20,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.05405405405405406,
+        "no_error_support": 37
+      },
+      "ml-M02-fault-02-65aac186ffa35173b81438faf6d49420-691c887c": {
+        "accuracy": 0.9818181818181818,
+        "macro_f1": 0.3922234004948745,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.9714285714285714,
+            "f1-score": 0.9855072463768116,
+            "support": 35.0
+          },
+          "BTT2-M02": {
+            "precision": 0.9523809523809523,
+            "recall": 1.0,
+            "f1-score": 0.975609756097561,
+            "support": 20.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.9818181818181818,
+          "macro avg": {
+            "precision": 0.3904761904761905,
+            "recall": 0.3942857142857143,
+            "f1-score": 0.3922234004948745,
+            "support": 55.0
+          },
+          "weighted avg": {
+            "precision": 0.9826839826839827,
+            "recall": 0.9818181818181818,
+            "f1-score": 0.9819081590025387,
+            "support": 55.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            34,
+            1,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            20,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.02857142857142857,
+        "no_error_support": 35
+      },
+      "ml-M02-fault-03-7240a884ef1f5ca19a1597abb1bacb1e-935ff59f": {
+        "accuracy": 1.0,
+        "macro_f1": 0.4,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 27.0
+          },
+          "BTT2-M02": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 20.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.4,
+            "recall": 0.4,
+            "f1-score": 0.4,
+            "support": 47.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 47.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            27,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            20,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 27
+      },
+      "ml-M02-fault-05-26fef23c88ee54e6af7fdca234d5d804-cebb9491": {
+        "accuracy": 0.9642857142857143,
+        "macro_f1": 0.38476190476190475,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.9444444444444444,
+            "f1-score": 0.9714285714285714,
+            "support": 36.0
+          },
+          "BTT2-M02": {
+            "precision": 0.9090909090909091,
+            "recall": 1.0,
+            "f1-score": 0.9523809523809523,
+            "support": 20.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.9642857142857143,
+          "macro avg": {
+            "precision": 0.38181818181818183,
+            "recall": 0.3888888888888889,
+            "f1-score": 0.38476190476190475,
+            "support": 56.0
+          },
+          "weighted avg": {
+            "precision": 0.9675324675324675,
+            "recall": 0.9642857142857143,
+            "f1-score": 0.9646258503401359,
+            "support": 56.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            34,
+            2,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            20,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.05555555555555555,
+        "no_error_support": 36
+      },
+      "ml-M02-fault-07-fa3ee189b1c65f61b19f5b655037a1e3-1ced0c64": {
+        "accuracy": 1.0,
+        "macro_f1": 0.4,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 23.0
+          },
+          "BTT2-M02": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 20.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.4,
+            "recall": 0.4,
+            "f1-score": 0.4,
+            "support": 43.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 43.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            23,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            20,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 23
+      },
+      "ml-M02-fault-09-9b66e6e8c45c585caf87dd3be9ae7a03-d144fa9b": {
+        "accuracy": 1.0,
+        "macro_f1": 0.4,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 35.0
+          },
+          "BTT2-M02": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 20.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.4,
+            "recall": 0.4,
+            "f1-score": 0.4,
+            "support": 55.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 55.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            35,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            20,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 35
+      },
+      "ml-M02-fault-10-568c366b560f53d1a0fe1b70623d01ff-52c4df72": {
+        "accuracy": 1.0,
+        "macro_f1": 0.4,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 29.0
+          },
+          "BTT2-M02": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 20.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.4,
+            "recall": 0.4,
+            "f1-score": 0.4,
+            "support": 49.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 49.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            29,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            20,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 29
+      },
+      "ml-M02-fault-13-a1c7248bb59b5e9c8540e3b26f3541b9-dd9f65a6": {
+        "accuracy": 0.9811320754716981,
+        "macro_f1": 0.3920450281425891,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.9696969696969697,
+            "f1-score": 0.9846153846153847,
+            "support": 33.0
+          },
+          "BTT2-M02": {
+            "precision": 0.9523809523809523,
+            "recall": 1.0,
+            "f1-score": 0.975609756097561,
+            "support": 20.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.9811320754716981,
+          "macro avg": {
+            "precision": 0.3904761904761905,
+            "recall": 0.3939393939393939,
+            "f1-score": 0.3920450281425891,
+            "support": 53.0
+          },
+          "weighted avg": {
+            "precision": 0.9820305480682839,
+            "recall": 0.9811320754716981,
+            "f1-score": 0.9812170342313002,
+            "support": 53.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            32,
+            1,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            20,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.030303030303030304,
+        "no_error_support": 33
+      },
+      "ml-M02-fault-14-a8fef5c307075e8780a993ebb3b06db5-bfaaabe4": {
+        "accuracy": 1.0,
+        "macro_f1": 0.4,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 32.0
+          },
+          "BTT2-M02": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 20.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.4,
+            "recall": 0.4,
+            "f1-score": 0.4,
+            "support": 52.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 52.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            32,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            20,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 32
+      },
+      "ml-M07-fault-02-861355a2412f5b7dbe4daf1a516c207b-6bafca35": {
+        "accuracy": 1.0,
+        "macro_f1": 0.4,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 35.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 20.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.4,
+            "recall": 0.4,
+            "f1-score": 0.4,
+            "support": 55.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 55.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            35,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            20,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 35
+      },
+      "ml-M07-fault-04-bccc4daeb4b35c8e8d042353531aa933-09e7e65a": {
+        "accuracy": 1.0,
+        "macro_f1": 0.4,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 26.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 20.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.4,
+            "recall": 0.4,
+            "f1-score": 0.4,
+            "support": 46.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 46.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            26,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            20,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 26
+      },
+      "ml-M07-fault-05-92c2b9c272475fe099fbbca990b1e90e-51abf08f": {
+        "accuracy": 1.0,
+        "macro_f1": 0.4,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 31.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 20.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.4,
+            "recall": 0.4,
+            "f1-score": 0.4,
+            "support": 51.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 51.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            31,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            20,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 31
+      },
+      "ml-M07-fault-06-dc571272278d59cd9feaa7c01dc24170-f1ab2c68": {
+        "accuracy": 0.9836065573770492,
+        "macro_f1": 0.39265281541704306,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.975609756097561,
+            "f1-score": 0.9876543209876543,
+            "support": 41.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.9523809523809523,
+            "recall": 1.0,
+            "f1-score": 0.975609756097561,
+            "support": 20.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.9836065573770492,
+          "macro avg": {
+            "precision": 0.3904761904761905,
+            "recall": 0.3951219512195122,
+            "f1-score": 0.39265281541704306,
+            "support": 61.0
+          },
+          "weighted avg": {
+            "precision": 0.9843871975019517,
+            "recall": 0.9836065573770492,
+            "f1-score": 0.9837052833187713,
+            "support": 61.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            40,
+            0,
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            20,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.024390243902439025,
+        "no_error_support": 41
+      },
+      "ml-M07-fault-07-a7ae3435d2645d8291e546d4a1cddff0-8db9119f": {
+        "accuracy": 1.0,
+        "macro_f1": 0.4,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 24.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 20.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.4,
+            "recall": 0.4,
+            "f1-score": 0.4,
+            "support": 44.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 44.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            24,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            20,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 24
+      },
+      "ml-M07-fault-10-fb6a4a00ea1f5f5fbfe5e46d7af637be-a94bf637": {
+        "accuracy": 0.9838709677419355,
+        "macro_f1": 0.39271231266529527,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.9761904761904762,
+            "f1-score": 0.9879518072289156,
+            "support": 42.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.9523809523809523,
+            "recall": 1.0,
+            "f1-score": 0.975609756097561,
+            "support": 20.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.9838709677419355,
+          "macro avg": {
+            "precision": 0.3904761904761905,
+            "recall": 0.3952380952380953,
+            "f1-score": 0.39271231266529527,
+            "support": 62.0
+          },
+          "weighted avg": {
+            "precision": 0.9846390168970814,
+            "recall": 0.9838709677419355,
+            "f1-score": 0.9839705004123497,
+            "support": 62.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            41,
+            0,
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            20,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.023809523809523808,
+        "no_error_support": 42
+      },
+      "ml-M07-fault-12-0545b145729a5fcdb3d4ecb9dbce6012-001970a5": {
+        "accuracy": 0.9824561403508771,
+        "macro_f1": 0.3923822251921149,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.972972972972973,
+            "f1-score": 0.9863013698630136,
+            "support": 37.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.9523809523809523,
+            "recall": 1.0,
+            "f1-score": 0.975609756097561,
+            "support": 20.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.9824561403508771,
+          "macro avg": {
+            "precision": 0.3904761904761905,
+            "recall": 0.3945945945945946,
+            "f1-score": 0.3923822251921149,
+            "support": 57.0
+          },
+          "weighted avg": {
+            "precision": 0.9832915622389308,
+            "recall": 0.9824561403508771,
+            "f1-score": 0.9825499264365392,
+            "support": 57.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            36,
+            0,
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            20,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.02702702702702703,
+        "no_error_support": 37
+      },
+      "ml-M07-fault-13-e36857b9f290534f81a633120d1e3dda-9f67c74a": {
+        "accuracy": 0.9818181818181818,
+        "macro_f1": 0.3922234004948745,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.9714285714285714,
+            "f1-score": 0.9855072463768116,
+            "support": 35.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.9523809523809523,
+            "recall": 1.0,
+            "f1-score": 0.975609756097561,
+            "support": 20.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.9818181818181818,
+          "macro avg": {
+            "precision": 0.3904761904761905,
+            "recall": 0.3942857142857143,
+            "f1-score": 0.3922234004948745,
+            "support": 55.0
+          },
+          "weighted avg": {
+            "precision": 0.9826839826839827,
+            "recall": 0.9818181818181818,
+            "f1-score": 0.9819081590025387,
+            "support": 55.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            34,
+            0,
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            20,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.02857142857142857,
+        "no_error_support": 35
+      },
+      "ml-M07-fault-14-8b81742e51f35d698a510a9ee76cda3e-bef04053": {
+        "accuracy": 1.0,
+        "macro_f1": 0.4,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 29.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 20.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.4,
+            "recall": 0.4,
+            "f1-score": 0.4,
+            "support": 49.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 49.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            29,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            20,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 29
+      },
+      "ml-M10-fault-01-b8d03de2caef50e5ab9d0da4445db8f2-f443a4f7": {
+        "accuracy": 0.9696969696969697,
+        "macro_f1": 0.386031746031746,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.9565217391304348,
+            "f1-score": 0.9777777777777777,
+            "support": 46.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.9090909090909091,
+            "recall": 1.0,
+            "f1-score": 0.9523809523809523,
+            "support": 20.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.9696969696969697,
+          "macro avg": {
+            "precision": 0.38181818181818183,
+            "recall": 0.391304347826087,
+            "f1-score": 0.386031746031746,
+            "support": 66.0
+          },
+          "weighted avg": {
+            "precision": 0.9724517906336089,
+            "recall": 0.9696969696969697,
+            "f1-score": 0.9700817700817701,
+            "support": 66.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            44,
+            0,
+            0,
+            2,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            20,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.043478260869565216,
+        "no_error_support": 46
+      },
+      "ml-M10-fault-02-719fe64ef99557869783e71c466ed896-64f74888": {
+        "accuracy": 0.9791666666666666,
+        "macro_f1": 0.39148558758314855,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.9642857142857143,
+            "f1-score": 0.9818181818181818,
+            "support": 28.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.9523809523809523,
+            "recall": 1.0,
+            "f1-score": 0.975609756097561,
+            "support": 20.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.9791666666666666,
+          "macro avg": {
+            "precision": 0.3904761904761905,
+            "recall": 0.3928571428571429,
+            "f1-score": 0.39148558758314855,
+            "support": 48.0
+          },
+          "weighted avg": {
+            "precision": 0.9801587301587302,
+            "recall": 0.9791666666666666,
+            "f1-score": 0.979231337767923,
+            "support": 48.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            27,
+            0,
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            20,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.03571428571428571,
+        "no_error_support": 28
+      },
+      "ml-M10-fault-03-2d5f2ad73bda5cc6a8bb134b8022cbbd-6abc3f3c": {
+        "accuracy": 0.9838709677419355,
+        "macro_f1": 0.39271231266529527,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.9761904761904762,
+            "f1-score": 0.9879518072289156,
+            "support": 42.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.9523809523809523,
+            "recall": 1.0,
+            "f1-score": 0.975609756097561,
+            "support": 20.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.9838709677419355,
+          "macro avg": {
+            "precision": 0.3904761904761905,
+            "recall": 0.3952380952380953,
+            "f1-score": 0.39271231266529527,
+            "support": 62.0
+          },
+          "weighted avg": {
+            "precision": 0.9846390168970814,
+            "recall": 0.9838709677419355,
+            "f1-score": 0.9839705004123497,
+            "support": 62.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            41,
+            0,
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            20,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.023809523809523808,
+        "no_error_support": 42
+      },
+      "ml-M10-fault-04-2629c15622005284804d10a9d7c1c268-bc93efba": {
+        "accuracy": 1.0,
+        "macro_f1": 0.4,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 31.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 20.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.4,
+            "recall": 0.4,
+            "f1-score": 0.4,
+            "support": 51.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 51.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            31,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            20,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 31
+      },
+      "ml-M10-fault-05-32ab15268cae5803934462e10aa3c9fc-1b4f8301": {
+        "accuracy": 1.0,
+        "macro_f1": 0.4,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 46.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 20.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.4,
+            "recall": 0.4,
+            "f1-score": 0.4,
+            "support": 66.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 66.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            46,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            20,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 46
+      },
+      "ml-M10-fault-07-19f7eed876695feda15bd025071704b1-b7e8376a": {
+        "accuracy": 1.0,
+        "macro_f1": 0.4,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 35.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 20.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.4,
+            "recall": 0.4,
+            "f1-score": 0.4,
+            "support": 55.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 55.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            35,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            20,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 35
+      },
+      "ml-M10-fault-10-7cbab59008855ccb96118f30dae5fd0c-c78ea2f1": {
+        "accuracy": 1.0,
+        "macro_f1": 0.4,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 35.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 20.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.4,
+            "recall": 0.4,
+            "f1-score": 0.4,
+            "support": 55.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 55.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            35,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            20,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 35
+      },
+      "ml-M10-fault-14-da612e1318d254399e2ddc81a93c2014-aac46f0b": {
+        "accuracy": 1.0,
+        "macro_f1": 0.4,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 25.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 20.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.4,
+            "recall": 0.4,
+            "f1-score": 0.4,
+            "support": 45.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 45.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            25,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            20,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 25
+      },
+      "ml-M10-fault-15-aad7332a8850561b8f845357240a72bf-34e2a0ab": {
+        "accuracy": 0.9846153846153847,
+        "macro_f1": 0.3928747602082762,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.9777777777777777,
+            "f1-score": 0.9887640449438202,
+            "support": 45.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.9523809523809523,
+            "recall": 1.0,
+            "f1-score": 0.975609756097561,
+            "support": 20.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.9846153846153847,
+          "macro avg": {
+            "precision": 0.3904761904761905,
+            "recall": 0.39555555555555555,
+            "f1-score": 0.3928747602082762,
+            "support": 65.0
+          },
+          "weighted avg": {
+            "precision": 0.9853479853479854,
+            "recall": 0.9846153846153847,
+            "f1-score": 0.9847165714526636,
+            "support": 65.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            44,
+            0,
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            20,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.022222222222222223,
+        "no_error_support": 45
+      },
+      "ml-M12-fault-02-bb660dd18f8f58929edbc486430fec40-1360dfd3": {
+        "accuracy": 0.9833333333333333,
+        "macro_f1": 0.39259030564989195,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.975,
+            "f1-score": 0.9873417721518988,
+            "support": 40.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.9523809523809523,
+            "recall": 1.0,
+            "f1-score": 0.975609756097561,
+            "support": 20.0
+          },
+          "accuracy": 0.9833333333333333,
+          "macro avg": {
+            "precision": 0.3904761904761905,
+            "recall": 0.395,
+            "f1-score": 0.39259030564989195,
+            "support": 60.0
+          },
+          "weighted avg": {
+            "precision": 0.9841269841269842,
+            "recall": 0.9833333333333333,
+            "f1-score": 0.9834311001337862,
+            "support": 60.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            39,
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            20
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.025,
+        "no_error_support": 40
+      },
+      "ml-M12-fault-05-c86f4e54cab15e8ab67fb6e0a28abbd4-ca2c9be9": {
+        "accuracy": 0.9672131147540983,
+        "macro_f1": 0.3854761904761904,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.9512195121951219,
+            "f1-score": 0.975,
+            "support": 41.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.9090909090909091,
+            "recall": 1.0,
+            "f1-score": 0.9523809523809523,
+            "support": 20.0
+          },
+          "accuracy": 0.9672131147540983,
+          "macro avg": {
+            "precision": 0.38181818181818183,
+            "recall": 0.3902439024390244,
+            "f1-score": 0.3854761904761904,
+            "support": 61.0
+          },
+          "weighted avg": {
+            "precision": 0.970193740685544,
+            "recall": 0.9672131147540983,
+            "f1-score": 0.967583918813427,
+            "support": 61.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            39,
+            0,
+            0,
+            0,
+            2
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            20
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.04878048780487805,
+        "no_error_support": 41
+      },
+      "ml-M12-fault-06-4a09bbea777a559084706565aa527149-a68e1824": {
+        "accuracy": 1.0,
+        "macro_f1": 0.4,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 26.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 20.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.4,
+            "recall": 0.4,
+            "f1-score": 0.4,
+            "support": 46.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 46.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            26,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            20
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 26
+      },
+      "ml-M12-fault-07-24375708466b5a8e9bead833283c1942-351a8e90": {
+        "accuracy": 1.0,
+        "macro_f1": 0.4,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 30.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 20.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.4,
+            "recall": 0.4,
+            "f1-score": 0.4,
+            "support": 50.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 50.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            30,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            20
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 30
+      },
+      "ml-M12-fault-08-b0336c4d1f125337bbf3f9424e857e1c-1c5c8027": {
+        "accuracy": 1.0,
+        "macro_f1": 0.4,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 31.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 20.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.4,
+            "recall": 0.4,
+            "f1-score": 0.4,
+            "support": 51.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 51.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            31,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            20
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 31
+      },
+      "ml-M12-fault-09-5809a961957e5985bcb1c3b3d42cbae0-4661b46d": {
+        "accuracy": 0.9649122807017544,
+        "macro_f1": 0.3849206349206349,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.9459459459459459,
+            "f1-score": 0.9722222222222222,
+            "support": 37.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.9090909090909091,
+            "recall": 1.0,
+            "f1-score": 0.9523809523809523,
+            "support": 20.0
+          },
+          "accuracy": 0.9649122807017544,
+          "macro avg": {
+            "precision": 0.38181818181818183,
+            "recall": 0.3891891891891892,
+            "f1-score": 0.3849206349206349,
+            "support": 57.0
+          },
+          "weighted avg": {
+            "precision": 0.9681020733652312,
+            "recall": 0.9649122807017544,
+            "f1-score": 0.9652603731551099,
+            "support": 57.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            35,
+            0,
+            0,
+            0,
+            2
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            20
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.05405405405405406,
+        "no_error_support": 37
+      },
+      "ml-M12-fault-11-5dadf663b14f5f7eb6a6e4c81274df59-4fbe269b": {
+        "accuracy": 1.0,
+        "macro_f1": 0.4,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 27.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 20.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.4,
+            "recall": 0.4,
+            "f1-score": 0.4,
+            "support": 47.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 47.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            27,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            20
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 27
+      },
+      "ml-M12-fault-13-3b7a9f6f53fd5ab586c9a9a6bd486243-5988f9dc": {
+        "accuracy": 1.0,
+        "macro_f1": 0.4,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 35.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 20.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.4,
+            "recall": 0.4,
+            "f1-score": 0.4,
+            "support": 55.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 55.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            35,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            20
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 35
+      },
+      "ml-M12-fault-15-8fa2c681407a5ffa861f257f696a161c-d6e0b95c": {
+        "accuracy": 0.9836065573770492,
+        "macro_f1": 0.39265281541704306,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.975609756097561,
+            "f1-score": 0.9876543209876543,
+            "support": 41.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.9523809523809523,
+            "recall": 1.0,
+            "f1-score": 0.975609756097561,
+            "support": 20.0
+          },
+          "accuracy": 0.9836065573770492,
+          "macro avg": {
+            "precision": 0.3904761904761905,
+            "recall": 0.3951219512195122,
+            "f1-score": 0.39265281541704306,
+            "support": 61.0
+          },
+          "weighted avg": {
+            "precision": 0.9843871975019517,
+            "recall": 0.9836065573770492,
+            "f1-score": 0.9837052833187713,
+            "support": 61.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            40,
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            20
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.024390243902439025,
+        "no_error_support": 41
+      }
+    }
+  },
+  "validation": {
+    "accuracy": 0.940625,
+    "macro_f1": 0.931836849877117,
+    "classification_report": {
+      "NO_ERROR": {
+        "precision": 0.983957219251337,
+        "recall": 0.92,
+        "f1-score": 0.9509043927648578,
+        "support": 400.0
+      },
+      "BTT2-M02": {
+        "precision": 0.9354838709677419,
+        "recall": 0.9666666666666667,
+        "f1-score": 0.9508196721311475,
+        "support": 60.0
+      },
+      "BTT2-M07": {
+        "precision": 1.0,
+        "recall": 0.9333333333333333,
+        "f1-score": 0.9655172413793104,
+        "support": 60.0
+      },
+      "BTT2-M10": {
+        "precision": 0.8450704225352113,
+        "recall": 1.0,
+        "f1-score": 0.916030534351145,
+        "support": 60.0
+      },
+      "BTT2-M12": {
+        "precision": 0.7792207792207793,
+        "recall": 1.0,
+        "f1-score": 0.8759124087591241,
+        "support": 60.0
+      },
+      "accuracy": 0.940625,
+      "macro avg": {
+        "precision": 0.9087464583950139,
+        "recall": 0.9640000000000001,
+        "f1-score": 0.931836849877117,
+        "support": 640.0
+      },
+      "weighted avg": {
+        "precision": 0.9487021750999356,
+        "recall": 0.940625,
+        "f1-score": 0.9419664820362292,
+        "support": 640.0
+      }
+    },
+    "confusion_matrix": [
+      [
+        368,
+        4,
+        0,
+        11,
+        17
+      ],
+      [
+        2,
+        58,
+        0,
+        0,
+        0
+      ],
+      [
+        4,
+        0,
+        56,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        60,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        60
+      ]
+    ],
+    "confusion_matrix_labels": [
+      "NO_ERROR",
+      "BTT2-M02",
+      "BTT2-M07",
+      "BTT2-M10",
+      "BTT2-M12"
+    ],
+    "no_error_false_alarm_rate": 0.08,
+    "no_error_support": 400,
+    "per_run": {
+      "ml-M02-fault-06-b50c3616c0c855b793d04308ee153b33-4de55e3d": {
+        "accuracy": 0.9523809523809523,
+        "macro_f1": 0.3807780320366133,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 0.9166666666666666,
+            "recall": 1.0,
+            "f1-score": 0.9565217391304348,
+            "support": 22.0
+          },
+          "BTT2-M02": {
+            "precision": 1.0,
+            "recall": 0.9,
+            "f1-score": 0.9473684210526315,
+            "support": 20.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.9523809523809523,
+          "macro avg": {
+            "precision": 0.3833333333333333,
+            "recall": 0.38,
+            "f1-score": 0.3807780320366133,
+            "support": 42.0
+          },
+          "weighted avg": {
+            "precision": 0.9563492063492063,
+            "recall": 0.9523809523809523,
+            "f1-score": 0.9521630162362427,
+            "support": 42.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            22,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            2,
+            18,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 22
+      },
+      "ml-M02-fault-08-996b255949b65ec4b324c258c091e103-e705df72": {
+        "accuracy": 0.9824561403508771,
+        "macro_f1": 0.3923822251921149,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.972972972972973,
+            "f1-score": 0.9863013698630136,
+            "support": 37.0
+          },
+          "BTT2-M02": {
+            "precision": 0.9523809523809523,
+            "recall": 1.0,
+            "f1-score": 0.975609756097561,
+            "support": 20.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.9824561403508771,
+          "macro avg": {
+            "precision": 0.3904761904761905,
+            "recall": 0.3945945945945946,
+            "f1-score": 0.3923822251921149,
+            "support": 57.0
+          },
+          "weighted avg": {
+            "precision": 0.9832915622389308,
+            "recall": 0.9824561403508771,
+            "f1-score": 0.9825499264365392,
+            "support": 57.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            36,
+            1,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            20,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.02702702702702703,
+        "no_error_support": 37
+      },
+      "ml-M02-fault-15-1bf68400230d5cd2a7f00e34c642a66b-005a71bc": {
+        "accuracy": 0.9444444444444444,
+        "macro_f1": 0.3768157423971378,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.9117647058823529,
+            "f1-score": 0.9538461538461539,
+            "support": 34.0
+          },
+          "BTT2-M02": {
+            "precision": 0.8695652173913043,
+            "recall": 1.0,
+            "f1-score": 0.9302325581395349,
+            "support": 20.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.9444444444444444,
+          "macro avg": {
+            "precision": 0.3739130434782608,
+            "recall": 0.38235294117647056,
+            "f1-score": 0.3768157423971378,
+            "support": 54.0
+          },
+          "weighted avg": {
+            "precision": 0.9516908212560387,
+            "recall": 0.9444444444444444,
+            "f1-score": 0.9451003776585173,
+            "support": 54.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            31,
+            3,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            20,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.08823529411764706,
+        "no_error_support": 34
+      },
+      "ml-M07-fault-03-301dda1d0db45ba88a02cac061dfab29-c9cc0533": {
+        "accuracy": 0.9090909090909091,
+        "macro_f1": 0.3623931623931624,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 0.8571428571428571,
+            "recall": 1.0,
+            "f1-score": 0.9230769230769231,
+            "support": 24.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 1.0,
+            "recall": 0.8,
+            "f1-score": 0.8888888888888888,
+            "support": 20.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.9090909090909091,
+          "macro avg": {
+            "precision": 0.37142857142857144,
+            "recall": 0.36,
+            "f1-score": 0.3623931623931624,
+            "support": 44.0
+          },
+          "weighted avg": {
+            "precision": 0.922077922077922,
+            "recall": 0.9090909090909091,
+            "f1-score": 0.9075369075369075,
+            "support": 44.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            24,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            4,
+            0,
+            16,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 24
+      },
+      "ml-M07-fault-09-6fd6bc2a0cb85bf6b2455894746ae505-04e88cb0": {
+        "accuracy": 1.0,
+        "macro_f1": 0.4,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 28.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 20.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.4,
+            "recall": 0.4,
+            "f1-score": 0.4,
+            "support": 48.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 48.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            28,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            20,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 28
+      },
+      "ml-M07-fault-11-da22e04191b952b7a1aebe695cc39a84-f7048be6": {
+        "accuracy": 1.0,
+        "macro_f1": 0.4,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 36.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 20.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.4,
+            "recall": 0.4,
+            "f1-score": 0.4,
+            "support": 56.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 56.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            36,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            20,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 36
+      },
+      "ml-M10-fault-08-33826c80653b5b5e87f28049b3dda071-36a8c5de": {
+        "accuracy": 0.9473684210526315,
+        "macro_f1": 0.37759580740255483,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.918918918918919,
+            "f1-score": 0.9577464788732394,
+            "support": 37.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.8695652173913043,
+            "recall": 1.0,
+            "f1-score": 0.9302325581395349,
+            "support": 20.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.9473684210526315,
+          "macro avg": {
+            "precision": 0.3739130434782608,
+            "recall": 0.38378378378378375,
+            "f1-score": 0.37759580740255483,
+            "support": 57.0
+          },
+          "weighted avg": {
+            "precision": 0.954233409610984,
+            "recall": 0.9473684210526315,
+            "f1-score": 0.9480924715982554,
+            "support": 57.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            34,
+            0,
+            0,
+            3,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            20,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.08108108108108109,
+        "no_error_support": 37
+      },
+      "ml-M10-fault-09-ecebfba72e2552b584e04d9d31e401bf-c9c8525f": {
+        "accuracy": 0.8666666666666667,
+        "macro_f1": 0.34444444444444444,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.8,
+            "f1-score": 0.8888888888888888,
+            "support": 40.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.7142857142857143,
+            "recall": 1.0,
+            "f1-score": 0.8333333333333334,
+            "support": 20.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.8666666666666667,
+          "macro avg": {
+            "precision": 0.34285714285714286,
+            "recall": 0.36,
+            "f1-score": 0.34444444444444444,
+            "support": 60.0
+          },
+          "weighted avg": {
+            "precision": 0.9047619047619048,
+            "recall": 0.8666666666666667,
+            "f1-score": 0.8703703703703705,
+            "support": 60.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            32,
+            0,
+            0,
+            8,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            20,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.2,
+        "no_error_support": 40
+      },
+      "ml-M10-fault-12-e45f1540c5305ce88338a3e170b8ba14-ee3c5bca": {
+        "accuracy": 1.0,
+        "macro_f1": 0.4,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 33.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 20.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.4,
+            "recall": 0.4,
+            "f1-score": 0.4,
+            "support": 53.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 53.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            33,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            20,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 33
+      },
+      "ml-M12-fault-01-b370e9d1be7e5ba39061b6e587c85a51-a00cf0d0": {
+        "accuracy": 0.9795918367346939,
+        "macro_f1": 0.39161317928968764,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.9655172413793104,
+            "f1-score": 0.9824561403508771,
+            "support": 29.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.9523809523809523,
+            "recall": 1.0,
+            "f1-score": 0.975609756097561,
+            "support": 20.0
+          },
+          "accuracy": 0.9795918367346939,
+          "macro avg": {
+            "precision": 0.3904761904761905,
+            "recall": 0.3931034482758621,
+            "f1-score": 0.39161317928968764,
+            "support": 49.0
+          },
+          "weighted avg": {
+            "precision": 0.9805636540330419,
+            "recall": 0.9795918367346939,
+            "f1-score": 0.9796616977985033,
+            "support": 49.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            28,
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            20
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.034482758620689655,
+        "no_error_support": 29
+      },
+      "ml-M12-fault-10-ed3b66c8cdf051b79be8328f697566ba-f38d4d2d": {
+        "accuracy": 0.9122807017543859,
+        "macro_f1": 0.3632850241545894,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.8648648648648649,
+            "f1-score": 0.927536231884058,
+            "support": 37.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.8,
+            "recall": 1.0,
+            "f1-score": 0.8888888888888888,
+            "support": 20.0
+          },
+          "accuracy": 0.9122807017543859,
+          "macro avg": {
+            "precision": 0.36,
+            "recall": 0.372972972972973,
+            "f1-score": 0.3632850241545894,
+            "support": 57.0
+          },
+          "weighted avg": {
+            "precision": 0.9298245614035088,
+            "recall": 0.9122807017543859,
+            "f1-score": 0.9139757606576829,
+            "support": 57.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            32,
+            0,
+            0,
+            0,
+            5
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            20
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.13513513513513514,
+        "no_error_support": 37
+      },
+      "ml-M12-fault-14-cfcc71ed7be059b590cd5bc6652aeec0-03ba27f9": {
+        "accuracy": 0.8253968253968254,
+        "macro_f1": 0.3275294117647059,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.7441860465116279,
+            "f1-score": 0.8533333333333334,
+            "support": 43.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.6451612903225806,
+            "recall": 1.0,
+            "f1-score": 0.7843137254901961,
+            "support": 20.0
+          },
+          "accuracy": 0.8253968253968254,
+          "macro avg": {
+            "precision": 0.3290322580645161,
+            "recall": 0.3488372093023256,
+            "f1-score": 0.3275294117647059,
+            "support": 63.0
+          },
+          "weighted avg": {
+            "precision": 0.8873527905785971,
+            "recall": 0.8253968253968254,
+            "f1-score": 0.8314223467164644,
+            "support": 63.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            32,
+            0,
+            0,
+            0,
+            11
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            20
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.2558139534883721,
+        "no_error_support": 43
+      }
+    }
+  },
+  "test": {
+    "accuracy": 0.9029411764705882,
+    "macro_f1": 0.8872560650548221,
+    "classification_report": {
+      "NO_ERROR": {
+        "precision": 0.9947229551451188,
+        "recall": 0.854875283446712,
+        "f1-score": 0.9195121951219513,
+        "support": 441.0
+      },
+      "BTT2-M02": {
+        "precision": 0.7792207792207793,
+        "recall": 1.0,
+        "f1-score": 0.8759124087591241,
+        "support": 60.0
+      },
+      "BTT2-M07": {
+        "precision": 0.7142857142857143,
+        "recall": 1.0,
+        "f1-score": 0.8333333333333334,
+        "support": 60.0
+      },
+      "BTT2-M10": {
+        "precision": 0.8108108108108109,
+        "recall": 1.0,
+        "f1-score": 0.8955223880597015,
+        "support": 60.0
+      },
+      "BTT2-M12": {
+        "precision": 0.8636363636363636,
+        "recall": 0.9661016949152542,
+        "f1-score": 0.912,
+        "support": 59.0
+      },
+      "accuracy": 0.9029411764705882,
+      "macro avg": {
+        "precision": 0.8325353246197574,
+        "recall": 0.9641953956723933,
+        "f1-score": 0.8872560650548221,
+        "support": 680.0
+      },
+      "weighted avg": {
+        "precision": 0.9233623631361487,
+        "recall": 0.9029411764705882,
+        "f1-score": 0.9052925968498676,
+        "support": 680.0
+      }
+    },
+    "confusion_matrix": [
+      [
+        377,
+        17,
+        24,
+        14,
+        9
+      ],
+      [
+        0,
+        60,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        60,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        60,
+        0
+      ],
+      [
+        2,
+        0,
+        0,
+        0,
+        57
+      ]
+    ],
+    "confusion_matrix_labels": [
+      "NO_ERROR",
+      "BTT2-M02",
+      "BTT2-M07",
+      "BTT2-M10",
+      "BTT2-M12"
+    ],
+    "no_error_false_alarm_rate": 0.14512471655328799,
+    "no_error_support": 441,
+    "per_run": {
+      "ml-M02-fault-04-05e0765eb68a505bb1ffbb44f45636ce-011d1f5f": {
+        "accuracy": 0.8813559322033898,
+        "macro_f1": 0.3504944560982919,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.8205128205128205,
+            "f1-score": 0.9014084507042254,
+            "support": 39.0
+          },
+          "BTT2-M02": {
+            "precision": 0.7407407407407407,
+            "recall": 1.0,
+            "f1-score": 0.851063829787234,
+            "support": 20.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.8813559322033898,
+          "macro avg": {
+            "precision": 0.34814814814814815,
+            "recall": 0.3641025641025641,
+            "f1-score": 0.3504944560982919,
+            "support": 59.0
+          },
+          "weighted avg": {
+            "precision": 0.9121155053358442,
+            "recall": 0.8813559322033898,
+            "f1-score": 0.884342477512025,
+            "support": 59.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            32,
+            7,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            20,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.1794871794871795,
+        "no_error_support": 39
+      },
+      "ml-M02-fault-11-86ca65a39c3f56d5a9bae48824476ff1-41bd9bc6": {
+        "accuracy": 0.8928571428571429,
+        "macro_f1": 0.3557312252964427,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.8333333333333334,
+            "f1-score": 0.9090909090909091,
+            "support": 36.0
+          },
+          "BTT2-M02": {
+            "precision": 0.7692307692307693,
+            "recall": 1.0,
+            "f1-score": 0.8695652173913043,
+            "support": 20.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.8928571428571429,
+          "macro avg": {
+            "precision": 0.3538461538461538,
+            "recall": 0.3666666666666667,
+            "f1-score": 0.3557312252964427,
+            "support": 56.0
+          },
+          "weighted avg": {
+            "precision": 0.9175824175824177,
+            "recall": 0.8928571428571429,
+            "f1-score": 0.8949745906267645,
+            "support": 56.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            30,
+            6,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            20,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.16666666666666666,
+        "no_error_support": 36
+      },
+      "ml-M02-fault-12-d39d8e5a572c50748eaf58ea2565a58f-d87d1490": {
+        "accuracy": 0.9259259259259259,
+        "macro_f1": 0.3693181818181818,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.8823529411764706,
+            "f1-score": 0.9375,
+            "support": 34.0
+          },
+          "BTT2-M02": {
+            "precision": 0.8333333333333334,
+            "recall": 1.0,
+            "f1-score": 0.9090909090909091,
+            "support": 20.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.9259259259259259,
+          "macro avg": {
+            "precision": 0.3666666666666667,
+            "recall": 0.3764705882352941,
+            "f1-score": 0.3693181818181818,
+            "support": 54.0
+          },
+          "weighted avg": {
+            "precision": 0.9382716049382717,
+            "recall": 0.9259259259259259,
+            "f1-score": 0.9269781144781144,
+            "support": 54.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            30,
+            4,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            20,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.11764705882352941,
+        "no_error_support": 34
+      },
+      "ml-M07-fault-01-2fbdddb8fcbb5df59debe84c4d58d5f7-36b9f1b5": {
+        "accuracy": 0.8909090909090909,
+        "macro_f1": 0.35516304347826083,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.8285714285714286,
+            "f1-score": 0.90625,
+            "support": 35.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.7692307692307693,
+            "recall": 1.0,
+            "f1-score": 0.8695652173913043,
+            "support": 20.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.8909090909090909,
+          "macro avg": {
+            "precision": 0.3538461538461538,
+            "recall": 0.36571428571428577,
+            "f1-score": 0.35516304347826083,
+            "support": 55.0
+          },
+          "weighted avg": {
+            "precision": 0.9160839160839161,
+            "recall": 0.8909090909090909,
+            "f1-score": 0.8929100790513834,
+            "support": 55.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            29,
+            0,
+            6,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            20,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.17142857142857143,
+        "no_error_support": 35
+      },
+      "ml-M07-fault-08-76cc9d036fa754d281852b40710acd0b-0df6b16a": {
+        "accuracy": 0.7241379310344828,
+        "macro_f1": 0.2895238095238095,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.5789473684210527,
+            "f1-score": 0.7333333333333333,
+            "support": 38.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.5555555555555556,
+            "recall": 1.0,
+            "f1-score": 0.7142857142857143,
+            "support": 20.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.7241379310344828,
+          "macro avg": {
+            "precision": 0.3111111111111111,
+            "recall": 0.3157894736842105,
+            "f1-score": 0.2895238095238095,
+            "support": 58.0
+          },
+          "weighted avg": {
+            "precision": 0.8467432950191571,
+            "recall": 0.7241379310344828,
+            "f1-score": 0.7267651888341543,
+            "support": 58.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            22,
+            0,
+            16,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            20,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.42105263157894735,
+        "no_error_support": 38
+      },
+      "ml-M07-fault-15-71bc4a938ba359e595eca9a279d6d162-8e92ac7b": {
+        "accuracy": 0.9583333333333334,
+        "macro_f1": 0.38306878306878306,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.9285714285714286,
+            "f1-score": 0.9629629629629629,
+            "support": 28.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.9090909090909091,
+            "recall": 1.0,
+            "f1-score": 0.9523809523809523,
+            "support": 20.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.9583333333333334,
+          "macro avg": {
+            "precision": 0.38181818181818183,
+            "recall": 0.38571428571428573,
+            "f1-score": 0.38306878306878306,
+            "support": 48.0
+          },
+          "weighted avg": {
+            "precision": 0.962121212121212,
+            "recall": 0.9583333333333334,
+            "f1-score": 0.9585537918871253,
+            "support": 48.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            26,
+            0,
+            2,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            20,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.07142857142857142,
+        "no_error_support": 28
+      },
+      "ml-M10-fault-06-5ea80c041a2e5a458752014464652271-c26b5e67": {
+        "accuracy": 0.9298245614035088,
+        "macro_f1": 0.3703896103896104,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.8918918918918919,
+            "f1-score": 0.9428571428571428,
+            "support": 37.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.8333333333333334,
+            "recall": 1.0,
+            "f1-score": 0.9090909090909091,
+            "support": 20.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.9298245614035088,
+          "macro avg": {
+            "precision": 0.3666666666666667,
+            "recall": 0.3783783783783784,
+            "f1-score": 0.3703896103896104,
+            "support": 57.0
+          },
+          "weighted avg": {
+            "precision": 0.9415204678362574,
+            "recall": 0.9298245614035088,
+            "f1-score": 0.9310093415356573,
+            "support": 57.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            33,
+            0,
+            0,
+            4,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            20,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.10810810810810811,
+        "no_error_support": 37
+      },
+      "ml-M10-fault-11-b701b2b76286557499f477ae4e6ebd03-d0215736": {
+        "accuracy": 0.90625,
+        "macro_f1": 0.35927889713679745,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.8636363636363636,
+            "f1-score": 0.926829268292683,
+            "support": 44.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.7692307692307693,
+            "recall": 1.0,
+            "f1-score": 0.8695652173913043,
+            "support": 20.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.90625,
+          "macro avg": {
+            "precision": 0.3538461538461538,
+            "recall": 0.37272727272727274,
+            "f1-score": 0.35927889713679745,
+            "support": 64.0
+          },
+          "weighted avg": {
+            "precision": 0.9278846153846154,
+            "recall": 0.90625,
+            "f1-score": 0.9089342523860021,
+            "support": 64.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            38,
+            0,
+            0,
+            6,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            20,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.13636363636363635,
+        "no_error_support": 44
+      },
+      "ml-M10-fault-13-8f2db623458a5fd894cbf24a31f8707a-86c2b323": {
+        "accuracy": 0.9436619718309859,
+        "macro_f1": 0.3736549165120594,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.9215686274509803,
+            "f1-score": 0.9591836734693877,
+            "support": 51.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.8333333333333334,
+            "recall": 1.0,
+            "f1-score": 0.9090909090909091,
+            "support": 20.0
+          },
+          "BTT2-M12": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.9436619718309859,
+          "macro avg": {
+            "precision": 0.3666666666666667,
+            "recall": 0.38431372549019605,
+            "f1-score": 0.3736549165120594,
+            "support": 71.0
+          },
+          "weighted avg": {
+            "precision": 0.9530516431924884,
+            "recall": 0.9436619718309859,
+            "f1-score": 0.9450730356162951,
+            "support": 71.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            47,
+            0,
+            0,
+            4,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            20,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0784313725490196,
+        "no_error_support": 51
+      },
+      "ml-M12-fault-03-1a357abe3f9b52d1a36a49bebc60e65a-99f8c870": {
+        "accuracy": 0.9583333333333334,
+        "macro_f1": 0.38257713248638836,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 0.9333333333333333,
+            "recall": 1.0,
+            "f1-score": 0.9655172413793104,
+            "support": 28.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 1.0,
+            "recall": 0.9,
+            "f1-score": 0.9473684210526315,
+            "support": 20.0
+          },
+          "accuracy": 0.9583333333333334,
+          "macro avg": {
+            "precision": 0.38666666666666666,
+            "recall": 0.38,
+            "f1-score": 0.38257713248638836,
+            "support": 48.0
+          },
+          "weighted avg": {
+            "precision": 0.9611111111111111,
+            "recall": 0.9583333333333334,
+            "f1-score": 0.9579552329098608,
+            "support": 48.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            28,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            2,
+            0,
+            0,
+            0,
+            18
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0,
+        "no_error_support": 28
+      },
+      "ml-M12-fault-04-d8aea06c73b55625a63590c72a33191e-59575eb3": {
+        "accuracy": 0.94,
+        "macro_f1": 0.37519636213311286,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.9032258064516129,
+            "f1-score": 0.9491525423728814,
+            "support": 31.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.8636363636363636,
+            "recall": 1.0,
+            "f1-score": 0.926829268292683,
+            "support": 19.0
+          },
+          "accuracy": 0.94,
+          "macro avg": {
+            "precision": 0.37272727272727274,
+            "recall": 0.3806451612903226,
+            "f1-score": 0.37519636213311286,
+            "support": 50.0
+          },
+          "weighted avg": {
+            "precision": 0.9481818181818181,
+            "recall": 0.94,
+            "f1-score": 0.940669698222406,
+            "support": 50.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            28,
+            0,
+            0,
+            0,
+            3
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            19
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.0967741935483871,
+        "no_error_support": 31
+      },
+      "ml-M12-fault-12-ccaf7c5ba33b529b9661828941367bfb-c4977bf4": {
+        "accuracy": 0.9,
+        "macro_f1": 0.35769682726204466,
+        "classification_report": {
+          "NO_ERROR": {
+            "precision": 1.0,
+            "recall": 0.85,
+            "f1-score": 0.918918918918919,
+            "support": 40.0
+          },
+          "BTT2-M02": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M07": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M10": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BTT2-M12": {
+            "precision": 0.7692307692307693,
+            "recall": 1.0,
+            "f1-score": 0.8695652173913043,
+            "support": 20.0
+          },
+          "accuracy": 0.9,
+          "macro avg": {
+            "precision": 0.3538461538461538,
+            "recall": 0.37,
+            "f1-score": 0.35769682726204466,
+            "support": 60.0
+          },
+          "weighted avg": {
+            "precision": 0.9230769230769231,
+            "recall": 0.9,
+            "f1-score": 0.9024676850763808,
+            "support": 60.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            34,
+            0,
+            0,
+            0,
+            6
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            20
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "NO_ERROR",
+          "BTT2-M02",
+          "BTT2-M07",
+          "BTT2-M10",
+          "BTT2-M12"
+        ],
+        "no_error_false_alarm_rate": 0.15,
+        "no_error_support": 40
+      }
+    }
+  },
+  "benchmark": {
+    "repeats": 200,
+    "machine": "arm64",
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "processor": "arm",
+    "python": "3.12.12 (main, Oct  9 2025, 11:07:00) [Clang 17.0.0 (clang-1700.3.19.1)]",
+    "feature": {
+      "mean_ms": 0.2424762153532356,
+      "p95_ms": 0.28421673923730845,
+      "max_ms": 0.48333313316106796
+    },
+    "predict_proba": {
+      "mean_ms": 3.6720742168836296,
+      "p95_ms": 3.8829520461149514,
+      "max_ms": 5.062709096819162
+    },
+    "full_inference": {
+      "mean_ms": 3.9025178889278322,
+      "p95_ms": 4.188440216239542,
+      "max_ms": 4.589166957885027
+    },
+    "observed_under_500ms": true,
+    "scope": "current development PC, sequential calls; no real-time scheduling guarantee"
+  },
+  "limitations": [
+    "Overlapping windows are correlated, not independent events; only 3 test runs per scenario.",
+    "Synthetic Unreal scenarios only, not demonstrated real factory performance.",
+    "No dedicated Warning-then-recovery-only runs.",
+    "Exact Error timestamps absent; Detector event logs required for exact lead-time evaluation.",
+    "Blank endpoint cannot identify Error onset; 6697/7212 blank reasons are supplied collection records only.",
+    "Uncalibrated model probabilities; threshold selected for validation Macro F1, not safety certification."
+  ]
+}

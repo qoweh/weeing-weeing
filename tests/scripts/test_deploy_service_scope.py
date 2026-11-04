@@ -23,6 +23,7 @@ def bash_path(path):
         ("api", "none"),
         ("api", "pull"),
         ("api", "up"),
+        ("api", "smoke"),
         ("web", "none"),
         ("web", "pull"),
         ("web", "up"),
@@ -67,6 +68,9 @@ def test_one_service_deploy_preserves_other_tags_and_rolls_back(
               touch "$CASE_DIR/first-up"
               exit 1
             fi ;;
+          'compose exec')
+            printf '%s\n' "$*" >> "$CASE_DIR/smoke-calls"
+            [ "$TEST_FAILURE" != smoke ] ;;
           'logout ghcr.io') : ;;
           *) exit 90 ;;
         esac
@@ -118,7 +122,7 @@ def test_one_service_deploy_preserves_other_tags_and_rolls_back(
     )
     operations = (tmp_path / "operations").read_text().splitlines()
     assert operations == [f"pull {service}"] + [f"up {service}"] * (
-        0 if failure == "pull" else 2 if failure in {"up", "tls"} else 1
+        0 if failure == "pull" else 2 if failure in {"up", "tls", "smoke"} else 1
     )
     if service == "web" and failure in {"none", "tls"}:
         assert len((tmp_path / "tls-calls").read_text().splitlines()) == (
@@ -126,3 +130,11 @@ def test_one_service_deploy_preserves_other_tags_and_rolls_back(
         )
     else:
         assert not (tmp_path / "tls-calls").exists()
+
+    smoke_calls = tmp_path / "smoke-calls"
+    if service == "api" and failure in {"none", "smoke"}:
+        assert smoke_calls.read_text().splitlines() == [
+            "compose exec -T api python scripts/check_ml_runtime.py"
+        ]
+    else:
+        assert not smoke_calls.exists()

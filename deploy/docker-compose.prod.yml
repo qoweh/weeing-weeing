@@ -45,6 +45,9 @@ services:
       VECTOR_STORE: qdrant
       QDRANT_URL: http://qdrant:6333
       TELEMETRY_AUTH_REQUIRED: "true"
+      ML_PREDICTION_ENABLED: "true"
+      ML_MODEL_PATH: /app/models/future_error.joblib
+      ML_PREDICTION_DIR: /app/outputs/ml_live
       # 승인된 상태·이벤트 연결. 클라이언트는 UNREAL_STATE를 명시해야 한다.
       TELEMETRY_UNREAL_CONTEXT_ENABLED: "true"
     volumes:

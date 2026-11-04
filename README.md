@@ -86,3 +86,11 @@ ops/           로컬·운영 서버 명령 모음 (local.sh, aws.sh)
 ## 팀
 
 임보영(팀장) · 길용현 · 김민우 · 안규현 · 이승민 · 홍동인
+
+## 미래 Error 예측 실험
+
+센서 최근 30초로 미래 60초 내 첫 Error를 예측하는 독립 RandomForest 실험은
+[ML 사용 설명서](docs/ML_FUTURE_ERROR.md)와 [평가 결과](docs/ML_FUTURE_ERROR_RESULTS.md)를 따른다.
+선택 의존성은 `uv sync --locked --no-install-project --group ml`로 설치한다.
+
+실시간 관찰 연결과 로그인 후 결과 확인은 [ML_LIVE](docs/ML_LIVE.md)를 참고하세요.

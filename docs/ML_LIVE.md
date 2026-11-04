@@ -1,0 +1,111 @@
+# 실시간 미래 Error 예측 관찰
+
+학습한 5클래스 모델을 기존 센서 수신과 병행 실행한다. ML 결과로 Detector 판정,
+Agent 실행, DB 사건, PLC 동작을 바꾸지 않는다. 학습·평가 정의는 [ML_FUTURE_ERROR](ML_FUTURE_ERROR.md)와 같다.
+지원 고장은 M02/M07/M10/M12 네 종류다. 나머지 고장은 학습하지 않았으며 NO_ERROR를
+'설비의 모든 종류 고장이 없다는 보장'으로 해석하면 안 된다.
+
+## 연결과 결과
+
+`TelemetrySession`에서 Detector와 기존 저장 처리가 끝난 유효 표본을 ML의 유한 큐에 전달한다.
+별도 스레드가 프로세스 시작 때 한 번 로드한 모델로 표본마다 추론한다.
+센서 수신의 ACK는 ML 추론 완료를 기다리지 않는다. ML 오류는 Detector 결과를 바꾸지 않는다.
+
+API 외부 주소는 `https://<EC2_IP>/api`다. 기존 웹 로그인 인증을 사용한다.
+Unreal 송신 전용 토큰으로는 결과를 조회하지 않는다.
+
+| 경로 | 내용 |
+|---|---|
+| `GET /ml/prediction` | 최신 결과와 모델 로드·연결·지연·처리 통계 |
+| `GET /ml/predictions?limit=50` | 현재 수신 세션의 최근 결과, 최대 200개 |
+| `GET /health` | 기존 서비스 상태와 `ml_prediction` 준비 여부. 활성 모델 로드 실패 시 503 |
+
+조회 API는 인증 필요, 읽기 전용, Cache-Control=no-store다. 조회로 재학습·추론·LLM 호출을 하지 않는다.
+`prediction_usable`이 true인 결과만 현재 미래 예측으로 표시한다.
+`prediction`에는 전체 5클래스 확률, NO_ERROR 확률, Error 합계 확률, 고장 Top 3,
+기준 시각, 모델 버전, 입력 품질, 추론 시간, 현재 Detector Error 코드가 있다.
+Top 3는 확률을 재정규화하지 않으며 보정하지 않은 모델 예측 확률이다.
+
+`stale=true`이면 마지막 결과를 현재 정상·현재 예측으로 표시하지 않는다.
+연결 종료 또는 해당 입력의 큐 도착 이후 3초 초과가 stale 기준이다. 전체 처리 지연이 500ms를 넘으면
+`deadline_exceeded=true`, `prediction_usable=false`다. 이는 서버 입력 도착 후 경과시간이며,
+센서 PC의 시계가 정확하다는 검증을 의미하지 않는다.
+이미 Detector Error가 있으면 `evaluation_eligible=false`, `prediction_usable=false`로 표시한다.
+이때 확률은 관찰 기록일 뿐 현재 Error 구간의 사전 예측 정확도로 집계하지 않는다.
+
+## 나만 확인하는 명령
+
+ML 작업 트리에서 설치 후 실행한다. 웹 계정의 사번·비밀번호는 터미널에서 입력한다.
+IDE에 열린 파일이 자동 문맥에 포함될 수 있으므로 비밀번호나 토큰을 편집기·채팅에 적지 않는다.
+
+```bash
+uv sync --locked --no-install-project --group ml
+uv run --no-sync python scripts/watch_ml.py
+# 한 번 조회 후 종료
+uv run --no-sync python scripts/watch_ml.py --once
+```
+
+TLS 검증은 유지하고 인증 헤더를 리다이렉트에 전달하지 않는다.
+0.5초마다 최신 결과를 읽으며 로그인·네트워크 오류에서는 중단한다. 종료 때 자신이 만든 세션만 로그아웃한다.
+모니터가 중간 결과를 놓쳐도 서버의 추론 입력을 샘플링하지는 않는다.
+브라우저에서 확인하려면 `/api/docs`의 로그인 API로 받은 세션으로 Authorize 후 ML 조회 API를 실행한다.
+토큰·로그인 응답은 공유하지 않는다.
+
+## 시간과 장애 처리
+
+- 수신 연결마다 독립 30초 버퍼를 만든다. 설비/실행을 이어 붙이지 않는다.
+- 연결 시작 후 30초 이력 전에는 `not_ready`, 확률은 null이다. 정상 0.5초 간격은 약 61개 표본이 필요하다.
+- 왼쪽 경계 이전/동일 표본 하나를 유지한다. 55~65개/관측 29.2초/최대 공백 0.8초 규칙은 학습과 동일하다.
+- 표본 중복·역순을 발견하면 해당 결과를 부적합 처리하고 버퍼를 초기화한다.
+- 누락된 센서, null 전류/온도, 공백 등은 공통 특징 함수가 부적합으로 반환한다. 정상 확률을 만들거나 보간하지 않는다.
+- 큐 최대 8개, 큐 초과 시 입력 손실을 기록하고 새 버퍼 세대로 초기화한다. 큐 대기 1초 초과 시 이력 초기화 후 부적합을 반환한다.
+- 이전 연결/버퍼 세대에서 늦게 끝난 추론은 현재 결과로 게시하지 않는다.
+- 추론 예외와 로그 쓰기 실패는 별도로 집계한다. Detector를 실패시키지 않는다.
+- 모델 파일이 없거나 해시 불일치면 `model_error`다. 신뢰 검증 전에 pickle을 로드하지 않는다.
+
+`outputs/ml_live/`에 예측 JSONL을 기록하며 실행별 파일은 10MiB를 넘으면 이전 파일 한 개로 회전한다.
+최근 최대 약 20MiB/실행만 보관되며 전체 사건 통계용 무한 저장소가 아니다. 파일명은 run_id 해시,
+각 행에는 원래 run_id·센서 record_id·기준 시각·확률·현재 Error 코드·처리 시간이 들어 있다.
+운영 outputs 볼륨에 보관되며 조회 API의 메모리 최근 결과는 재시작 때 비워진다.
+
+## 모델 아티팩트와 배포
+
+모델은 CSV와 분리해 private GitHub Release 아티팩트로 보관한다.
+`deploy/ml_model.json`에 release tag, 파일명, SHA-256, 모델 버전을 고정한다.
+빌드 직전 `scripts/fetch_ml_model.py`가 다운로드하고 SHA-256을 확인한다.
+API 이미지는 모델과 검증 manifest를 함께 포함하고 `ml` 의존성을 잠금 파일로 설치한다.
+원본 CSV나 로컬 학습 outputs를 빌드 컨텍스트에 복사하지 않는다.
+
+```bash
+# CI: gh의 기존 인증으로 private release 다운로드
+uv run --no-sync python scripts/fetch_ml_model.py
+# 로컬: 기존 모델을 해시 검증 후 빌드 위치에 복사
+uv run --no-sync python scripts/fetch_ml_model.py \
+  --local-model outputs/ml/future60-v1/model.joblib
+```
+
+운영 compose는 `ML_PREDICTION_ENABLED=true`, `ML_MODEL_PATH=/app/models/future_error.joblib`,
+`ML_PREDICTION_DIR=/app/outputs/ml_live`를 설정한다.
+`ML_MODEL_SHA256`을 지정하지 않으면 모델 옆 이미지 내 manifest.json의 고정 해시를 사용한다.
+이렇게 모델과 해시를 같은 이미지에서 가져와 이전 API 이미지로 롤백하면 둘 다 함께 복원된다.
+별도 모델을 연결하는 로컬 실험에서는 명시적인 `ML_MODEL_SHA256`을 지정할 수 있다.
+
+배포는 [DEPLOY](DEPLOY.md)의 API 전용 절차를 따른다. 로드 불가한 이미지는 health 503이므로
+API 교체 단계의 상태 검사에서 실패하고 이전 API 이미지로 복원된다.
+기존 frontend/web/DB/Qdrant 컨테이너와 데이터는 교체하지 않는다.
+실행 중인 Unreal 송신은 API 재시작 때 끊기므로 배포 뒤 재접속해야 한다.
+기능만 끄려면 운영 compose의 `ML_PREDICTION_ENABLED`를 false로 설정해 API를 재시작한다.
+비밀 .env를 출력하거나 예시 파일로 덮어쓰지 않는다.
+
+## 실시간 검증 순서
+
+1. API 배포 health 정상과 모델 로드를 확인한다.
+2. 기존 Unreal 송신을 연결하고 모니터에서 run_id와 not_ready 상태를 확인한다.
+3. 최소 30초 후 ready/유효 입력, 확률 5개와 합계 1, 추론 시간이 500ms 이내인지 확인한다.
+4. 학습한 네 고장 시나리오를 각각 실행하며 예측 변화와 Detector Error를 관찰한다.
+5. 송신 단절·재접속 시 stale/새 버퍼 초기화를 확인한다.
+6. 기록을 모아 유효한 미래 관측과 실제 Detector Error 이벤트를 연결한 후 성능을 평가한다.
+
+조회가 된다는 사실과 정확도 검증은 다르다. 정상 운전 시간당 오경고, 고장 사건별 사전 경고율,
+정확한 선행시간을 평가하려면 별도 이벤트 기록과 끝까지 관측된 미래 60초가 필요하다.
+이번 연결만으로 실시간 정답이나 현장 정확도를 자동 확정하지 않는다.

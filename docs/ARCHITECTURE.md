@@ -163,3 +163,13 @@ DB가 한 SQL에서 전체 등급별 건수와 제한된 최신 목록을 읽어
 프론트엔드는 검증된 텍스트를 최대 6초 동안 순차 표시한다. 모션 줄이기 설정에서는 즉시 표시한다.
 전송이 끊겨도 이미 시작한 실행·저장은 마치고, 클라이언트는 같은 요청 ID를 GET으로 확인한다.
 진행 표시·부분 전송은 메모리에서만 관리하고 DB에는 기존 최종 응답만 저장한다.
+
+## 독립 미래 Error ML 실험
+
+`src/weeing_weeing/ml/`은 30초 센서 이력으로 미래 60초 내 첫 Error를 예측하는
+독립 오프라인 실험 모듈이다. `ml.interface.FutureErrorPredictor`가 공개 추론 경계이며
+학습·평가 CLI는 `python -m weeing_weeing.ml.experiment`다.
+후속 실시간 관찰은 API가 ml.interface를 통해 연결한다. 기존 Detector 판정과 Agent·DB·Unreal 동작은 바꾸지 않는다.
+모듈은 다른 업무 모듈을 import하지 않는다. [실험 설명](ML_FUTURE_ERROR.md)을 따른다.
+
+실시간 추론의 유한 큐·인증 조회·모델 배포 경계는 [ML_LIVE](ML_LIVE.md)를 따른다.

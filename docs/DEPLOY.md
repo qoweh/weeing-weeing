@@ -283,3 +283,10 @@ scp 'ww-team:~/weeing-weeing/backup-*.sql' 'ww-team:~/weeing-weeing/files-*.tgz'
 | API가 healthy가 안 됨 | `docker compose logs api`. DB 비밀번호 불일치(처음 값과 다름)가 흔하다 |
 | 디스크 부족 | `docker system df`. 배포 때마다 쓰지 않는 이미지를 지운다(`prune -af`). 그래도 차면 볼륨 크기 확인 |
 | 메모리 부족(OOM) | `docker stats`. 로컬 임베딩 모델(약 1.5GB)을 뺐으므로 그 전보다 적게 쓴다. 필요하면 강사에게 16GB 요청 |
+
+## 미래 Error ML 관찰 기능
+
+API 빌드는 `deploy/ml_model.json`에 고정한 private Release 모델을 다운로드·해시 검증한 뒤
+이미지에 포함한다. 운영 compose에서 관찰 모드로 활성화하며 기존 Detector를 유지한다.
+모델 로드가 실패하면 health 503으로 API 배포 상태 검사가 실패한다.
+조회·모니터·모델 교체 및 검증 절차는 [ML_LIVE](ML_LIVE.md)를 따른다.

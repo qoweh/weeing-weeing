@@ -60,6 +60,8 @@ class TelemetrySession:
         self.failed = False
         self.processed_count = 0
         self.analysis_service = None
+        self.ml_service = None
+        self.ml_errors = {}
         self.run_started_at = None
         self.history = HistoryDetector(
             output,
@@ -164,6 +166,24 @@ class TelemetrySession:
         if self.context_preset == "UNREAL_STATE":
             response["rule_coverage"] = COVERAGE
         telemetry_live.live_state.publish(self.history.run_path.name, record, response)
+        if self.ml_service:
+            # 추론 실패는 Detector의 결과/응답을 바꾸지 않는다.
+            try:
+                for incident in changes:
+                    self.ml_errors.pop(incident.incident_id, None)
+                    if incident.severity == Severity.ERROR and incident.status not in (
+                        IncidentStatus.RECOVERED,
+                        IncidentStatus.CLOSED,
+                    ):
+                        self.ml_errors[incident.incident_id] = list(incident.codes)
+                codes = sorted(
+                    {code for values in self.ml_errors.values() for code in values}
+                )
+                self.ml_service.submit(
+                    self.history.run_path.name, record.model_dump(mode="json"), codes
+                )
+            except Exception as error:
+                logger.warning("ML dispatch failed type=%s", type(error).__name__)
         return response
 
     def receive(self, message):
@@ -249,6 +269,11 @@ async def telemetry_socket(websocket: WebSocket, context: str = "NONE"):
             "analysis_service",
             None,
         )
+        session.ml_service = getattr(
+            getattr(getattr(websocket, "app", None), "state", None), "ml_service", None
+        )
+        if session.ml_service:
+            session.ml_service.begin(session.history.run_path.name)
         telemetry_live.live_state.start(session.history.run_path.name, context)
         logger.info(
             "[센서 연결] run=%s context=%s",
@@ -339,4 +364,6 @@ async def telemetry_socket(websocket: WebSocket, context: str = "NONE"):
         finally:
             if session is not None:
                 telemetry_live.live_state.end(session.history.run_path.name)
+                if getattr(session, "ml_service", None):
+                    session.ml_service.end(session.history.run_path.name)
             _producer.release()

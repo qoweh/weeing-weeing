@@ -42,6 +42,11 @@ dev = [
     "pytest>=9.1.1",
     "ruff>=0.17.1",
 ]
+ml = [
+    "joblib>=1.6.0",
+    "numpy>=2.5.4",
+    "scikit-learn>=1.9.1",
+]
 
 [tool.ruff]
 line-length = 88

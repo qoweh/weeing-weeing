@@ -1,0 +1,1325 @@
+{
+  "train": {
+    "by_run": {
+      "ml-M02-fault-07-fa3ee189b1c65f61b19f5b655037a1e3-1ced0c64": {
+        "code": "BTT2-M02",
+        "rows": 568,
+        "raw_labels": {
+          "NO_ERROR": 197,
+          "BTT2-M02": 120,
+          "": 251
+        },
+        "candidates": 95,
+        "windows": 43,
+        "labels": {
+          "NO_ERROR": 23,
+          "BTT2-M02": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 41
+        }
+      },
+      "ml-M02-fault-03-7240a884ef1f5ca19a1597abb1bacb1e-935ff59f": {
+        "code": "BTT2-M02",
+        "rows": 570,
+        "raw_labels": {
+          "NO_ERROR": 223,
+          "BTT2-M02": 120,
+          "": 227
+        },
+        "candidates": 95,
+        "windows": 47,
+        "labels": {
+          "NO_ERROR": 27,
+          "BTT2-M02": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 37
+        }
+      },
+      "ml-M02-fault-02-65aac186ffa35173b81438faf6d49420-691c887c": {
+        "code": "BTT2-M02",
+        "rows": 639,
+        "raw_labels": {
+          "NO_ERROR": 275,
+          "BTT2-M02": 119,
+          "": 245
+        },
+        "candidates": 107,
+        "windows": 55,
+        "labels": {
+          "NO_ERROR": 35,
+          "BTT2-M02": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 41
+        }
+      },
+      "ml-M02-fault-14-a8fef5c307075e8780a993ebb3b06db5-bfaaabe4": {
+        "code": "BTT2-M02",
+        "rows": 614,
+        "raw_labels": {
+          "NO_ERROR": 252,
+          "BTT2-M02": 119,
+          "": 243
+        },
+        "candidates": 103,
+        "windows": 52,
+        "labels": {
+          "NO_ERROR": 32,
+          "BTT2-M02": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 40
+        }
+      },
+      "ml-M02-fault-05-26fef23c88ee54e6af7fdca234d5d804-cebb9491": {
+        "code": "BTT2-M02",
+        "rows": 649,
+        "raw_labels": {
+          "NO_ERROR": 278,
+          "BTT2-M02": 120,
+          "": 251
+        },
+        "candidates": 108,
+        "windows": 56,
+        "labels": {
+          "NO_ERROR": 36,
+          "BTT2-M02": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 41
+        }
+      },
+      "ml-M02-fault-09-9b66e6e8c45c585caf87dd3be9ae7a03-d144fa9b": {
+        "code": "BTT2-M02",
+        "rows": 645,
+        "raw_labels": {
+          "NO_ERROR": 271,
+          "BTT2-M02": 119,
+          "": 255
+        },
+        "candidates": 108,
+        "windows": 55,
+        "labels": {
+          "NO_ERROR": 35,
+          "BTT2-M02": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 42
+        }
+      },
+      "ml-M02-fault-10-568c366b560f53d1a0fe1b70623d01ff-52c4df72": {
+        "code": "BTT2-M02",
+        "rows": 606,
+        "raw_labels": {
+          "NO_ERROR": 242,
+          "BTT2-M02": 119,
+          "": 245
+        },
+        "candidates": 101,
+        "windows": 49,
+        "labels": {
+          "NO_ERROR": 29,
+          "BTT2-M02": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 41
+        }
+      },
+      "ml-M02-fault-13-a1c7248bb59b5e9c8540e3b26f3541b9-dd9f65a6": {
+        "code": "BTT2-M02",
+        "rows": 601,
+        "raw_labels": {
+          "NO_ERROR": 256,
+          "BTT2-M02": 120,
+          "": 225
+        },
+        "candidates": 100,
+        "windows": 53,
+        "labels": {
+          "NO_ERROR": 33,
+          "BTT2-M02": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 36
+        }
+      },
+      "ml-M02-fault-01-007e9ebce40c58d49cee7044f209f0ac-c93e932c": {
+        "code": "BTT2-M02",
+        "rows": 646,
+        "raw_labels": {
+          "NO_ERROR": 287,
+          "BTT2-M02": 120,
+          "": 239
+        },
+        "candidates": 108,
+        "windows": 57,
+        "labels": {
+          "NO_ERROR": 37,
+          "BTT2-M02": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 40
+        }
+      },
+      "ml-M07-fault-02-861355a2412f5b7dbe4daf1a516c207b-6bafca35": {
+        "code": "BTT2-M07",
+        "rows": 622,
+        "raw_labels": {
+          "NO_ERROR": 270,
+          "BTT2-M07": 120,
+          "": 232
+        },
+        "candidates": 104,
+        "windows": 55,
+        "labels": {
+          "NO_ERROR": 35,
+          "BTT2-M07": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 38
+        }
+      },
+      "ml-M07-fault-10-fb6a4a00ea1f5f5fbfe5e46d7af637be-a94bf637": {
+        "code": "BTT2-M07",
+        "rows": 667,
+        "raw_labels": {
+          "NO_ERROR": 311,
+          "BTT2-M07": 120,
+          "": 236
+        },
+        "candidates": 111,
+        "windows": 62,
+        "labels": {
+          "NO_ERROR": 42,
+          "BTT2-M07": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 38
+        }
+      },
+      "ml-M07-fault-06-dc571272278d59cd9feaa7c01dc24170-f1ab2c68": {
+        "code": "BTT2-M07",
+        "rows": 675,
+        "raw_labels": {
+          "NO_ERROR": 309,
+          "BTT2-M07": 120,
+          "": 246
+        },
+        "candidates": 113,
+        "windows": 61,
+        "labels": {
+          "NO_ERROR": 41,
+          "BTT2-M07": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 41
+        }
+      },
+      "ml-M07-fault-05-92c2b9c272475fe099fbbca990b1e90e-51abf08f": {
+        "code": "BTT2-M07",
+        "rows": 615,
+        "raw_labels": {
+          "NO_ERROR": 247,
+          "BTT2-M07": 120,
+          "": 248
+        },
+        "candidates": 103,
+        "windows": 51,
+        "labels": {
+          "NO_ERROR": 31,
+          "BTT2-M07": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 41
+        }
+      },
+      "ml-M07-fault-12-0545b145729a5fcdb3d4ecb9dbce6012-001970a5": {
+        "code": "BTT2-M07",
+        "rows": 637,
+        "raw_labels": {
+          "NO_ERROR": 281,
+          "BTT2-M07": 120,
+          "": 236
+        },
+        "candidates": 106,
+        "windows": 57,
+        "labels": {
+          "NO_ERROR": 37,
+          "BTT2-M07": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 38
+        }
+      },
+      "ml-M07-fault-14-8b81742e51f35d698a510a9ee76cda3e-bef04053": {
+        "code": "BTT2-M07",
+        "rows": 597,
+        "raw_labels": {
+          "NO_ERROR": 236,
+          "BTT2-M07": 120,
+          "": 241
+        },
+        "candidates": 100,
+        "windows": 49,
+        "labels": {
+          "NO_ERROR": 29,
+          "BTT2-M07": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 40
+        }
+      },
+      "ml-M07-fault-07-a7ae3435d2645d8291e546d4a1cddff0-8db9119f": {
+        "code": "BTT2-M07",
+        "rows": 567,
+        "raw_labels": {
+          "NO_ERROR": 208,
+          "BTT2-M07": 119,
+          "": 240
+        },
+        "candidates": 95,
+        "windows": 44,
+        "labels": {
+          "NO_ERROR": 24,
+          "BTT2-M07": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 40
+        }
+      },
+      "ml-M07-fault-04-bccc4daeb4b35c8e8d042353531aa933-09e7e65a": {
+        "code": "BTT2-M07",
+        "rows": 590,
+        "raw_labels": {
+          "NO_ERROR": 217,
+          "BTT2-M07": 120,
+          "": 253
+        },
+        "candidates": 99,
+        "windows": 46,
+        "labels": {
+          "NO_ERROR": 26,
+          "BTT2-M07": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 42
+        }
+      },
+      "ml-M07-fault-13-e36857b9f290534f81a633120d1e3dda-9f67c74a": {
+        "code": "BTT2-M07",
+        "rows": 632,
+        "raw_labels": {
+          "NO_ERROR": 268,
+          "BTT2-M07": 120,
+          "": 244
+        },
+        "candidates": 106,
+        "windows": 55,
+        "labels": {
+          "NO_ERROR": 35,
+          "BTT2-M07": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 40
+        }
+      },
+      "ml-M10-fault-15-aad7332a8850561b8f845357240a72bf-34e2a0ab": {
+        "code": "BTT2-M10",
+        "rows": 666,
+        "raw_labels": {
+          "NO_ERROR": 335,
+          "BTT2-M10": 120,
+          "": 211
+        },
+        "candidates": 111,
+        "windows": 65,
+        "labels": {
+          "NO_ERROR": 45,
+          "BTT2-M10": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 35
+        }
+      },
+      "ml-M10-fault-02-719fe64ef99557869783e71c466ed896-64f74888": {
+        "code": "BTT2-M10",
+        "rows": 559,
+        "raw_labels": {
+          "NO_ERROR": 230,
+          "BTT2-M10": 120,
+          "": 209
+        },
+        "candidates": 93,
+        "windows": 48,
+        "labels": {
+          "NO_ERROR": 28,
+          "BTT2-M10": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 34
+        }
+      },
+      "ml-M10-fault-01-b8d03de2caef50e5ab9d0da4445db8f2-f443a4f7": {
+        "code": "BTT2-M10",
+        "rows": 649,
+        "raw_labels": {
+          "NO_ERROR": 334,
+          "BTT2-M10": 120,
+          "": 195
+        },
+        "candidates": 108,
+        "windows": 66,
+        "labels": {
+          "NO_ERROR": 46,
+          "BTT2-M10": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 31
+        }
+      },
+      "ml-M10-fault-03-2d5f2ad73bda5cc6a8bb134b8022cbbd-6abc3f3c": {
+        "code": "BTT2-M10",
+        "rows": 640,
+        "raw_labels": {
+          "NO_ERROR": 315,
+          "BTT2-M10": 119,
+          "": 206
+        },
+        "candidates": 107,
+        "windows": 62,
+        "labels": {
+          "NO_ERROR": 42,
+          "BTT2-M10": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 34
+        }
+      },
+      "ml-M10-fault-07-19f7eed876695feda15bd025071704b1-b7e8376a": {
+        "code": "BTT2-M10",
+        "rows": 587,
+        "raw_labels": {
+          "NO_ERROR": 274,
+          "BTT2-M10": 120,
+          "": 193
+        },
+        "candidates": 98,
+        "windows": 55,
+        "labels": {
+          "NO_ERROR": 35,
+          "BTT2-M10": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 32
+        }
+      },
+      "ml-M10-fault-05-32ab15268cae5803934462e10aa3c9fc-1b4f8301": {
+        "code": "BTT2-M10",
+        "rows": 672,
+        "raw_labels": {
+          "NO_ERROR": 345,
+          "BTT2-M10": 119,
+          "": 208
+        },
+        "candidates": 112,
+        "windows": 66,
+        "labels": {
+          "NO_ERROR": 46,
+          "BTT2-M10": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 35
+        }
+      },
+      "ml-M10-fault-04-2629c15622005284804d10a9d7c1c268-bc93efba": {
+        "code": "BTT2-M10",
+        "rows": 569,
+        "raw_labels": {
+          "NO_ERROR": 247,
+          "BTT2-M10": 120,
+          "": 202
+        },
+        "candidates": 95,
+        "windows": 51,
+        "labels": {
+          "NO_ERROR": 31,
+          "BTT2-M10": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 33
+        }
+      },
+      "ml-M10-fault-10-7cbab59008855ccb96118f30dae5fd0c-c78ea2f1": {
+        "code": "BTT2-M10",
+        "rows": 591,
+        "raw_labels": {
+          "NO_ERROR": 276,
+          "BTT2-M10": 120,
+          "": 195
+        },
+        "candidates": 99,
+        "windows": 55,
+        "labels": {
+          "NO_ERROR": 35,
+          "BTT2-M10": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 33
+        }
+      },
+      "ml-M10-fault-14-da612e1318d254399e2ddc81a93c2014-aac46f0b": {
+        "code": "BTT2-M10",
+        "rows": 529,
+        "raw_labels": {
+          "NO_ERROR": 207,
+          "BTT2-M10": 120,
+          "": 202
+        },
+        "candidates": 88,
+        "windows": 45,
+        "labels": {
+          "NO_ERROR": 25,
+          "BTT2-M10": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 32
+        }
+      },
+      "ml-M12-fault-07-24375708466b5a8e9bead833283c1942-351a8e90": {
+        "code": "BTT2-M12",
+        "rows": 617,
+        "raw_labels": {
+          "NO_ERROR": 245,
+          "BTT2-M12": 119,
+          "": 253
+        },
+        "candidates": 103,
+        "windows": 50,
+        "labels": {
+          "NO_ERROR": 30,
+          "BTT2-M12": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 42
+        }
+      },
+      "ml-M12-fault-02-bb660dd18f8f58929edbc486430fec40-1360dfd3": {
+        "code": "BTT2-M12",
+        "rows": 666,
+        "raw_labels": {
+          "NO_ERROR": 305,
+          "BTT2-M12": 119,
+          "": 242
+        },
+        "candidates": 111,
+        "windows": 60,
+        "labels": {
+          "NO_ERROR": 40,
+          "BTT2-M12": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 40
+        }
+      },
+      "ml-M12-fault-13-3b7a9f6f53fd5ab586c9a9a6bd486243-5988f9dc": {
+        "code": "BTT2-M12",
+        "rows": 622,
+        "raw_labels": {
+          "NO_ERROR": 272,
+          "BTT2-M12": 119,
+          "": 231
+        },
+        "candidates": 104,
+        "windows": 55,
+        "labels": {
+          "NO_ERROR": 35,
+          "BTT2-M12": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 38
+        }
+      },
+      "ml-M12-fault-15-8fa2c681407a5ffa861f257f696a161c-d6e0b95c": {
+        "code": "BTT2-M12",
+        "rows": 680,
+        "raw_labels": {
+          "NO_ERROR": 306,
+          "BTT2-M12": 120,
+          "": 254
+        },
+        "candidates": 114,
+        "windows": 61,
+        "labels": {
+          "NO_ERROR": 41,
+          "BTT2-M12": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 42
+        }
+      },
+      "ml-M12-fault-05-c86f4e54cab15e8ab67fb6e0a28abbd4-ca2c9be9": {
+        "code": "BTT2-M12",
+        "rows": 688,
+        "raw_labels": {
+          "NO_ERROR": 310,
+          "BTT2-M12": 119,
+          "": 259
+        },
+        "candidates": 115,
+        "windows": 61,
+        "labels": {
+          "NO_ERROR": 41,
+          "BTT2-M12": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 43
+        }
+      },
+      "ml-M12-fault-11-5dadf663b14f5f7eb6a6e4c81274df59-4fbe269b": {
+        "code": "BTT2-M12",
+        "rows": 601,
+        "raw_labels": {
+          "NO_ERROR": 229,
+          "BTT2-M12": 120,
+          "": 252
+        },
+        "candidates": 100,
+        "windows": 47,
+        "labels": {
+          "NO_ERROR": 27,
+          "BTT2-M12": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 42
+        }
+      },
+      "ml-M12-fault-08-b0336c4d1f125337bbf3f9424e857e1c-1c5c8027": {
+        "code": "BTT2-M12",
+        "rows": 610,
+        "raw_labels": {
+          "NO_ERROR": 251,
+          "BTT2-M12": 119,
+          "": 240
+        },
+        "candidates": 102,
+        "windows": 51,
+        "labels": {
+          "NO_ERROR": 31,
+          "BTT2-M12": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 40
+        }
+      },
+      "ml-M12-fault-06-4a09bbea777a559084706565aa527149-a68e1824": {
+        "code": "BTT2-M12",
+        "rows": 586,
+        "raw_labels": {
+          "NO_ERROR": 220,
+          "BTT2-M12": 119,
+          "": 247
+        },
+        "candidates": 98,
+        "windows": 46,
+        "labels": {
+          "NO_ERROR": 26,
+          "BTT2-M12": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 41
+        }
+      },
+      "ml-M12-fault-09-5809a961957e5985bcb1c3b3d42cbae0-4661b46d": {
+        "code": "BTT2-M12",
+        "rows": 658,
+        "raw_labels": {
+          "NO_ERROR": 288,
+          "BTT2-M12": 120,
+          "": 250
+        },
+        "candidates": 110,
+        "windows": 57,
+        "labels": {
+          "NO_ERROR": 37,
+          "BTT2-M12": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 42
+        }
+      }
+    },
+    "by_code": {
+      "BTT2-M02": {
+        "runs": 9,
+        "rows": 5538,
+        "windows": 467,
+        "candidates": 925,
+        "excluded": {
+          "insufficient_history": 99,
+          "blank_endpoint_label": 359
+        }
+      },
+      "BTT2-M07": {
+        "runs": 9,
+        "rows": 5602,
+        "windows": 480,
+        "candidates": 937,
+        "excluded": {
+          "insufficient_history": 99,
+          "blank_endpoint_label": 358
+        }
+      },
+      "BTT2-M10": {
+        "runs": 9,
+        "rows": 5462,
+        "windows": 513,
+        "candidates": 911,
+        "excluded": {
+          "insufficient_history": 99,
+          "blank_endpoint_label": 299
+        }
+      },
+      "BTT2-M12": {
+        "runs": 9,
+        "rows": 5728,
+        "windows": 488,
+        "candidates": 957,
+        "excluded": {
+          "insufficient_history": 99,
+          "blank_endpoint_label": 370
+        }
+      }
+    },
+    "class_distribution": {
+      "NO_ERROR": 1228,
+      "BTT2-M02": 180,
+      "BTT2-M07": 180,
+      "BTT2-M10": 180,
+      "BTT2-M12": 180
+    },
+    "raw_class_distribution": {
+      "NO_ERROR": 9617,
+      "BTT2-M02": 1076,
+      "": 8406,
+      "BTT2-M07": 1079,
+      "BTT2-M10": 1078,
+      "BTT2-M12": 1074
+    }
+  },
+  "validation": {
+    "by_run": {
+      "ml-M02-fault-08-996b255949b65ec4b324c258c091e103-e705df72": {
+        "code": "BTT2-M02",
+        "rows": 650,
+        "raw_labels": {
+          "NO_ERROR": 287,
+          "BTT2-M02": 120,
+          "": 243
+        },
+        "candidates": 109,
+        "windows": 57,
+        "labels": {
+          "NO_ERROR": 37,
+          "BTT2-M02": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 41
+        }
+      },
+      "ml-M02-fault-15-1bf68400230d5cd2a7f00e34c642a66b-005a71bc": {
+        "code": "BTT2-M02",
+        "rows": 616,
+        "raw_labels": {
+          "NO_ERROR": 269,
+          "BTT2-M02": 120,
+          "": 227
+        },
+        "candidates": 103,
+        "windows": 54,
+        "labels": {
+          "NO_ERROR": 34,
+          "BTT2-M02": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 38
+        }
+      },
+      "ml-M02-fault-06-b50c3616c0c855b793d04308ee153b33-4de55e3d": {
+        "code": "BTT2-M02",
+        "rows": 558,
+        "raw_labels": {
+          "NO_ERROR": 199,
+          "BTT2-M02": 120,
+          "": 239
+        },
+        "candidates": 93,
+        "windows": 42,
+        "labels": {
+          "NO_ERROR": 22,
+          "BTT2-M02": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 40
+        }
+      },
+      "ml-M07-fault-09-6fd6bc2a0cb85bf6b2455894746ae505-04e88cb0": {
+        "code": "BTT2-M07",
+        "rows": 592,
+        "raw_labels": {
+          "NO_ERROR": 228,
+          "BTT2-M07": 120,
+          "": 244
+        },
+        "candidates": 99,
+        "windows": 48,
+        "labels": {
+          "NO_ERROR": 28,
+          "BTT2-M07": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 40
+        }
+      },
+      "ml-M07-fault-03-301dda1d0db45ba88a02cac061dfab29-c9cc0533": {
+        "code": "BTT2-M07",
+        "rows": 547,
+        "raw_labels": {
+          "NO_ERROR": 206,
+          "BTT2-M07": 119,
+          "": 222
+        },
+        "candidates": 91,
+        "windows": 44,
+        "labels": {
+          "NO_ERROR": 24,
+          "BTT2-M07": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 36
+        }
+      },
+      "ml-M07-fault-11-da22e04191b952b7a1aebe695cc39a84-f7048be6": {
+        "code": "BTT2-M07",
+        "rows": 634,
+        "raw_labels": {
+          "NO_ERROR": 282,
+          "BTT2-M07": 120,
+          "": 232
+        },
+        "candidates": 106,
+        "windows": 56,
+        "labels": {
+          "NO_ERROR": 36,
+          "BTT2-M07": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 39
+        }
+      },
+      "ml-M10-fault-08-33826c80653b5b5e87f28049b3dda071-36a8c5de": {
+        "code": "BTT2-M10",
+        "rows": 607,
+        "raw_labels": {
+          "NO_ERROR": 288,
+          "BTT2-M10": 120,
+          "": 199
+        },
+        "candidates": 101,
+        "windows": 57,
+        "labels": {
+          "NO_ERROR": 37,
+          "BTT2-M10": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 33
+        }
+      },
+      "ml-M10-fault-12-e45f1540c5305ce88338a3e170b8ba14-ee3c5bca": {
+        "code": "BTT2-M10",
+        "rows": 586,
+        "raw_labels": {
+          "NO_ERROR": 262,
+          "BTT2-M10": 120,
+          "": 204
+        },
+        "candidates": 98,
+        "windows": 53,
+        "labels": {
+          "NO_ERROR": 33,
+          "BTT2-M10": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 34
+        }
+      },
+      "ml-M10-fault-09-ecebfba72e2552b584e04d9d31e401bf-c9c8525f": {
+        "code": "BTT2-M10",
+        "rows": 624,
+        "raw_labels": {
+          "NO_ERROR": 301,
+          "BTT2-M10": 120,
+          "": 203
+        },
+        "candidates": 104,
+        "windows": 60,
+        "labels": {
+          "NO_ERROR": 40,
+          "BTT2-M10": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 33
+        }
+      },
+      "ml-M12-fault-01-b370e9d1be7e5ba39061b6e587c85a51-a00cf0d0": {
+        "code": "BTT2-M12",
+        "rows": 590,
+        "raw_labels": {
+          "NO_ERROR": 234,
+          "BTT2-M12": 120,
+          "": 236
+        },
+        "candidates": 99,
+        "windows": 49,
+        "labels": {
+          "NO_ERROR": 29,
+          "BTT2-M12": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 39
+        }
+      },
+      "ml-M12-fault-14-cfcc71ed7be059b590cd5bc6652aeec0-03ba27f9": {
+        "code": "BTT2-M12",
+        "rows": 692,
+        "raw_labels": {
+          "NO_ERROR": 318,
+          "BTT2-M12": 120,
+          "": 254
+        },
+        "candidates": 116,
+        "windows": 63,
+        "labels": {
+          "NO_ERROR": 43,
+          "BTT2-M12": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 42
+        }
+      },
+      "ml-M12-fault-10-ed3b66c8cdf051b79be8328f697566ba-f38d4d2d": {
+        "code": "BTT2-M12",
+        "rows": 646,
+        "raw_labels": {
+          "NO_ERROR": 289,
+          "BTT2-M12": 120,
+          "": 237
+        },
+        "candidates": 108,
+        "windows": 57,
+        "labels": {
+          "NO_ERROR": 37,
+          "BTT2-M12": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 40
+        }
+      }
+    },
+    "by_code": {
+      "BTT2-M02": {
+        "runs": 3,
+        "rows": 1824,
+        "windows": 153,
+        "candidates": 305,
+        "excluded": {
+          "insufficient_history": 33,
+          "blank_endpoint_label": 119
+        }
+      },
+      "BTT2-M07": {
+        "runs": 3,
+        "rows": 1773,
+        "windows": 148,
+        "candidates": 296,
+        "excluded": {
+          "insufficient_history": 33,
+          "blank_endpoint_label": 115
+        }
+      },
+      "BTT2-M10": {
+        "runs": 3,
+        "rows": 1817,
+        "windows": 170,
+        "candidates": 303,
+        "excluded": {
+          "insufficient_history": 33,
+          "blank_endpoint_label": 100
+        }
+      },
+      "BTT2-M12": {
+        "runs": 3,
+        "rows": 1928,
+        "windows": 169,
+        "candidates": 323,
+        "excluded": {
+          "insufficient_history": 33,
+          "blank_endpoint_label": 121
+        }
+      }
+    },
+    "class_distribution": {
+      "NO_ERROR": 400,
+      "BTT2-M02": 60,
+      "BTT2-M07": 60,
+      "BTT2-M10": 60,
+      "BTT2-M12": 60
+    },
+    "raw_class_distribution": {
+      "NO_ERROR": 3163,
+      "BTT2-M02": 360,
+      "": 2740,
+      "BTT2-M07": 359,
+      "BTT2-M10": 360,
+      "BTT2-M12": 360
+    }
+  },
+  "test": {
+    "by_run": {
+      "ml-M02-fault-04-05e0765eb68a505bb1ffbb44f45636ce-011d1f5f": {
+        "code": "BTT2-M02",
+        "rows": 673,
+        "raw_labels": {
+          "NO_ERROR": 295,
+          "BTT2-M02": 120,
+          "": 258
+        },
+        "candidates": 112,
+        "windows": 59,
+        "labels": {
+          "NO_ERROR": 39,
+          "BTT2-M02": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 42
+        }
+      },
+      "ml-M02-fault-11-86ca65a39c3f56d5a9bae48824476ff1-41bd9bc6": {
+        "code": "BTT2-M02",
+        "rows": 636,
+        "raw_labels": {
+          "NO_ERROR": 284,
+          "BTT2-M02": 119,
+          "": 233
+        },
+        "candidates": 106,
+        "windows": 56,
+        "labels": {
+          "NO_ERROR": 36,
+          "BTT2-M02": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 39
+        }
+      },
+      "ml-M02-fault-12-d39d8e5a572c50748eaf58ea2565a58f-d87d1490": {
+        "code": "BTT2-M02",
+        "rows": 623,
+        "raw_labels": {
+          "NO_ERROR": 273,
+          "BTT2-M02": 119,
+          "": 231
+        },
+        "candidates": 104,
+        "windows": 54,
+        "labels": {
+          "NO_ERROR": 34,
+          "BTT2-M02": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 39
+        }
+      },
+      "ml-M07-fault-08-76cc9d036fa754d281852b40710acd0b-0df6b16a": {
+        "code": "BTT2-M07",
+        "rows": 647,
+        "raw_labels": {
+          "NO_ERROR": 291,
+          "BTT2-M07": 119,
+          "": 237
+        },
+        "candidates": 108,
+        "windows": 58,
+        "labels": {
+          "NO_ERROR": 38,
+          "BTT2-M07": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 39
+        }
+      },
+      "ml-M07-fault-01-2fbdddb8fcbb5df59debe84c4d58d5f7-36b9f1b5": {
+        "code": "BTT2-M07",
+        "rows": 613,
+        "raw_labels": {
+          "NO_ERROR": 268,
+          "BTT2-M07": 120,
+          "": 225
+        },
+        "candidates": 102,
+        "windows": 55,
+        "labels": {
+          "NO_ERROR": 35,
+          "BTT2-M07": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 36
+        }
+      },
+      "ml-M07-fault-15-71bc4a938ba359e595eca9a279d6d162-8e92ac7b": {
+        "code": "BTT2-M07",
+        "rows": 595,
+        "raw_labels": {
+          "NO_ERROR": 231,
+          "BTT2-M07": 120,
+          "": 244
+        },
+        "candidates": 99,
+        "windows": 48,
+        "labels": {
+          "NO_ERROR": 28,
+          "BTT2-M07": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 40
+        }
+      },
+      "ml-M10-fault-06-5ea80c041a2e5a458752014464652271-c26b5e67": {
+        "code": "BTT2-M10",
+        "rows": 604,
+        "raw_labels": {
+          "NO_ERROR": 284,
+          "BTT2-M10": 120,
+          "": 200
+        },
+        "candidates": 101,
+        "windows": 57,
+        "labels": {
+          "NO_ERROR": 37,
+          "BTT2-M10": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 33
+        }
+      },
+      "ml-M10-fault-11-b701b2b76286557499f477ae4e6ebd03-d0215736": {
+        "code": "BTT2-M10",
+        "rows": 654,
+        "raw_labels": {
+          "NO_ERROR": 327,
+          "BTT2-M10": 120,
+          "": 207
+        },
+        "candidates": 109,
+        "windows": 64,
+        "labels": {
+          "NO_ERROR": 44,
+          "BTT2-M10": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 34
+        }
+      },
+      "ml-M10-fault-13-8f2db623458a5fd894cbf24a31f8707a-86c2b323": {
+        "code": "BTT2-M10",
+        "rows": 703,
+        "raw_labels": {
+          "NO_ERROR": 367,
+          "BTT2-M10": 119,
+          "": 217
+        },
+        "candidates": 117,
+        "windows": 71,
+        "labels": {
+          "NO_ERROR": 51,
+          "BTT2-M10": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 35
+        }
+      },
+      "ml-M12-fault-03-1a357abe3f9b52d1a36a49bebc60e65a-99f8c870": {
+        "code": "BTT2-M12",
+        "rows": 587,
+        "raw_labels": {
+          "NO_ERROR": 234,
+          "BTT2-M12": 119,
+          "": 234
+        },
+        "candidates": 98,
+        "windows": 48,
+        "labels": {
+          "NO_ERROR": 28,
+          "BTT2-M12": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 39
+        }
+      },
+      "ml-M12-fault-04-d8aea06c73b55625a63590c72a33191e-59575eb3": {
+        "code": "BTT2-M12",
+        "rows": 608,
+        "raw_labels": {
+          "NO_ERROR": 244,
+          "BTT2-M12": 119,
+          "": 245
+        },
+        "candidates": 102,
+        "windows": 50,
+        "labels": {
+          "NO_ERROR": 31,
+          "BTT2-M12": 19
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 41
+        }
+      },
+      "ml-M12-fault-12-ccaf7c5ba33b529b9661828941367bfb-c4977bf4": {
+        "code": "BTT2-M12",
+        "rows": 659,
+        "raw_labels": {
+          "NO_ERROR": 307,
+          "BTT2-M12": 120,
+          "": 232
+        },
+        "candidates": 110,
+        "windows": 60,
+        "labels": {
+          "NO_ERROR": 40,
+          "BTT2-M12": 20
+        },
+        "excluded": {
+          "insufficient_history": 11,
+          "blank_endpoint_label": 39
+        }
+      }
+    },
+    "by_code": {
+      "BTT2-M02": {
+        "runs": 3,
+        "rows": 1932,
+        "windows": 169,
+        "candidates": 322,
+        "excluded": {
+          "insufficient_history": 33,
+          "blank_endpoint_label": 120
+        }
+      },
+      "BTT2-M07": {
+        "runs": 3,
+        "rows": 1855,
+        "windows": 161,
+        "candidates": 309,
+        "excluded": {
+          "insufficient_history": 33,
+          "blank_endpoint_label": 115
+        }
+      },
+      "BTT2-M10": {
+        "runs": 3,
+        "rows": 1961,
+        "windows": 192,
+        "candidates": 327,
+        "excluded": {
+          "insufficient_history": 33,
+          "blank_endpoint_label": 102
+        }
+      },
+      "BTT2-M12": {
+        "runs": 3,
+        "rows": 1854,
+        "windows": 158,
+        "candidates": 310,
+        "excluded": {
+          "insufficient_history": 33,
+          "blank_endpoint_label": 119
+        }
+      }
+    },
+    "class_distribution": {
+      "NO_ERROR": 441,
+      "BTT2-M02": 60,
+      "BTT2-M07": 60,
+      "BTT2-M10": 60,
+      "BTT2-M12": 59
+    },
+    "raw_class_distribution": {
+      "NO_ERROR": 3405,
+      "BTT2-M02": 358,
+      "": 2763,
+      "BTT2-M07": 359,
+      "BTT2-M10": 359,
+      "BTT2-M12": 358
+    }
+  }
+}
