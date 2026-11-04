@@ -34,6 +34,7 @@ ops/aws.sh help
 | 2. 설정 | `cp .env.example .env` 후 값 채우기 | `Copy-Item .env.example .env` 후 값 채우기 |
 | 3. DB | `ops/local.sh db` | `.\ops\local.ps1 db` |
 | 4. 계정 | `ops/local.sh seed` | `.\ops\local.ps1 seed` |
+| 5. 팀 문서 | `ops/local.sh seed-docs` | `.\ops\local.ps1 seed-docs` |
 
 평소에는 터미널(PowerShell 창) 3개를 켠다:
 
@@ -56,6 +57,8 @@ ops/aws.sh help
 | `api` | `uv run --no-sync --env-file .env uvicorn --app-dir src weeing_weeing.api.app:app --reload` |
 | `front` / `hmi` | `cd frontend && npm run dev` / `cd hmi/web && npm run dev` |
 | `seed` | `make seed-users` |
+| `seed-docs [--replace]` | `make seed-docs` (팀 문서 미리 등록, 같은 파일은 건너뜀) |
+| `reindex-reports` | `make index-reports ARGS=--all` |
 
 - 로컬 볼륨 이름은 `<폴더 이름>_postgres_data`처럼 체크아웃 폴더 이름을 앞에 붙인다. worktree마다 따로 생긴다
 - Docker Desktop(macOS·Windows)의 볼륨 경로는 Docker VM 안이라 Finder·탐색기에서 보이지 않는다
@@ -86,6 +89,8 @@ Windows는 `ops/aws.sh`를 `.\ops\aws.ps1`로 바꾸면 된다.
 | `rag` | `.env`의 RAG 줄만 grep(끝 공백 표시), `curl localhost:6333/collections`, `document`·`report_index_job` 상태별 개수 |
 | `db` | `docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB"'` |
 | `env-keys` | `.env`의 변수 이름만 |
+| `seed-docs [--replace]` | `docker compose exec -T api python scripts/seed_documents.py` |
+| `reindex-reports` / `retry-reports` | `docker compose exec -T api python scripts/index_reports.py --all` / `--retry-failed` |
 | `restart <서비스>` | `docker compose restart <서비스>` |
 | `up` | `docker compose up -d` (`.env`를 바꾼 뒤) |
 | `pull-up` | `docker compose pull && docker compose up -d` |
@@ -103,7 +108,7 @@ Windows는 `ops/aws.sh`를 `.\ops\aws.ps1`로 바꾸면 된다.
 
 - 배포는 `main`에 병합되면 GitHub Actions가 한다([DEPLOY](../docs/DEPLOY.md)). `pull-up`은 워크플로가 실패했을 때만 쓴다
 - `.env`를 바꿨으면 `up`으로 다시 띄워야 반영된다(`restart`는 `.env`를 다시 읽지 않는다)
-- `rag`에서 Qdrant 컬렉션이 비어 있는데 DB `document`가 `indexed`로 남아 있으면 검색 근거가 없는 상태다. 컬렉션을 바꾼 뒤라면 [COMMERCIAL_MODELS](../docs/COMMERCIAL_MODELS.md)의 "다시 색인"을 따른다
+- `rag`에서 Qdrant 컬렉션이 비어 있는데 DB `document`가 `indexed`로 남아 있으면 검색 근거가 없는 상태다. `seed-docs`와 `reindex-reports`를 실행한다([COMMERCIAL_MODELS](../docs/COMMERCIAL_MODELS.md) 2-5)
 - 운영 DB는 조회 위주로 쓰고, 수정·삭제는 팀에 알린 뒤 한다
 - 서버 안에서 직접 쓰려면 `scp ops/server.sh ww-team:~/` 후 `bash ~/server.sh ps`
 - 서버는 2026-11-14 00:00에 자동으로 꺼진다

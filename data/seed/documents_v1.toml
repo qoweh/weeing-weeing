@@ -1,0 +1,30 @@
+# 서버에 미리 등록(임베딩)해 둘 팀 문서. scripts/seed_documents.py(make seed-docs)가 읽는다.
+#
+# - 웹 업로드와 같은 경로로 등록한다: DB document 행 + 업로드 폴더 원본 + 벡터 청크.
+#   그래서 웹 문서 목록에 보이고, 웹에서 교체·삭제할 수 있다.
+# - 같은 파일(SHA-256)이 이미 지금 컬렉션에 임베딩돼 있으면 건너뛴다(임베딩 비용 0).
+#   컬렉션을 바꿨거나 저장이 끊겼으면 다시 임베딩한다.
+# - 웹에서 다른 파일로 교체한 문서는 덮어쓰지 않는다(--replace로만 교체).
+# - 자동 동기화가 아니다(D-28). 웹에서 삭제한 문서도 이 명령을 다시 돌리면 다시 등록된다.
+# - path는 저장소 루트 기준. doc_version을 비우면 웹 업로드처럼 파일명의 vX.Y(없으면 1.0)를 쓴다.
+# - data/manuals/"BTT-MANUAL_v2.0 copy.pdf"는 원본과 해시가 다른 사본이라 넣지 않는다.
+
+[[documents]]
+doc_id = "BTT-MANUAL"
+doc_type = "manual"
+asset_id = "BLDC-001"
+path = "data/manuals/BTT-MANUAL_v2.0.pdf"
+
+[[documents]]
+doc_id = "BTT-RULE"
+doc_type = "rule"
+asset_id = "BLDC-001"
+path = "data/rulebase/BTT-RULE_v2.0.pdf"
+
+[[documents]]
+doc_id = "BTT-SOP-001"
+doc_type = "sop"
+asset_id = "BLDC-001"
+path = "data/regulations/BTT-SOP-001.pdf"
+# 파일명에 버전이 없다. 제19조 ①의 원문 버전 1.1을 쓴다(data/eval/rag_documents_v1.toml과 같음).
+doc_version = "1.1"

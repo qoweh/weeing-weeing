@@ -34,9 +34,11 @@ function Show-Usage {
   front                  프론트(Next.js) http://localhost:3100
   hmi                    HMI(Vite)       http://localhost:5173
   seed                   시연용 계정 만들기
+  seed-docs [--replace]  팀 문서 미리 등록·임베딩, 같은 파일은 건너뜀
+  reindex-reports        승인 보고서를 지금 컬렉션에 전부 다시 등록
   urls                   로컬 주소 모음
 
-처음 한 번 순서: setup → Copy-Item .env.example .env(값 채우기) → db → seed → api / front / hmi
+처음 한 번 순서: setup → Copy-Item .env.example .env(값 채우기) → db → seed → seed-docs → api / front / hmi
 '@ | Write-Output
 }
 
@@ -107,6 +109,11 @@ switch ($cmd) {
     'front' { Npm-Dev 'frontend' }
     'hmi' { Npm-Dev 'hmi/web' }
     'seed' { Uv-Run @('python', 'scripts/seed_users.py') }
+    'seed-docs' {
+        $extra = if ($arg1 -eq '--replace') { @('--replace') } elseif ($arg1) { Write-Error 'seed-docs 인자는 --replace만 받는다' } else { @() }
+        Uv-Run (@('python', 'scripts/seed_documents.py') + $extra)
+    }
+    'reindex-reports' { Uv-Run @('python', 'scripts/index_reports.py', '--all') }
     'urls' {
         @'
 API 문서    http://localhost:8000/docs   (헬스: http://localhost:8000/health)

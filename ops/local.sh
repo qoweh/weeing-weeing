@@ -30,9 +30,11 @@ usage() {
   front                  프론트(Next.js) http://localhost:3100       (API_ORIGIN 기본 http://127.0.0.1:8000)
   hmi                    HMI(Vite)       http://localhost:5173       (/api를 8000으로 프록시)
   seed                   시연용 계정 만들기 (= make seed-users)
+  seed-docs [--replace]  팀 문서 미리 등록·임베딩, 같은 파일은 건너뜀 (= make seed-docs)
+  reindex-reports        승인 보고서를 지금 컬렉션에 전부 다시 등록 (= make index-reports ARGS=--all)
   urls                   로컬 주소 모음
 
-처음 한 번 순서: setup → cp .env.example .env(값 채우기) → db → seed → api / front / hmi
+처음 한 번 순서: setup → cp .env.example .env(값 채우기) → db → seed → seed-docs → api / front / hmi
 EOF
 }
 
@@ -82,6 +84,10 @@ case "$cmd" in
     cd hmi/web && exec npm run dev ;;
   seed)
     make seed-users ;;
+  seed-docs)
+    make seed-docs ARGS="${1:-}" ;;
+  reindex-reports)
+    make index-reports ARGS=--all ;;
   urls)
     cat <<'EOF'
 API 문서    http://localhost:8000/docs   (헬스: http://localhost:8000/health)

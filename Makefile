@@ -21,7 +21,7 @@ ENV_FILE := $(if $(wildcard .env),--env-file .env,)
 # 의존성이 바뀌면(pull 후 등) make setup을 다시 실행한다.
 RUN := uv run --no-sync
 
-.PHONY: help setup lint fmt test check env-check skills db-up db-migrate qdrant-up down api index-reports seed-users rag-e2e llm-check llm-eval analyze chat
+.PHONY: help setup lint fmt test check env-check skills db-up db-migrate qdrant-up down api index-reports seed-docs seed-users rag-e2e llm-check llm-eval analyze chat
 
 help: ## 명령 목록
 	@$(RUN) python scripts/make_help.py
@@ -61,8 +61,11 @@ qdrant-up: ## Qdrant 서버 기동 (서버 모드, .env에 QDRANT_URL=http://loc
 down: ## 보조 서비스 정지
 	docker compose --profile qdrant down
 
-index-reports: ## 승인 보고서 검색 등록 대기 처리 (실패 재시도: ARGS=--retry-failed)
+index-reports: ## 승인 보고서 검색 등록 대기 처리 (실패 재시도: ARGS=--retry-failed, 컬렉션 바꾼 뒤 전부: ARGS=--all)
 	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) $(ENV_FILE) python scripts/index_reports.py
+
+seed-docs: ## 팀 문서(data/seed/documents_v1.toml) 미리 등록·임베딩. 이미 임베딩된 같은 파일은 건너뜀 (ARGS=--replace)
+	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) $(ENV_FILE) python scripts/seed_documents.py
 
 seed-users: ## 시연용 계정 만들기 (DB 필요, 있는 사번은 건너뜀, ARGS=--ask-password)
 	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) $(ENV_FILE) python scripts/seed_users.py

@@ -194,7 +194,17 @@ docker compose run --rm api python scripts/seed_users.py
 - 기본: `EMBEDDING_PROVIDER=hashing`(해시 임베딩) + Kiwi BM25 + 리랭커 끔. 외부 호출·토큰 비용이 없다
 - 문서는 웹의 **문서 등록**에서 올린다. 파싱·청킹·임베딩·벡터 저장이 자동으로 진행된다. 운영 카탈로그와 `scripts/build_index.py`·`make index`는 사용하지 않는다
 - 품질이 필요하면 서버 `.env`에 `EMBEDDING_PROVIDER=voyage`·`VOYAGE_API_KEY`(·선택 `RERANKER_MODEL=rerank-3-lite`)를 넣고 `docker compose up -d api`. 문서 본문이 외부로 나가므로 [AI_DATA_SECURITY](AI_DATA_SECURITY.md) 점검표를 먼저 본다
-- 공급자·모델·차원을 바꾸면 기존 컬렉션과 섞을 수 없다. `.env`의 `RAG_COLLECTION`을 새 이름으로 바꾸고 문서를 다시 등록한다
+- 공급자·모델·차원을 바꾸면 기존 컬렉션과 섞을 수 없다. `.env`의 `RAG_COLLECTION`을 새 이름으로 바꾸고 문서를 다시 등록한다(아래 "팀 문서 미리 등록")
+- 팀 문서(매뉴얼·룰·규정)는 웹에서 하나씩 올리지 않고 미리 등록한다. 같은 파일이 이미 임베딩돼 있으면 건너뛰므로 여러 번 실행해도 비용이 다시 들지 않는다(D-32)
+
+  ```
+  ops/aws.sh seed-docs          # = docker compose exec -T api python scripts/seed_documents.py
+  ops/aws.sh reindex-reports    # 컬렉션을 바꾼 뒤 승인 보고서 전부 다시 등록
+  ops/aws.sh rag                # 컬렉션 포인트 수와 DB 상태 확인
+  ```
+
+  - 목록은 `data/seed/documents_v1.toml`. 웹에서 다른 파일로 교체한 문서는 `seed-docs --replace`로만 덮어쓴다
+  - 웹에서 삭제한 문서도 이 명령을 다시 돌리면 다시 등록된다. 시연 문서를 뺄 때는 목록에서도 지운다
 - 예전 배포에서 남은 `hf_models` 볼륨은 쓰지 않는다. 지우려면 `docker volume ls`로 이름을 확인한 뒤 `docker volume rm <이름>`
 
 ### 확인

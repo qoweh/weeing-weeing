@@ -346,6 +346,10 @@ class ReportRepository(Protocol):
         """색인 대기 중인 최신 승인 판. exclude_report_ids는 한 실행 내 중복을 막는다."""
         ...
 
+    def requeue_indexed_reports(self) -> int:
+        """최신 승인 판의 indexed 작업을 pending으로 되돌린다(새 벡터 컬렉션에 다시 등록)."""
+        ...
+
     def locked_index_job(
         self, report_id: str, *, include_failed: bool = False
     ) -> ContextManager[ReportIndexWork | None]:

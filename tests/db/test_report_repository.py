@@ -140,6 +140,22 @@ def legacy_revision(repo, approved):
     return repo.get_report("I1", approved.report_id)
 
 
+def test_requeue_indexed_reports_only_latest_indexed(setup_reports):
+    repo = setup_reports
+    first = approve(repo, repo.create_draft("I1", ready_draft()))
+    repo.record_index_result(first.report_id, first.report_version, success=True)
+    add_incident(repo, "INC-2")
+    second = approve(repo, repo.create_draft("I1", ready_draft("INC-2")))
+    repo.record_index_result(second.report_id, second.report_version, success=False)
+
+    # 실패 작업은 그대로 두고 indexed만 다시 대기로 돌린다.
+    assert repo.requeue_indexed_reports() == 1
+    assert repo.get_report("I1", first.report_id).index_status == "pending"
+    assert repo.get_report("I1", second.report_id).index_status == "failed"
+    assert [r.report_id for r in repo.pending_index_reports()] == [first.report_id]
+    assert repo.requeue_indexed_reports() == 0
+
+
 def test_index_job_result_and_failed_retry(setup_reports):
     repo = setup_reports
     first = approve(repo, repo.create_draft("I1", ready_draft()))

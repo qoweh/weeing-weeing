@@ -29,6 +29,9 @@ usage() {
   rag                    RAG 설정(비밀 아닌 값만), Qdrant 컬렉션·포인트 수, DB 문서·보고서 색인 상태 개수
   db                     운영 DB psql 접속 (컨테이너 안 계정 사용). 조회 위주
   env-keys               서버 .env에 있는 변수 이름만 (값은 출력 안 함)
+  seed-docs [--replace]  팀 문서(매뉴얼·룰·규정) 미리 등록·임베딩. 이미 임베딩된 같은 파일은 건너뜀
+  reindex-reports        승인 보고서를 지금 컬렉션에 전부 다시 등록 (컬렉션을 바꾼 뒤)
+  retry-reports          실패한 승인 보고서 색인만 다시 시도
 
 운영
   restart <서비스>        한 서비스 재시작 (.env는 다시 읽지 않는다)
@@ -111,6 +114,14 @@ SQL
     exec docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB"' ;;
   env-keys)
     grep -oE '^[A-Za-z_][A-Za-z0-9_]*=' .env | tr -d '=' | sort ;;
+  seed-docs)
+    # 떠 있는 api 컨테이너 안에서 실행한다(같은 .env·업로드 볼륨·Qdrant).
+    if [ -n "${1:-}" ] && [ "$1" != "--replace" ]; then echo "seed-docs 인자는 --replace만 받는다"; exit 2; fi
+    docker compose exec -T api python scripts/seed_documents.py ${1:+"$1"} ;;
+  reindex-reports)
+    docker compose exec -T api python scripts/index_reports.py --all ;;
+  retry-reports)
+    docker compose exec -T api python scripts/index_reports.py --retry-failed ;;
   restart)
     [ -n "${1:-}" ] || { echo "서비스 이름이 필요하다: restart api"; exit 2; }
     docker compose restart "$(token "$1")" ;;
