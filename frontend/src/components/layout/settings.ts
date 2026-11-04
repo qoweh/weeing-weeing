@@ -3,6 +3,7 @@ export type Settings = {
   notifyError: boolean
   autoOpenError: boolean
   refreshInterval: number
+  chatDisplay: 'modal' | 'drawer'
 }
 
 const storageKey = 'weeing-settings'
@@ -21,10 +22,11 @@ export const defaultSettings: Settings = {
   notifyError: true,
   autoOpenError: false,
   refreshInterval: 1000,
+  chatDisplay: 'modal',
 }
 
 // 설정은 이 브라우저에만 저장한다. 저장소를 쓸 수 없으면 기본값으로 동작한다.
-export function readSettings() {
+export function readSettings(): Settings {
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey) || '{}')
     const interval = refreshIntervals.some(
@@ -37,6 +39,7 @@ export function readSettings() {
       notifyError: saved.notifyError ?? defaultSettings.notifyError,
       autoOpenError: saved.autoOpenError ?? defaultSettings.autoOpenError,
       refreshInterval: interval,
+      chatDisplay: saved.chatDisplay === 'drawer' ? 'drawer' : 'modal',
     }
   } catch {
     return defaultSettings

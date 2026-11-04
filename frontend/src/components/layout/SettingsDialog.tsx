@@ -231,6 +231,12 @@ export default function SettingsDialog({
                   ))}
                 </ul>
               </div>
+              <h4 className="settings-section">챗봇 표시 방식</h4>
+              <p>선택한 방식은 챗봇을 다음에 열 때 적용됩니다.</p>
+              <div className="settings-segment" role="radiogroup" aria-label="챗봇 표시 방식">
+                <button type="button" role="radio" aria-checked={settings.chatDisplay === 'modal'} onClick={() => update({ chatDisplay: 'modal' })}>모달</button>
+                <button type="button" role="radio" aria-checked={settings.chatDisplay === 'drawer'} onClick={() => update({ chatDisplay: 'drawer' })}>서랍</button>
+              </div>
               <h4 className="settings-section">사이드 메뉴</h4>
               <ul className="settings-list settings-list--single">
                 <li>

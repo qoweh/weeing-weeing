@@ -3,7 +3,7 @@ import { listIncidents, watchTelemetry, type Incident } from '../../api/client'
 import Button from '../ui/Button'
 import { dateLabel } from '../ui/library'
 import SettingsDialog from './SettingsDialog'
-import { readSettings, saveSettings } from './settings'
+import type { Settings } from './settings'
 
 export default function Header({
   theme,
@@ -19,6 +19,8 @@ export default function Header({
   onChangeSidebarCollapsed,
   onIncidentSelect,
   onSessionExpired,
+  settings,
+  onChangeSettings,
 }: {
   theme: string
   onToggleTheme: () => void
@@ -33,6 +35,8 @@ export default function Header({
   onChangeSidebarCollapsed: (value: boolean) => void
   onIncidentSelect: (incident: Incident) => void
   onSessionExpired: () => void
+  settings: Settings
+  onChangeSettings: (settings: Settings) => void
 }) {
   const [incidents, setIncidents] = useState<Incident[] | null>(null),
     [error, setError] = useState(''),
@@ -42,7 +46,6 @@ export default function Header({
     right: number
     maxWidth: number
   } | null>(null)
-  const [settings, setSettings] = useState(readSettings)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const knownIncidents = useRef<Set<string> | null>(null)
   const autoOpenError = useRef(false)
@@ -243,49 +246,6 @@ export default function Header({
                   <p>{user.role}</p>
                 </div>
                 <div className="header-account__section">
-                  <div className="header-account__zoom">
-                    <span>비율조정</span>
-                    <div
-                      className="header-account__zoom-controls"
-                      role="group"
-                      aria-label="화면 확대 및 축소"
-                    >
-                      <button
-                        type="button"
-                        aria-label="화면 축소"
-                        disabled={screenZoom <= 80}
-                        onClick={() =>
-                          onChangeScreenZoom((value) =>
-                            Math.max(80, value - 10),
-                          )
-                        }
-                      >
-                        −
-                      </button>
-                      <button
-                        type="button"
-                        className="header-account__zoom-reset"
-                        aria-label={`현재 ${screenZoom}%, 화면 비율 기본값 ${defaultScreenZoom}%로 초기화`}
-                        onClick={onResetScreenZoom}
-                      >
-                        {screenZoom}%
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="화면 확대"
-                        disabled={screenZoom >= 120}
-                        onClick={() =>
-                          onChangeScreenZoom((value) =>
-                            Math.min(120, value + 10),
-                          )
-                        }
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                <div className="header-account__section">
                   <button
                     type="button"
                     className="header-account__item"
@@ -317,48 +277,6 @@ export default function Header({
                       aria-hidden="true"
                     >
                       ›
-                    </span>
-                  </button>
-                </div>
-                <div className="header-account__section">
-                  <button
-                    type="button"
-                    className="header-account__item"
-                    onClick={onToggleTheme}
-                    aria-label={`테마변경: ${theme === 'light' ? '다크 모드로 전환' : '라이트 모드로 전환'}`}
-                  >
-                    <span className="header-account__item-label">
-                      {theme === 'light' ? (
-                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                          <circle
-                            cx="12"
-                            cy="12"
-                            r="4"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                          />
-                          <path
-                            d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42m0-14.14-1.42 1.42M6.35 17.65l-1.42 1.42"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                          />
-                        </svg>
-                      ) : (
-                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                          <path
-                            d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      )}
-                      테마변경
-                    </span>
-                    <span className="header-account__item-note">
-                      {theme === 'light' ? '라이트' : '다크'}
                     </span>
                   </button>
                 </div>
@@ -485,10 +403,7 @@ export default function Header({
           sidebarCollapsed={sidebarCollapsed}
           onChangeSidebarCollapsed={onChangeSidebarCollapsed}
           settings={settings}
-          onChangeSettings={(next) => {
-            setSettings(next)
-            saveSettings(next)
-          }}
+          onChangeSettings={onChangeSettings}
           onLogout={onLogout}
           busy={busy}
           onClose={() => setSettingsOpen(false)}

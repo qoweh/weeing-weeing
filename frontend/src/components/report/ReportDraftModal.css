@@ -139,13 +139,13 @@
 }
 
 .report-draft-dialog__state {
-  background: var(--surface-muted, #f1f5f9);
+  background: var(--surface-hover, #f1f5f9);
   color: var(--muted, #53647d);
 }
 
 .report-draft-dialog__error {
-  background: #fff0f0;
-  color: #a92f3d;
+  background: var(--danger-bg, #fff0f0);
+  color: var(--danger, #a92f3d);
 }
 
 .report-draft-dialog .report-sheet {

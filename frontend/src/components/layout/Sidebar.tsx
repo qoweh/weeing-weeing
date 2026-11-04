@@ -52,7 +52,7 @@ export default function Sidebar({
         >
           <svg viewBox="0 0 12 12" fill="none" aria-hidden="true">
             <path
-              d={collapsed ? 'M4 1.5 8.5 6 4 10.5' : 'M8 1.5 3.5 6 8 10.5'}
+              d="M8 1.5 3.5 6 8 10.5"
               stroke="currentColor"
               strokeWidth="1.8"
               strokeLinecap="round"
@@ -68,6 +68,7 @@ export default function Sidebar({
             type="button"
             className={`nav-item ${current === id ? 'nav-item--active' : ''}`}
             aria-current={current === id ? 'page' : undefined}
+            aria-label={label}
             disabled={busy || pending}
             title={pending ? '설비 모니터링 준비 중' : label}
             onClick={() => onNavigate(id)}
