@@ -3,6 +3,7 @@
 import os
 import shutil
 import subprocess
+import sys
 import textwrap
 from pathlib import Path
 
@@ -42,6 +43,9 @@ def test_one_service_deploy_preserves_other_tags_and_rolls_back(
         workflow.split(marker, 1)[1].split("\n          EOF", 1)[0]
     )
     remote = remote.replace("cd ~/weeing-weeing", 'cd "$CASE_DIR"')
+    if sys.platform == "darwin":
+        # 운영 Ubuntu의 GNU sed와 달리 macOS의 BSD sed는 백업 접미사가 필요하다.
+        remote = remote.replace("sed -i ", "sed -i '' ")
     initial = "IMAGE_TAG=original\nAPI_IMAGE_TAG=old-api\nWEB_IMAGE_TAG=old-web\n"
     (tmp_path / ".env").write_text(initial, encoding="utf-8")  # fake file only
     tools = tmp_path / "bin"

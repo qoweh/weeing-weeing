@@ -4,10 +4,16 @@ export function setAccessToken(token) {
   accessToken = token;
 }
 
-async function request(path, { method = "GET", body } = {}) {
+export async function request(
+  path,
+  { method = "GET", body, signal, responseType = "json" } = {},
+) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 300_000);
   const isFormData = body instanceof FormData;
+  const cancel = () => controller.abort();
+  if (signal?.aborted) controller.abort();
+  signal?.addEventListener("abort", cancel, { once: true });
 
   try {
     const response = await fetch(`/api${path}`, {
@@ -16,15 +22,14 @@ async function request(path, { method = "GET", body } = {}) {
       signal: controller.signal,
       headers: {
         ...(body !== undefined && !isFormData
-          ? { "Content-Type": "application/json" } : {}),
+          ? { "Content-Type": "application/json" }
+          : {}),
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
-      body:
-        body === undefined || isFormData
-          ? body
-          : JSON.stringify(body),
+      body: body === undefined || isFormData ? body : JSON.stringify(body),
     });
 
+    if (response.ok && responseType === "blob") return await response.blob();
     const text = await response.text();
     let data;
 
@@ -39,16 +44,20 @@ async function request(path, { method = "GET", body } = {}) {
     if (!response.ok) {
       const detail = data?.detail ?? data?.message ?? "요청 실패";
       const message =
-        typeof detail === "string" ? detail : (detail?.message ?? JSON.stringify(detail));
+        typeof detail === "string"
+          ? detail
+          : (detail?.message ?? JSON.stringify(detail));
 
       const error = new Error(`HTTP ${response.status}: ${message}`);
       error.status = response.status;
       error.detail = detail;
+      error.data = data;
       throw error;
     }
 
     return data;
   } catch (error) {
+    if (signal?.aborted) throw error;
     if (error.name === "AbortError") {
       throw new Error(
         "응답 대기 시간이 초과됐습니다. 서버에서 처리가 계속되는지 확인하세요.",
@@ -65,6 +74,7 @@ async function request(path, { method = "GET", body } = {}) {
 
     throw error;
   } finally {
+    signal?.removeEventListener("abort", cancel);
     clearTimeout(timer);
   }
 }
@@ -152,9 +162,9 @@ export function deleteIncident(id) { return request(`/incidents/${encodeURICompo
 export function getIncidentReportContext(id) { return request(`/incidents/${encodeURIComponent(id)}/report-context`); }
 export function listReports(scope = "mine") { return request(`/reports?scope=${scope}`); }
 export function listReviewHistory() { return request("/reports/review-history"); }
-export function getReport(id, version) {
+export function getReport(id, version, signal) {
   const suffix = version ? `/versions/${version}` : "";
-  return request(`/reports/${encodeURIComponent(id)}${suffix}`);
+  return request(`/reports/${encodeURIComponent(id)}${suffix}`, { signal });
 }
 export function saveReport(id, body) {
   return request(id ? `/reports/${encodeURIComponent(id)}/draft` : "/reports", {
