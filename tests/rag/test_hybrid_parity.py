@@ -98,7 +98,7 @@ def _check_sparse_scores(client, chunks):
     for query in QUERIES:
         q = enc.encode_query(query)
         result = client.query_points(
-            "knowledge",
+            "knowledge_voyage",
             query=qm.SparseVector(indices=q.indices, values=q.values),
             using=SPARSE,
             limit=50,
@@ -121,7 +121,7 @@ def test_qdrant_hybrid_score_equals_python_rrf(tmp_path):
             sparse = [
                 p.payload["chunk_id"]
                 for p in store._client.query_points(
-                    "knowledge",
+                    "knowledge_voyage",
                     query=qm.SparseVector(indices=q.indices, values=q.values),
                     using=SPARSE,
                     limit=20,

@@ -78,7 +78,7 @@ class ChromaVectorStore:
         embedder: Embedder,
         embedding_model: str,
         sparse_encoder: SparseEncoder | None = None,
-        collection: str = "knowledge",
+        collection: str = "knowledge_voyage",
         recreate: bool = False,
         owns_client: bool = False,
     ) -> None:

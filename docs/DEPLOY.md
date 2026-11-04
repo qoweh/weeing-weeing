@@ -149,7 +149,7 @@ chmod 600 .env
 - `ANALYSIS_AUTO_ENABLED=true`는 사건마다 Claude API를 호출한다(비용). 시연할 때만 켠다
 - `SITE_ADDRESS=<EC2_IP>`로 HTTPS를 켠다. 자세한 내용은 [HTTPS·Langfuse·내부 서비스 접속](#httpslangfuse내부-서비스-접속)
 - `IMAGE_TAG`·`IMAGE_PREFIX`는 배포 워크플로가 적는다. 직접 고치지 않는다
-- 새 버전을 배포한 뒤에는 서버 `.env`에 빠진·낡은 변수가 없는지 점검한다. 값과 키는 출력하지 않는다
+- 새 버전을 배포한 뒤에는 서버 `.env`에 빠진·낡은 변수가 없는지 점검한다. 값과 키는 출력하지 않는다. **기존 서버 `.env`를 `.env.example`로 통째로 덮어쓰지 않는다.** `POSTGRES_PASSWORD`가 예시 값으로 바뀌면 DB가 처음 값을 그대로 쓰고 있어 `password authentication failed`가 나고 로그인이 HTTP 503이 된다. 빠진 줄만 추가한다
 
 ```
 cd ~/weeing-weeing

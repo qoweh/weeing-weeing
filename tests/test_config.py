@@ -64,3 +64,12 @@ def test_telemetry_storage_flag_does_not_enable_analysis(monkeypatch, value, ena
     settings = get_settings()
     assert settings.telemetry_db_enabled is enabled
     assert settings.analysis_auto_enabled is False
+
+
+def test_voyage_url_and_collection_ignore_surrounding_spaces(monkeypatch):
+    # 서버 .env 값 끝 공백이 URL·컬렉션 이름에 섞이면 Voyage 호출·검색 대상이 바뀐다.
+    monkeypatch.setenv("VOYAGE_BASE_URL", "https://api.voyageai.com/v1 ")
+    monkeypatch.setenv("RAG_COLLECTION", " knowledge_voyage ")
+    settings = get_settings()
+    assert settings.voyage_base_url == "https://api.voyageai.com/v1"
+    assert settings.rag_collection == "knowledge_voyage"

@@ -30,7 +30,7 @@ def test_collection_has_cosine_dense_sparse_idf_and_metadata():
     client = QdrantClient(":memory:")
     make(client).replace_document("BTT-MANUAL", manual_chunks())
 
-    config = client.get_collection("knowledge").config
+    config = client.get_collection("knowledge_voyage").config
     assert config.params.vectors["dense"].distance == qm.Distance.COSINE
     assert config.params.vectors["dense"].size == 64
     assert config.params.sparse_vectors["sparse"].modifier == qm.Modifier.IDF
@@ -80,9 +80,9 @@ def test_recreate_drops_existing_collection():
     store = make(client, embedding_model="new-model", recreate=True)
     assert store.chunks() == []
     store.replace_document("BTT-MANUAL", manual_chunks())
-    assert client.get_collection("knowledge").config.metadata["embedding_model"] == (
-        "new-model"
-    )
+    assert client.get_collection("knowledge_voyage").config.metadata[
+        "embedding_model"
+    ] == ("new-model")
 
 
 def test_where_translation():
@@ -105,10 +105,10 @@ def test_sparse_encoder_name_is_recorded_and_points_have_sparse_vectors():
         "BTT-MANUAL", manual_chunks()
     )
 
-    assert client.get_collection("knowledge").config.metadata["sparse_encoder"] == (
-        KiwiBm25Encoder.NAME
-    )
-    (record,), _ = client.scroll("knowledge", limit=1, with_vectors=True)
+    assert client.get_collection("knowledge_voyage").config.metadata[
+        "sparse_encoder"
+    ] == (KiwiBm25Encoder.NAME)
+    (record,), _ = client.scroll("knowledge_voyage", limit=1, with_vectors=True)
     assert set(record.vector) == {"dense", "sparse"}
 
 

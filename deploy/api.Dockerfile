@@ -38,7 +38,7 @@ HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=6 \
     CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
 
 # Caddy가 /api 접두사를 떼고 넘기므로 root-path로 문서(/api/docs) 경로를 맞춘다.
-# 분석 서비스·모델이 프로세스 안에 있으므로 워커는 1개로 둔다.
+# 분석 작업 큐와 센서 실시간 상태가 프로세스 메모리에 있으므로 워커는 1개로 둔다.
 CMD ["uvicorn", "--app-dir", "src", "weeing_weeing.api.app:app", \
      "--host", "0.0.0.0", "--port", "8000", "--root-path", "/api", \
      "--proxy-headers", "--forwarded-allow-ips", "*", \

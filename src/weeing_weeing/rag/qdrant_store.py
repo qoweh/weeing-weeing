@@ -73,7 +73,7 @@ class QdrantVectorStore:
         embedder: Embedder,
         embedding_model: str,
         sparse_encoder: SparseEncoder | None = None,
-        collection: str = "knowledge",
+        collection: str = "knowledge_voyage",
         recreate: bool = False,
         batch_size: int = 64,
     ) -> None:

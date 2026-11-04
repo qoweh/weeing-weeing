@@ -47,6 +47,7 @@ hmi/           Streamlit 화면                            ← 5차
 simulator/     Unreal 연동                               ← 4차
 data/          원본 데이터, 룰 정의서·매뉴얼·SOP
 tests/  scripts/  docs/
+ops/           로컬·운영 서버 명령 모음 (local.sh, aws.sh)
 ```
 
 각 모듈의 책임은 `__init__.py` 첫 주석에, 바깥에 내놓는 함수 모양은 `interface.py`에 있습니다. 다른 모듈은 `interface.py`와 `contracts`만 import합니다.
@@ -65,6 +66,7 @@ tests/  scripts/  docs/
 | [LOCAL_SETUP](docs/LOCAL_SETUP.md) | 개발 환경 설치, 실행, 문제 해결 |
 | [DEPLOY](docs/DEPLOY.md) | 운영 서버(EC2) 배포: 구조, Secrets, 첫 배포, 롤백, 백업 (#117) |
 | [AWS_ACCESS](docs/AWS_ACCESS.md) | 운영 서버 접속: 주소, SSH 키 등록, DB·Qdrant 터널, Langfuse |
+| [ops/README](ops/README.md) | 자주 쓰는 명령 모음: 로컬 실행(`ops/local.sh`)·운영 서버 상태·로그·볼륨(`ops/aws.sh`) |
 | [CHANGE_WORKFLOW](docs/CHANGE_WORKFLOW.md) | 이슈·브랜치·커밋·PR·머지 규칙 |
 | [DECISIONS](docs/DECISIONS.md) | 기술 결정 기록 |
 | [AGENT](docs/AGENT.md) | 에이전트 구조(싱글), 도구·검사, 멀티 에이전트·메모리 확장 계획 |
@@ -73,6 +75,7 @@ tests/  scripts/  docs/
 | [DIRECTION_CHANGES](docs/DIRECTION_CHANGES.md) | 방향 전환 때 없앤 것·바꾼 것 기록(로컬 LLM 폐지 등) |
 | [RAG_RETRIEVAL](docs/RAG_RETRIEVAL.md) | 폴더별 역할, 검색·리랭킹 구조, 공개 연결 방법과 평가 |
 | [EMBEDDING_API](docs/EMBEDDING_API.md) | 임베딩·리랭크 공급자 선정(해시 기본·Voyage), 후보 비교와 가격 |
+| [COMMERCIAL_MODELS](docs/COMMERCIAL_MODELS.md) | 로컬 모델 → 상용 API 전환 점검: 안 해도 되는 것, 새로 챙길 것, 다시 정할 값 |
 | [AI_DATA_SECURITY](docs/AI_DATA_SECURITY.md) | 외부 AI로 나가는 데이터, 기업의 일반적 관리 방식, 도입 전 점검표 |
 | [REPORTS](docs/REPORTS.md) | 보고서 로그인·임시 저장·내 보고서·결재·개정판과 #29 연결 지점 |
 | [data/README](data/README.md) | 데이터·문서 출처 |
