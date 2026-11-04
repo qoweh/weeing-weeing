@@ -150,5 +150,6 @@ def stream_telemetry(user: CurrentUser, repo: Users, credentials: Credentials):
     return StreamingResponse(
         telemetry_events(lambda: current_user(repo, credentials)),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+        # Compression proxies can buffer SSE until a compressed block fills.
+        headers={"Cache-Control": "no-store, no-transform", "X-Accel-Buffering": "no"},
     )

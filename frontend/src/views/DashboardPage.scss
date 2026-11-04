@@ -228,6 +228,34 @@
   font-size: 14px;
 }
 
+.sensor-dashboard__connection {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: -8px 0 20px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  strong {
+    flex-basis: 100%;
+    color: var(--text);
+    font-weight: 600;
+  }
+}
+.sensor-dashboard__session {
+  overflow-wrap: anywhere;
+}
+.sensor-chart[data-current="false"] .sensor-chart__value {
+  color: var(--muted);
+}
+.sensor-chart[data-current="false"] .sensor-chart__line {
+  opacity: 0.45;
+}
+.sensor-chart__placeholder {
+  fill: var(--muted);
+  font-size: 12px;
+}
+
 .sensor-dashboard__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

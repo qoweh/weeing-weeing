@@ -1,72 +1,45 @@
 import { useEffect, useRef, useState } from "react";
 import PageTitle from "../components/ui/PageTitle";
+import useTelemetryDashboard from "./useTelemetryDashboard";
+import {
+  sensorCharts,
+  sensorValue,
+  formatSensor,
+  sensorPath,
+  sensorStatus,
+  detectionLabel,
+} from "./telemetryCharts";
 import "./DashboardPage.scss";
 
-const charts = [
-  {
-    title: "회전 속도",
-    value: "1,480",
-    unit: "rpm",
-    points:
-      "0,44 40,34 80,38 120,35 160,48 200,53 240,46 280,44 320,36 360,40 400,47 440,42 480,48 520,45 560,31 600,28",
-  },
-  {
-    title: "DC 입력 전류",
-    value: "4.2",
-    unit: "A",
-    points:
-      "0,38 40,41 80,35 120,46 160,53 200,49 240,51 280,48 320,39 360,40 400,46 440,42 480,50 520,46 560,42 600,29",
-  },
-  {
-    title: "DC 버스 전압",
-    value: "48.1",
-    unit: "V",
-    points:
-      "0,34 40,43 80,49 120,46 160,51 200,45 240,40 280,36 320,42 360,49 400,40 440,43 480,41 520,27 560,29 600,36",
-  },
-  {
-    title: "모터 외함 온도",
-    value: "68.4",
-    unit: "℃",
-    points:
-      "0,38 40,46 80,50 120,40 160,35 200,25 240,26 280,33 320,38 360,39 400,34 440,35 480,32 520,28 560,30 600,42",
-  },
-  {
-    title: "구동측 진동 RMS",
-    value: "0.18",
-    unit: "g",
-    points:
-      "0,43 40,46 80,42 120,28 160,25 200,28 240,23 280,32 320,41 360,43 400,35 440,36 480,32 520,39 560,48 600,43",
-  },
-  {
-    title: "구동측 진동 첨도",
-    value: "3.1",
-    unit: "",
-    points:
-      "0,49 40,37 80,31 120,29 160,24 200,29 240,39 280,43 320,44 360,43 400,35 440,38 480,34 520,42 560,48 600,42",
-  },
-  {
-    title: "반구동측 진동 RMS",
-    value: "0.14",
-    unit: "g",
-    points:
-      "0,39 40,29 80,32 120,28 160,34 200,42 240,45 280,48 320,43 360,38 400,45 440,42 480,47 520,44 560,39 600,35",
-  },
-  {
-    title: "반구동측 진동 첨도",
-    value: "2.9",
-    unit: "",
-    points:
-      "0,31 40,32 80,29 120,38 160,46 200,51 240,45 280,44 320,47 360,34 400,37 440,43 480,38 520,34 560,31 600,29",
-  },
-];
+const charts = sensorCharts;
+const noop = () => {};
 
-export default function DashboardPage() {
+export default function DashboardPage({
+  onSessionExpired = noop,
+}: {
+  onSessionExpired?: () => void;
+}) {
   const [refreshInterval, setRefreshInterval] = useState("1");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [hiddenCharts, setHiddenCharts] = useState<string[]>([]);
   const settingsRef = useRef<HTMLDivElement>(null);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
+  const { model, error, now } = useTelemetryDashboard(
+    Number(refreshInterval) * 1000,
+    onSessionExpired,
+  );
+  const state = model.snapshot;
+  const record = state?.telemetry;
+  const status = sensorStatus(model, error, now);
+  const measuredAt = record
+    ? new Date(record.timestamp).toLocaleTimeString("ko-KR", { hour12: false })
+    : "표본 없음";
+  const storage =
+    state?.db_status === "saved"
+      ? "저장 완료"
+      : ["failed", "storage_failed"].includes(state?.db_status || "")
+        ? "저장 실패"
+        : "저장 확인 전";
 
   useEffect(() => {
     if (!settingsOpen) return;
@@ -93,8 +66,8 @@ export default function DashboardPage() {
       <div className="sensor-dashboard__header">
         <div>
           <PageTitle>대시보드</PageTitle>
-          <p className="sensor-dashboard__description">
-            센서 데이터 추이 · 예시 데이터
+          <p className="sensor-dashboard__description" role="status">
+            센서 데이터 추이 · {status.label}
           </p>
         </div>
         <div className="sensor-dashboard__settings" ref={settingsRef}>
@@ -160,7 +133,7 @@ export default function DashboardPage() {
                   </button>
                 ))}
               </div>
-              <p>실시간 데이터 연결 시 적용 예정</p>
+              <p>수신 표본은 유지하고 화면 갱신 주기에 적용합니다.</p>
               <div className="sensor-settings-panel__charts">
                 <div className="sensor-settings-panel__charts-heading">
                   <h3>그래프 표시</h3>
@@ -210,50 +183,100 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+      <div className="sensor-dashboard__connection">
+        {state?.context_preset === "SIM_RPM" && (
+          <strong>
+            로컬 RPM 시나리오 시험 · 고정 속도를 가정합니다. 실제 PLC 운전
+            확인이 아닙니다.
+          </strong>
+        )}
+        <span>측정 시각 {measuredAt}</span>
+        <span>{storage}</span>
+        <span>
+          입구 {detectionLabel(record, "infeed_present")} · 출구{" "}
+          {detectionLabel(record, "outfeed_present")}
+        </span>
+        {state?.run_id && (
+          <span className="sensor-dashboard__session">
+            감지 세션 {state.run_id}
+          </span>
+        )}
+        {!status.current && record && (
+          <strong>
+            마지막 수신값입니다. 현재 정상 상태를 뜻하지 않습니다.
+          </strong>
+        )}
+        {model.sessionChanged && (
+          <span>
+            새 감지 세션에서 그래프를 다시 수집합니다. 이전 사건의 회복을 뜻하지
+            않습니다.
+          </span>
+        )}
+        {error && <span role="alert">{error}</span>}
+      </div>
       <div className="sensor-dashboard__grid">
         {charts
           .filter((chart) => !hiddenCharts.includes(chart.title))
-          .map((chart) => (
-            <section
-              className="sensor-chart"
-              key={chart.title}
-              aria-label={`${chart.title} 예시 그래프`}
-            >
-              <div className="sensor-chart__heading">
-                <div>
-                  <h2>{chart.title}</h2>
-                  <p className="sensor-chart__value">
-                    {chart.value}
-                    {chart.unit && (
-                      <span className="sensor-chart__unit"> {chart.unit}</span>
-                    )}
-                  </p>
-                </div>
-                <span>최근 60초 · 예시</span>
-              </div>
-              <svg
-                className="sensor-chart__graph"
-                viewBox="0 0 600 80"
-                preserveAspectRatio="none"
-                role="img"
-                aria-label={`${chart.title}의 예시 추이`}
+          .map((chart) => {
+            const value = sensorValue(record, chart.field);
+            const path = sensorPath(model.samples, chart.field);
+            return (
+              <section
+                className="sensor-chart"
+                key={chart.title}
+                aria-label={`${chart.title} 센서 그래프`}
+                data-sensor-field={chart.field}
+                data-current={status.current}
               >
-                <path
-                  d="M0 16H600 M0 45H600 M0 74H600"
-                  className="sensor-chart__gridline"
-                />
-                <polyline
-                  points={chart.points}
-                  className="sensor-chart__line"
-                />
-              </svg>
-              <div className="sensor-chart__axis">
-                <span>60초 전</span>
-                <span>30초 전</span>
-                <span>0초</span>
-              </div>
-            </section>
-          ))}
+                <div className="sensor-chart__heading">
+                  <div>
+                    <h2>{chart.title}</h2>
+                    <p className="sensor-chart__value">
+                      {formatSensor(value, chart.digits)}
+                      {chart.unit && (
+                        <span className="sensor-chart__unit">
+                          {" "}
+                          {chart.unit}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <span>
+                    최근 60초 · {status.current ? "수신값" : "마지막 수신값"}
+                  </span>
+                </div>
+                <svg
+                  className="sensor-chart__graph"
+                  viewBox="0 0 600 80"
+                  preserveAspectRatio="none"
+                  role="img"
+                  aria-label={`${chart.title}의 최근 수신 추이`}
+                >
+                  <path
+                    d="M0 16H600 M0 45H600 M0 74H600"
+                    className="sensor-chart__gridline"
+                  />
+                  {path && model.samples.length > 1 ? (
+                    <path d={path} className="sensor-chart__line" />
+                  ) : (
+                    <text
+                      x="300"
+                      y="45"
+                      textAnchor="middle"
+                      className="sensor-chart__placeholder"
+                    >
+                      {value === null ? "미수신" : "표본 수집 중"}
+                    </text>
+                  )}
+                </svg>
+                <div className="sensor-chart__axis">
+                  <span>60초 전</span>
+                  <span>30초 전</span>
+                  <span>0초</span>
+                </div>
+              </section>
+            );
+          })}
       </div>
       {hiddenCharts.length === charts.length && (
         <p className="sensor-dashboard__empty">

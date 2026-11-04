@@ -24,6 +24,18 @@ _producer = Lock()
 PRODUCER_IDLE_SECONDS = 15
 
 
+def _simulation_rpm_allowed(websocket, settings):
+    return (
+        settings.telemetry_simulation_rpm_enabled
+        and not settings.telemetry_auth_required
+        and not settings.telemetry_producer_token_sha256.strip()
+        and not settings.analysis_auto_enabled
+        and websocket.client is not None
+        and websocket.client.host in {"127.0.0.1", "::1"}
+        and websocket.url.hostname in {"127.0.0.1", "localhost", "::1"}
+    )
+
+
 async def _finish_worker(task):
     """Wait through cancellation without retrying the synchronous operation.
 
@@ -47,6 +59,7 @@ class TelemetrySession:
         self.failed = False
         self.processed_count = 0
         self.analysis_service = None
+        self.run_started_at = None
         self.history = HistoryDetector(
             output,
             source={
@@ -54,7 +67,10 @@ class TelemetrySession:
                 "input_path": "WebSocket -> JsonTelemetryInput -> HistoryDetector",
                 "context_preset": context_preset,
                 "assumptions": (
-                    "No operational context supplied"
+                    "SIM_RPM LOCAL TEST ONLY: fixed speed assumed; run start is "
+                    "the first valid sample; not verified operational PLC context"
+                    if context_preset == "SIM_RPM"
+                    else "No operational context supplied"
                     if context_preset == "NONE"
                     else "SIMULATION ONLY; not verified operational PLC context"
                 ),
@@ -67,6 +83,15 @@ class TelemetrySession:
         if self.asset is not None and asset != self.asset:
             raise TelemetryInputError("One process/asset per connection")
         context = {} if self.context_preset == "NONE" else {"run_cmd": True}
+        if self.context_preset == "SIM_RPM":
+            if self.run_started_at is None:
+                self.run_started_at = record.timestamp
+            context.update(
+                run_started_at=self.run_started_at,
+                fixed_speed=True,
+                recipe_id="SIM_RPM_LOCAL_ONLY",
+                config_version="SIM_RPM_V1",
+            )
         if self.context_preset == "MINIMAL":
             context.update(
                 events_reliable=True,
@@ -162,8 +187,14 @@ async def telemetry_socket(websocket: WebSocket, context: str = "NONE"):
             await websocket.close(code=1008)
             return
     await websocket.accept()
-    if context not in {"NONE", "RUN_ONLY", "MINIMAL"}:
+    if context not in {"NONE", "RUN_ONLY", "MINIMAL", "SIM_RPM"}:
         await websocket.send_json({"status": "rejected", "code": "invalid_context"})
+        await websocket.close(code=1008)
+        return
+    if context == "SIM_RPM" and not _simulation_rpm_allowed(websocket, settings):
+        await websocket.send_json(
+            {"status": "rejected", "code": "simulation_context_disabled"}
+        )
         await websocket.close(code=1008)
         return
     if not _producer.acquire(blocking=False):

@@ -68,7 +68,7 @@ make llm-check ARGS="--effort low"                            # 생각 깊이 �
 
 ## 사건 분석 에이전트 (`analyze_incident.py`, #102)
 
-사건 JSON 하나를 사건 분석 에이전트로 분석한다. Claude가 `search_evidence` 도구로 근거를 찾고 `submit_analysis`로 결과를 낸다. 웹에서 등록한 검색 자료와 API 키가 필요하다. DB에는 저장하지 않는다.
+사건 JSON 하나를 사건 분석 에이전트로 분석한다. Claude가 `search_evidence` 도구로 근거를 찾고 `submit_analysis`로 결과를 낸다. 검색 자료와 API 키가 필요하다. 기본은 DB 미저장이며 아래 옵션으로 기존 사건에 저장할 수 있다.
 
 ```bash
 make analyze                                     # data/eval/incident_p03_demo.json
@@ -77,6 +77,18 @@ make analyze ARGS="--incident 사건.json"
 
 - 출력: `AnalysisResult` JSON, 도구 호출 기록, 토큰 수
 - 종료 코드 0 OK·INSUFFICIENT_EVIDENCE / 1 FAILED / 2 입력·설정 문제
+
+`--ask-key`는 사용자가 직접 연 터미널에서 API 키를 숨김 입력한다. IDE 자동 문맥에
+열린 파일이 포함될 수 있으므로 키를 편집기·채팅·명령 인자에 넣지 않는다.
+`uv run --no-sync --no-env-file`로 실행하면 `.env`를 자동 로드하지 않는다.
+`--result-out 새파일.json`은 결과를 별도로 보존하고 기존 파일이 있으면 호출 전에 멈춘다.
+`--save-db`는 현재 DB에 같은 공정·설비의 사건이 있을 때 분석 결과와 입력 스냅샷을
+완료 작업으로 함께 추가한다. 대기·실행 중인 분석이 있으면 유료 호출 전에 중단한다.
+이 옵션에는 `--result-out`이 필수이며, 결과 파일 저장 후 DB 저장을 시도한다.
+사건 회복·승인 상태와 정비·결재 칸은 바꾸지 않는다. 저장 전용 API에서도 기존
+분석 조회로 확인할 수 있으며, 자동 분석이나 백그라운드 worker를 켤 필요가 없다.
+단건 분석도 여러 도구·LLM 호출로 구성되어 비용이 발생한다. DB 저장 실패 후에는
+보존된 결과 파일을 확인하고 유료 분석을 자동 반복하지 않는다.
 
 ## 사건 센서 이력 저장
 

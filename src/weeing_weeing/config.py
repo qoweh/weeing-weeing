@@ -54,6 +54,7 @@ class Settings:
     telemetry_db_enabled: bool = False  # 분석 작업 없이 센서·사건만 저장
     telemetry_auth_required: bool = False  # 운영 compose는 항상 true
     telemetry_producer_token_sha256: str = ""  # 원본 토큰 대신 SHA-256만 보관
+    telemetry_simulation_rpm_enabled: bool = False  # loopback RPM 시나리오 시험만
 
 
 def get_settings() -> Settings:
@@ -106,4 +107,8 @@ def get_settings() -> Settings:
         telemetry_auth_required=env("TELEMETRY_AUTH_REQUIRED", "false").lower()
         in ("1", "true", "yes"),
         telemetry_producer_token_sha256=env("TELEMETRY_PRODUCER_TOKEN_SHA256", ""),
+        telemetry_simulation_rpm_enabled=env(
+            "TELEMETRY_SIMULATION_RPM_ENABLED", "false"
+        ).lower()
+        in ("1", "true", "yes"),
     )

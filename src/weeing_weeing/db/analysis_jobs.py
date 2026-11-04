@@ -162,6 +162,66 @@ class SqlAnalysisJobs(SqlIncidents):
                     return Incident.model_validate(snapshot)
         return None
 
+    def save_analysis_with_input(
+        self, result: AnalysisResult, incident: Incident
+    ) -> int:
+        """단건 CLI 분석과 입력을 원자 저장한다. 현재 사건·대기 작업은 변경하지 않는다."""
+        result = AnalysisResult.model_validate(result.model_dump())
+        if result.incident_id != incident.incident_id:
+            raise AnalysisConflictError("분석 사건 ID 불일치")
+        with self._transaction() as session:
+            if self._engine.dialect.name == "sqlite":
+                session.execute(text("BEGIN IMMEDIATE"))
+            self._lock_incidents(session, [incident.incident_id])
+            current = session.get(IncidentRow, incident.incident_id)
+            if current is None:
+                raise UnknownIncidentError(incident.incident_id)
+            if (current.process_id, current.asset_id) != (
+                incident.process_id,
+                incident.asset_id,
+            ):
+                raise AnalysisConflictError("분석 입력의 공정·설비가 다릅니다")
+            active = session.scalar(
+                select(AnalysisJobRow.job_id).where(
+                    AnalysisJobRow.incident_id == incident.incident_id,
+                    AnalysisJobRow.status.in_(ACTIVE),
+                )
+            )
+            if active is not None:
+                raise AnalysisConflictError("대기 또는 실행 중인 분석이 있습니다")
+            previous = session.scalar(
+                select(func.max(AnalysisJobRow.created_at)).where(
+                    AnalysisJobRow.incident_id == incident.incident_id
+                )
+            )
+            timestamp = now()
+            if previous is not None:
+                timestamp = max(timestamp, utc(previous) + timedelta(microseconds=1))
+            row = AnalysisRow(
+                incident_id=result.incident_id,
+                status=result.status,
+                model=result.model,
+                prompt_version=result.prompt_version,
+                generated_at=utc(result.generated_at),
+                data=result.model_dump(mode="json"),
+            )
+            session.add(row)
+            session.flush()
+            session.add(
+                AnalysisJobRow(
+                    job_id=uuid4().hex,
+                    incident_id=incident.incident_id,
+                    request_key=f"cli:{uuid4().hex}",
+                    status="FAILED" if result.status == "FAILED" else "COMPLETED",
+                    snapshot=incident.model_dump(mode="json"),
+                    analysis_id=row.id,
+                    error_code="analysis_failed" if result.status == "FAILED" else None,
+                    created_at=timestamp,
+                    updated_at=timestamp,
+                )
+            )
+            return row.id
+
     def retry(self, incident_id, request_id, *, capacity=100):
         with self._transaction() as session:
             if self._engine.dialect.name == "sqlite":

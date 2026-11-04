@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import json
+from datetime import datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -12,6 +13,7 @@ from weeing_weeing.api import telemetry, telemetry_live
 from weeing_weeing.api.app import app
 from weeing_weeing.contracts import Role, TelemetryRecord, UserAccount
 from weeing_weeing.db import interface as db
+from weeing_weeing.detector.interface import HistoryReader
 
 FAKE_TOKEN = "fake-producer-token-for-tests-only"
 
@@ -48,6 +50,154 @@ def live_client(tmp_path, monkeypatch):
 
 def row(sample_rows):
     return TelemetryRecord.model_validate(sample_rows[0]).model_dump(mode="json")
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"telemetry_simulation_rpm_enabled": False},
+        {"telemetry_auth_required": True},
+        {"telemetry_producer_token_sha256": " " + "a" * 64},
+        {"analysis_auto_enabled": True},
+        {"peer": "192.0.2.20"},
+        {"host": "public.example"},
+        {"peer": None},
+    ],
+)
+def test_simulation_rpm_is_local_opt_in_only(change):
+    options = {
+        "telemetry_simulation_rpm_enabled": True,
+        "telemetry_auth_required": False,
+        "telemetry_producer_token_sha256": "",
+        "analysis_auto_enabled": False,
+        "peer": "127.0.0.1",
+        "host": "127.0.0.1",
+    }
+
+    def allowed(values):
+        values = dict(values)
+        peer = values.pop("peer")
+        host = values.pop("host")
+        return telemetry._simulation_rpm_allowed(
+            SimpleNamespace(
+                client=None if peer is None else SimpleNamespace(host=peer),
+                url=SimpleNamespace(hostname=host),
+            ),
+            SimpleNamespace(**values),
+        )
+
+    assert allowed(options)
+    assert not allowed({**options, **change})
+    assert allowed({**options, "peer": "::1", "host": "::1"})
+
+
+def test_simulation_rpm_rejected_before_history_and_producer(live_client, tmp_path):
+    client, _ = live_client
+    with client.websocket_connect(
+        "/ws/telemetry?context=SIM_RPM",
+        headers={"Authorization": f"Bearer {FAKE_TOKEN}"},
+    ) as ws:
+        assert ws.receive_json()["code"] == "simulation_context_disabled"
+    assert not (tmp_path / "history").exists()
+    assert not telemetry._producer.locked()
+
+
+@pytest.mark.parametrize("context", ["NONE", "RUN_ONLY", "MINIMAL", "SIM_RPM"])
+def test_rpm_simulation_alarm_lifecycle_and_legacy_contexts(
+    live_client, monkeypatch, sample_rows, context
+):
+    _, headers = live_client
+    monkeypatch.setenv("TELEMETRY_SIMULATION_RPM_ENABLED", "true")
+    monkeypatch.setenv("TELEMETRY_AUTH_REQUIRED", "false")
+    monkeypatch.setenv("TELEMETRY_PRODUCER_TOKEN_SHA256", "")
+    client = TestClient(app, base_url="http://127.0.0.1", client=("127.0.0.1", 50000))
+    original = row(sample_rows)
+    start = datetime.fromisoformat(original["timestamp"])
+    changes = []
+    with client.websocket_connect(
+        f"ws://127.0.0.1/ws/telemetry?context={context}"
+    ) as ws:
+        ready = ws.receive_json()
+        assert ready["context_preset"] == context
+        for index in range(59):
+            seconds = index / 2
+            rpm = (
+                1015 if seconds < 5 or seconds >= 17 else 1035 if seconds < 11 else 1045
+            )
+            ws.send_json(
+                {
+                    **original,
+                    "record_id": f"sim-{context}-{index}",
+                    "timestamp": (start + timedelta(seconds=seconds)).isoformat(),
+                    "rpm": rpm,
+                    "infeed_present": False,
+                    "outfeed_present": False,
+                }
+            )
+            ack = ws.receive_json()
+            assert ack["status"] == "processed"
+            assert ack["db_status"] == "saved"
+            assert ack["agent_status"] == "not_connected"
+            assert ack["analysis_jobs"] == []
+            changes.extend(
+                item for item in ack["incidents"] if "BTT2-M03" in item["codes"]
+            )
+        state = client.get("/telemetry/latest", headers=headers).json()
+        assert state["context_preset"] == context
+        assert state["telemetry"]["rpm"] == 1015
+    if context != "SIM_RPM":
+        assert changes == []  # Merely opting in never alters legacy contexts.
+        return
+    lifecycle = []
+    for item in changes:
+        stage = (item["severity"], item["status"])
+        if not lifecycle or lifecycle[-1] != stage:
+            lifecycle.append(stage)
+    assert lifecycle == [
+        ("Warning", "OPEN"),
+        ("Error", "OPEN"),
+        ("Error", "RECOVERED"),
+    ]
+    assert len({item["incident_id"] for item in changes}) == 1
+    incident_id = changes[0]["incident_id"]
+    persisted = next(
+        item
+        for item in client.get("/incidents", headers=headers).json()
+        if item["incident_id"] == incident_id
+    )
+    assert persisted["status"] == "RECOVERED"
+    assert persisted["severity"] == "Error"
+    assert persisted["recovered_at"] is not None
+    reader = HistoryReader(ready["run_path"])
+    assert reader.validate()
+    assert "LOCAL TEST ONLY" in reader.manifest["source"]["assumptions"]
+    # A reconnect starts its own startup grace and persistence timer.
+    with client.websocket_connect("ws://127.0.0.1/ws/telemetry?context=SIM_RPM") as ws:
+        assert ws.receive_json()["run_id"] != ready["run_id"]
+        for index in range(13):
+            ws.send_json(
+                {
+                    **original,
+                    "record_id": f"restart-{index}",
+                    "timestamp": (
+                        start + timedelta(seconds=60 + index / 2)
+                    ).isoformat(),
+                    "rpm": 1045,
+                }
+            )
+            incidents = ws.receive_json()["incidents"]
+            m03 = [item for item in incidents if "BTT2-M03" in item["codes"]]
+            if index < 12:
+                assert m03 == []
+            else:
+                assert m03[0]["severity"] == "Error"
+
+
+def test_stream_disables_proxy_transformation():
+    response = telemetry_live.stream_telemetry(None, None, None)
+    assert response.media_type == "text/event-stream"
+    assert response.headers["cache-control"] == "no-store, no-transform"
+    assert response.headers["x-accel-buffering"] == "no"
 
 
 def test_auth_denied_before_producer_and_history(live_client, tmp_path):

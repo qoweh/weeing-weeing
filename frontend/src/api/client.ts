@@ -1,4 +1,9 @@
 import { readChatStream } from './sse.js'
+import {
+  parseTelemetrySnapshot,
+  readTelemetryStream,
+  type TelemetrySnapshot,
+} from './telemetry.js'
 
 export type Incident = {
   incident_id: string
@@ -41,51 +46,52 @@ export function setAccessToken(token: string) {
 
 export async function watchTelemetry(
   signal: AbortSignal,
-  onSnapshot: (state: { incidents: Incident[]; db_status: string }) => void,
+  onSnapshot: (state: TelemetrySnapshot) => void,
 ) {
-  const response = await fetch('/api/telemetry/stream', {
-    cache: 'no-store',
-    signal,
-    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-  })
-  if (!response.ok || !response.body) {
-    const error = new ApiError(`실시간 연결 실패: HTTP ${response.status}`)
-    error.status = response.status
-    throw error
+  const controller = new AbortController()
+  const cancel = () => controller.abort()
+  if (signal.aborted) controller.abort()
+  signal.addEventListener('abort', cancel, { once: true })
+  let timer: ReturnType<typeof setTimeout>
+  const armTimeout = () => {
+    clearTimeout(timer)
+    timer = setTimeout(() => controller.abort(), 10_000)
   }
-  const reader = response.body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
+  armTimeout()
   try {
-    while (!signal.aborted) {
-      const { value, done } = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n')
-      let boundary
-      while ((boundary = buffer.indexOf('\n\n')) !== -1) {
-        const frame = buffer.slice(0, boundary)
-        buffer = buffer.slice(boundary + 2)
-        const data = frame
-          .split('\n')
-          .filter((line) => line.startsWith('data:'))
-          .map((line) => line.slice(5).trimStart())
-          .join('\n')
-        if (!data) continue
-        const event = JSON.parse(data)
-        if (event.event === 'error') {
-          const error = new ApiError(event.message)
-          error.status = event.status_code
-          throw error
-        }
-        if (event.event === 'snapshot') onSnapshot(event.state)
-      }
-      if (buffer.length > 1_000_000)
-        throw new Error('실시간 데이터가 너무 큽니다.')
+    const response = await fetch('/api/telemetry/stream', {
+      cache: 'no-store',
+      signal: controller.signal,
+      headers: {
+        Accept: 'text/event-stream',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+    })
+    if (!response.ok) {
+      await response.body?.cancel().catch(() => {})
+      const error = new ApiError(`실시간 연결 실패: HTTP ${response.status}`)
+      error.status = response.status
+      throw error
     }
+    await readTelemetryStream(
+      response,
+      controller.signal,
+      onSnapshot,
+      armTimeout,
+    )
   } finally {
-    await reader.cancel().catch(() => {})
-    reader.releaseLock()
+    clearTimeout(timer!)
+    signal.removeEventListener('abort', cancel)
+    controller.abort()
   }
+}
+
+export async function getLatestTelemetry(
+  signal: AbortSignal,
+): Promise<TelemetrySnapshot> {
+  return parseTelemetrySnapshot(
+    await request('/telemetry/latest', { signal, timeoutMs: 10_000 }),
+  )
 }
 
 export async function request(
@@ -96,16 +102,18 @@ export async function request(
     signal,
     responseType = 'json',
     onEvent,
+    timeoutMs = 300_000,
   }: {
     method?: string
     body?: unknown
     signal?: AbortSignal
     responseType?: 'json' | 'blob' | 'stream'
     onEvent?: (event: any) => void | Promise<void>
+    timeoutMs?: number
   } = {},
 ) {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 300_000)
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
   const isFormData = body instanceof FormData
   const cancel = () => controller.abort()
   if (signal?.aborted) controller.abort()

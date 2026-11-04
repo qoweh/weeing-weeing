@@ -3,8 +3,9 @@
 ## 작업 범위
 
 기존 수신·Detector·DB 저장 흐름을 유지하고 인증, 최신 상태 조회, 개인용 CLI를 추가한다.
-기존 프론트엔드·대시보드·준비 화면·헤더·보고서 UI는 변경하지 않는다.
-팀원이 구현할 실시간 화면은 아래 조회 API를 선택적으로 연결할 수 있다.
+기존 프론트엔드 대시보드의 레이아웃과 그래프 설정을 유지하면서 아래 조회 API로 센서값을 연결한다.
+최초 상태는 latest, 이후 갱신은 stream을 사용한다. 미수신 값을 0으로 채우지 않고,
+지연·단절 시 마지막 값으로 표시하며 epoch/run 변경 시 그래프 이력을 초기화한다.
 이 변경은 배포를 의미하지 않는다. 운영 적용·유료 분석은 별도 승인 후 진행한다.
 
 ```text
@@ -54,7 +55,7 @@ TLS 검증을 끄지 않는다. 기존 IP 웹 주소와 Python 개인 모니터�
 | `producer_connected`, `stale`, `age_seconds` | 연결·3초 초과 지연·마지막 표본 처리 후 경과시간 |
 | `received_at` | 마지막 표본의 탐지·저장 시도 후 서버 시각(UTC). 센서 시각과 구분 |
 | `telemetry` | 기존 전체 15필드 객체 또는 null. 입력 계약은 변경하지 않음 |
-| `context_preset` | NONE / RUN_ONLY / MINIMAL |
+| `context_preset` | NONE / RUN_ONLY / MINIMAL / SIM_RPM(로컬 시험 전용) |
 | `db_status`, `agent_status` | 마지막 표본의 DB·분석 연결 상태. AI 완료를 뜻하지 않음 |
 | `incidents` | 현재 세션의 최근 최대 100건 요약. ID·코드·설비·최초 감지·등급·상태 |
 

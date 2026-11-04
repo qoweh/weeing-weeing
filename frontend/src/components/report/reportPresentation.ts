@@ -11,6 +11,44 @@ const fieldLabels: Record<string, string> = {
   nde_kurtosis: '반구동측 첨도',
 }
 
+const sensorUnits: Record<string, string> = {
+  rpm: 'r/min',
+  dc_input_current_a: 'A',
+  dc_bus_voltage_v: 'V',
+  motor_housing_temp_c: '°C',
+  de_vibration_rms_g: 'g',
+  nde_vibration_rms_g: 'g',
+  de_kurtosis: '',
+  nde_kurtosis: '',
+}
+
+export function formatReportMeasurement(
+  field: string,
+  value: boolean | number | null | undefined,
+  fallbackUnit = '',
+) {
+  if (typeof value === 'boolean') return value ? '감지' : '미감지'
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '미수집'
+  const unit = sensorUnits[field] ?? fallbackUnit
+  const number = value.toFixed(2)
+  return unit && unit !== '-' ? `${number} ${unit}` : number
+}
+
+// 프로젝트에서 확정한 내부 설비명·모델명. 제조사 모델을 추정하지 않는다.
+const equipment: Record<string, { name: string; model: string }> = {
+  'BLDC-001': {
+    name: '배터리 트레이 이송 컨베이어',
+    model: 'WW-BTC-001',
+  },
+}
+
+export function reportEquipmentLabel(assetId?: string, suppliedName = '') {
+  const name = suppliedName.trim()
+  if (name && name !== assetId) return name
+  const entry = assetId ? equipment[assetId] : undefined
+  return entry ? `${entry.name} / ${entry.model}` : name || assetId || ''
+}
+
 export function alarmDescriptions(
   incident: { codes?: string[] } | null,
   analysis: { observed_facts?: string } | null,
@@ -46,12 +84,11 @@ export function measurementSummary(evidence: {
     (typeof evidence.value === 'boolean' || Number.isFinite(evidence.value))
   if (!valid) return `${label}: 유효한 측정값 없음`
 
-  const value =
-    typeof evidence.value === 'boolean'
-      ? evidence.value
-        ? '감지'
-        : '미감지'
-      : `${evidence.value}${evidence.unit ? ` ${evidence.unit}` : ''}`
+  const value = formatReportMeasurement(
+    evidence.field,
+    evidence.value,
+    evidence.unit,
+  )
   return [
     `${label}: ${value}`,
     evidence.observed,

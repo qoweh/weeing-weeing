@@ -9,7 +9,8 @@
     "start": "next start -p 3100",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
     "test:chat": "node --test tests/chat-*.test.mjs",
-    "test:report": "node --test tests/report-*.test.*"
+    "test:report": "node --test tests/report-*.test.*",
+    "test:sensor": "node --test tests/sensor-*.test.mjs"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.3",
