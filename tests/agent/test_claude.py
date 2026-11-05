@@ -98,6 +98,28 @@ def test_create_returns_response_for_tool_loop():
     assert "format" not in sdk.calls[0]["output_config"]
 
 
+def test_tool_loop_caches_system_and_conversation_prefix():
+    """같은 질문의 다음 턴·다음 질문이 도구 정의·SYSTEM·앞 턴을 재사용하게 한다(#218)."""
+    sdk = FakeSdk(message(text("x"), stop_reason="tool_use"))
+    client = ClaudeClient("claude-test", sdk=sdk)
+    client.create(system="s", messages=[], tools=[], timeout_s=5)
+    call = sdk.calls[0]
+    assert call["system"] == [
+        {"type": "text", "text": "s", "cache_control": {"type": "ephemeral"}}
+    ]
+    assert call["cache_control"] == {"type": "ephemeral"}  # 자동 캐싱(대화 끝)
+
+
+def test_single_call_caches_only_system_not_unique_user_input():
+    """사용자 입력은 매번 달라 캐시 쓰기 비용만 생기므로 SYSTEM까지만 캐시한다."""
+    sdk = FakeSdk(message(text('{"a": 1}')))
+    ClaudeClient("claude-test", sdk=sdk).generate_json("sys", "user", timeout_s=5)
+    call = sdk.calls[0]
+    assert call["system"][0]["cache_control"] == {"type": "ephemeral"}
+    assert call["system"][0]["text"] == "sys"
+    assert "cache_control" not in call
+
+
 @pytest.mark.parametrize(
     ("reply", "error"),
     [

@@ -89,6 +89,8 @@ flowchart LR
 | `cache_read_input_tokens` | 프롬프트 캐시에서 읽은 입력 |
 | `cache_creation_input_tokens` | 프롬프트 캐시에 쓴 입력 |
 
+prompt caching(#218): 도구 루프는 도구 정의·SYSTEM과 앞 턴 대화를, 단발 호출(근거 검토·`llm-check`)은 SYSTEM까지를 캐시한다. 캐시는 Anthropic 서버에 5분 보관되며 매 요청이 갱신한다. 챗봇 질문 1건이면 `turn-1`은 `cache_creation_input_tokens`(쓰기, 입력 단가 1.25배), `turn-2`부터는 `cache_read_input_tokens`(읽기, 0.1배)가 보여야 한다. 둘 다 0이면 SYSTEM·도구 정의에 매번 바뀌는 값이 섞였는지 확인한다.
+
 홈서버 Langfuse(4.71.0)의 기본 모델 목록에 아래 세 모델이 위 키 이름 그대로 들어 있어 따로 등록하지 않았다. 2026-10-30에 [공식 가격표](https://platform.claude.com/docs/en/about-claude/pricing)와 대조했다(100만 토큰당 USD).
 
 | 모델 | `input` | `output` | `cache_read_input_tokens` | `cache_creation_input_tokens` (5분) |
