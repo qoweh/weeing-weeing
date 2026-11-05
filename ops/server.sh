@@ -30,7 +30,7 @@ usage() {
   db                     운영 DB psql 접속 (컨테이너 안 계정 사용). 조회 위주
   env-keys               서버 .env에 있는 변수 이름만 (값은 출력 안 함)
   env-check              서버 .env를 .env.example과 비교 (비밀 값은 설정됨/비어 있음만)
-  env-sync               .env에 키가 아예 없는 .env.example 줄만 끝에 추가 (배포 때 자동 실행)
+  env-sync               .env에 키가 아예 없는 .env.example 줄만 템플릿과 같은 위치에 추가 (배포 때 자동 실행)
   seed-docs [--replace]  팀 문서(매뉴얼·룰·규정) 미리 등록·임베딩. 이미 임베딩된 같은 파일은 건너뜀
   reindex-reports        승인 보고서를 지금 컬렉션에 전부 다시 등록 (컬렉션을 바꾼 뒤)
   retry-reports          실패한 승인 보고서 색인만 다시 시도
