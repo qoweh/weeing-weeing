@@ -18,6 +18,7 @@ from weeing_weeing.agent.tracing import (
     LangfuseTracer,
     build_tracer,
     generation_label,
+    mask_personal,
     score_trace,
     trace_session,
 )
@@ -330,3 +331,36 @@ def test_build_tracer_exports_only_our_spans_to_avoid_double_cost(monkeypatch):
     on = dataclasses.replace(get_settings(), langfuse_base_url="https://lf.example.com")
     assert isinstance(build_tracer(on, entrypoint="x"), LangfuseTracer)
     assert seen["should_export_span"] is langfuse.is_langfuse_span
+    assert seen["mask"] is mask_personal
+
+
+def test_mask_hides_contact_and_id_numbers_but_keeps_equipment_codes():
+    data = {
+        "question": "BLDC-001 BTT2-P03 점검. 담당 a.b@corp.co.kr, 010-1234-5678, 02-123-4567",
+        "turns": [{"content": "주민 900101-1234567 / 01098765432"}],
+        "n": 3,
+    }
+    masked = mask_personal(data=data)
+    text = str(masked)
+    assert "BLDC-001" in text and "BTT2-P03" in text  # 설비 ID·오류 코드는 유지
+    for secret in (
+        "a.b@corp.co.kr",
+        "1234-5678",
+        "123-4567",
+        "900101-1234567",
+        "01098765432",
+    ):
+        assert secret not in text
+    assert "[이메일]" in text and "[전화번호]" in text and "[주민번호]" in text
+    assert masked["n"] == 3
+    assert data["question"].startswith("BLDC-001 BTT2-P03 점검. 담당 a.b@")  # 원본 유지
+
+
+def test_mask_failure_never_leaks_original(monkeypatch):
+    from weeing_weeing.agent import tracing
+
+    def boom(value):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(tracing, "_mask", boom)
+    assert mask_personal(data="010-1234-5678") == "[가리기 실패]"

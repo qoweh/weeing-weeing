@@ -18,6 +18,7 @@ Claude 키를 팀원 6명이 각자 쓰고 콘솔 사용량 화면을 볼 수 �
 
 import logging
 import os
+import re
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import AbstractContextManager, ExitStack, contextmanager
 from contextvars import ContextVar
@@ -69,6 +70,40 @@ def trace_session(session_id: str | None) -> Iterator[None]:
 TIMEOUT_S = (
     5  # 서버로 보내기 한 번의 제한 시간. 서버가 꺼져 있어도 이 이상 기다리지 않는다
 )
+
+
+# 기록으로 나가기 전에 가리는 개인정보 형식(#212). 설비 ID·오류 코드(BLDC-001, BTT2-P03)는
+# 가리지 않도록 숫자 자릿수가 분명한 형식만 고른다. 사람 이름·사번은 형식만으로 구분할 수 없어
+# 대상이 아니다(사번·이름은 애초에 기록에 넣지 않는다).
+_MASKS = (
+    (re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"), "[이메일]"),
+    (re.compile(r"(?<!\d)\d{6}-?[1-8]\d{6}(?!\d)"), "[주민번호]"),
+    (re.compile(r"(?<!\d)01[016789][- .]?\d{3,4}[- .]?\d{4}(?!\d)"), "[전화번호]"),
+    (re.compile(r"(?<!\d)0(?:2|[3-6][1-5])[- .]\d{3,4}[- .]\d{4}(?!\d)"), "[전화번호]"),
+)
+
+
+def mask_personal(*, data: Any, **_: Any) -> Any:
+    """Langfuse SDK mask 함수. 문자열 안의 이메일·주민번호·전화번호를 가린다.
+
+    dict·list 안까지 내려가며 원본은 바꾸지 않는다. 가리다 실패하면 원문 대신 표시만 남긴다.
+    """
+    try:
+        return _mask(data)
+    except Exception:
+        return "[가리기 실패]"
+
+
+def _mask(value: Any) -> Any:
+    if isinstance(value, str):
+        for pattern, label in _MASKS:
+            value = pattern.sub(label, value)
+        return value
+    if isinstance(value, dict):
+        return {key: _mask(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_mask(item) for item in value]
+    return value
 
 
 class Observation(Protocol):
@@ -291,6 +326,7 @@ def build_tracer(settings: "Settings", *, entrypoint: str) -> Tracer:
             # Anthropic SDK가 자체 OTel span(anthropic.messages.create)을 남겨 기본 필터로는
             # 같은 호출이 generation 2개가 되고 비용이 두 번 집계된다. 우리가 남긴 기록만 보낸다.
             should_export_span=is_langfuse_span,
+            mask=mask_personal,  # 질문·응답 본문의 개인정보를 보내기 전에 가린다(#212)
         )
     except Exception as exc:
         logger.warning(
