@@ -250,50 +250,87 @@
   font-size: 12px;
 }
 
+.sensor-dashboard__body {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
 .sensor-dashboard__grid {
   display: grid;
+  grid-column: span 2;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px 20px;
 }
 
 .sensor-chart {
   min-width: 0;
-  padding: 20px 24px 16px;
+  padding: 16px 20px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 16px;
   background: var(--surface);
 }
 
 .sensor-chart__heading {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
 
   h2 {
     margin: 0;
+    color: var(--text);
     font-size: 16px;
     font-weight: 700;
     line-height: 1.4;
   }
-  > span {
-    color: var(--muted);
-    font-size: 12px;
-    white-space: nowrap;
+}
+
+.sensor-chart__code {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.sensor-chart__badge {
+  padding: 4px 10px;
+  border-radius: 13px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+
+  &[data-state="live"] {
+    background: var(--success-bg);
+    color: var(--success);
+  }
+  &[data-state="none"] {
+    background: var(--warning-bg);
+    color: var(--warning);
   }
 }
 
 .sensor-chart__value {
   margin: 8px 0 0;
   font-family: "Nanum Gothic Dashboard ExtraBold", "Nanum Gothic", sans-serif;
-  font-size: 24px;
+  font-size: 32px;
   font-weight: 800;
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
 }
 .sensor-chart__unit {
+  color: var(--muted);
   font-family: "Nanum Gothic", sans-serif;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 400;
+}
+.sensor-chart__footer {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12px;
 }
 .sensor-chart__graph {
   display: block;
@@ -315,16 +352,229 @@
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
 }
-.sensor-chart__axis {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 6px;
-  color: var(--muted);
-  font-size: 11px;
+
+@media (max-width: 1200px) {
+  .sensor-dashboard__body {
+    grid-template-columns: 1fr;
+  }
+  .sensor-dashboard__grid {
+    grid-column: auto;
+  }
 }
 
 @media (max-width: 900px) {
   .sensor-dashboard__grid {
     grid-template-columns: 1fr;
+  }
+}
+
+.dashboard-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.dashboard-panel {
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+
+  h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  ul {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 14px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  button:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+}
+
+.dashboard-panel__hint {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.dashboard-panel__empty {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.dashboard-panel__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+
+  strong {
+    color: var(--primary);
+    font-size: 15px;
+  }
+}
+
+.dashboard-panel__incident {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+
+  small {
+    color: var(--muted);
+    font-size: 12px;
+  }
+  &:hover {
+    background: var(--surface-hover);
+  }
+}
+
+.dashboard-panel__line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 36px;
+
+  button {
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--primary);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    text-align: left;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+  }
+  button:hover {
+    text-decoration: underline;
+  }
+}
+
+.dashboard-panel__meta {
+  flex: none;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.dashboard-badge {
+  flex: none;
+  padding: 4px 10px;
+  border-radius: 13px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+
+  &[data-tone="success"] {
+    background: var(--success-bg);
+    color: var(--success);
+  }
+  &[data-tone="warning"] {
+    background: var(--warning-bg);
+    color: var(--warning);
+  }
+  &[data-tone="danger"] {
+    background: var(--danger-bg);
+    color: var(--danger);
+  }
+}
+
+.dashboard-prediction {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dashboard-prediction__percent {
+  color: var(--tone, var(--text));
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-prediction__bar {
+  display: block;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--tone-soft, var(--primary-soft));
+
+  span {
+    display: block;
+    height: 100%;
+    border-radius: 4px;
+    background: var(--tone, var(--primary));
+    transition: width 0.3s;
+  }
+}
+
+.dashboard-prediction {
+  --tone: var(--primary);
+  --tone-soft: var(--primary-soft);
+
+  &[data-tone="orange"] {
+    --tone: #d9730d;
+    --tone-soft: #fdebd3;
+  }
+  &[data-tone="danger"] {
+    --tone: var(--danger);
+    --tone-soft: var(--danger-bg);
+  }
+}
+
+.dashboard-prediction__summary {
+  --tone: var(--text);
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+
+  strong {
+    color: var(--tone);
+    font-size: 18px;
+  }
+  &[data-tone="orange"] {
+    --tone: #d9730d;
+  }
+  &[data-tone="danger"] {
+    --tone: var(--danger);
+  }
+}
+
+.dashboard-panel__notice {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--primary-soft);
+  color: var(--muted);
+  font-size: 13px;
+
+  &[data-lost="true"] {
+    background: var(--danger-bg);
+    color: var(--danger);
+    font-weight: 700;
   }
 }

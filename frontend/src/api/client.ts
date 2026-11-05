@@ -28,6 +28,27 @@ export type IncidentOverview = {
   report_status: string | null
 }
 
+export type MlPrediction = {
+  status?: string
+  reason?: string
+  probabilities?: Record<string, number> | null
+  error_probability?: number
+  fault_top3?: { code: string; confidence: number }[]
+  warning?: boolean
+  warning_threshold?: number
+}
+export type MlSnapshot = {
+  enabled: boolean
+  producer_connected: boolean
+  stale: boolean
+  prediction_usable: boolean
+  prediction: MlPrediction
+}
+
+export function getMlPrediction(): Promise<MlSnapshot> {
+  return request('/ml/prediction')
+}
+
 export function listIncidentOverview(): Promise<IncidentOverview[]> {
   return request('/incidents/overview?limit=200')
 }
