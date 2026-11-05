@@ -98,6 +98,9 @@ class ClaudeClient:
         self.last_usage: LlmUsage | None = None
         self.last_response_model: str | None = None
         self.last_attempts = 0
+        self.retry_guard = (
+            None  # 멀티 분석의 사건 전체 요청 상한. 키나 본문을 받지 않는다.
+        )
 
     def generate_json(
         self,
@@ -200,6 +203,8 @@ class ClaudeClient:
         """
         deadline = time.monotonic() + timeout_s
         for attempt in range(3):
+            if attempt and self.retry_guard is not None:
+                self.retry_guard()
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 raise LlmTimeoutError("Claude API 시간 예산 초과")

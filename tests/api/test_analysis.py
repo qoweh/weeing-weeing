@@ -224,6 +224,78 @@ def test_storage_only_db_failure_is_reported_without_ai(setup, caplog):
     assert "SECRET" not in caplog.text
 
 
+def test_staged_analysis_is_saved_and_read_with_its_job(setup):
+    from weeing_weeing.contracts.analysis_workflow import AnalysisAgentRun
+
+    repo, frame, item = setup
+
+    class Staged:
+        def analyze(self, incident):
+            pytest.fail("진행 기록이 있는 경계를 사용해야 합니다")
+
+        def analyze_with_progress(self, incident, callback):
+            callback(AnalysisAgentRun(role="documents", status="RUNNING"))
+            callback(
+                AnalysisAgentRun(
+                    role="documents", status="COMPLETED", summary="근거 없음"
+                )
+            )
+            callback(
+                AnalysisAgentRun(
+                    role="verification", status="SKIPPED", summary="검증 끔"
+                )
+            )
+            return AnalysisResult(
+                incident_id=incident.incident_id,
+                status="INSUFFICIENT_EVIDENCE",
+                observed_facts="fake",
+                model="fake/no-api",
+                generated_at=datetime.now(UTC),
+            )
+
+    service = AnalysisService(lambda: repo, lambda: Staged())
+    service.ingest(frame, [item])
+    assert service.process_one()
+    app.dependency_overrides[current_user] = lambda: UserAccount(
+        employee_no="C1", name="test", role=Role.CONTROL
+    )
+    with TestClient(app) as client:
+        payload = client.get(f"/incidents/{item.incident_id}/analysis").json()
+        assert payload["job"]["status"] == "COMPLETED"
+        assert payload["analysis"]["status"] == "INSUFFICIENT_EVIDENCE"
+        assert [r["status"] for r in payload["stages"]] == ["COMPLETED", "SKIPPED"]
+        assert client.get("/incidents/unknown/analysis").status_code == 404
+
+
+def test_stage_write_failure_does_not_reexecute_analyzer(setup, monkeypatch):
+    from weeing_weeing.contracts.analysis_workflow import AnalysisAgentRun
+
+    repo, frame, item = setup
+    calls = []
+    original = repo.save_agent_run
+
+    class Staged:
+        def analyze(self, incident):
+            pytest.fail("staged boundary required")
+
+        def analyze_with_progress(self, incident, callback):
+            calls.append(incident.incident_id)
+            callback(AnalysisAgentRun(role="documents", status="RUNNING"))
+
+    def unavailable(*args):
+        raise db.DatabaseUnavailableError("fake offline")
+
+    monkeypatch.setattr(repo, "save_agent_run", unavailable)
+    service = AnalysisService(lambda: repo, lambda: Staged())
+    service.ingest(frame, [item])
+    with pytest.raises(db.DatabaseUnavailableError):
+        service.process_one()
+    monkeypatch.setattr(repo, "save_agent_run", original)
+    assert service.process_one()
+    assert calls == [item.incident_id]
+    assert repo.latest_job(item.incident_id)["status"] == "FAILED"
+
+
 def test_blocked_analyzer_does_not_block_websocket(setup):
     repo, frame, item = setup
     started, release = Event(), Event()
@@ -286,7 +358,8 @@ def test_analyzer_exception_is_failed_without_retry(setup, caplog):
     assert "SECRET" not in caplog.text
 
 
-def test_query_and_manual_retry_auth_and_idempotency(setup):
+@pytest.mark.parametrize("role", [Role.INSPECTOR, Role.MAINT_LEAD, Role.CONTROL])
+def test_query_and_manual_retry_auth_and_idempotency(setup, role):
     repo, frame, item = setup
     service = AnalysisService(lambda: repo)
     service.ingest(frame, [item])
@@ -296,16 +369,83 @@ def test_query_and_manual_retry_auth_and_idempotency(setup):
     with TestClient(app) as client:
         app.state.analysis_service = service
         assert client.get(path).status_code == 401
-        user = UserAccount(employee_no="TEST01", name="test", role=Role.INSPECTOR)
+        user = UserAccount(employee_no="TEST01", name="test", role=Role.SITE_MANAGER)
         app.dependency_overrides[current_user] = lambda: user
         assert client.get(path).json()["job"]["status"] == "FAILED"
         request = {"request_id": str(uuid4())}
         assert client.post(path + "/retry", json=request).status_code == 403
-        user = user.model_copy(update={"role": Role.CONTROL})
+        user = user.model_copy(update={"role": role})
         first = client.post(path + "/retry", json=request)
         assert first.status_code == 202
         assert client.post(path + "/retry", json=request).json() == first.json()
         assert client.get("/incidents/not-found/analysis").status_code == 404
+
+
+@pytest.mark.parametrize("role", [Role.INSPECTOR, Role.MAINT_LEAD, Role.CONTROL])
+def test_final_report_approval_hides_retry_and_blocks_new_http_requests(
+    setup, monkeypatch, role
+):
+    from weeing_weeing.contracts import ReportDraft, ReportFormData
+    from weeing_weeing.db import users as user_module
+
+    repo, frame, item = setup
+    monkeypatch.setattr(user_module, "SCRYPT_N", 2**10)
+    users = db.open_users(str(repo._engine.url))
+    reports = db.open_reports(str(repo._engine.url))
+    try:
+        for employee, account_role in (
+            ("I1", Role.INSPECTOR),
+            ("L1", Role.MAINT_LEAD),
+            ("C1", Role.CONTROL),
+        ):
+            users.create_user(
+                UserAccount(employee_no=employee, name=employee, role=account_role),
+                "fake-password-123",
+            )
+        service = AnalysisService(lambda: repo, lambda: pytest.fail("No paid call"))
+        service.ingest(frame, [item])
+        job_id, _ = repo.claim()
+        repo.fail(job_id, "fake-timeout")
+        app.dependency_overrides[current_user] = lambda: UserAccount(
+            employee_no="test", name="test", role=role
+        )
+        with TestClient(app) as client:
+            app.state.analysis_service = service
+            path = f"/incidents/{item.incident_id}/analysis"
+            assert client.get(path).json()["retry_mode"] == "restart"
+            doc = reports.create_draft(
+                "I1",
+                ReportDraft(
+                    incident_id=item.incident_id,
+                    form_data=ReportFormData(
+                        actual_actions="센서 점검",
+                        action_at=frame.timestamp,
+                        confirmed_cause="센서 오염",
+                        trial_details="청소 후 시험",
+                        trial_result="정상",
+                    ),
+                ),
+            )
+            for employee, action in (
+                ("I1", "submit"),
+                ("L1", "review"),
+                ("C1", "approve"),
+            ):
+                doc = reports.transition(
+                    employee, doc.report_id, action, expected_revision=doc.revision
+                )
+            assert client.get(path).json()["retry_mode"] is None
+            response = client.post(
+                path + "/retry", json={"request_id": str(uuid4()), "job_id": job_id}
+            )
+            assert (
+                response.status_code == 409 and "최종 승인" in response.json()["detail"]
+            )
+            assert repo.latest_job(item.incident_id)["job_id"] == job_id
+            assert service.process_one() is False
+    finally:
+        users._engine.dispose()
+        reports._engine.dispose()
 
 
 def test_result_save_retry_never_repeats_llm(setup, monkeypatch):
@@ -419,3 +559,193 @@ def test_claim_commit_lost_reply_recovers_without_paid_retry(setup, monkeypatch)
         assert calls == [next_item.incident_id]
     finally:
         service.stop()
+
+
+def test_multi_stage_resume_survives_worker_recreation_and_only_calls_verifier(setup):
+    from types import SimpleNamespace
+
+    from weeing_weeing.agent.interface import LlmTimeoutError
+    from weeing_weeing.agent.multi_analysis import MultiIncidentAnalyzer
+
+    repo, frame, item = setup
+    calls = []
+    fail = [True]
+
+    def response(name, **data):
+        return SimpleNamespace(
+            content=[SimpleNamespace(type="tool_use", name=name, input=data, id="call")]
+        )
+
+    class Knowledge:
+        def search(self, *args, **kwargs):
+            return []
+
+        def is_current(self, *args, **kwargs):
+            return True
+
+    class Client:
+        provider, model_name = "fake", "no-paid-api"
+        last_usage, last_attempts = None, 1
+
+        def __init__(self, role):
+            self.role, self.index = role, 0
+
+        def create(self, **kwargs):
+            calls.append(self.role)
+            self.index += 1
+            if self.role in ("documents", "reports"):
+                return (
+                    response("search_evidence", query="과열")
+                    if self.index == 1
+                    else response("submit_research", findings=[], limitations=[])
+                )
+            if self.role == "synthesis":
+                return response(
+                    "submit_analysis",
+                    observed_facts="",
+                    sensor_claims=[],
+                    suspected_causes=[],
+                    recommended_checks=[],
+                    check_citations=[],
+                    recommended_actions=[],
+                    action_citations=[],
+                    actions_requiring_approval=[],
+                    approval_citations=[],
+                    additional_checks=[],
+                    limitations="등록 근거 없음",
+                    status="INSUFFICIENT_EVIDENCE",
+                )
+            if fail[0]:
+                raise LlmTimeoutError("fake timeout")
+            return response(
+                "submit_verification",
+                verdict="INSUFFICIENT_EVIDENCE",
+                summary="근거 부족",
+                issues=[],
+            )
+
+    def factory():
+        return MultiIncidentAnalyzer(Client, Knowledge(), verification_enabled=True)
+
+    original = AnalysisService(lambda: repo, factory)
+    original.ingest(frame, [item])
+    assert original.process_one()
+    original_job = repo.latest_job(item.incident_id)
+    assert original_job["status"] == "FAILED"
+    assert repo.checkpoint(original_job["job_id"]) is not None
+    app.dependency_overrides[current_user] = lambda: UserAccount(
+        employee_no="C1", name="test", role=Role.CONTROL
+    )
+    with TestClient(app) as client:
+        app.state.analysis_service = original
+        path = f"/incidents/{item.incident_id}/analysis"
+        assert client.get(path).json()["retry_mode"] == "resume"
+        request = {"request_id": str(uuid4()), "job_id": original_job["job_id"]}
+        first = client.post(path + "/retry", json=request)
+        assert first.status_code == 202
+        assert client.post(path + "/retry", json=request).json() == first.json()
+        assert (
+            client.post(
+                path + "/retry", json={**request, "request_id": str(uuid4())}
+            ).status_code
+            == 409
+        )
+        fail[0] = False
+        calls.clear()
+        # 새 저장소 객체와 새 worker에서 PostgreSQL과 동일한 영속 경계를 이용한다.
+        reopened = db.SqlAnalysisJobs(repo._engine)
+        resumed = AnalysisService(lambda: reopened, factory)
+        assert resumed.process_one()
+        assert calls == ["verification"]
+        app.state.analysis_service = resumed
+        payload = client.get(path).json()
+        assert payload["job"]["status"] == "COMPLETED"
+        assert payload["analysis"]["status"] == "INSUFFICIENT_EVIDENCE"
+        assert payload["retry_mode"] is None
+        assert (
+            len(
+                [
+                    r
+                    for r in payload["stages"]
+                    if r["reused_from_job_id"] == original_job["job_id"]
+                ]
+            )
+            == 3
+        )
+        assert (
+            client.post(path + "/retry", json={"request_id": str(uuid4())}).status_code
+            == 409
+        )
+        assert repo.agent_runs(original_job["job_id"])[-1].status == "FAILED"
+
+
+def test_checkpoint_write_outage_does_not_automatically_replay_paid_stages(
+    setup, monkeypatch
+):
+    from weeing_weeing.agent.multi_analysis import MultiIncidentAnalyzer
+
+    repo, frame, item = setup
+    calls = []
+
+    def factory(role):
+        calls.append(role)
+        pytest.fail("No model call before durable progress")
+
+    analyzer = MultiIncidentAnalyzer(factory, object())
+    service = AnalysisService(lambda: repo, lambda: analyzer)
+    service.ingest(frame, [item])
+    original = repo.save_progress
+
+    def offline(*args):
+        raise db.DatabaseUnavailableError("fake offline")
+
+    monkeypatch.setattr(repo, "save_progress", offline)
+    with pytest.raises(db.DatabaseUnavailableError):
+        service.process_one()
+    monkeypatch.setattr(repo, "save_progress", original)
+    assert service.process_one() and calls == []
+    assert repo.latest_job(item.incident_id)["status"] == "FAILED"
+
+
+def test_web_simulation_keeps_wire_shape_but_persists_declared_source_on_samples_and_job(
+    setup,
+):
+    from weeing_weeing.api.sensor_window import sensor_reader
+    from weeing_weeing.contracts.telemetry import COLUMNS
+
+    repo, frame, _ = setup
+    service = AnalysisService(lambda: repo, lambda: pytest.fail("No paid call"))
+    with TestClient(app) as client:
+        app.state.analysis_service = service
+        with client.websocket_connect(
+            "/ws/telemetry?context=RUN_ONLY&origin=SIMULATION&interval_s=1"
+        ) as ws:
+            assert ws.receive_json()["status"] == "connected"
+            for index in range(13):
+                row = frame.model_copy(
+                    update={
+                        "record_id": f"source-{index}",
+                        "timestamp": frame.timestamp + timedelta(seconds=index),
+                        "motor_housing_temp_c": 95.0,
+                        "rpm": 1015.0,
+                        "dc_input_current_a": 0.0918,
+                    }
+                )
+                wire = row.model_dump(mode="json")
+                assert set(wire) == set(COLUMNS)
+                ws.send_json(wire)
+                assert ws.receive_json()["db_status"] == "saved"
+    item = next(row for row in repo.list_incidents() if "BTT2-M10" in row.codes)
+    assert item.telemetry_provenance.origin == "SIMULATION"
+    assert item.telemetry_provenance.expected_interval_s == 1
+    _, snapshot = repo.claim()
+    assert snapshot.telemetry_provenance == item.telemetry_provenance
+    sensors = db.open_telemetry(str(repo._engine.url))
+    try:
+        batch = sensor_reader(sensors)(
+            item, frame.timestamp, frame.timestamp + timedelta(seconds=13), limit=100
+        )
+        assert len(batch.records) == len(batch.sources) == 13
+        assert all(source.origin == "SIMULATION" for source in batch.sources.values())
+    finally:
+        sensors._engine.dispose()

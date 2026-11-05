@@ -29,6 +29,40 @@ def frame(sample_rows):
     return TelemetryRecord.model_validate(sample_rows[0])
 
 
+def test_agent_runs_preserve_attempts_and_recover_without_reexecution(jobs, frame):
+    from weeing_weeing.contracts.analysis_workflow import AnalysisAgentRun
+
+    item = incident(frame)
+    jobs.record_frame(frame, [item])
+    job_id, _ = jobs.claim()
+    completed = AnalysisAgentRun(
+        role="synthesis", status="COMPLETED", summary="수정 전"
+    )
+    jobs.save_agent_run(job_id, completed)
+    jobs.save_agent_run(job_id, completed)  # 같은 결과의 재기록은 안전하다.
+    with pytest.raises(db.AnalysisConflictError):
+        jobs.save_agent_run(
+            job_id, completed.model_copy(update={"summary": "덮어쓰기"})
+        )
+    jobs.save_agent_run(
+        job_id, AnalysisAgentRun(role="synthesis", attempt=2, status="RUNNING")
+    )
+    jobs.save_agent_run(
+        job_id, AnalysisAgentRun(role="verification", attempt=2, status="PENDING")
+    )
+    assert jobs.recover_interrupted() == 1
+    runs = jobs.agent_runs(job_id)
+    assert [(r.role, r.attempt, r.status) for r in runs] == [
+        ("synthesis", 1, "COMPLETED"),
+        ("synthesis", 2, "FAILED"),
+        ("verification", 2, "SKIPPED"),
+    ]
+    assert jobs.claim() is None
+    new = jobs.retry(item.incident_id, str(uuid4()))
+    assert jobs.agent_runs(new["job_id"]) == []
+    assert jobs.agent_runs(job_id)[0].summary == "수정 전"
+
+
 def incident(frame, **overrides):
     return Incident(
         **{
@@ -52,6 +86,15 @@ def result(item, status="INSUFFICIENT_EVIDENCE"):
         model="fake/no-api",
         generated_at=item.last_detected_at,
     )
+
+
+def test_verification_failure_is_a_completed_job_with_distinct_result(jobs, frame):
+    item = incident(frame)
+    jobs.record_frame(frame, [item])
+    job_id, _ = jobs.claim()
+    jobs.finish(job_id, result(item, status="VERIFICATION_FAILED"))
+    assert jobs.latest_job(item.incident_id)["status"] == "COMPLETED"
+    assert jobs.latest_analysis(item.incident_id).status == "VERIFICATION_FAILED"
 
 
 def test_single_analysis_preserves_input_and_current_recovery(jobs, frame):
@@ -167,7 +210,9 @@ def test_storage_only_error_and_recovery_never_create_work(jobs, frame):
         }
     )
     assert jobs.record_frame(frame, [recovered], enqueue_analysis=False) == []
-    assert jobs.get_incident(item.incident_id) == recovered
+    assert jobs.get_incident(item.incident_id) == recovered.model_copy(
+        update={"incident_number": "INC-BTT2-P03-20261005-001"}
+    )
     assert jobs.latest_job(item.incident_id) is None
     assert jobs.claim() is None
     with jobs._transaction() as session:
@@ -242,7 +287,9 @@ def test_queue_overflow_is_explicit_and_does_not_drop_event(jobs, frame):
     job = jobs.record_frame(frame, [item], capacity=0)[0]
     assert job["status"] == "FAILED"
     assert job["error_code"] == "queue_full"
-    assert jobs.get_incident(item.incident_id) == item
+    assert jobs.get_incident(item.incident_id) == item.model_copy(
+        update={"incident_number": "INC-BTT2-P03-20261005-001"}
+    )
     assert jobs.claim() is None
 
 
@@ -251,7 +298,9 @@ def test_pending_survives_reopen(jobs, frame):
     jobs.record_frame(frame, [item])
     reopened = db.SqlAnalysisJobs(jobs._engine)
     assert reopened.recover_interrupted() == 0
-    assert reopened.claim()[1] == item
+    assert reopened.claim()[1] == item.model_copy(
+        update={"incident_number": "INC-BTT2-P03-20261005-001"}
+    )
 
 
 @pytest.mark.parametrize("enqueue_analysis", [False, True])
@@ -270,3 +319,96 @@ def test_job_and_sensor_roll_back_when_incident_insert_fails(
         assert session.scalar(select(TelemetryRow)) is None
         assert session.scalar(select(AnalysisJobRow)) is None
         assert session.scalar(select(AnalysisRow)) is None
+
+
+def test_checkpoint_survives_reopen_and_retries_preserve_original_records(jobs, frame):
+    from weeing_weeing.contracts.analysis_workflow import (
+        AnalysisAgentRun,
+        AnalysisCheckpoint,
+    )
+
+    item = incident(frame)
+    jobs.record_frame(frame, [item])
+    original_id, snapshot = jobs.claim()
+    completed = AnalysisAgentRun(
+        role="documents", status="COMPLETED", research={}, calls=2
+    )
+    pending = AnalysisAgentRun(role="reports", status="RUNNING")
+    cp = AnalysisCheckpoint(
+        incident_id=item.incident_id,
+        verification_enabled=True,
+        runs=[completed, pending],
+        sensor_windows={"window-1": {"sample_count": 5}},
+    )
+    jobs.save_progress(original_id, completed, cp)
+    jobs.save_progress(original_id, pending, cp)
+    reopened = db.SqlAnalysisJobs(jobs._engine)
+    assert reopened.checkpoint(original_id) == cp
+    assert reopened.recover_interrupted() == 1
+    retried = reopened.retry(item.incident_id, "resume-1", expected_job_id=original_id)
+    assert (
+        reopened.retry(item.incident_id, "resume-1", expected_job_id=original_id)
+        == retried
+    )
+    reused = reopened.agent_runs(retried["job_id"])
+    assert len(reused) == 1
+    assert reused[0].reused_from_job_id == original_id and reused[0].calls == 2
+    assert reopened.checkpoint(retried["job_id"]).sensor_windows == cp.sensor_windows
+    assert reopened.agent_runs(original_id)[-1].status == "FAILED"
+    with pytest.raises(db.AnalysisConflictError, match="변경"):
+        reopened.retry(item.incident_id, "stale-click", expected_job_id=original_id)
+    second_id, original_input = reopened.claim()
+    assert second_id == retried["job_id"] and original_input == snapshot
+    reopened.fail(second_id, "fake-timeout")
+    third = reopened.retry(item.incident_id, "resume-2", expected_job_id=second_id)
+    assert reopened.agent_runs(third["job_id"])[0].reused_from_job_id == original_id
+
+
+def test_checkpoint_and_stage_commit_are_atomic_and_cascade_with_incident(
+    jobs, frame, monkeypatch
+):
+    from sqlalchemy import delete, event, func
+    from sqlalchemy.exc import OperationalError
+
+    from weeing_weeing.contracts.analysis_workflow import (
+        AnalysisAgentRun,
+        AnalysisCheckpoint,
+    )
+    from weeing_weeing.db.models import (
+        AnalysisAgentRunRow,
+        AnalysisCheckpointRow,
+        IncidentRow,
+    )
+
+    item = incident(frame)
+    jobs.record_frame(frame, [item])
+    job_id, _ = jobs.claim()
+    run = AnalysisAgentRun(role="documents", status="COMPLETED", research={})
+    cp = AnalysisCheckpoint(
+        incident_id=item.incident_id, verification_enabled=False, runs=[run]
+    )
+
+    def offline(connection, cursor, statement, parameters, context, many):
+        if statement.startswith("INSERT INTO analysis_checkpoint"):
+            raise OperationalError(statement, None, RuntimeError("fake offline"))
+
+    event.listen(jobs._engine, "before_cursor_execute", offline)
+    try:
+        with pytest.raises(db.DatabaseUnavailableError):
+            jobs.save_progress(job_id, run, cp)
+    finally:
+        event.remove(jobs._engine, "before_cursor_execute", offline)
+    assert jobs.agent_runs(job_id) == [] and jobs.checkpoint(job_id) is None
+    jobs.save_progress(job_id, run, cp)
+    jobs.save_progress(job_id, run, cp)
+    with jobs._transaction() as session:
+        session.execute(
+            delete(IncidentRow).where(IncidentRow.incident_id == item.incident_id)
+        )
+    with jobs._transaction() as session:
+        assert (
+            session.scalar(select(func.count()).select_from(AnalysisCheckpointRow)) == 0
+        )
+        assert (
+            session.scalar(select(func.count()).select_from(AnalysisAgentRunRow)) == 0
+        )

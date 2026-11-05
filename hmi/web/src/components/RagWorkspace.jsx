@@ -1,3 +1,4 @@
+import { evidenceLabel } from "./evidenceLabels";
 import { useEffect, useRef, useState } from "react";
 
 import {
@@ -216,7 +217,7 @@ function ResultPanel({ result }) {
               key={item.evidence_id ?? index}
             >
               <strong>
-                {item.citation ?? item.doc_id ?? `근거 ${index + 1}`}
+                {evidenceLabel(item)}
               </strong>
               {item.score != null && <p>점수: {item.score}</p>}
               <p className="preserve-lines">{item.text}</p>

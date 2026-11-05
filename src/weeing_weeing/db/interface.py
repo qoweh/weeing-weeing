@@ -20,6 +20,7 @@ from weeing_weeing.contracts import (
 )
 from weeing_weeing.contracts.chat import ChatIncidentQuery
 from weeing_weeing.contracts.chat_tools import ChatIncidentResult
+from weeing_weeing.contracts.telemetry import TelemetryProvenance
 from weeing_weeing.db.analysis_jobs import AnalysisConflictError, SqlAnalysisJobs
 from weeing_weeing.db.chats import (
     ChatClaim,
@@ -188,7 +189,12 @@ class IncidentRepository(Protocol):
 class TelemetryRepository(Protocol):
     """센서 1초 데이터(telemetry 테이블). 같은 설비·같은 시각은 한 줄만 저장한다."""
 
-    def save_many(self, records: Iterable[TelemetryRecord]) -> int:
+    def save_many(
+        self,
+        records: Iterable[TelemetryRecord],
+        *,
+        provenance: TelemetryProvenance | None = None,
+    ) -> int:
         """새로 저장된 줄 수. 이미 있는 시각은 건너뛴다."""
         ...
 
@@ -203,6 +209,16 @@ class TelemetryRepository(Protocol):
     ) -> list[TelemetryRecord]:
         """[start, end) 구간, 시각순."""
         ...
+
+    def observations_between(
+        self,
+        asset_id: str,
+        start: datetime,
+        end: datetime,
+        *,
+        process_id: str | None = None,
+        limit: int = 10_000,
+    ) -> list[tuple[TelemetryRecord, TelemetryProvenance | None]]: ...
 
     def latest(
         self, asset_id: str, *, process_id: str | None = None

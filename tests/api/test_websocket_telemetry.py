@@ -33,6 +33,16 @@ def payload(sample_rows, index=0):
     return record
 
 
+@pytest.mark.parametrize(
+    "query", ["origin=guess", "interval_s=-1", "interval_s=nan", "interval_s=100"]
+)
+def test_invalid_source_metadata_is_rejected_before_allocating_producer(client, query):
+    with client.websocket_connect(f"/ws/telemetry?{query}") as ws:
+        assert ws.receive_json() == {"status": "rejected", "code": "invalid_provenance"}
+    with client.websocket_connect("/ws/telemetry") as ws:
+        assert ws.receive_json()["status"] == "connected"
+
+
 def test_server_console_logs_all_fields_only_after_success(client, sample_rows, caplog):
     caplog.set_level(logging.INFO, logger="uvicorn.error.telemetry")
     row = payload(sample_rows)

@@ -9,11 +9,13 @@ from threading import Lock
 
 import anyio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from pydantic import ValidationError
 
 from weeing_weeing.api import telemetry_live
 from weeing_weeing.api.simulator_context import COVERAGE, ENABLED, parse_simulator_frame
 from weeing_weeing.config import get_settings
 from weeing_weeing.contracts import IncidentStatus, Severity
+from weeing_weeing.contracts.telemetry import TelemetryProvenance
 from weeing_weeing.detector.interface import HistoryDetector
 from weeing_weeing.ingest.interface import JsonTelemetryInput, TelemetryInputError
 
@@ -60,6 +62,7 @@ class TelemetrySession:
         self.failed = False
         self.processed_count = 0
         self.analysis_service = None
+        self.provenance = TelemetryProvenance()
         self.ml_service = None
         self.ml_errors = {}
         self.run_started_at = None
@@ -151,7 +154,7 @@ class TelemetrySession:
                 else "미연결",
             )
         analysis = (
-            self.analysis_service.ingest(record, changes)
+            self.analysis_service.ingest(record, changes, provenance=self.provenance)
             if self.analysis_service
             else {"agent_status": "not_connected"}
         )
@@ -200,7 +203,12 @@ class TelemetrySession:
 
 
 @router.websocket("/ws/telemetry")
-async def telemetry_socket(websocket: WebSocket, context: str = "NONE"):
+async def telemetry_socket(
+    websocket: WebSocket,
+    context: str = "NONE",
+    origin: str = "UNKNOWN",
+    interval_s: float | None = None,
+):
     settings = get_settings()
     expected = settings.telemetry_producer_token_sha256.strip().lower()
     if settings.telemetry_auth_required or expected:
@@ -221,6 +229,12 @@ async def telemetry_socket(websocket: WebSocket, context: str = "NONE"):
             await websocket.close(code=1008)
             return
     await websocket.accept()
+    try:
+        provenance = TelemetryProvenance(origin=origin, expected_interval_s=interval_s)
+    except ValidationError:
+        await websocket.send_json({"status": "rejected", "code": "invalid_provenance"})
+        await websocket.close(code=1008)
+        return
     if context not in {"NONE", "RUN_ONLY", "MINIMAL", "SIM_RPM", "UNREAL_STATE"}:
         await websocket.send_json({"status": "rejected", "code": "invalid_context"})
         await websocket.close(code=1008)
@@ -264,6 +278,7 @@ async def telemetry_socket(websocket: WebSocket, context: str = "NONE"):
         session = await run_worker(
             TelemetrySession, get_settings().telemetry_history_dir, context
         )
+        session.provenance = provenance
         session.analysis_service = getattr(
             getattr(getattr(websocket, "app", None), "state", None),
             "analysis_service",

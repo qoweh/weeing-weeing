@@ -126,9 +126,9 @@ def test_latest_watermark_clips_query_before_concurrent_new_samples(sample_rows)
             assert asset_id == incident.asset_id and process_id == incident.process_id
             return row
 
-        def between(self, asset_id, start, end, *, process_id, limit):
+        def observations_between(self, asset_id, start, end, *, process_id, limit):
             calls.append((start, end, limit))
-            return [row]
+            return [(row, None)]
 
     sensor_reader(Repository())(
         incident, row.timestamp, row.timestamp + timedelta(seconds=30), limit=513

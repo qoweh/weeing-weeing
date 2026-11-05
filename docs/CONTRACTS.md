@@ -36,6 +36,62 @@ ACK와 latest/stream의 `rule_coverage.excluded`에 사유를 제공한다.
 
 코드 위치: `src/weeing_weeing/contracts/`. 이 문서는 요약이고, 필드의 정확한 정의는 코드가 기준이다.
 
+## 멀티 사건 분석 단계 결과
+
+`contracts/analysis_workflow.py`를 추가한다. 영향 모듈은 agent·api·db·hmi/web이며,
+기존 필드를 유지하며 `CauseCandidate.likelihood`에 `미평가`, `Incident`에 선택적
+`telemetry_provenance`를 추가한다. 보고서의 사람 작성·결재 계약은 유지한다.
+
+- `Evidence.title/page`: 선택적 문서명과 PDF 실제 페이지(표지 포함, 1부터 시작).
+  저장된 청크 메타데이터에서 전달하며 절 제목과 페이지를 함께 보존한다. 청크 순번을 페이지로
+  추측하지 않는다. 과거 분석에서 이 필드가 없으면 기존 citation/section으로 표시한다.
+  영향 모듈: contracts, rag, api, agent·db(기존 JSON 보존), hmi/web.
+  긴 evidence_id는 내부 인용 검증에 유지하며 HMI의 기본 출처 표시는 문서명·버전·PDF 페이지다.
+
+- `미평가`: 원인 가능성이 낮다는 의미가 아니라 현재 관측으로 등급을 매길 수 없다는 의미다.
+  관련 문서에 근거한 점검 후보를 제시할 수 있다. 실제 검색 근거 없는 OK는 계속 거부한다.
+- `TelemetryProvenance`: origin(UNKNOWN/SIMULATION/REPLAY/MEASURED), 선택적
+  expected_interval_s(0초 초과~60초). 출처·주기는 송신자 선언이며 독립적 실측 검증이 아니다.
+  기존 15필드 TelemetryRecord/CSV는 변경하지 않고 연결 정보와 telemetry.provenance JSON에 저장한다.
+  과거 행은 null로 남겨 출처 미확인으로 처리한다. 같은 표본 재전송으로 출처를 바꾸지 않는다.
+  API가 사건·분석 입력 스냅샷에도 출처를 복사해 센서 도구를 사용하지 않아도 구분한다.
+
+- `ResearchResult`: 인용 ID가 있는 조사 결과와 한계. 실제 확보한 근거만 인용한다.
+- `MaintenanceReference`와 `ResearchResult/AnalysisResult.reference_cases`: 참고 정비 사례
+  최대 2건. 당시 증상·실제 조치·결과·현재 사건과의 유사점·차이점/적용 한계(각 400자),
+  같은 보고서 판본의 근거 ID를 보존한다. 알 수 없는 출처, 여러 보고서를 섞은 사례와 같은
+  보고서 중복을 거부한다. 조사에서는 reports 역할만 제출할 수 있다. 멀티 통합 분석의 내부
+  제출 필드 reference_case_indices로 조사에서 선별한 사례를 선택하고 서버가 원문 요약을
+  그대로 복사한다. 미존재·중복·음수·비정수 위치를 거부한다. 사례 전용 출처도 최종 evidence에
+  유지한다. 과거 JSON·단일 분석은 기본 빈 목록이며 기존 DB JSON에 저장하므로 새 마이그레이션은
+  없다. 영향 모듈: contracts, agent, api·db(JSON 저장/조회), hmi/web. 보고서의 사람 작성·결재
+  필드는 변경하지 않는다.
+- `VerificationResult`: PASS/REVISE/INSUFFICIENT_EVIDENCE, 요약과 구체적인 주장·이유·수정 요청.
+  PASS에 미해결 지적을 넣거나 구체적인 지적 없이 REVISE를 제출할 수 없다.
+- `AnalysisAgentRun`: documents/reports/synthesis/verification 역할과 시도 1~2,
+  PENDING/RUNNING/COMPLETED/FAILED/SKIPPED, 원문 근거·조사·분석·검증 결과,
+  시각·모델·프롬프트 버전·호출 수·사용량·오류 코드. 없는 근거 ID 인용과 알 수 없는 필드를 거부한다.
+  사용량 누락은 null이며 SKIPPED는 검증 통과가 아니다. 내부 대화·thinking 필드는 없다.
+  `sensor_windows`에는 조회한 통계·quality(출처별 표본 수, 요청/반환 범위, 미관측 구간,
+  선언 전송 주기)를 함께 공개한다. 원시 센서 행은 넣지 않는다.
+  `reused_from_job_id`가 있으면 이전 작업의 완료 결과를 재사용한 것이며, 표시되는 통계는
+  원래 실행의 통계다. 해당 단계의 새 호출 비용으로 합산하지 않는다.
+- `AnalysisCheckpoint`: 버전·사건 ID·검증 설정·역할별 결과·센서 조회 통계 스냅샷.
+  완료 단계의 출력 누락, 중복 역할/시도, 분석 사건 ID 불일치를 거부한다.
+  서버 내부 재개 입력으로만 사용하며 HTTP 요청으로 받거나 조회 응답에 노출하지 않는다.
+- 기존 `GET /incidents/{id}/analysis` 응답에 최신 작업 ID에 연결된 `stages` 목록을 추가한다.
+  단일 분석·과거 작업은 빈 목록이다. 기존 job/analysis 필드는 유지한다.
+  실패 작업은 `retry_mode=resume`(체크포인트 있음) 또는 `restart`(과거/단일 작업),
+  나머지는 null이다. 검증 반려·근거 부족은 완료 판정이므로 재시도 대상이 아니다.
+- 기존 `POST /incidents/{id}/analysis/retry`는 현장 점검자·보전 팀장·관제 담당자가 호출한다.
+  request_id로 중복 실행을 막고 선택적 job_id로 화면의 작업과 현재 작업을 대조한다.
+  새 작업을 예약하면서 완료 단계와 체크포인트를 복사하며 원래 실패 기록을 변경하지 않는다.
+  사건에 최종 승인된 보고서가 있으면 새 요청은 409이며 retry_mode는 null이다.
+  이미 접수한 request_id의 재전송은 기존 응답만 반환하고 추가 실행하지 않는다.
+
+실행·설정·저장 정책: [MULTI_AGENT_ANALYSIS](MULTI_AGENT_ANALYSIS.md).
+역할별 지시 조합·입력·제출 검사: [MULTI_AGENT_PROMPTS](MULTI_AGENT_PROMPTS.md).
+
 > **상태: 초안.** 노션 자료를 옮겨 만든 첫 버전이다. 각 담당자가 1차 개발을 하면서 필요한 필드를 PR로 고친다.
 
 ## 근거 자료
@@ -58,6 +114,34 @@ ACK와 latest/stream의 `rule_coverage.excluded`에 사유를 제공한다.
 영향 모듈: db의 승인 outbox, api의 응답·백그라운드 처리, hmi/web의 상태 표시.
 
 ## 핵심 규칙
+
+- **센서 기본 조회·후보별 설명·조치 출처**: 새 멀티 분석은 센서 조회기가 주입되면 통합 분석
+  직전에 기본 조회를 한 번 수행한다. sensor_windows의 purpose=baseline으로 완료(0건 포함)를
+  구분하고 체크포인트에서 재사용한다. 후보별 basis는 문서와 후보의 연결 설명으로 보존하고,
+  observations는 제출된 센서 수치를 검증한 뒤 서버가 작성한다. unconfirmed는 후보별
+  미확인 사항이다. 새 멀티 제출의 sensor_claim_indices는 검증 수치 목록 위치를 가리키며
+  저장 결과에는 남기지 않는다. 과거/단일 분석에는 기존 필드와 빈 목록 기본값을 허용한다.
+  action_citations와 approval_citations는 각각 권고 조치·승인 필요 조치의 위치(action_index,
+  0부터)와 evidence_ids다. 새 멀티 제출은 모든 항목의 출처를 요구하며,
+  저장 계약도 없는 위치·출처와 중복 위치를 거부한다. 영향 모듈: contracts, agent,
+  api(기존 센서 조회 주입), db(JSON·체크포인트 저장), hmi/web. 테이블 변경은 없다.
+
+- **분석 검증과 점검 출처**: `AnalysisResult.status`에 `VERIFICATION_FAILED`를 추가한다.
+  두 번째 검증에서도 수정이 필요한 경우의 검증 미통과 초안이며, 근거 부족 및 시스템 실패와
+  구분한다. 초안은 조회용으로 유지하고 보고서의 확정 가능한 AI 초안에는 사용하지 않는다.
+  `check_citations`는 점검 위치(check_index, 0부터)와 evidence_ids의 목록이다.
+  과거/단일 분석은 빈 목록을 허용하고 새 멀티 분석 제출은 모든 점검에 출처를 요구한다.
+  문장에 근거 ID를 중복 출력할 필요는 없다. 없는 출처·점검 및 중복 위치를 거부한다.
+  `Evidence.report_timing`은 서버가 보고서 조치와 현재 사건 최초 감지의 차이를 계산한
+  메타데이터다. 조치 순번·시간대 포함 시각·offset_seconds(조치-사건)를 제공하며,
+  음수는 사건 이전이다. 원문은 변경하지 않는다.
+  영향 모듈: contracts, agent, api, db(JSON 저장), hmi/web. 테이블 변경은 없다.
+
+- **사건번호**: `Incident.incident_number`는 DB 저장 시 발급하는 선택 필드다.
+  내부 연결용 `incident_id`는 유지하며, 첫 에러코드·한국 시간 최초 감지일·순번으로
+  `INC-BTT2-M10-20261105-001` 형식을 만든다. 순번은 삭제 후에도 재사용하지 않는다.
+  DB 저장 전과 마이그레이션 전 기존 사건에는 번호가 없을 수 있다. 영향 모듈: contracts,
+  db, api, hmi/web. 분석 작업과 보고서 연결에는 기존 incident_id를 쓴다.
 
 - **Telemetry**: 15컬럼 순서 고정(`COLUMNS`). 전류·온도 빈 값은 0이 아니라 `None`. `timestamp`는 시간대 필수
 - **Incident**: 같은 현상이 이어지면 새로 만들지 않고 갱신. 묶인 원시 코드를 `codes`에 전부 보존. 회복(`RECOVERED`)과 종결(`CLOSED`)은 다르다

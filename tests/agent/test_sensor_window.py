@@ -136,6 +136,68 @@ def test_gap_and_partial_bounds_are_explicit(records):
     assert any("종료 시각" in n for n in data["notes"])
 
 
+def test_short_window_reports_boundaries_without_inventing_120_seconds(records):
+    data, _ = collect(records, QUERY | {"before_seconds": 120})
+    quality = data["quality"]
+    assert quality["requested_duration_s"] == 120
+    assert quality["observed_span_s"] == 1
+    assert quality["leading_unobserved_s"] == 119
+    assert quality["max_gap_scope"] == "returned_samples_only"
+    assert quality["origins"] == {"UNKNOWN": 3}
+    assert quality["unobserved_intervals"][0]["duration_s"] == 119
+
+
+@pytest.mark.parametrize(
+    "period,gap,missing", [(1, 1.002, False), (0.5, 1.002, True), (1, 2.5, True)]
+)
+def test_gap_detection_uses_declared_period_instead_of_fixed_half_second(
+    records, period, gap, missing
+):
+    from weeing_weeing.contracts.telemetry import TelemetryProvenance
+
+    rows = [
+        records[0].model_copy(
+            update={"timestamp": INCIDENT.last_detected_at - timedelta(seconds=gap)}
+        ),
+        records[-1],
+    ]
+    source = TelemetryProvenance(origin="SIMULATION", expected_interval_s=period)
+    batch = SensorBatch(
+        rows, rows[-1].timestamp, {row.timestamp: source for row in rows}
+    )
+    memory = RunMemory()
+    data = json.loads(
+        window_tool(INCIDENT, lambda *a, **k: batch).handler(
+            QUERY | {"before_seconds": 5}, memory
+        )
+    )
+    quality = data["quality"]
+    assert quality["expected_interval_s"] == period
+    assert quality["origins"] == {"SIMULATION": 2}
+    assert (
+        any(
+            item["kind"] == "between_samples"
+            for item in quality["unobserved_intervals"]
+        )
+        == missing
+    )
+    assert "시뮬레이션 값" in " ".join(data["notes"])
+
+
+def test_mixed_or_unknown_origins_and_periods_are_not_guessed(records):
+    from weeing_weeing.contracts.telemetry import TelemetryProvenance
+
+    source = TelemetryProvenance(origin="MEASURED", expected_interval_s=1)
+    batch = SensorBatch(records, records[-1].timestamp, {records[0].timestamp: source})
+    memory = RunMemory()
+    data = json.loads(
+        window_tool(INCIDENT, lambda *a, **k: batch).handler(QUERY, memory)
+    )
+    assert data["quality"]["expected_interval_s"] is None
+    assert data["quality"]["origins"] == {"MEASURED": 1, "UNKNOWN": 2}
+    assert any("실측 검증이 아니다" in note for note in data["notes"])
+
+
 @pytest.mark.parametrize(
     "changes",
     [

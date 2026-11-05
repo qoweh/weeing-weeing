@@ -124,6 +124,22 @@ def test_empty_model_is_rejected():
         ClaudeClient("")
 
 
+def test_retry_guard_can_stop_additional_transport_attempts(monkeypatch):
+    from weeing_weeing.agent import claude
+
+    monkeypatch.setattr(claude.time, "sleep", lambda seconds: None)
+    sdk = FakeSdk(status_error(anthropic.APIStatusError, 429))
+    client = ClaudeClient("fake-model", sdk=sdk)
+
+    def exhausted():
+        raise RuntimeError("fake request budget exhausted")
+
+    client.retry_guard = exhausted
+    with pytest.raises(RuntimeError, match="budget exhausted"):
+        client.create(system="fake", messages=[], tools=[], timeout_s=5)
+    assert len(sdk.calls) == 1
+
+
 def test_unrelated_type_error_is_not_hidden():
     client = ClaudeClient("claude-test", sdk=FakeSdk(TypeError("bad argument")))
     with pytest.raises(TypeError):

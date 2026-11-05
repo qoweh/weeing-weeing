@@ -58,6 +58,18 @@ def test_missing_citation_uses_only_stored_source_metadata():
     found = HybridRetriever(store).search("센서")
 
     assert found[0].citation == "BTT-MANUAL 2.0 03 현장 대응 p.4"
+    assert found[0].page == 4
+
+
+def test_pdf_location_is_read_from_metadata_without_guessing_chunk_number():
+    store = Mock(spec=VectorStore)
+    store.hybrid_query.return_value = [
+        Hit(chunk(10, title="설비 매뉴얼", page=8, section="고온 점검"), 0.03)
+    ]
+    [evidence] = HybridRetriever(store).search("고온")
+    assert evidence.page == 8 and evidence.title == "설비 매뉴얼"
+    store.hybrid_query.return_value = [Hit(chunk(10, section="고온 점검"), 0.03)]
+    assert HybridRetriever(store).search("고온")[0].page is None
 
 
 def test_code_alias_is_forwarded_without_mutating_filters():

@@ -10,7 +10,7 @@ from datetime import datetime
 from sqlalchemy import select
 
 from weeing_weeing.contracts import TelemetryRecord
-from weeing_weeing.contracts.telemetry import COLUMNS
+from weeing_weeing.contracts.telemetry import COLUMNS, TelemetryProvenance
 from weeing_weeing.db.models import TelemetryRow
 from weeing_weeing.db.session import Repository, utc
 
@@ -19,9 +19,12 @@ BATCH = 500
 KEY = ["asset_id", "timestamp", "process_id"]
 
 
-def _values(record: TelemetryRecord) -> dict:
+def _values(
+    record: TelemetryRecord, provenance: TelemetryProvenance | None = None
+) -> dict:
     values = record.model_dump()
     values["timestamp"] = utc(record.timestamp)
+    values["provenance"] = provenance.model_dump(mode="json") if provenance else None
     return values
 
 
@@ -32,9 +35,14 @@ def _record(row: TelemetryRow) -> TelemetryRecord:
 
 
 class SqlTelemetry(Repository):
-    def save_many(self, records: Iterable[TelemetryRecord]) -> int:
+    def save_many(
+        self,
+        records: Iterable[TelemetryRecord],
+        *,
+        provenance: TelemetryProvenance | None = None,
+    ) -> int:
         """여러 줄을 저장하고 새로 저장된 줄 수를 돌려준다. 이미 있는 시각은 건너뛴다."""
-        rows = [_values(r) for r in records]
+        rows = [_values(r, provenance) for r in records]
         saved = 0
         with self._transaction() as session:
             for start in range(0, len(rows), BATCH):
@@ -58,6 +66,27 @@ class SqlTelemetry(Repository):
         limit: int = 10_000,
     ) -> list[TelemetryRecord]:
         """[start, end) 구간을 시각순으로. 사건 전후 조회·HMI 그래프용."""
+        return [
+            record
+            for record, _ in self.observations_between(
+                asset_id,
+                start,
+                end,
+                process_id=process_id,
+                limit=limit,
+            )
+        ]
+
+    def observations_between(
+        self,
+        asset_id,
+        start,
+        end,
+        *,
+        process_id=None,
+        limit=10_000,
+    ) -> list[tuple[TelemetryRecord, TelemetryProvenance | None]]:
+        """원본과 같은 행의 출처를 함께 읽는다. 과거 행의 출처는 추측하지 않는다."""
         query = (
             select(TelemetryRow)
             .where(
@@ -71,7 +100,15 @@ class SqlTelemetry(Repository):
         if process_id is not None:
             query = query.where(TelemetryRow.process_id == process_id)
         with self._transaction() as session:
-            return [_record(row) for row in session.scalars(query)]
+            return [
+                (
+                    _record(row),
+                    TelemetryProvenance.model_validate(row.provenance)
+                    if row.provenance
+                    else None,
+                )
+                for row in session.scalars(query)
+            ]
 
     def latest(
         self, asset_id: str, *, process_id: str | None = None

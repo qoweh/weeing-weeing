@@ -133,14 +133,22 @@ def main(argv: list[str] | None = None) -> int:
                 latest = repository.latest(item.asset_id, process_id=item.process_id)
                 if latest is None or latest.timestamp < start:
                     return SensorBatch([], latest.timestamp if latest else None)
-                rows = repository.between(
+                observations = repository.observations_between(
                     item.asset_id,
                     start,
                     min(end, latest.timestamp + timedelta(microseconds=1)),
                     process_id=item.process_id,
                     limit=limit,
                 )
-                return SensorBatch(rows, latest.timestamp)
+                return SensorBatch(
+                    [row for row, _ in observations],
+                    latest.timestamp,
+                    {
+                        row.timestamp: source
+                        for row, source in observations
+                        if source is not None
+                    },
+                )
 
         api_key = None
         if args.ask_key:
@@ -152,7 +160,9 @@ def main(argv: list[str] | None = None) -> int:
                 return 2
         client = get_llm_client(entrypoint="analyze", api_key=api_key)
         api_key = None
-        analyzer = get_analyzer(get_retriever(), client=client, sensor_reader=reader)
+        analyzer = get_analyzer(
+            get_retriever(), client=client, sensor_reader=reader, mode="single"
+        )
     except (OSError, ValidationError, ValueError, db.DatabaseUnavailableError) as exc:
         print(f"시작하지 못함: {exc}", file=sys.stderr)
         return 2

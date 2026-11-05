@@ -6,13 +6,19 @@
 import hashlib
 import json
 from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import case, func, select, text
 
 from weeing_weeing.contracts import AnalysisResult, Incident, IncidentStatus
 from weeing_weeing.contracts.chat import ChatIncidentQuery, ChatIncidentSource
 from weeing_weeing.contracts.chat_tools import ChatIncidentItem, ChatIncidentResult
-from weeing_weeing.db.models import AnalysisRow, DeletedIncidentRow, IncidentRow
+from weeing_weeing.db.models import (
+    AnalysisRow,
+    DeletedIncidentRow,
+    IncidentNumberCounterRow,
+    IncidentRow,
+)
 from weeing_weeing.db.session import Repository, now, utc
 
 
@@ -39,6 +45,45 @@ def _columns(incident: Incident) -> dict:
 class SqlIncidents(Repository):
     # --- incident ---
 
+    @staticmethod
+    def _number_prefix(incident: Incident) -> str:
+        day = incident.first_detected_at.astimezone(ZoneInfo("Asia/Seoul"))
+        return f"INC-{incident.codes[0]}-{day:%Y%m%d}"
+
+    def _save_in_transaction(self, session, incident: Incident) -> Incident:
+        existing = session.get(IncidentRow, incident.incident_id)
+        number = existing.incident_number if existing else None
+        if number is None:
+            original = Incident.model_validate(existing.data) if existing else incident
+            prefix = self._number_prefix(original)
+            counter = self._insert(IncidentNumberCounterRow).values(
+                prefix=prefix, last_number=1
+            )
+            counter = counter.on_conflict_do_update(
+                index_elements=[IncidentNumberCounterRow.prefix],
+                set_={"last_number": IncidentNumberCounterRow.last_number + 1},
+            ).returning(IncidentNumberCounterRow.last_number)
+            sequence = session.scalar(counter)
+            number = f"{prefix}-{sequence:03d}"
+            if existing:
+                existing.incident_number = number
+                existing.data = {**existing.data, "incident_number": number}
+                session.flush()
+        incident = incident.model_copy(update={"incident_number": number})
+        values = _columns(incident) | {"incident_number": number, "updated_at": now()}
+        statement = self._insert(IncidentRow).values(
+            incident_id=incident.incident_id, **values
+        )
+        session.execute(
+            statement.on_conflict_do_update(
+                index_elements=["incident_id"],
+                set_={name: statement.excluded[name] for name in values},
+                where=IncidentRow.last_detected_at
+                <= statement.excluded.last_detected_at,
+            )
+        )
+        return incident
+
     def save_incident(self, incident: Incident) -> Incident:
         """새 사건은 추가하고, 같은 incident_id면 최신 내용으로 덮어쓴다(갱신·회복).
 
@@ -46,22 +91,13 @@ class SqlIncidents(Repository):
         저장된 것보다 last_detected_at이 이른 내용은 늦게 도착한 옛 갱신으로 보고 무시한다.
         같은 시각 안의 순서(예: OPEN → RECOVERED)는 호출하는 쪽이 지킨다(detector는 설비별 순차).
         """
-        values = _columns(incident) | {"updated_at": now()}
-        statement = self._insert(IncidentRow).values(
-            incident_id=incident.incident_id, **values
-        )
-        statement = statement.on_conflict_do_update(
-            index_elements=["incident_id"],
-            set_={name: statement.excluded[name] for name in values},
-            where=IncidentRow.last_detected_at <= statement.excluded.last_detected_at,
-        )
         with self._transaction() as session:
             if self._engine.dialect.name == "sqlite":
                 session.execute(text("BEGIN IMMEDIATE"))
             self._lock_incidents(session, [incident.incident_id])
             if session.get(DeletedIncidentRow, incident.incident_id) is not None:
                 raise UnknownIncidentError("삭제된 사건은 다시 저장할 수 없습니다.")
-            session.execute(statement)
+            incident = self._save_in_transaction(session, incident)
         return incident
 
     def get_incident(self, incident_id: str) -> Incident | None:

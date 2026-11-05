@@ -1,0 +1,4 @@
+.evidence-references { overflow-wrap: anywhere; }
+.evidence-trace { margin-top: 8px; }
+.evidence-trace summary { cursor: pointer; font-size: 12px; }
+.evidence-trace code { white-space: normal; overflow-wrap: anywhere; font-size: 11px; }

@@ -3,9 +3,20 @@
 출처: 룰베이스 최종 정의서 v2.0 2절, 노션 '길용현' 데이터 규격 표.
 """
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, field_validator
+from typing import Literal
+
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
 
 SCHEMA_VERSION = "3.0.0"
+
+
+class TelemetryProvenance(BaseModel):
+    """송신자가 선언한 표본 출처. 실측 검증이나 인증을 의미하지 않는다."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, allow_inf_nan=False)
+    origin: Literal["UNKNOWN", "SIMULATION", "REPLAY", "MEASURED"] = "UNKNOWN"
+    expected_interval_s: float | None = Field(default=None, gt=0, le=60)
+
 
 # CSV 컬럼 순서. 수집 모듈과 시뮬레이터가 이 순서로 내보낸다.
 COLUMNS: tuple[str, ...] = (

@@ -1,5 +1,6 @@
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from weeing_weeing.agent.chat_usage import ChatCallUsage, ChatRunUsage
 from weeing_weeing.agent.errors import (
@@ -39,6 +40,10 @@ from weeing_weeing.agent.runtime import ToolInputError as InvalidChatQueryError
 from weeing_weeing.agent.sensor_window import SensorBatch, SensorReader
 from weeing_weeing.agent.tracing import Tracer, trace_session
 from weeing_weeing.contracts import AnalysisResult, Incident
+from weeing_weeing.contracts.analysis_workflow import (
+    AnalysisAgentRun,
+    AnalysisCheckpoint,
+)
 from weeing_weeing.contracts.chat import (
     ChatContext,
     ChatDocumentSource,
@@ -61,6 +66,7 @@ from weeing_weeing.contracts.chat_tools import (
 from weeing_weeing.contracts.faq import FaqAnswer, FaqQuestion, FaqSelection, FaqTopic
 
 if TYPE_CHECKING:
+    from weeing_weeing.agent.multi_analysis import AnalysisKnowledge
     from weeing_weeing.config import Settings
     from weeing_weeing.rag.interface import Retriever
 
@@ -75,6 +81,8 @@ __all__ = [
     "llm_check_data",
     "run_llm_check",
     "Analyzer",
+    "StagedAnalyzer",
+    "ResumableAnalyzer",
     "SensorBatch",
     "SensorReader",
     "ChatService",
@@ -145,6 +153,24 @@ class Analyzer(Protocol):
     def analyze(self, incident: Incident) -> AnalysisResult:
         """실패해도 예외 대신 status=FAILED 결과를 돌려준다(HMI에 '관리자 호출' 표시)."""
         ...
+
+
+@runtime_checkable
+class StagedAnalyzer(Analyzer, Protocol):
+    def analyze_with_progress(
+        self, incident: Incident, callback: Callable[[AnalysisAgentRun], None]
+    ) -> AnalysisResult: ...
+
+
+@runtime_checkable
+class ResumableAnalyzer(StagedAnalyzer, Protocol):
+    def resume_analysis(
+        self,
+        incident: Incident,
+        callback: Callable[[AnalysisAgentRun, AnalysisCheckpoint], None],
+        *,
+        checkpoint: AnalysisCheckpoint | None = None,
+    ) -> AnalysisResult: ...
 
 
 class ChatService(Protocol):
@@ -318,12 +344,14 @@ def get_llm_client(
 
 
 def get_analyzer(
-    retriever: "Retriever",
+    retriever: "Retriever | None",
     *,
     client: LlmClient | None = None,
     settings: "Settings | None" = None,
     sensor_reader: SensorReader | None = None,
     entrypoint: str = "app",
+    knowledge: "AnalysisKnowledge | None" = None,
+    mode: str | None = None,
 ) -> Analyzer:
     """사건 분석 에이전트. 검색기·선택적 센서 조회기(#105)는 조립자가 넘긴다.
 
@@ -333,6 +361,25 @@ def get_analyzer(
     from weeing_weeing.config import get_settings
 
     settings = settings or get_settings()
+    mode = mode or settings.analysis_mode
+    if mode not in ("single", "multi"):
+        raise ValueError("ANALYSIS_MODE는 single 또는 multi여야 합니다")
+    if mode == "multi":
+        from weeing_weeing.agent.multi_analysis import MultiIncidentAnalyzer
+
+        if knowledge is None or client is not None:
+            raise ValueError("멀티 분석은 API에서 현재 출처 검사기를 주입해야 합니다")
+        return MultiIncidentAnalyzer(
+            lambda role: get_llm_client(settings, entrypoint=f"{entrypoint}:{role}"),
+            knowledge,
+            timeout_s=settings.analysis_total_timeout_s,
+            max_calls=settings.analysis_max_calls,
+            max_turns=settings.agent_max_turns,
+            verification_enabled=settings.analysis_verification_enabled,
+            sensor_reader=sensor_reader,
+        )
+    if retriever is None:
+        raise ValueError("단일 분석에는 검색기가 필요합니다")
     return IncidentAnalyzer(
         client or get_llm_client(settings, entrypoint=entrypoint),
         retriever,

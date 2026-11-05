@@ -131,7 +131,7 @@ export default function App() {
     {error && <p className="workspace-error" role="alert">{error}</p>}
     <div hidden={page !== 'dashboard'}><DashboardPage onNavigate={setPage} /></div>
     {page === 'maintenance' && <MaintenancePage user={user} busy={busy} selectedTab={maintenanceTab} onSelectTab={setMaintenanceTab} onOpen={openMaintenanceReport} onSessionExpired={forgetSession} />}
-    {page === 'incidents' && <IncidentTestPage onSessionExpired={forgetSession} />}
+    {page === 'incidents' && <IncidentTestPage onSessionExpired={forgetSession} user={user} />}
     {page === 'incident-history' && <IncidentHistoryPage focus={incidentFocus} onFocusHandled={clearIncidentFocus} user={user} busy={busy} onBusyChange={setBusy} onOpenDraft={openIncidentDraft} onOpenReport={openMaintenanceReport} onSessionExpired={forgetSession} />}
     <div hidden={page === 'dashboard' || page === 'maintenance' || page === 'incidents' || page === 'incident-history'}>
       <RagWorkspace tab={page} user={user} onSessionExpired={forgetSession} onBusyChange={setBusy} workspaceBusy={busy} onNavigate={setPage} reportSelection={reportSelection} />

@@ -10,6 +10,7 @@ from typing import Any, Literal
 from pydantic import AwareDatetime, BaseModel, Field, field_validator
 
 from weeing_weeing.contracts.codes import CODES, RULE_VERSION, Direction, Severity
+from weeing_weeing.contracts.telemetry import TelemetryProvenance
 
 
 class IncidentStatus(StrEnum):
@@ -34,7 +35,8 @@ class SensorEvidence(BaseModel):
 
 
 class Incident(BaseModel):
-    incident_id: str  # 예: INC-20261005-001
+    incident_id: str  # 내부 연결용 고유 ID
+    incident_number: str | None = None  # DB 저장 시 발급되는 사람이 읽는 번호
     process_id: str
     asset_id: str
     codes: list[str] = Field(min_length=1)  # 묶인 원시 코드 전부 보존
@@ -52,6 +54,7 @@ class Incident(BaseModel):
     tray_seq: int | None = None
     plc_context: dict[str, Any] = Field(default_factory=dict)  # run_cmd, 운전모드 등
     reason: str | None = None  # Unknown·Suppressed 사유
+    telemetry_provenance: TelemetryProvenance | None = None
 
     @field_validator("codes")
     @classmethod

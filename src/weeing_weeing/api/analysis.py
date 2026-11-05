@@ -8,7 +8,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
-from weeing_weeing.agent.interface import get_analyzer
+from weeing_weeing.agent.interface import (
+    ResumableAnalyzer,
+    StagedAnalyzer,
+    get_analyzer,
+)
 from weeing_weeing.api.auth import CurrentUser, require_roles
 from weeing_weeing.api.sensor_window import sensor_reader
 from weeing_weeing.contracts import AnalysisResult, Role
@@ -17,6 +21,22 @@ from weeing_weeing.rag.interface import get_retriever
 
 logger = logging.getLogger("uvicorn.error.analysis")
 router = APIRouter(tags=["analysis"])
+
+
+def default_analyzer():
+    from weeing_weeing.api.analysis_knowledge import DatabaseAnalysisKnowledge
+    from weeing_weeing.config import get_settings
+
+    settings = get_settings()
+    return get_analyzer(
+        get_retriever() if settings.analysis_mode == "single" else None,
+        settings=settings,
+        sensor_reader=sensor_reader(db.get_telemetry()),
+        knowledge=DatabaseAnalysisKnowledge(db.get_documents(), db.get_reports())
+        if settings.analysis_mode == "multi"
+        else None,
+        entrypoint="incident-analysis",
+    )
 
 
 class AnalysisService:
@@ -32,11 +52,7 @@ class AnalysisService:
     ):
         self.repository = repository
         self.analysis_enabled = analysis_enabled
-        self.analyzer = analyzer or (
-            lambda: get_analyzer(
-                get_retriever(), sensor_reader=sensor_reader(db.get_telemetry())
-            )
-        )
+        self.analyzer = analyzer or default_analyzer
         self.poll_seconds = poll_seconds
         self.stop_event = Event()
         self.wakeup = Event()
@@ -62,11 +78,19 @@ class AnalysisService:
                     "[분석 종료 대기] 실행 중 호출은 강제 재시도하지 않음; 재시작 시 interrupted 처리"
                 )
 
-    def ingest(self, record, incidents):
+    def ingest(self, record, incidents, *, provenance=None):
         try:
+            if provenance is not None:
+                incidents = [
+                    item.model_copy(update={"telemetry_provenance": provenance})
+                    for item in incidents
+                ]
             with self.write_lock:
                 jobs = self.repository().record_frame(
-                    record, incidents, enqueue_analysis=self.analysis_enabled
+                    record,
+                    incidents,
+                    enqueue_analysis=self.analysis_enabled,
+                    provenance=provenance,
                 )
                 for job in jobs:
                     if job["job_id"] not in self.notified:
@@ -129,7 +153,29 @@ class AnalysisService:
             ",".join(incident.codes),
         )
         try:
-            result = self.analyzer().analyze(incident)
+            checkpoint = repo.checkpoint(job_id)
+            analyzer = self.analyzer()
+            if isinstance(analyzer, ResumableAnalyzer):
+
+                def save_progress(stage, checkpoint):
+                    with self.write_lock:
+                        repo.save_progress(job_id, stage, checkpoint)
+
+                result = analyzer.resume_analysis(
+                    incident, save_progress, checkpoint=checkpoint
+                )
+            elif checkpoint is not None:
+                # 설정이 single로 바뀌어도 멀티 분석을 조용히 처음부터 호출하지 않는다.
+                raise ValueError("멀티 분석 재개에는 멀티 분석기가 필요합니다")
+            elif isinstance(analyzer, StagedAnalyzer):
+
+                def save_stage(stage):
+                    with self.write_lock:
+                        repo.save_agent_run(job_id, stage)
+
+                result = analyzer.analyze_with_progress(incident, save_stage)
+            else:
+                result = analyzer.analyze(incident)
             result = AnalysisResult.model_validate(result.model_dump())
             if result.incident_id != incident.incident_id:
                 raise ValueError("분석 사건 ID 불일치")
@@ -199,20 +245,33 @@ def latest_analysis(incident_id: str, user: CurrentUser, request: Request):
     if repo.get_incident(incident_id) is None:
         raise HTTPException(404, "저장된 사건이 없습니다")
     result = repo.latest_analysis(incident_id)
+    job = repo.latest_job(incident_id)
+    can_retry = bool(
+        job and job["status"] == "FAILED" and not repo.has_approved_report(incident_id)
+    )
     return {
-        "job": repo.latest_job(incident_id),
+        "job": job,
         "analysis": result.model_dump(mode="json") if result else None,
+        "stages": [r.model_dump(mode="json") for r in repo.agent_runs(job["job_id"])]
+        if job
+        else [],
+        "retry_mode": ("resume" if repo.checkpoint(job["job_id"]) else "restart")
+        if can_retry
+        else None,
     }
 
 
 class RetryAnalysis(BaseModel):
     request_id: UUID  # 같은 버튼 요청을 재전송할 때 같은 UUID를 쓴다
+    job_id: str | None = None
 
 
 @router.post(
     "/incidents/{incident_id}/analysis/retry",
     status_code=202,
-    dependencies=[Depends(require_roles(Role.CONTROL, Role.MAINT_LEAD))],
+    dependencies=[
+        Depends(require_roles(Role.CONTROL, Role.MAINT_LEAD, Role.INSPECTOR))
+    ],
 )
 def retry_analysis(incident_id: str, body: RetryAnalysis, request: Request):
     service = getattr(request.app.state, "analysis_service", None)
@@ -220,7 +279,9 @@ def retry_analysis(incident_id: str, body: RetryAnalysis, request: Request):
         raise HTTPException(503, "자동 분석이 비활성 상태입니다")
     try:
         with service.write_lock:
-            job = service.repository().retry(incident_id, str(body.request_id))
+            job = service.repository().retry(
+                incident_id, str(body.request_id), expected_job_id=body.job_id
+            )
     except db.UnknownIncidentError as exc:
         raise HTTPException(404, "저장된 사건이 없습니다") from exc
     except db.AnalysisConflictError as exc:

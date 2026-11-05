@@ -14,6 +14,7 @@ from weeing_weeing.contracts import (
     ReportDraft,
     ReportFormData,
     Role,
+    TelemetryRecord,
     UserAccount,
 )
 from weeing_weeing.db import interface as db
@@ -107,6 +108,60 @@ def approve(repo, doc):
     doc = step(repo, doc, "I1", "submit")
     doc = step(repo, doc, "L1", "review")
     return step(repo, doc, "C1", "approve")
+
+
+@pytest.mark.parametrize(
+    "state",
+    ["DRAFT", "SUBMITTED", "REVIEWED", "REJECTED", "APPROVED", "HISTORICAL_APPROVED"],
+)
+def test_analysis_retry_stops_only_after_final_report_approval(
+    setup_reports, sample_rows, state
+):
+    reports = setup_reports
+    jobs = db.SqlAnalysisJobs(reports._engine)
+    item = jobs.get_incident("INC-1")
+    jobs.record_frame(TelemetryRecord.model_validate(sample_rows[0]), [item])
+    job_id, _ = jobs.claim()
+    jobs.fail(job_id, "fake-timeout")
+    doc = reports.create_draft("I1", ready_draft())
+    if state != "DRAFT":
+        doc = step(reports, doc, "I1", "submit")
+    if state == "REJECTED":
+        doc = step(reports, doc, "L1", "reject", comment="내용 보완")
+    elif state in ("REVIEWED", "APPROVED", "HISTORICAL_APPROVED"):
+        doc = step(reports, doc, "L1", "review")
+        if state != "REVIEWED":
+            doc = step(reports, doc, "C1", "approve")
+    blocked = state in ("APPROVED", "HISTORICAL_APPROVED")
+    if state == "HISTORICAL_APPROVED":
+        legacy_revision(reports, doc)
+    assert jobs.has_approved_report(item.incident_id) == blocked
+    if blocked:
+        with pytest.raises(db.AnalysisConflictError, match="최종 승인"):
+            jobs.retry(item.incident_id, "retry", expected_job_id=job_id)
+        assert jobs.latest_job(item.incident_id)["job_id"] == job_id
+    else:
+        assert jobs.retry(item.incident_id, "retry")["status"] == "PENDING"
+
+
+def test_queued_analysis_retry_is_not_started_after_report_approval(
+    setup_reports, sample_rows
+):
+    reports = setup_reports
+    jobs = db.SqlAnalysisJobs(reports._engine)
+    item = jobs.get_incident("INC-1")
+    jobs.record_frame(TelemetryRecord.model_validate(sample_rows[0]), [item])
+    original_id, _ = jobs.claim()
+    jobs.fail(original_id, "fake-timeout")
+    retry = jobs.retry(item.incident_id, "retry")
+    doc = reports.create_draft("I1", ready_draft())
+    approve(reports, doc)
+    # 응답을 잃어버린 동일 요청은 새 작업을 만들지 않고 접수된 작업만 반환한다.
+    assert jobs.retry(item.incident_id, "retry")["job_id"] == retry["job_id"]
+    assert jobs.claim() is None
+    assert jobs.latest_job(item.incident_id)["error_code"] == "report_approved"
+    with pytest.raises(db.AnalysisConflictError, match="최종 승인"):
+        jobs.retry(item.incident_id, "another-retry")
 
 
 def legacy_revision(repo, approved):

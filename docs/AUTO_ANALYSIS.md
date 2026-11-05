@@ -13,14 +13,17 @@
    저장 전용에서는 Warning·Error·회복 모두 센서·사건만 저장하고 분석 작업을 만들지 않는다.
    같은 incident_id의 반복 Error·회복은 새 자동 분석을 만들지 않는다.
 4. 단일 백그라운드 실행기가 RUNNING으로 선점한 뒤, 등록 시점의 Incident 스냅샷을
-   `get_analyzer(get_retriever()).analyze()`에 전달한다. 수신 스레드에서 LLM을 호출하지 않는다.
+   설정에 따라 단일 분석기 또는 멀티 분석기에 전달한다. 멀티는 단계 결과·체크포인트 저장
+   콜백을 주입하고 완료 단계를 재사용한다. 수신 스레드에서 LLM을 호출하지 않는다.
 5. AnalysisResult와 작업 완료를 한 트랜잭션으로 저장한다.
-   OK·INSUFFICIENT_EVIDENCE → 작업 COMPLETED, 분석 FAILED → 작업 FAILED.
+   OK·INSUFFICIENT_EVIDENCE·VERIFICATION_FAILED → 작업 COMPLETED, 분석 FAILED → 작업 FAILED.
    실행 예외는 FAILED 작업으로 남긴다.
 6. 로그인한 사용자가 결과를 조회한다. 보고서·정비·결재는 자동 작성하지 않는다.
 
-마이그레이션 0005가 analysis_job을 추가한다. 기존 contracts는 바꾸지 않는다.
+마이그레이션 0005가 analysis_job을 추가했다. 0005 도입 범위에서는 기존 contracts를 유지했다.
 작업 ID·자동/수동 요청 키·입력 스냅샷·시각·결과 FK를 보존한다.
+멀티 분석은 0010 단계 기록·0011 체크포인트 등을 추가로 사용한다. 역할·프롬프트·저장 경로·
+검증 상태와 재시도 상세는 [MULTI_AGENT_ANALYSIS](MULTI_AGENT_ANALYSIS.md)를 따른다.
 기존 사건·분석과 같은 저장 형식으로 작업 등록·완료를 묶는 전용 저장소를 사용한다.
 
 ## 센서·사건 저장과 자동 분석 설정
@@ -108,12 +111,17 @@ DB 중복 방지의 기준은 같은 incident_id와 요청 ID다.
 ## 조회·수동 재요청
 
 - GET /incidents/{incident_id}/analysis: 기존 Bearer 로그인 필요.
-  job(상태·작업 ID·오류 코드), analysis(최신 결과 또는 null)를 반환한다.
+  job(상태·작업 ID·오류 코드), analysis(최신 결과 또는 null), stages(최신 작업의 단계),
+  retry_mode(resume/restart 또는 null)를 반환한다. 단일/과거 작업에는 stages가 빈 목록이다.
   새 작업 실행 중에는 이전 결과가 있을 수 있어 반드시 job 상태와 함께 표시한다.
-- POST /incidents/{incident_id}/analysis/retry: 관제 담당자·보전 팀장만 가능.
-  본문은 {"request_id":"클라이언트 UUID"}. 같은 HTTP 요청 재전송에는 같은 UUID를 쓴다.
+- POST /incidents/{incident_id}/analysis/retry: 현장 점검자·보전 팀장·관제 담당자가 가능.
+  사건에 최종 승인된 보고서가 있으면 새 재시도 요청을 409로 거절한다.
+  조회 응답의 retry_mode도 null이며, 예약 후 실행 전에 승인된 재시도는 호출 없이 종료한다.
+  본문은 {"request_id":"클라이언트 UUID"}, 선택적으로 job_id를 넣는다.
+  같은 HTTP 요청 재전송에는 같은 UUID를 쓴다. 오래된 job_id로 새 요청하면 409다.
   실패 작업만 재요청한다. 실행 중이면 기존 작업, 완료 뒤 새 요청은 409.
-  실패 당시 입력 스냅샷으로 재실행하며 API 비용이 발생할 수 있다.
+  실패 당시 입력 스냅샷으로 재실행하며 API 비용이 발생할 수 있다. 멀티 체크포인트가 있으면
+  완료 단계·센서 조회를 재사용하고 실패 역할부터 실행한다. 체크포인트가 없으면 전체 재시도다.
 - 사건 없음 404, 미인증 401, 권한 부족 403, 비활성 503, DB 장애 503.
 
 PowerShell 조회(기존 /auth/login으로 받은 토큰을 $token에 설정):
@@ -132,8 +140,9 @@ Invoke-RestMethod "http://127.0.0.1:8000/incidents/$incidentId/analysis" -Header
 - 모델 응답 뒤 DB만 끊기면 메모리에 결과를 두고 저장만 재시도한다. 프로세스가 종료되면
   결과가 유실될 수 있으며 interrupted 정책을 적용한다.
 - 종료 때 worker를 5초 기다린다. 진행 중 호출을 강제 취소했다고 보장하지 않는다.
-- API 호출별 시간·턴 제한은 기존 설정이다. 여러 턴·SDK 재시도로 총 시간은 늘 수 있다.
-  분산 실행·강제 전체 마감·취소는 별도 범위다.
+- 단일 분석의 호출별 제한과 별도로 멀티 분석은 전체 시간·요청 예산을 공유하며 SDK 재시도도
+  요청 상한에 포함한다. 분산 실행·로컬 연산의 강제 전체 마감·취소는 별도 범위다.
 - #105 센서 구간 조회·수치 대조는 [SENSOR_WINDOWS](SENSOR_WINDOWS.md)를 따른다.
-  보고서 AI 초안 자동 반영과 화면 폴링은 미구현이다.
+  현재 hmi/web은 분석 상태를 폴링하고 저장된 OK 분석을 보고서 초안의 AI 제안에 연결한다.
+  실제 조치·결재 칸을 AI가 작성하거나 별도 보고서 작성 에이전트를 호출하지 않는다.
 - 새 로그에는 예외 원문·키·LLM 원문을 기록하지 않는다.

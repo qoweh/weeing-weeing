@@ -19,7 +19,36 @@ flowchart LR
 
 - Virtual PLC는 FastAPI·Agent가 멈춰도 혼자 정지 판단을 할 수 있어야 한다. 그래서 detector와 따로 둔다.
 - AI는 제안까지만 한다. 원인 확정, 정지 해제, 재가동은 사람이 HMI에서 한다.
-- agent는 Claude가 근거 검색 도구를 골라 부르는 싱글 에이전트다. 구조와 멀티 에이전트 확장 계획은 [AGENT](AGENT.md).
+- agent는 기본적으로 Claude가 근거 검색 도구를 골라 부르는 싱글 에이전트다. 구조와 확장 설명은 [AGENT](AGENT.md).
+- 사건 자동 분석은 `ANALYSIS_MODE=multi`로 LangGraph 기반 조사 두 역할·통합 분석·선택 검증을
+  실행할 수 있다. API가 DB 기반 검색 정책과 단계 기록 콜백을 주입하며 agent는 DB/API 내부를
+  import하지 않는다. 최종 `AnalysisResult`는 유지하고 역할별 공개 결과는 contracts와
+  `analysis_agent_run`으로 분리한다([MULTI_AGENT_ANALYSIS](MULTI_AGENT_ANALYSIS.md)).
+  단계 재시도는 `ResumableAnalyzer`에 DB 체크포인트를 주입한다. API가 단계 결과와
+  `analysis_checkpoint`를 같은 트랜잭션으로 저장하고, 실패 작업의 수동 재요청은 완료한
+  역할을 재사용한다. agent가 DB를 직접 읽거나 백그라운드에서 유료 호출을 자동 재개하지 않는다.
+
+### 현재 멀티 분석의 데이터 전달
+
+```mermaid
+flowchart LR
+  K["api: 설비·공정·코드·승인 검색 정책"] --> D["agent: 문서 조사"]
+  K --> R["agent: 이력 조사 · 사례 최대 2건"]
+  D --> S["agent: 통합 분석"]
+  R --> S
+  T["api: 센서 조회기"] --> S
+  S --> V["agent: 선택 검증 · 수정 최대 1회"]
+  V --> P["api: 저장 콜백"]
+  P --> DB["db: 단계 · 체크포인트 · 최종 결과"]
+  DB --> H["hmi/web: 최종 결과 · 단계별 근거 · 보고서 초안"]
+```
+
+LangGraph는 역할과 조건 분기를 관리하고 기존 `runtime.run_agent`가 역할 내부의 도구
+루프를 실행한다. 역할별 클라이언트·작업 기억은 분리하지만 LLM 모델 설정은 공통이다.
+조사 요약과 실제 원문을 함께 전달하고 센서 관측은 서버가 수치를 대조한다.
+중간 AI 결과를 벡터DB에 자동 저장하지 않으며 기존 문서·승인 보고서 검색 경로를 사용한다.
+구현·설정·DB 상세는 [MULTI_AGENT_ANALYSIS](MULTI_AGENT_ANALYSIS.md),
+역할별 프롬프트는 [MULTI_AGENT_PROMPTS](MULTI_AGENT_PROMPTS.md)를 따른다.
 
 ## 모듈 표
 

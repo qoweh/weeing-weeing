@@ -133,6 +133,21 @@ def test_search_then_submit_gives_cited_result():
     assert returned[0]["relevance"] is None
 
 
+def test_optional_check_citation_preserves_source_in_single_analysis():
+    submission = submit()
+    submission.input["check_citations"] = [
+        {"check_index": 0, "evidence_ids": [OTHER.evidence_id]}
+    ]
+    result = analyzer(
+        FakeLlm(reply(search()), reply(submission)), FakeRetriever([EV, OTHER])
+    ).analyze(INCIDENT)
+    assert result.status == "OK"
+    assert {e.evidence_id for e in result.evidence} == {
+        EV.evidence_id,
+        OTHER.evidence_id,
+    }
+
+
 def test_citing_unsearched_id_is_sent_back_and_corrected():
     llm = FakeLlm(
         reply(search()),

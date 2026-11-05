@@ -47,7 +47,7 @@ export const demoNormalValues = Object.freeze({
 export async function runDashboardSimulation({ signal, getMode, onFrame, onConnected }) {
   const runId = newRequestId()
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const socket = new WebSocket(`${protocol}//${window.location.host}/api/ws/telemetry?context=MINIMAL`)
+  const socket = new WebSocket(`${protocol}//${window.location.host}/api/ws/telemetry?context=MINIMAL&origin=SIMULATION&interval_s=1`)
   try {
     const ready = await nextMessage(socket, signal)
     if (ready.status !== 'connected') throw new Error(ready.code === 'producer_busy' ? '다른 센서 전송이 진행 중입니다. 먼저 해당 전송을 중단해 주세요.' : `연결이 거부됐습니다: ${ready.code || ready.status}`)
@@ -75,7 +75,7 @@ export async function runDashboardSimulation({ signal, getMode, onFrame, onConne
 export async function simulateIncident({ values, duration, signal, onProgress, onEvents }) {
   const runId = newRequestId()
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const socket = new WebSocket(`${protocol}//${window.location.host}/api/ws/telemetry?context=MINIMAL`)
+  const socket = new WebSocket(`${protocol}//${window.location.host}/api/ws/telemetry?context=MINIMAL&origin=SIMULATION&interval_s=1`)
   try {
     const ready = await nextMessage(socket, signal)
     if (ready.status !== 'connected') {

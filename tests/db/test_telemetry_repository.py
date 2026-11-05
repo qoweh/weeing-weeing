@@ -64,3 +64,29 @@ def test_latest_can_narrow_by_process(telemetry, sample_rows):
 
     assert telemetry.latest(first.asset_id) == other
     assert telemetry.latest(first.asset_id, process_id=first.process_id) == first
+
+
+def test_source_is_saved_per_sample_and_old_unknown_rows_are_not_relabelled(
+    telemetry, sample_rows
+):
+    from weeing_weeing.contracts.telemetry import TelemetryProvenance
+
+    rows = _records(sample_rows)[:3]
+    source = TelemetryProvenance(origin="SIMULATION", expected_interval_s=1)
+    telemetry.save_many(rows[:1])
+    assert telemetry.save_many(rows, provenance=source) == 2
+    found = telemetry.observations_between(
+        rows[0].asset_id,
+        rows[0].timestamp,
+        rows[-1].timestamp + timedelta(seconds=1),
+        process_id=rows[0].process_id,
+    )
+    assert found == [(rows[0], None), (rows[1], source), (rows[2], source)]
+    assert (
+        telemetry.between(
+            rows[0].asset_id,
+            rows[0].timestamp,
+            rows[-1].timestamp + timedelta(seconds=1),
+        )
+        == rows
+    )

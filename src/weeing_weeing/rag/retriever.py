@@ -84,11 +84,14 @@ def _evidence(hit: Hit) -> Evidence:
     이 함수는 검색 순위를 계산하거나 본문 내용을 새로 생성하지 않는다.
     """
     chunk = hit.chunk
-
+    page = chunk.metadata.get("page")
+    title = chunk.metadata.get("title")
     return Evidence(
         evidence_id=chunk.chunk_id,
         doc_id=chunk.doc_id,
         doc_version=chunk.doc_version,
+        title=title.strip() if isinstance(title, str) and title.strip() else None,
+        page=page if type(page) is int and page >= 1 else None,
         section=chunk.metadata.get("section"),
         text=chunk.text,
         score=hit.score,
