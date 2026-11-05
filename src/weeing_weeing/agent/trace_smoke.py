@@ -91,7 +91,10 @@ class ReplaySdk:
         for item in reversed(messages[-1]["content"]):
             if isinstance(item, dict) and item.get("type") == "tool_result":
                 try:
-                    hits = json.loads(item["content"]) if not item["is_error"] else []
+                    result = json.loads(item["content"]) if not item["is_error"] else []
+                    hits = (
+                        result.get("hits", []) if isinstance(result, dict) else result
+                    )
                 except (TypeError, ValueError):
                     hits = []
                 break

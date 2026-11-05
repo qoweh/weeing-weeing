@@ -23,6 +23,8 @@ DB·색인·Claude API 키가 필요하고 실제 API 비용이 발생합니다.
 입력하세요. 이 명령은 .env를 자동으로 로드하지 않습니다. [CHATBOT](docs/CHATBOT.md)을 참고하세요.
 로그인한 사용자용 HTTP API는 `make api` 실행 후 `/docs`에서 확인할 수 있습니다.
 FAQ 버튼 선택·대화 저장·중복 요청·본인 조회 흐름은 [CHAT_API](docs/CHAT_API.md)에 정리했습니다.
+챗봇 LLM 왕복·재작성 개선과 실제 지연 비교 명령은
+[CHAT_ROUNDTRIP_PERFORMANCE](docs/CHAT_ROUNDTRIP_PERFORMANCE.md)를 참고하세요.
 
 자세한 설치(uv·Docker·Claude API 키)와 문제 해결: [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md)
 

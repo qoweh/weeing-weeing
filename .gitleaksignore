@@ -1,0 +1,3 @@
+# Historical public Docker image identifier, not a credential.
+# Only this finding is ignored; current documentation separates image and SHA.
+fd5476f78fffd980b71204ae798d0942dcb4104b:docs/CHAT_ROUNDTRIP_RESULTS.md:generic-api-key:72
