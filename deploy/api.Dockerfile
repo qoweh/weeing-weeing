@@ -1,9 +1,9 @@
 # API(FastAPI) 운영 이미지. 빌드 위치는 레포 루트다(docs/DEPLOY.md).
 #   docker build -f deploy/api.Dockerfile -t weeing-api .
 # 로컬 AI 모델은 없다. 임베딩은 해시 방식(기본) 또는 외부 API(docs/EMBEDDING_API.md).
-FROM python:3.12-slim
+FROM python:3.12-slim@sha256:b18b261e1b4974b4f321451ad5251ded85abb22c2b8b262da527dda1d031ab30
 
-COPY --from=ghcr.io/astral-sh/uv:0.13.1 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.13.1@sha256:4a1f3666816dafadd20ceb71eac9a7d56d7ef30279f7d64048519ab901ada336 /uv /bin/uv
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_PYTHON_DOWNLOADS=never \

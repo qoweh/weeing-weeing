@@ -8,7 +8,7 @@ on:
   push:
     branches: [main]
   issues:
-    types: [opened, closed, reopened, assigned]
+    types: [opened, closed, reopened]  # assigned는 알림 가치보다 실행 분량이 커 뺀다
   pull_request:
     types: [opened, reopened, ready_for_review, closed]
   pull_request_review:
@@ -18,7 +18,10 @@ permissions: {}
 
 jobs:
   notify:
+    # 의존성 자동 PR(Dependabot)은 알림하지 않는다(주마다 여러 건).
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
+    timeout-minutes: 2
     steps:
       - name: Slack으로 전송
         env:

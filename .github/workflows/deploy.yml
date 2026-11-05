@@ -1,11 +1,11 @@
 name: Deploy (EC2)
 
 # 이미지를 빌드해 GHCR에 올리고, 서버(EC2)에서 받아 교체한다. 절차·Secrets는 docs/DEPLOY.md.
-# - main push(release PR 머지) 때 자동 실행. dev는 Actions → Run workflow로 수동 실행.
+# - main push(release PR 머지) 때 자동 실행. 수동 실행(Run workflow)도 main에서만 배포까지 간다.
 # - 이미지 태그는 커밋 SHA. 롤백은 예전 실행의 Re-run jobs(같은 SHA를 다시 배포).
 # - 서버는 빌드하지 않는다(메모리 8GB). GHCR 로그인은 이 실행의 GITHUB_TOKEN으로 하고 끝나면 로그아웃한다.
 # - 서버 접속 정보는 Environment "production"의 Secrets·Variables에 있다. 그 Environment가 허용한
-#   브랜치(main·dev)에서만 deploy job이 값을 받는다(docs/DEPLOY.md).
+#   브랜치(main)에서만 deploy job이 값을 받는다. 다른 브랜치는 빌드까지만 되고 배포에서 막힌다(docs/DEPLOY.md).
 # 액션은 태그 대신 커밋 SHA로 고정한다(ci.yml과 같은 규칙).
 
 on:
@@ -73,12 +73,30 @@ jobs:
           file: deploy/${{ matrix.image }}.Dockerfile
           platforms: linux/amd64
           push: true
-          # latest = 마지막으로 배포한 이미지. 서버의 기본값이라 IMAGE_TAG가 없어도 최신이 뜬다.
-          tags: |
-            ${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ github.sha }}
-            ${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:latest
+          # 커밋 SHA 태그만 먼저 올린다. latest는 취약점 검사를 통과한 뒤에 붙인다.
+          tags: ${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,scope=${{ matrix.image }},mode=max
+      - name: 취약점 검사 (Trivy, 수정판이 있는 CRITICAL이면 배포 중단)
+        env:
+          IMAGE: ${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ github.sha }}
+          TRIVY_VERSION: "0.76.1"
+          TRIVY_SHA256: "c7cbe3137fb8a48a17574bede3dd6beb16742d1e9772929940fc90082c39d9c0"
+        run: |
+          # gitleaks처럼 바이너리를 해시로 검증해 받는다(외부 액션을 쓰지 않는다).
+          curl -sSfL "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" -o /tmp/trivy.tgz
+          echo "${TRIVY_SHA256}  /tmp/trivy.tgz" | sha256sum -c -
+          tar -xzf /tmp/trivy.tgz -C /tmp trivy
+          # HIGH까지는 기록만 남기고, 수정판이 나온 CRITICAL만 배포를 멈춘다.
+          /tmp/trivy image --quiet --scanners vuln --ignore-unfixed --severity HIGH,CRITICAL \
+            --format table --exit-code 0 "$IMAGE" | tee -a "$GITHUB_STEP_SUMMARY"
+          /tmp/trivy image --quiet --scanners vuln --ignore-unfixed --severity CRITICAL \
+            --exit-code 1 "$IMAGE"
+      - name: latest 태그 붙이기
+        env:
+          IMAGE: ${{ env.IMAGE_PREFIX }}-${{ matrix.image }}
+        # latest = 마지막으로 배포한 이미지. 서버의 기본값이라 IMAGE_TAG가 없어도 최신이 뜬다.
+        run: docker buildx imagetools create -t "$IMAGE:latest" "$IMAGE:${{ github.sha }}"
 
   deploy:
     name: Deploy to EC2
@@ -137,10 +155,15 @@ jobs:
           TAG: ${{ github.sha }}
           API_ONLY: ${{ inputs.api_only && 'true' || 'false' }}
           WEB_ONLY: ${{ inputs.web_only && 'true' || 'false' }}
+          # Caddy만 배포할 때 확인하는 HTTPS 주소. Environment production의 Variable(docs/DEPLOY.md).
+          WEB_HEALTH_URL: ${{ vars.WEB_HEALTH_URL }}
         run: |
+          if [ "$WEB_ONLY" = true ] && [ -z "$WEB_HEALTH_URL" ]; then
+            echo "::error::Environment production에 Variable WEB_HEALTH_URL이 필요합니다(docs/DEPLOY.md)"; exit 1
+          fi
           # 토큰은 명령줄이 아니라 표준 입력으로 넘긴다(서버 프로세스 목록에 남지 않게).
           printf '%s' "$TOKEN" | ssh "$EC2" "docker login ghcr.io -u '$ACTOR' --password-stdin"
-          ssh "$EC2" "IMAGE_PREFIX='$IMAGE_PREFIX' TAG='$TAG' API_ONLY='$API_ONLY' WEB_ONLY='$WEB_ONLY' bash -s" <<'EOF'
+          ssh "$EC2" "IMAGE_PREFIX='$IMAGE_PREFIX' TAG='$TAG' API_ONLY='$API_ONLY' WEB_HEALTH_URL='$WEB_HEALTH_URL' WEB_ONLY='$WEB_ONLY' bash -s" <<'EOF'
           set -euo pipefail
           # 어느 줄에서 실패해도 로그인 정보를 지운다(trap을 가장 먼저 건다).
           trap 'docker logout ghcr.io >/dev/null' EXIT
@@ -165,7 +188,7 @@ jobs:
                 healthy=false
                 for attempt in $(seq 1 12); do
                   if curl --fail --silent --show-error --connect-timeout 5 --max-time 10 \
-                    https://telemetry.<EC2_IP>.sslip.io/api/health >/dev/null 2>&1; then
+                    "$WEB_HEALTH_URL" >/dev/null 2>&1; then
                     healthy=true
                     break
                   fi
@@ -190,6 +213,8 @@ jobs:
             fi
             exit 0
           fi
+          # 실패 시 되돌릴 수 있게 지금 쓰는 태그를 남긴다(헬스체크 실패 → 이전 배포 복귀 단계).
+          grep -E '^(IMAGE_PREFIX|IMAGE_TAG|API_IMAGE_TAG|WEB_IMAGE_TAG)=' .env > .deploy-previous-tags || true
           # 지금 배포한 태그를 .env에 남겨 서버 재시작·수동 up에서도 같은 이미지가 뜨게 한다.
           sed -i '/^IMAGE_TAG=/d;/^IMAGE_PREFIX=/d;/^API_IMAGE_TAG=/d;/^WEB_IMAGE_TAG=/d' .env
           # 마지막 줄에 줄바꿈이 없으면 덧붙인 값이 그 줄에 붙으므로 먼저 줄을 바꾼다.
@@ -197,12 +222,11 @@ jobs:
           printf 'IMAGE_PREFIX=%s\nIMAGE_TAG=%s\nAPI_IMAGE_TAG=%s\nWEB_IMAGE_TAG=%s\n' "$IMAGE_PREFIX" "$TAG" "$TAG" "$TAG" >> .env
           docker compose pull --quiet
           docker compose up -d --remove-orphans
-          # 실행 중인 컨테이너가 쓰지 않는 이미지는 모두 지운다. SHA 태그 이미지가 배포마다
-          # 쌓이면 디스크 30GB가 금방 찬다. 롤백 때는 GHCR에서 다시 받는다.
-          docker image prune -af >/dev/null
+          # 이전 이미지는 헬스체크가 통과한 뒤에 지운다(실패하면 바로 되돌릴 수 있게).
           EOF
 
       - name: 헬스체크
+        id: health
         run: |
           ssh "$EC2" bash -s <<'EOF'
           cd ~/weeing-weeing
@@ -221,3 +245,35 @@ jobs:
           docker compose logs --tail 80
           echo "::error::150초 안에 정상이 되지 않았습니다 (api: $status, running: $running/$total)"; exit 1
           EOF
+
+      - name: 이전 이미지 정리
+        if: success() && !inputs.api_only && !inputs.web_only
+        run: |
+          # 실행 중인 컨테이너가 쓰지 않는 이미지는 모두 지운다. SHA 태그 이미지가 배포마다
+          # 쌓이면 디스크 30GB가 금방 찬다. 이후 롤백은 GHCR에서 다시 받는다.
+          ssh "$EC2" 'docker image prune -af >/dev/null; rm -f ~/weeing-weeing/.deploy-previous-tags'
+
+      - name: 실패 시 이전 배포로 복귀
+        # 전체 배포에서 헬스체크가 실패했을 때만. API·Caddy만 배포는 교체 단계 안에서 이미 복원한다.
+        if: failure() && steps.health.outcome == 'failure' && !inputs.api_only && !inputs.web_only
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          printf '%s' "$TOKEN" | ssh "$EC2" "docker login ghcr.io -u '$ACTOR' --password-stdin"
+          ssh "$EC2" bash -s <<'EOF'
+          set -euo pipefail
+          trap 'docker logout ghcr.io >/dev/null' EXIT
+          cd ~/weeing-weeing
+          if [ ! -s .deploy-previous-tags ]; then
+            echo "::error::되돌릴 이전 태그 기록이 없습니다(첫 배포). 서버에서 직접 확인하세요."; exit 1
+          fi
+          sed -i '/^IMAGE_TAG=/d;/^IMAGE_PREFIX=/d;/^API_IMAGE_TAG=/d;/^WEB_IMAGE_TAG=/d' .env
+          if [ -s .env ] && [ -n "$(tail -c1 .env)" ]; then echo >> .env; fi
+          cat .deploy-previous-tags >> .env
+          docker compose pull --quiet
+          docker compose up -d --remove-orphans --wait --wait-timeout 150
+          docker compose ps --format 'table {{.Service}}\t{{.Status}}'
+          echo "::error::새 배포가 헬스체크를 통과하지 못해 이전 이미지로 되돌렸습니다."
+          EOF
+          exit 1

@@ -1,6 +1,6 @@
 # frontend(Next.js) 운영 이미지. 빌드 위치는 레포 루트다(docs/DEPLOY.md).
 #   docker build -f deploy/frontend.Dockerfile -t weeing-frontend .
-FROM node:24-alpine AS build
+FROM node:24-alpine@sha256:8a32c8cf649a49915a66e81e7a609223c708d0adabf288ee3f4077d765542f85 AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY frontend/package.json frontend/package-lock.json ./
@@ -9,7 +9,7 @@ COPY frontend/ ./
 # 빌드에는 devDependencies(typescript·tailwind)가 필요하고, 실행에는 필요 없어 빌드 뒤에 지운다.
 RUN npm run build && npm prune --omit=dev
 
-FROM node:24-alpine
+FROM node:24-alpine@sha256:8a32c8cf649a49915a66e81e7a609223c708d0adabf288ee3f4077d765542f85
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1

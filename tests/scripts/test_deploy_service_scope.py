@@ -100,6 +100,7 @@ def test_one_service_deploy_preserves_other_tags_and_rolls_back(
         API_ONLY="true" if service == "api" else "false",
         WEB_ONLY="true" if service == "web" else "false",
         TAG="new-sha",
+        WEB_HEALTH_URL="https://example.invalid/api/health",
     )
     result = subprocess.run(
         [bash, bash_path(script)],

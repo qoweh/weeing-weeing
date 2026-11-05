@@ -31,10 +31,12 @@ web(Caddy :80/:443) ─┬─ /api/*  → api(FastAPI :8000)  ─┬─ postgres
 | web | `deploy/web.Dockerfile` (Caddy + hmi/web 빌드) | `caddy_data`(인증서) |
 | frontend | `deploy/frontend.Dockerfile` | - |
 | api | `deploy/api.Dockerfile` | `storage`(업로드), `outputs`(사건 이력) |
-| postgres | `postgres:16-alpine` | `postgres_data` |
-| qdrant | `qdrant/qdrant:v1.20.0` | `qdrant_data` |
+| postgres | `postgres:16-alpine` (digest 고정) | `postgres_data` |
+| qdrant | `qdrant/qdrant:v1.20.0` (digest 고정) | `qdrant_data` |
 
 - 서버는 빌드하지 않는다. 8GB에서 Next.js 빌드·의존성 설치를 피하고, 이미지 태그로 롤백하기 위해서다
+- 베이스·서비스 이미지는 `태그@sha256:digest`로 고정한다. 같은 태그라도 내용이 바뀌어 재현성이 깨지거나 공급망 위험이 생기는 것을 막는다. 갱신은 Dependabot(`.github/dependabot.yml`)이 주 1회 PR로 올린다(github-actions·uv·npm·docker·docker-compose, 새 버전 7일 뒤)
+- 빌드한 이미지는 커밋 SHA 태그로만 올리고 **Trivy 취약점 검사**를 한다. HIGH·CRITICAL은 실행 요약(Summary)에 표로 남기고, **수정판이 나온 CRITICAL이 있으면 배포를 멈춘다**. 통과한 이미지에만 `latest`를 붙인다
 - API 이미지에는 torch·로컬 AI 모델이 없다(D-31). 임베딩은 해시 방식 또는 외부 API다
 - 모든 서비스가 `restart: unless-stopped`라 서버를 껐다 켜면 2~3분 뒤 저절로 다시 뜬다
 - 경로: `https://<EC2_IP>/`(frontend), `/hmi/`(hmi/web), `/api/health`, `/api/docs`(API 문서)
@@ -104,7 +106,7 @@ ssh-copy-id -i ~/.ssh/ww-team/deploy_ed25519.pub ww-team
 
 레포 Settings → Environments → `production`:
 
-1. **Deployment branches and tags** → Selected branches and tags → `main`, `dev` 추가
+1. **Deployment branches and tags** → Selected branches and tags → `main`만 추가(2026-11-05부터 dev 제외: 검토되지 않은 dev 코드를 수동으로 운영에 올리지 않게)
 2. **Environment secrets**
 
    | 이름 | 값 |
@@ -113,7 +115,12 @@ ssh-copy-id -i ~/.ssh/ww-team/deploy_ed25519.pub ww-team
    | `EC2_SSH_KEY` | 배포 전용 개인 키 내용(`deploy_ed25519`, `.pub` 아님) |
    | `EC2_KNOWN_HOSTS` | 서버 ED25519 호스트 키 한 줄(아래 명령으로 확인 후 등록) |
 
-3. **Environment variables**(선택): `EC2_USER`. 없으면 `ubuntu`. 비밀이 아니므로 Secret에 넣지 않는다(Secret에 넣으면 로그의 같은 글자가 모두 `***`로 가려진다)
+3. **Environment variables**: 비밀이 아니므로 Secret에 넣지 않는다(Secret에 넣으면 로그의 같은 글자가 모두 `***`로 가려진다)
+
+   | 이름 | 값 | 필수 |
+   |---|---|---|
+   | `EC2_USER` | 서버 사용자. 없으면 `ubuntu` | 선택 |
+   | `WEB_HEALTH_URL` | Caddy만 배포(`web_only`)할 때 확인할 HTTPS 주소. 예: `https://telemetry.<EC2_IP>.sslip.io/api/health` | `web_only` 배포 때 필수(없으면 그 배포가 시작 전에 멈춘다) |
 4. 같은 이름의 **레포 Secrets는 지운다**(Settings → Secrets and variables → Actions). 남아 있으면 다른 브랜치의 워크플로가 계속 읽을 수 있다
 
 `gh` CLI로 등록할 때(`--env production`):
@@ -184,12 +191,12 @@ ops/aws.sh up             # 추가·수정한 값을 컨테이너에 반영
 ## 배포
 
 - **자동:** release PR(dev → main)이 머지되면 `Deploy (EC2)` 워크플로가 돈다
-- **수동:** Actions → Deploy (EC2) → Run workflow → `dev` 선택. Environment가 main·dev만 허용하므로 작업 브랜치는 빌드까지만 되고 배포 단계에서 막힌다
+- **수동:** Actions → Deploy (EC2) → Run workflow → `main` 선택(재배포·API만·Caddy만 배포). Environment가 main만 허용하므로 dev·작업 브랜치는 빌드까지만 되고 배포 단계에서 막힌다. dev 변경을 올리려면 release PR을 머지한다
 - 워크플로 파일이 기본 브랜치(dev)에 있어야 Run workflow 버튼이 보인다
 
 ### API만 배포
 
-Actions → Deploy (EC2) → Run workflow → `dev` → `api_only`를 체크한다.
+Actions → Deploy (EC2) → Run workflow → `main` → `api_only`를 체크한다.
 API 이미지만 빌드·수신·교체하며 frontend·web·PostgreSQL·Qdrant 컨테이너는 재생성하지 않는다.
 API 태그는 서버의 `API_IMAGE_TAG`에 별도로 기록하고 웹용 `IMAGE_TAG`는 유지한다.
 전체 배포에서는 두 태그를 같은 SHA로 갱신한다. API 상태 검사에 실패하면 이전 API 태그로
@@ -302,7 +309,9 @@ LANGFUSE_TRACING_ENVIRONMENT=demo
 
 ## 롤백
 
-Actions에서 예전 `Deploy (EC2)` 실행을 열고 **Re-run all jobs**를 누른다. 그 실행의 커밋 SHA 이미지로 다시 배포된다.
+**자동 복귀.** 전체 배포 뒤 헬스체크가 실패하면, 배포 직전에 남긴 태그(`~/weeing-weeing/.deploy-previous-tags`)로 `.env`를 되돌리고 이전 이미지를 다시 띄운다(GHCR에서 다시 받는다). 실행은 실패로 끝나 알 수 있다. 이전 이미지 정리(`docker image prune`)는 헬스체크가 통과한 뒤에만 한다. API·Caddy만 배포할 때는 교체 단계 안에서 이미 이전 이미지로 복원한다.
+
+수동으로 되돌릴 때는 Actions에서 예전 `Deploy (EC2)` 실행을 열고 **Re-run all jobs**를 누른다. 그 실행의 커밋 SHA 이미지로 다시 배포된다.
 
 급할 때 서버에서 직접 바꿀 수도 있다. `.env`의 `IMAGE_TAG`를 예전 SHA로 바꾸고 `docker compose up -d`를 실행한다. 다만 private 레포라 GHCR 로그인이 필요하므로, 되도록 Re-run을 쓴다.
 
@@ -327,7 +336,7 @@ scp 'ww-team:~/weeing-weeing/backup-*.sql' 'ww-team:~/weeing-weeing/files-*.tgz'
 
 | 증상 | 확인 |
 |---|---|
-| 워크플로가 `Secret이 필요합니다`로 실패 | Environment `production`의 Secrets 3개 이름 확인. 허용 브랜치(main·dev)가 아닌 곳에서 실행하면 값이 비어 이 오류가 난다 |
+| 워크플로가 `Secret이 필요합니다`로 실패 | Environment `production`의 Secrets 3개 이름 확인. 허용 브랜치(main)가 아닌 곳(dev 포함)에서 실행하면 값이 비어 이 오류가 난다 |
 | `Host key verification failed` / `No ED25519 host key is known` | `EC2_KNOWN_HOSTS`에 서버 ED25519 지문이 없음. [위 명령](#2-environment-production에-secrets-등록)으로 다시 등록. 이때 접속 실패가 `.env가 없습니다`로 함께 표시된다 |
 | `Connection timed out`(SSH) | 서버가 꺼져 있거나 보안그룹 22번이 닫혀 있음 |
 | `.env가 없습니다` | [서버 .env](#3-서버-env) 작성 |
