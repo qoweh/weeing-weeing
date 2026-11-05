@@ -2,6 +2,12 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
+from weeing_weeing.agent.chat_baseline import (
+    format_latency_report,
+    load_latency_cases,
+    run_latency_baseline,
+)
+from weeing_weeing.agent.chat_baseline import rows_as_dicts as latency_rows_as_dicts
 from weeing_weeing.agent.chat_usage import ChatCallUsage, ChatRunUsage
 from weeing_weeing.agent.errors import (
     LlmAuthenticationError,
@@ -71,6 +77,10 @@ if TYPE_CHECKING:
     from weeing_weeing.rag.interface import Retriever
 
 __all__ = [
+    "format_latency_report",
+    "load_latency_cases",
+    "run_latency_baseline",
+    "latency_rows_as_dicts",
     "get_replay_llm_client",
     "replay_sample_knowledge",
     "trace_session",
