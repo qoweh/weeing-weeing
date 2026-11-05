@@ -48,6 +48,8 @@ uv lock --check
 uv run --no-sync pre-commit run gitleaks --all-files
 # E. 스킬 사본 동기화 (.agents/skills를 고쳤을 때)
 uv run --no-sync python scripts/sync_skills.py --check
+# F. 코드·compose가 읽는 환경변수가 .env.example 템플릿에 모두 있는지 (.env는 열지 않는다)
+uv run --no-sync python scripts/check_env_template.py
 ```
 
 그다음 바뀐 파일을 아래 표로 하나씩 대조한다. 해당 없는 줄은 건너뛴다.
@@ -58,7 +60,7 @@ uv run --no-sync python scripts/sync_skills.py --check
 | plc 독립성 | 명령 B | 0건 |
 | 계약 변경 | `contracts/`가 바뀌었는데 `docs/CONTRACTS.md`·`tests/contracts/`가 안 바뀜 | 같은 PR에서 함께 수정, PR 본문에 영향 모듈 |
 | 의존성 | `pyproject.toml`만 바뀌고 `uv.lock`이 안 바뀜, 명령 C 실패 | 둘 다 커밋, `uv add`로만 추가 |
-| 환경변수 | 코드에 새 `os.environ`/설정 키가 있는데 `.env.example`·`config.py`에 없음 | 셋을 함께, `.env.example`에는 비밀 값 없이 |
+| 환경변수 | 명령 F 실패, 또는 `config.py`·코드·compose에 새 키가 있는데 `.env.example`이 안 바뀜 | 아래 "환경변수 템플릿 규칙"대로 같은 PR에서 함께 |
 | 외부 호출 | LLM API·HTTP 호출에 timeout이 없음, 실패 시 예외가 그대로 터짐 | timeout 지정, 실패하면 `status=FAILED` 같은 정해진 결과로 |
 | 근거 검증 | agent가 근거 없이 OK를 내거나 검증 오류를 삼킴 | `AnalysisResult` 검증 오류는 잡아서 `INSUFFICIENT_EVIDENCE`/`FAILED`로 |
 | AI 작성 금지 칸 | agent 코드가 보고서 `maintenance`·`approval`을 채움 | AI는 `ai_analysis`까지만 |
@@ -68,6 +70,17 @@ uv run --no-sync python scripts/sync_skills.py --check
 | 테스트 | 새 로직에 테스트가 없음, 테스트가 실제 LLM API·네트워크를 부름 | CI에서 돌 수 있게 가짜 객체(`interface`의 Protocol 구현)로 대체 |
 | 문서와 코드 | 문서·주석의 명령·키 이름·경로가 실제와 다름 | 바꾼 쪽에 맞춰 함께 수정 |
 | 큰 파일 | `git diff --stat origin/dev...HEAD`에 수 MB 이상 파일 | `data/README.md`에 출처 기록, 수십 MB 이상은 커밋하지 않음 |
+
+### 환경변수 템플릿 규칙
+
+`.env.example`(Langfuse 서버는 `deploy/langfuse/.env.example`)이 유일한 기준이다. 팀원은 이 파일을 복사해 `.env`를 만들고, 배포는 이 파일로 서버 `.env`에 빠진 키를 채운다(`ops/server.sh env-sync`). 템플릿에 없는 키는 다른 사람·서버에 전달되지 않고, 위치가 제각각이면 `.env`와 템플릿을 눈으로 대조해야 한다.
+
+- **`.env`는 열거나 읽지 않는다.** 키 이름 비교도 AI가 하지 않는다. 내 `.env`에 빠진 키는 사용자가 `! make env-check`로 확인한다(값은 출력하지 않고 설정됨/비어 있음만 보여 준다).
+- 코드에서 새 키를 읽으면 **같은 PR에서 템플릿에 추가**한다. 명령 F로 확인한다(같은 검사가 `pytest`의 `tests/scripts/test_check_env_template.py`로 CI에서도 돈다).
+- **위치**: 관련 키가 모인 절의 관련 키 바로 아래에 넣는다(예: `CHAT_LLM_EFFORT`는 `LLM_EFFORT` 바로 아래, Langfuse 키는 `── 7. LLM 사용량 기록` 절 안). 파일 끝에 덧붙이지 않는다. 절 번호·순서는 바꾸지 않는다(팀원 `.env`와 줄 위치가 어긋난다).
+- **값**: 비밀 값은 넣지 않는다. 기본값이 있으면 `config.py`의 기본값과 같은 값을, 비워 두면 기본 동작이면 `KEY=`로 둔다. 선택 키·비밀 키는 `# KEY=` 주석 줄로 둔다.
+- **설명**: 바로 위에 한 줄 주석으로 무엇을 바꾸는지와 비웠을 때의 동작을 적는다. 이슈 번호가 있으면 붙인다.
+- 키 이름을 바꾸거나 지우면 템플릿·`config.py`·문서(`docs/`)를 함께 고치고, PR 본문에 "팀원·서버 `.env`에서 할 일"을 적는다.
 
 ### 같은 종류 결함은 전부 찾는다
 

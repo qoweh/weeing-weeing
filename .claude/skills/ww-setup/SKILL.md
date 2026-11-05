@@ -34,7 +34,7 @@ uv sync --locked --no-install-project
 lock 불일치로 실패하면 `--locked`를 빼지 말고, 누가 `pyproject.toml`만 바꿨는지 `git log -p -- pyproject.toml uv.lock`으로 찾아 보고한다.
 
 ### 3. `.env`
-`.env`가 없을 때만 `cp .env.example .env`. 있으면 `.env.example`에만 있는 키 이름(값 말고)을 비교해 빠진 키를 알려 준다.
+`.env`가 없을 때만 `cp .env.example .env`. 있으면 `.env`를 열지 않고, 사용자에게 `! make env-check`를 실행하게 해 빠진·낡은 키를 확인한다(값은 출력하지 않는다). 빠진 키는 `.env.example`의 같은 절 위치에 옮겨 적게 안내한다.
 
 ### 4. 검사
 ```bash
@@ -55,9 +55,9 @@ docker compose exec postgres pg_isready -U weeing -d weeing
 
 ### 7. Claude API 키 (Agent·챗봇 담당 또는 사용자가 원할 때)
 - 로컬 LLM(Ollama)은 쓰지 않는다. 받을 LLM 모델이 없다.
-- `.env`에 `ANTHROPIC_API_KEY` 값이 들어 있는지만 확인한다(값은 출력하지 않는다). 빈 값 줄(`ANTHROPIC_API_KEY=`)은 `ant auth login` 프로필을 가리므로 주석 처리를 안내한다. 키는 사용자가 직접 넣는다.
+- `ANTHROPIC_API_KEY`가 들어 있는지는 사용자가 `! make env-check`로 확인한다(AI는 `.env`를 열지 않는다, 값은 출력되지 않는다). 빈 값 줄(`ANTHROPIC_API_KEY=`)은 `ant auth login` 프로필을 가리므로 주석 처리를 안내한다. 키는 사용자가 직접 넣는다.
 - 키가 있으면 사용자 동의를 받아 `make llm-check`(API 비용 발생)로 확인한다.
-- 사용량 기록(`docs/USAGE_TRACKING.md`): `LLM_USER`(본인 GitHub 핸들)와 `LANGFUSE_BASE_URL`·`LANGFUSE_PUBLIC_KEY`·`LANGFUSE_SECRET_KEY`가 들어 있는지만 확인한다(값 출력 금지). 키는 김민우에게 개별로 받는다. 없어도 개발은 되므로 막지 않고 보고에 적는다.
+- 사용량 기록(`docs/USAGE_TRACKING.md`): `LLM_USER`(본인 GitHub 핸들)와 `LANGFUSE_BASE_URL`·`LANGFUSE_PUBLIC_KEY`·`LANGFUSE_SECRET_KEY`가 들어 있는지는 사용자가 `! make env-check`로 확인한다(AI는 `.env`를 열지 않는다). 셸에 export된 `LANGFUSE_*`가 있으면 `.env`보다 우선해 다른 프로젝트로 기록되므로 env-check의 셸 값 충돌 항목도 함께 본다. 키는 김민우에게 개별로 받는다. 없어도 개발은 되므로 막지 않고 보고에 적는다.
 
 ## 보고
 
