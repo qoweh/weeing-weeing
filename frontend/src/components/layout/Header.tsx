@@ -18,6 +18,7 @@ export default function Header({
   sidebarCollapsed,
   onChangeSidebarCollapsed,
   onIncidentSelect,
+  onNavigateDashboard,
   onSessionExpired,
   settings,
   onChangeSettings,
@@ -34,6 +35,7 @@ export default function Header({
   sidebarCollapsed: boolean
   onChangeSidebarCollapsed: (value: boolean) => void
   onIncidentSelect: (incident: Incident) => void
+  onNavigateDashboard: () => void
   onSessionExpired: () => void
   settings: Settings
   onChangeSettings: (settings: Settings) => void
@@ -193,12 +195,12 @@ export default function Header({
   }, [severity, screenZoom])
   return (
     <header className="header">
-      <a className="brand" href="#main-content">
-        <span className="brand__mark">W</span>
+      <button type="button" className="brand" aria-label="대시보드로 이동" disabled={busy} onClick={onNavigateDashboard}>
+        <span className="brand__mark"><img src="/assets/IMAGE/weeing-logo.png" alt="" /></span>
         <span>
           위잉위잉<small>Equipment AI</small>
         </span>
-      </a>
+      </button>
       <div className="header__main">
         <div className="header__actions">
           {(

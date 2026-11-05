@@ -27,13 +27,11 @@ const labels: Record<string, string> = {
 export default function MaintenancePage({
   user,
   onOpen,
-  onCreateReportPreview,
   onSessionExpired,
   refreshKey = 0,
 }: {
   user: { role: string }
   onOpen: (reportId: string, incidentId: string | null, row: Row) => void
-  onCreateReportPreview: () => void
   onSessionExpired: () => void
   refreshKey?: number
 }) {
@@ -94,9 +92,6 @@ export default function MaintenancePage({
     <div className="library-page" aria-label="정비 이력 · 보고서">
       <div className="maintenance-page__heading">
         <PageTitle>정비이력</PageTitle>
-        <Button variant="primary" onClick={onCreateReportPreview}>
-          보고서 작성
-        </Button>
       </div>
       <div
         className="library-report-scopes"

@@ -222,17 +222,11 @@
   font-size: 14px;
 }
 
-.sensor-dashboard__description {
-  margin: 8px 0 24px;
-  color: var(--muted);
-  font-size: 14px;
-}
-
 .sensor-dashboard__connection {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 20px;
-  margin: -8px 0 20px;
+  margin: 16px 0 20px;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.6;

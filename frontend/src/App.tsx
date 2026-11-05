@@ -305,15 +305,6 @@ export default function App() {
       {page === "maintenance" && (
         <MaintenancePage
           user={user}
-          onCreateReportPreview={() => {
-            setError("");
-            setReportSelection({
-              incident: null,
-              incidentId: "",
-              reportId: "",
-              previewOnly: true,
-            });
-          }}
           onSessionExpired={forgetSession}
           refreshKey={maintenanceRefreshKey}
           onOpen={(reportId, _incidentId, row) =>

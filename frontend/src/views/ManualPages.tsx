@@ -33,6 +33,7 @@ import DocumentPdfModal from '../components/ui/DocumentPdfModal'
 import Button from '../components/ui/Button'
 import PageTitle from '../components/ui/PageTitle'
 import { documentVersionFromFilename } from '../components/ui/documentVersion'
+import ReplaceDocumentDialog from '../components/ui/ReplaceDocumentDialog'
 import {
   Filters,
   filterRows,
@@ -219,13 +220,19 @@ export function ManualUploadPage({
   const [dragging, setDragging] = useState(false)
   const [version, setVersion] = useState('1.0')
   const [file, setFile] = useState<File | null>(null)
+  const [replacement, setReplacement] = useState<{
+    docId: string
+    existingVersions: string[]
+    newVersion: string
+  } | null>(null)
+  const [pendingUpload, setPendingUpload] = useState<FormData | null>(null)
   const dragDepth = useRef(0)
   const formRef = useRef<HTMLFormElement>(null)
 
   async function uploadFormData(
-    form: HTMLFormElement,
     data: FormData,
     file: FormDataEntryValue | null,
+    confirmedReplacement = false,
   ) {
     if (busy) return
     setError('')
@@ -249,6 +256,29 @@ export function ManualUploadPage({
     setBusy(true)
     onBusyChange(true)
     try {
+      if (!confirmedReplacement) {
+        const docId = String(data.get('doc_id'))
+        const docVersion = String(data.get('doc_version'))
+        const existing = (await listDocuments()) as Manual[]
+        const existingVersions = [
+          ...new Set(
+            existing
+              .filter(
+                (document) =>
+                  document.doc_id === docId &&
+                  document.doc_version !== docVersion,
+              )
+              .map((document) => document.doc_version),
+          ),
+        ]
+
+        if (existingVersions.length) {
+          setPendingUpload(data)
+          setReplacement({ docId, existingVersions, newVersion: docVersion })
+          return
+        }
+      }
+
       await uploadDocument(data)
       onNavigate('manuals')
     } catch (e) {
@@ -263,9 +293,8 @@ export function ManualUploadPage({
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const form = e.currentTarget
-    const data = new FormData(form)
-    await uploadFormData(form, data, data.get('file'))
+    const data = new FormData(e.currentTarget)
+    await uploadFormData(data, data.get('file'))
   }
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
@@ -406,6 +435,24 @@ export function ManualUploadPage({
           <p className="workspace-error" role="alert">
             {error}
           </p>
+        )}
+        {replacement && (
+          <ReplaceDocumentDialog
+            docId={replacement.docId}
+            existingVersions={replacement.existingVersions}
+            newVersion={replacement.newVersion}
+            onCancel={() => {
+              setReplacement(null)
+              setPendingUpload(null)
+            }}
+            onConfirm={async () => {
+              if (!pendingUpload) return
+              const pendingFile = pendingUpload.get('file')
+              setReplacement(null)
+              setPendingUpload(null)
+              await uploadFormData(pendingUpload, pendingFile, true)
+            }}
+          />
         )}
       </form>
       <div className="manual-upload-back">
