@@ -92,3 +92,14 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+@media (max-width: 680px) {
+  .analysis-dialog {
+    inset: 0;
+    width: calc(100vw / var(--screen-zoom, 1));
+    height: calc(100dvh / var(--screen-zoom, 1));
+    max-height: calc(100dvh / var(--screen-zoom, 1));
+    border: 0;
+    border-radius: 0;
+  }
+}

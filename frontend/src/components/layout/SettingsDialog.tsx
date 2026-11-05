@@ -76,6 +76,7 @@ export default function SettingsDialog({
   onChangeSettings,
   onLogout,
   busy,
+  initialTab = '화면',
   onClose,
 }: {
   user: { name: string; role: string; employee_no?: string }
@@ -91,11 +92,12 @@ export default function SettingsDialog({
   onChangeSettings: (settings: Settings) => void
   onLogout: () => void
   busy: boolean
+  initialTab?: string
   onClose: () => void
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const titleId = useId()
-  const [tab, setTab] = useState('화면')
+  const [tab, setTab] = useState(initialTab)
 
   useEffect(() => {
     const element = dialog.current

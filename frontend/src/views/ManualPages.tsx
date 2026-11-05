@@ -164,13 +164,15 @@ export function ManualPage({
         onRefresh={() => setReload((n) => n + 1)}
         loading={loading}
       >
-        <Button
-          variant="primary"
-          className="library-upload"
-          onClick={() => onNavigate('manual-upload')}
-        >
-          문서 등록
-        </Button>
+        {canManage && (
+          <Button
+            variant="primary"
+            className="library-upload"
+            onClick={() => onNavigate('manual-upload')}
+          >
+            문서 등록
+          </Button>
+        )}
       </Filters>
       {notice && <p role="status">{notice}</p>}
       {loading || searchPending ? (

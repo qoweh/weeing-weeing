@@ -1211,6 +1211,14 @@ button.nav-item:disabled {
     visibility: visible;
     transition: max-width 260ms ease, opacity 160ms ease, visibility 0s linear;
   }
+  .sidebar__caption {
+    display: -webkit-box;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+  }
   .sidebar__top,
   .sidebar__bottom,
   button.nav-item {
@@ -1262,5 +1270,141 @@ button.nav-item:disabled {
 @media (max-width: 900px) {
   .sidebar__toggle {
     display: none;
+  }
+}
+
+/* 좁은 화면: 주 메뉴를 드롭다운으로, 상단 알림 버튼은 크기만 줄인다. */
+.sidebar__mobile-toggle {
+  display: none;
+}
+@media (max-width: 900px) {
+  .sidebar {
+    position: relative;
+    z-index: 15;
+    padding: 8px 12px;
+  }
+  .sidebar__top {
+    display: none;
+  }
+  .sidebar__mobile-toggle {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    min-height: 48px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--sidebar-text);
+    cursor: pointer;
+    font: inherit;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+    text-align: left;
+  }
+  .sidebar__mobile-toggle img {
+    display: block;
+    flex: 0 0 22px;
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+  }
+  .sidebar__mobile-toggle span {
+    flex: 1 1 auto;
+  }
+  .sidebar__mobile-toggle svg {
+    flex: 0 0 12px;
+    width: 12px;
+    height: 12px;
+    margin-left: auto;
+    transition: transform 160ms ease;
+  }
+  .sidebar__mobile-toggle[aria-expanded='true'] svg {
+    transform: rotate(180deg);
+  }
+  .sidebar__mobile-toggle:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+  .sidebar nav {
+    display: none;
+  }
+  .sidebar nav.is-open {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px 12px 12px;
+    overflow: visible;
+    border-radius: 0 0 12px 12px;
+    background: var(--sidebar-background);
+    box-shadow: 0 12px 24px rgb(10 24 44 / 12%);
+  }
+  .sidebar nav.is-open button.nav-item {
+    width: 100%;
+    min-height: 48px;
+    margin: 0;
+    padding: 0 12px;
+    gap: 14px;
+    justify-content: flex-start;
+    border-radius: 12px;
+    font-size: 16px;
+    line-height: 1;
+  }
+  .header-alert.button,
+  .header__actions .header-alert.button {
+    width: auto;
+    min-height: 34px;
+    padding: 0 8px;
+    gap: 6px;
+    font-size: 13px;
+  }
+  .header-alert b {
+    min-width: 22px;
+    height: 22px;
+    font-size: 12px;
+  }
+}
+
+/* 모바일: 헤더의 프로필 대신 설정 아이콘을 두고, 프로필은 메뉴 맨 위에 보여준다. */
+.header-account__gear,
+.header-account__identity-avatar {
+  display: none;
+}
+@media (max-width: 600px) {
+  .header-account summary .header__avatar,
+  .header-account__summary-text {
+    display: none;
+  }
+  .header-account summary {
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .header-account__gear {
+    display: block;
+    width: 22px;
+    height: 22px;
+    color: var(--muted);
+  }
+  .header-account__identity {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .header-account__identity-avatar {
+    display: grid;
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
   }
 }

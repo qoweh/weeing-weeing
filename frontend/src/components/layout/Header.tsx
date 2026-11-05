@@ -49,6 +49,18 @@ export default function Header({
     maxWidth: number
   } | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsTab, setSettingsTab] = useState('화면')
+
+  // 마이페이지 등 다른 화면에서 설정 창을 열 수 있게 한다.
+  useEffect(() => {
+    function open(event: Event) {
+      const tab = (event as CustomEvent<{ tab?: string }>).detail?.tab
+      setSettingsTab(tab ?? '화면')
+      setSettingsOpen(true)
+    }
+    window.addEventListener('weeing:open-settings', open)
+    return () => window.removeEventListener('weeing:open-settings', open)
+  }, [])
   const knownIncidents = useRef<Set<string> | null>(null)
   const autoOpenError = useRef(false)
   autoOpenError.current = settings.autoOpenError && settings.notifyError
@@ -237,6 +249,26 @@ export default function Header({
             <details className="header-account" ref={accountMenu}>
               <summary aria-label="내 계정" title={user.name}>
                 <span className="header__avatar">W</span>
+                <svg
+                  className="header-account__gear"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M10.3 2.8h3.4l.5 2.2c.5.2 1 .4 1.4.6l1.9-1.2 2.4 2.4-1.2 1.9c.2.4.4.9.6 1.4l2.2.5v3.4l-2.2.5c-.2.5-.4 1-.6 1.4l1.2 1.9-2.4 2.4-1.9-1.2c-.4.2-.9.4-1.4.6l-.5 2.2h-3.4l-.5-2.2c-.5-.2-1-.4-1.4-.6l-1.9 1.2-2.4-2.4 1.2-1.9c-.2-.4-.4-.9-.6-1.4l-2.2-.5v-3.4l2.2-.5c.2-.5.4-1 .6-1.4L4.1 6.8l2.4-2.4 1.9 1.2c.4-.2.9-.4 1.4-.6l.5-2.2Z"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinejoin="round"
+                  />
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="3"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  />
+                </svg>
                 <span className="header-account__summary-text">
                   <strong>{user.name}</strong>
                   <small>{user.role}</small>
@@ -244,8 +276,16 @@ export default function Header({
               </summary>
               <div className="header-account__menu">
                 <div className="header-account__identity">
-                  <strong>{user.name}</strong>
-                  <p>{user.role}</p>
+                  <span
+                    className="header__avatar header-account__identity-avatar"
+                    aria-hidden="true"
+                  >
+                    W
+                  </span>
+                  <div>
+                    <strong>{user.name}</strong>
+                    <p>{user.role}</p>
+                  </div>
                 </div>
                 <div className="header-account__section">
                   <button
@@ -253,6 +293,7 @@ export default function Header({
                     className="header-account__item"
                     onClick={() => {
                       if (accountMenu.current) accountMenu.current.open = false
+                      setSettingsTab('화면')
                       setSettingsOpen(true)
                     }}
                   >
@@ -408,6 +449,7 @@ export default function Header({
           onChangeSettings={onChangeSettings}
           onLogout={onLogout}
           busy={busy}
+          initialTab={settingsTab}
           onClose={() => setSettingsOpen(false)}
         />
       )}

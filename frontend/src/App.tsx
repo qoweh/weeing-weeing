@@ -295,7 +295,7 @@ export default function App() {
           onBusyChange={setBusy}
         />
       )}
-      {page === "manual-upload" && (
+      {page === "manual-upload" && user?.role === "관제 담당자" && (
         <ManualUploadPage
           onNavigate={navigate}
           onSessionExpired={forgetSession}
