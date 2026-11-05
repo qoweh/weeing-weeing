@@ -1,5 +1,6 @@
 import { AuthBrand } from '../components/auth/AuthHero'
 import LoginForm from '../components/auth/LoginForm'
+import TestAccounts from '../components/auth/TestAccounts'
 import '../components/auth/login.scss'
 
 export default function LoginPage({
@@ -14,8 +15,9 @@ export default function LoginPage({
   error?: string
 }) {
   return (
-    <main className="login-page login-page--sign-in">
+    <main className="login-page login-page--sign-in login-page--with-accounts">
       <AuthBrand />
+      <TestAccounts />
       <section className="login-card" aria-labelledby="login-title">
         <p className="login-card__eyebrow">WELCOME BACK</p>
         <h1 id="login-title">로그인</h1>
