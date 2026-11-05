@@ -59,7 +59,7 @@ switch ($cmd) {
 웹(프론트)  https://<EC2_IP>/
 HMI        https://<EC2_IP>/hmi/
 API 문서    https://<EC2_IP>/api/docs
-Langfuse   https://langfuse.<EC2_IP>.sslip.io
+Langfuse   https://langfuse.<HOME_DOMAIN> (홈서버. EC2 자체 langfuse.<EC2_IP>.sslip.io는 멈춤)
 DB·Qdrant  .\ops\aws.ps1 tunnel 후 localhost:15432 / http://localhost:16333/dashboard
 '@ | Write-Output
     }
