@@ -396,6 +396,7 @@ def get_analyzer(
         raise ValueError("ANALYSIS_MODE는 single 또는 multi여야 합니다")
     if mode == "multi":
         from weeing_weeing.agent.multi_analysis import MultiIncidentAnalyzer
+        from weeing_weeing.agent.tracing import build_tracer
 
         if knowledge is None or client is not None:
             raise ValueError("멀티 분석은 API에서 현재 출처 검사기를 주입해야 합니다")
@@ -407,6 +408,7 @@ def get_analyzer(
             max_turns=settings.agent_max_turns,
             verification_enabled=settings.analysis_verification_enabled,
             sensor_reader=sensor_reader,
+            tracer=build_tracer(settings, entrypoint=entrypoint),
         )
     if retriever is None:
         raise ValueError("단일 분석에는 검색기가 필요합니다")

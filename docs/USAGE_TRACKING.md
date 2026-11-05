@@ -118,6 +118,31 @@ Haiku 5.5는 프롬프트가 10만 토큰을 넘으면 단가가 5배가 된다(
 - API 서버(`make api`)·챗봇은 `get_llm_client`를 쓰면 자동으로 기록된다. 다만 오래 떠 있는 프로세스라 따로 flush하지 않아도 SDK가 주기적으로 보낸다.
 
 
+## 사건 분석 기록 구조 (#207)
+
+멀티 분석(`ANALYSIS_MODE=multi`) 1건은 trace 하나다. 역할(문서 조사·보고서 조사·통합·검증)은 그 안의 `agent` 기록으로 들어간다. 병렬로 도는 두 조사 단계도 같은 trace에 들어간다. 그래서 대시보드에서 분석 1건당 지연·비용과 결과 상태 비율을 바로 볼 수 있다.
+
+```
+incident-analysis (chain)            ← 분석 1건. session=사건 ID, 태그=진입점·multi-analysis-vN
+├ incident-documents (agent)         ← 문서 조사(보고서 조사와 병렬)
+│ ├ incident-documents.turn-1 (generation)
+│ └ search_evidence / get_sensor_window ... (tool)
+├ incident-reports (agent)
+├ incident-synthesis (agent)         ← 검증이 REVISE면 한 번 더 생긴다
+└ incident-verification (agent)
+```
+
+| score | 종류 | 언제 |
+|---|---|---|
+| `analysis.status` | CATEGORICAL | 분석 끝. OK·INSUFFICIENT_EVIDENCE·VERIFICATION_FAILED·FAILED |
+| `analysis.failure_code` | CATEGORICAL | FAILED일 때만. 예외 이름 또는 `analysis_timeout` 같은 코드(자유 서술은 남기지 않음) |
+| `analysis.llm_calls` | NUMERIC | 이번 실행에서 실제로 보낸 LLM 호출 수(재개 시 재사용한 단계는 빠짐) |
+
+- 실패한 단계부터 다시 돌리는 재개(`resume_analysis`)는 같은 사건 session에 새 trace로 남고 `metadata.resumed=true`다.
+- 역할별 진입점 태그(`app:documents` 등)는 이제 바깥 trace에 붙지 않는다. 역할은 안쪽 기록 이름(`incident-<역할>`)으로 구분한다.
+- 단일 분석(`ANALYSIS_MODE=single`)은 그대로 에이전트 실행 1번이 trace 하나다.
+
+
 ## 챗봇 기록 구조 (#201)
 
 챗봇 질문 1건은 trace 하나다. 지연 원인을 이름으로 바로 찾을 수 있게 나눠 남긴다.

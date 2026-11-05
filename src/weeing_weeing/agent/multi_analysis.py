@@ -2,6 +2,7 @@
 
 import json
 import math
+import re
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -36,7 +37,7 @@ from weeing_weeing.agent.runtime import (
     run_agent,
 )
 from weeing_weeing.agent.sensor_window import SensorReader, window_tool
-from weeing_weeing.agent.tracing import NULL_TRACER
+from weeing_weeing.agent.tracing import NULL_TRACER, score_trace
 from weeing_weeing.contracts import AnalysisResult, Evidence, Incident
 from weeing_weeing.contracts.analysis import validate_reference_sources
 from weeing_weeing.contracts.analysis_workflow import (
@@ -135,6 +136,16 @@ class _ProgressError(Exception):
     pass
 
 
+def _failure_code(limitations: str | None) -> str | None:
+    """실패 결과의 limitations가 코드(예: analysis_timeout)일 때만 점수로 남긴다.
+
+    자유 서술 문장은 본문 노출·높은 고유값을 피하려고 기록하지 않는다.
+    """
+    if limitations and re.fullmatch(r"[A-Za-z_][\w.:-]{0,79}", limitations):
+        return limitations
+    return None
+
+
 class MultiIncidentAnalyzer:
     def __init__(
         self,
@@ -146,8 +157,11 @@ class MultiIncidentAnalyzer:
         max_turns=8,
         verification_enabled=False,
         sensor_reader: SensorReader | None = None,
+        tracer=None,
     ):
         self.client_factory, self.knowledge = client_factory, knowledge
+        # 분석 1건을 trace 하나로 묶는 기록기(#207). 역할별 기록은 그 안에 들어간다.
+        self.tracer = tracer or NULL_TRACER
         self.timeout_s, self.max_calls, self.max_turns = timeout_s, max_calls, max_turns
         self.verification_enabled, self.sensor_reader = (
             verification_enabled,
@@ -167,12 +181,64 @@ class MultiIncidentAnalyzer:
         )
 
     def resume_analysis(self, incident, callback, *, checkpoint=None):
-        """완료한 역할은 재사용하고 실패한 역할의 도구 루프부터 새 예산으로 실행한다."""
+        """완료한 역할은 재사용하고 실패한 역할의 도구 루프부터 새 예산으로 실행한다.
+
+        분석 1건(재개 포함)을 trace 하나로 묶고 끝에 최종 상태·LLM 호출 수를 점수로 남긴다
+        (#207). 재개한 분석은 같은 사건 session에 새 trace로 남고 metadata.resumed로 구분한다.
+        """
+        stats: dict = {}
+        with self.tracer.observe(
+            "incident-analysis",
+            as_type="chain",
+            session_id=incident.incident_id,
+            tags=[VERSION],
+        ) as observation:
+            result = failure = None
+            try:
+                result = self._resume_analysis(
+                    incident, callback, checkpoint=checkpoint, stats=stats
+                )
+                return result
+            except BaseException as exc:
+                failure = type(exc).__name__
+                raise
+            finally:
+                status = result.status if result is not None else "FAILED"
+                if failure is None and status == "FAILED":
+                    failure = _failure_code(result.limitations)
+                budget = stats.get("budget")
+                calls = budget.calls if budget is not None else 0
+                score_trace(
+                    self.tracer, "analysis.status", status, data_type="CATEGORICAL"
+                )
+                if failure:
+                    score_trace(
+                        self.tracer,
+                        "analysis.failure_code",
+                        failure,
+                        data_type="CATEGORICAL",
+                    )
+                score_trace(
+                    self.tracer, "analysis.llm_calls", calls, data_type="NUMERIC"
+                )
+                observation.update(
+                    output={"status": status},
+                    metadata={
+                        "status": status,
+                        "failure_code": failure,
+                        "llm_calls": calls,
+                        "resumed": checkpoint is not None,
+                        "verification_enabled": stats.get("verify_enabled"),
+                    },
+                )
+
+    def _resume_analysis(self, incident, callback, *, checkpoint, stats):
         if checkpoint is not None:
             checkpoint = AnalysisCheckpoint.model_validate(checkpoint.model_dump())
             if checkpoint.incident_id != incident.incident_id:
                 raise ValueError("체크포인트 사건 ID 불일치")
         budget = _Budget(self.timeout_s, self.max_calls)
+        stats["budget"] = budget
         runs, mutex = {}, Lock()
         saved = (
             {
@@ -188,6 +254,7 @@ class MultiIncidentAnalyzer:
         verify_enabled = (
             checkpoint.verification_enabled if checkpoint else self.verification_enabled
         )
+        stats["verify_enabled"] = verify_enabled
         # 재개는 원래 사건·출처 스냅샷을 사용한다. 새로운 검색 결과와 섞지 않는다.
         frozen = {e.evidence_id for run in saved.values() for e in run.evidence}
 
