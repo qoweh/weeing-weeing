@@ -264,7 +264,7 @@ LANGFUSE_ADDRESS=langfuse.<EC2_IP>.sslip.io
 LANGFUSE_BASE_URL=http://langfuse-web:3000      # 서버 안 통신
 LANGFUSE_PUBLIC_KEY=<~/langfuse/.env의 INIT_PROJECT_PUBLIC_KEY>
 LANGFUSE_SECRET_KEY=<~/langfuse/.env의 INIT_PROJECT_SECRET_KEY>
-LLM_USER=ec2
+LLM_USER=ec2                                    # 로그인 없이 도는 자동 분석의 이름. 챗봇은 로그인 계정 이름
 LANGFUSE_TRACING_ENVIRONMENT=demo
 ```
 

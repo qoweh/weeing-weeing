@@ -18,6 +18,7 @@ from weeing_weeing.agent.interface import (
     FaqNotFoundError,
     get_chat_service,
     load_faq_catalog,
+    trace_user,
 )
 from weeing_weeing.api.auth import CurrentUser
 from weeing_weeing.api.chat_storage import StoredChatService
@@ -248,12 +249,12 @@ def send_message(
         question=body.question,
         conditions=body.conditions if "conditions" in body.model_fields_set else None,
     )
-    return _request_result(
-        _call(
+    # 서버 하나를 여럿이 써도 사용량 기록이 로그인한 사람으로 남게 한다.
+    with trace_user(user.name):
+        result = _call(
             service.submit, user.employee_no, conversation_id, submission, retry=retry
-        ),
-        response,
-    )
+        )
+    return _request_result(result, response)
 
 
 @router.post(
@@ -284,14 +285,16 @@ def stream_message(
     )
 
     def execute(progress):
-        return _call(
-            service.submit,
-            user.employee_no,
-            conversation_id,
-            submission,
-            retry=retry,
-            on_progress=progress,
-        )
+        # 실행은 다른 스레드에서 돌므로 문맥 변수를 그 안에서 건다.
+        with trace_user(user.name):
+            return _call(
+                service.submit,
+                user.employee_no,
+                conversation_id,
+                submission,
+                retry=retry,
+                on_progress=progress,
+            )
 
     return StreamingResponse(
         stream_chat(body.request_id, execute),

@@ -56,6 +56,15 @@ flowchart LR
 - 화면 왼쪽 위 프로젝트가 `weeing-weeing`인지, Environment 필터에 해당 환경(`dev`·`test` 등)이 선택돼 있는지
 - (서버 관리자) Langfuse v4는 기록을 ClickHouse `events_core`·`events_full`에 저장한다. 예전 `traces`·`observations` 테이블이 비어 있어도 정상이다. 특정 기록이 어느 프로젝트로 갔는지는 `events_core`에서 `session_id`·`trace_id`로 찾는다.
 
+## 운영 서버(EC2)에서 사람 나누기
+
+EC2는 서버 하나를 팀원 모두가 웹으로 쓴다. `LLM_USER`는 서버에 하나뿐이라, 이 값만 쓰면 모든 호출이 같은 사람으로 남는다.
+그래서 **챗봇 질문(`/messages`, `/messages/stream`)은 로그인한 계정의 이름(`name`)을 `user_id`로 쓴다**(`agent.tracing.trace_user`).
+
+- 계정 이름에는 본인 GitHub 핸들을 넣는다. 그러면 직책별 계정(관리자·관제·보전·현장 책임자·점검자) 5개를 써도 PC에서 쓴 기록과 같은 사람으로 묶인다. 실명은 넣지 않는다(Langfuse·Slack에 그대로 보인다)
+- 사번은 보내지 않는다
+- 로그인과 상관없이 도는 호출(센서가 만든 사건의 자동 분석, 분석 재실행, CLI)은 지금처럼 `LLM_USER`(EC2는 `ec2`)로 남는다. 분석 재실행은 요청한 사람이 아니라 백그라운드 실행기가 부른다
+
 ## 비용을 아끼는 약속
 
 - 개발 중에는 `LLM_MODEL=claude-sonnet-5-5` 또는 `claude-haiku-5-5`를 쓰고, Opus(기본값)는 평가·시연 때 쓴다.

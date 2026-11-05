@@ -1,6 +1,7 @@
 """실제 Bearer 인증·임시 DB·가짜 생성기로 FAQ 버튼과 대화 HTTP 흐름을 검증한다."""
 
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from threading import Event
 from uuid import uuid4
@@ -9,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from weeing_weeing.agent.interface import load_faq_catalog
+from weeing_weeing.agent.tracing import LangfuseTracer
 from weeing_weeing.api import chat
 from weeing_weeing.api.app import app
 from weeing_weeing.api.chat_storage import StoredChatService
@@ -148,6 +150,44 @@ def test_chat_start_conditions_and_response_json(setup):
     assert (
         client.post(path + "/messages", headers=owner, json=changed).status_code == 409
     )
+
+
+def test_chat_usage_is_recorded_as_the_logged_in_user(setup, monkeypatch):
+    """서버 하나를 여럿이 써도 Langfuse user_id는 LLM_USER가 아니라 로그인 계정 이름이다."""
+    client, headers, _, _, fake = setup
+    users = []
+
+    class Client:
+        @contextmanager
+        def start_as_current_observation(self, **kwargs):
+            yield None
+
+    @contextmanager
+    def propagate(**attributes):
+        users.append(attributes["user_id"])
+        yield
+
+    tracer = LangfuseTracer(
+        Client(), user_id="ec2", entrypoint="api", propagate=propagate
+    )
+    reply = fake.reply
+
+    def traced(question, **kwargs):
+        with tracer.observe("chat-assistant"):
+            return reply(question, **kwargs)
+
+    monkeypatch.setattr(fake, "reply", traced)
+    path = create(client, headers["owner"])
+    start(client, headers["owner"], path)
+    body = dict(request_id=str(uuid4()), question="센서 점검")
+    result = client.post(path + "/messages", headers=headers["owner"], json=body)
+    assert result.status_code == 200
+    body = dict(request_id=str(uuid4()), question="센서 점검 2")
+    result = client.post(path + "/messages/stream", headers=headers["owner"], json=body)
+    assert stream_events(result.text)[-1]["event"] == "done"
+    with tracer.observe("incident-analysis"):  # 요청 밖은 LLM_USER
+        pass
+    assert users == ["owner", "owner", "ec2"]
 
 
 @pytest.mark.parametrize("actor", ["other", "admin"])

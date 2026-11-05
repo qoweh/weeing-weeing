@@ -44,7 +44,7 @@ from weeing_weeing.agent.llm_check import (
 )
 from weeing_weeing.agent.runtime import ToolInputError as InvalidChatQueryError
 from weeing_weeing.agent.sensor_window import SensorBatch, SensorReader
-from weeing_weeing.agent.tracing import Tracer, trace_session
+from weeing_weeing.agent.tracing import Tracer, trace_session, trace_user
 from weeing_weeing.contracts import AnalysisResult, Incident
 from weeing_weeing.contracts.analysis_workflow import (
     AnalysisAgentRun,
@@ -84,6 +84,7 @@ __all__ = [
     "get_replay_llm_client",
     "replay_sample_knowledge",
     "trace_session",
+    "trace_user",
     "CheckReport",
     "check_case",
     "format_llm_check",
