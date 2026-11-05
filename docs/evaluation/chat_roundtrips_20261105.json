@@ -1,0 +1,581 @@
+{
+  "description": "2026-11-05 paired AWS measurement before merging #230/#231; no answer bodies, source IDs, user IDs, or credentials.",
+  "environment": {
+    "kind": "environment",
+    "captured_at": "2026-11-05T02:53:04.162168+00:00",
+    "hashes": {
+      "baseline": {
+        "chat_usage": "67be2b0ce10658fb9bac93b05b0873b15fb2199038915c28b621e812f211755d",
+        "chat_grounding": "995006ab5740687427eb4165472edf996193e01395867a375bb7df30aa74e02d",
+        "chat": "14624eebb3bce4127e1947f89391196d18a6131ce286d5a5ed2ba752a42bc588"
+      },
+      "candidate": {
+        "chat_usage": "001a2401c3f01b02b5535237750cd315dbaea7286b88fbc78faabf93b19206ac",
+        "chat_grounding": "5ae2517cb68afb8cfb622164078e8c3411de69aa750df6e38805d48969377d29",
+        "chat": "28a808387e8182a460c56789efd84a0fba496e3bdf187e388e8a0b00f0501c94"
+      }
+    },
+    "settings": {
+      "llm_model": "claude-sonnet-5-5",
+      "llm_effort": "medium",
+      "embedding_model": "voyage-4-lite",
+      "embedding_provider": "voyage",
+      "embedding_dim": 1024,
+      "reranker_model": "rerank-3-lite",
+      "rag_collection": "knowledge_voyage",
+      "rag_candidate_k": 30
+    },
+    "warmup_s": 3.011337201925926,
+    "repeats": 2
+  },
+  "summary": {
+    "variants": {
+      "baseline": {
+        "requests": 20,
+        "llm_calls": 81,
+        "mean_latency_s": 12.245100714603904,
+        "median_latency_s": 10.021180914482102,
+        "statuses": {
+          "OK": 12,
+          "INSUFFICIENT_EVIDENCE": 6,
+          "FAILED": 2
+        },
+        "multiple_reviews": 5
+      },
+      "candidate": {
+        "requests": 20,
+        "llm_calls": 61,
+        "mean_latency_s": 9.788222336635226,
+        "median_latency_s": 9.228458002500702,
+        "statuses": {
+          "OK": 13,
+          "INSUFFICIENT_EVIDENCE": 4,
+          "NEEDS_CLARIFICATION": 3
+        },
+        "multiple_reviews": 2
+      }
+    },
+    "status_changes": [
+      {
+        "case": "combined",
+        "repeat": 1,
+        "before": "INSUFFICIENT_EVIDENCE",
+        "after": "OK"
+      },
+      {
+        "case": "insufficient",
+        "repeat": 2,
+        "before": "INSUFFICIENT_EVIDENCE",
+        "after": "NEEDS_CLARIFICATION"
+      },
+      {
+        "case": "ambiguous",
+        "repeat": 1,
+        "before": "FAILED",
+        "after": "NEEDS_CLARIFICATION"
+      },
+      {
+        "case": "ambiguous",
+        "repeat": 2,
+        "before": "FAILED",
+        "after": "NEEDS_CLARIFICATION"
+      }
+    ],
+    "reductions": {
+      "llm_calls": 20,
+      "llm_calls_percent": 24.691358024691358,
+      "mean_latency_s": 2.4568783779686783,
+      "mean_latency_percent": 20.064174523599675
+    },
+    "same_status_nonfailed_pairs": {
+      "pairs": 16,
+      "baseline_mean_latency_s": 11.312661242700415,
+      "candidate_mean_latency_s": 10.082549559861945,
+      "baseline_llm_calls": 60,
+      "candidate_llm_calls": 50
+    },
+    "complete": true
+  },
+  "results": [
+    {
+      "case": "manual",
+      "repeat": 1,
+      "variant": "baseline",
+      "elapsed_s": 17.89084761403501,
+      "status": "OK",
+      "failure_code": null,
+      "llm_calls": 3,
+      "http_attempts": 3,
+      "dialogue_calls": 2,
+      "grounding_calls": 1
+    },
+    {
+      "case": "manual",
+      "repeat": 1,
+      "variant": "candidate",
+      "elapsed_s": 13.02276687999256,
+      "status": "OK",
+      "failure_code": null,
+      "llm_calls": 3,
+      "http_attempts": 3,
+      "dialogue_calls": 2,
+      "grounding_calls": 1
+    },
+    {
+      "case": "combined",
+      "repeat": 1,
+      "variant": "candidate",
+      "elapsed_s": 19.235054336022586,
+      "status": "OK",
+      "failure_code": null,
+      "llm_calls": 5,
+      "http_attempts": 5,
+      "dialogue_calls": 3,
+      "grounding_calls": 2
+    },
+    {
+      "case": "combined",
+      "repeat": 1,
+      "variant": "baseline",
+      "elapsed_s": 23.991143460967578,
+      "status": "INSUFFICIENT_EVIDENCE",
+      "failure_code": null,
+      "llm_calls": 6,
+      "http_attempts": 6,
+      "dialogue_calls": 4,
+      "grounding_calls": 2
+    },
+    {
+      "case": "incidents",
+      "repeat": 1,
+      "variant": "baseline",
+      "elapsed_s": 7.089766892022453,
+      "status": "OK",
+      "failure_code": null,
+      "llm_calls": 3,
+      "http_attempts": 3,
+      "dialogue_calls": 2,
+      "grounding_calls": 1
+    },
+    {
+      "case": "incidents",
+      "repeat": 1,
+      "variant": "candidate",
+      "elapsed_s": 9.639687875984237,
+      "status": "OK",
+      "failure_code": null,
+      "llm_calls": 3,
+      "http_attempts": 3,
+      "dialogue_calls": 2,
+      "grounding_calls": 1
+    },
+    {
+      "case": "manual_voltage",
+      "repeat": 1,
+      "variant": "candidate",
+      "elapsed_s": 10.5040920159081,
+      "status": "OK",
+      "failure_code": null,
+      "llm_calls": 3,
+      "http_attempts": 3,
+      "dialogue_calls": 2,
+      "grounding_calls": 1
+    },
+    {
+      "case": "manual_voltage",
+      "repeat": 1,
+      "variant": "baseline",
+      "elapsed_s": 8.714430583058856,
+      "status": "OK",
+      "failure_code": null,
+      "llm_calls": 3,
+      "http_attempts": 3,
+      "dialogue_calls": 2,
+      "grounding_calls": 1
+    },
+    {
+      "case": "history_temperature",
+      "repeat": 1,
+      "variant": "baseline",
+      "elapsed_s": 9.685207147034816,
+      "status": "INSUFFICIENT_EVIDENCE",
+      "failure_code": null,
+      "llm_calls": 4,
+      "http_attempts": 4,
+      "dialogue_calls": 3,
+      "grounding_calls": 1
+    },
+    {
+      "case": "history_temperature",
+      "repeat": 1,
+      "variant": "candidate",
+      "elapsed_s": 6.485250388970599,
+      "status": "INSUFFICIENT_EVIDENCE",
+      "failure_code": null,
+      "llm_calls": 3,
+      "http_attempts": 3,
+      "dialogue_calls": 2,
+      "grounding_calls": 1
+    },
+    {
+      "case": "history_vibration",
+      "repeat": 1,
+      "variant": "candidate",
+      "elapsed_s": 8.817228129017167,
+      "status": "INSUFFICIENT_EVIDENCE",
+      "failure_code": null,
+      "llm_calls": 3,
+      "http_attempts": 3,
+      "dialogue_calls": 2,
+      "grounding_calls": 1
+    },
+    {
+      "case": "history_vibration",
+      "repeat": 1,
+      "variant": "baseline",
+      "elapsed_s": 8.860677386983298,
+      "status": "INSUFFICIENT_EVIDENCE",
+      "failure_code": null,
+      "llm_calls": 5,
+      "http_attempts": 5,
+      "dialogue_calls": 4,
+      "grounding_calls": 1
+    },
+    {
+      "case": "combined_rpm",
+      "repeat": 1,
+      "variant": "baseline",
+      "elapsed_s": 15.081960047013126,
+      "status": "OK",
+      "failure_code": null,
+      "llm_calls": 4,
+      "http_attempts": 4,
+      "dialogue_calls": 3,
+      "grounding_calls": 1
+    },
+    {
+      "case": "combined_rpm",
+      "repeat": 1,
+      "variant": "candidate",
+      "elapsed_s": 12.83402907999698,
+      "status": "OK",
+      "failure_code": null,
+      "llm_calls": 3,
+      "http_attempts": 3,
+      "dialogue_calls": 2,
+      "grounding_calls": 1
+    },
+    {
+      "case": "recovered",
+      "repeat": 1,
+      "variant": "candidate",
+      "elapsed_s": 8.169309278018773,
+      "status": "OK",
+      "failure_code": null,
+      "llm_calls": 3,
+      "http_attempts": 3,
+      "dialogue_calls": 2,
+      "grounding_calls": 1
+    },
+    {
+      "case": "recovered",
+      "repeat": 1,
+      "variant": "baseline",
+      "elapsed_s": 7.179065406904556,
+      "status": "OK",
+      "failure_code": null,
+      "llm_calls": 3,
+      "http_attempts": 3,
+      "dialogue_calls": 2,
+      "grounding_calls": 1
+    },
+    {
+      "case": "insufficient",
+      "repeat": 1,
+      "variant": "baseline",
+      "elapsed_s": 24.31769376201555,
+      "status": "OK",
+      "failure_code": null,
+      "llm_calls": 6,
+      "http_attempts": 6,
+      "dialogue_calls": 4,
+      "grounding_calls": 2
+    },
+    {
+      "case": "insufficient",
+      "repeat": 1,
+      "variant": "candidate",
+      "elapsed_s": 16.303136341972277,
+      "status": "OK",
+      "failure_code": null,
+      "llm_calls": 5,
+      "http_attempts": 5,
+      "dialogue_calls": 3,
+      "grounding_calls": 2
+    },
+    {
+      "case": "ambiguous",
+      "repeat": 1,
+      "variant": "candidate",
+      "elapsed_s": 4.481458127964288,
+      "status": "NEEDS_CLARIFICATION",
+      "failure_code": null,
+      "llm_calls": 2,
+      "http_attempts": 2,
+      "dialogue_calls": 1,
+      "grounding_calls": 1
+    },
+    {
+      "case": "ambiguous",
+      "repeat": 1,
+      "variant": "baseline",
+      "elapsed_s": 10.357154681929387,
+      "status": "FAILED",
+      "failure_code": "INVALID_RESPONSE",
+      "llm_calls": 5,
+      "http_attempts": 5,
+      "dialogue_calls": 3,
+      "grounding_calls": 2
+    },
+    {
+      "case": "manual",
+      "repeat": 2,
+      "variant": "candidate",
+      "elapsed_s": 11.916070676059462,
+      "status": "OK",
+      "failure_code": null,
+      "llm_calls": 3,
+      "http_attempts": 3,
+      "dialogue_calls": 2,
+      "grounding_calls": 1
+    },
+    {
+      "case": "manual",
+      "repeat": 2,
+      "variant": "baseline",
+      "elapsed_s": 13.446906585013494,
+      "status": "OK",
+      "failure_code": null,
+      "llm_calls": 4,
+      "http_attempts": 4,
+      "dialogue_calls": 3,
+      "grounding_calls": 1
+    },
+    {
+      "case": "combined",
+      "repeat": 2,
+      "variant": "baseline",
+      "elapsed_s": 13.56379193905741,
+      "status": "OK",
+      "failure_code": null,
+      "llm_calls": 4,
+      "http_attempts": 4,
+      "dialogue_calls": 3,
+      "grounding_calls": 1
+    },
+    {
+      "case": "combined",
+      "repeat": 2,
+      "variant": "candidate",
+      "elapsed_s": 11.921533136977814,
+      "status": "OK",
+      "failure_code": null,
+      "llm_calls": 3,
+      "http_attempts": 3,
+      "dialogue_calls": 2,
+      "grounding_calls": 1
+    },
+    {
+      "case": "incidents",
+      "repeat": 2,
+      "variant": "candidate",
+      "elapsed_s": 6.951753934961744,
+      "status": "OK",
+      "failure_code": null,
+      "llm_calls": 3,
+      "http_attempts": 3,
+      "dialogue_calls": 2,
+      "grounding_calls": 1
+    },
+    {
+      "case": "incidents",
+      "repeat": 2,
+      "variant": "baseline",
+      "elapsed_s": 6.47405739792157,
+      "status": "OK",
+      "failure_code": null,
+      "llm_calls": 3,
+      "http_attempts": 3,
+      "dialogue_calls": 2,
+      "grounding_calls": 1
+    },
+    {
+      "case": "manual_voltage",
+      "repeat": 2,
+      "variant": "baseline",
+      "elapsed_s": 9.623565642046742,
+      "status": "OK",
+      "failure_code": null,
+      "llm_calls": 3,
+      "http_attempts": 3,
+      "dialogue_calls": 2,
+      "grounding_calls": 1
+    },
+    {
+      "case": "manual_voltage",
+      "repeat": 2,
+      "variant": "candidate",
+      "elapsed_s": 11.230216568917967,
+      "status": "OK",
+      "failure_code": null,
+      "llm_calls": 3,
+      "http_attempts": 3,
+      "dialogue_calls": 2,
+      "grounding_calls": 1
+    },
+    {
+      "case": "history_temperature",
+      "repeat": 2,
+      "variant": "candidate",
+      "elapsed_s": 6.172468396020122,
+      "status": "INSUFFICIENT_EVIDENCE",
+      "failure_code": null,
+      "llm_calls": 3,
+      "http_attempts": 3,
+      "dialogue_calls": 2,
+      "grounding_calls": 1
+    },
+    {
+      "case": "history_temperature",
+      "repeat": 2,
+      "variant": "baseline",
+      "elapsed_s": 7.992198112071492,
+      "status": "INSUFFICIENT_EVIDENCE",
+      "failure_code": null,
+      "llm_calls": 4,
+      "http_attempts": 4,
+      "dialogue_calls": 3,
+      "grounding_calls": 1
+    },
+    {
+      "case": "history_vibration",
+      "repeat": 2,
+      "variant": "baseline",
+      "elapsed_s": 8.45217634702567,
+      "status": "INSUFFICIENT_EVIDENCE",
+      "failure_code": null,
+      "llm_calls": 4,
+      "http_attempts": 4,
+      "dialogue_calls": 3,
+      "grounding_calls": 1
+    },
+    {
+      "case": "history_vibration",
+      "repeat": 2,
+      "variant": "candidate",
+      "elapsed_s": 7.0273869020165876,
+      "status": "INSUFFICIENT_EVIDENCE",
+      "failure_code": null,
+      "llm_calls": 3,
+      "http_attempts": 3,
+      "dialogue_calls": 2,
+      "grounding_calls": 1
+    },
+    {
+      "case": "combined_rpm",
+      "repeat": 2,
+      "variant": "candidate",
+      "elapsed_s": 12.553636693046428,
+      "status": "OK",
+      "failure_code": null,
+      "llm_calls": 3,
+      "http_attempts": 3,
+      "dialogue_calls": 2,
+      "grounding_calls": 1
+    },
+    {
+      "case": "combined_rpm",
+      "repeat": 2,
+      "variant": "baseline",
+      "elapsed_s": 14.949690414010547,
+      "status": "OK",
+      "failure_code": null,
+      "llm_calls": 4,
+      "http_attempts": 4,
+      "dialogue_calls": 3,
+      "grounding_calls": 1
+    },
+    {
+      "case": "recovered",
+      "repeat": 2,
+      "variant": "baseline",
+      "elapsed_s": 7.6805446069920436,
+      "status": "OK",
+      "failure_code": null,
+      "llm_calls": 3,
+      "http_attempts": 3,
+      "dialogue_calls": 2,
+      "grounding_calls": 1
+    },
+    {
+      "case": "recovered",
+      "repeat": 2,
+      "variant": "candidate",
+      "elapsed_s": 7.772226659930311,
+      "status": "OK",
+      "failure_code": null,
+      "llm_calls": 3,
+      "http_attempts": 3,
+      "dialogue_calls": 2,
+      "grounding_calls": 1
+    },
+    {
+      "case": "insufficient",
+      "repeat": 2,
+      "variant": "candidate",
+      "elapsed_s": 6.052339653950185,
+      "status": "NEEDS_CLARIFICATION",
+      "failure_code": null,
+      "llm_calls": 2,
+      "http_attempts": 2,
+      "dialogue_calls": 1,
+      "grounding_calls": 1
+    },
+    {
+      "case": "insufficient",
+      "repeat": 2,
+      "variant": "baseline",
+      "elapsed_s": 18.43964639492333,
+      "status": "INSUFFICIENT_EVIDENCE",
+      "failure_code": null,
+      "llm_calls": 5,
+      "http_attempts": 5,
+      "dialogue_calls": 3,
+      "grounding_calls": 2
+    },
+    {
+      "case": "ambiguous",
+      "repeat": 2,
+      "variant": "baseline",
+      "elapsed_s": 11.111489871051162,
+      "status": "FAILED",
+      "failure_code": "INVALID_RESPONSE",
+      "llm_calls": 5,
+      "http_attempts": 5,
+      "dialogue_calls": 3,
+      "grounding_calls": 2
+    },
+    {
+      "case": "ambiguous",
+      "repeat": 2,
+      "variant": "candidate",
+      "elapsed_s": 4.674801656976342,
+      "status": "NEEDS_CLARIFICATION",
+      "failure_code": null,
+      "llm_calls": 2,
+      "http_attempts": 2,
+      "dialogue_calls": 1,
+      "grounding_calls": 1
+    }
+  ]
+}

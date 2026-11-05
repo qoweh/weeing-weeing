@@ -399,7 +399,9 @@ class ToolClient:
         else:
             self.result = json.loads(kwargs["messages"][-1]["content"][0]["content"])
             source = (
-                self.result["source"] if self.structured else self.result[0]["source"]
+                self.result["source"]
+                if self.structured
+                else self.result["hits"][0]["source"]
             )
             name = "submit_answer"
             data = dict(
@@ -461,7 +463,7 @@ def test_combined_answer_can_cite_manual_and_report(knowledge, store):
                 ]
             else:
                 found = [
-                    json.loads(block["content"])[0]
+                    json.loads(block["content"])["hits"][0]
                     for block in kwargs["messages"][-1]["content"]
                 ]
                 blocks = [

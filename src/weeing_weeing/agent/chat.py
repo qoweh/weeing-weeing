@@ -10,8 +10,8 @@ from zoneinfo import ZoneInfo
 
 from pydantic import Field
 
-from weeing_weeing.agent.chat_grounding import verify_grounding
-from weeing_weeing.agent.chat_usage import ChatCallUsage, ChatRunUsage
+from weeing_weeing.agent.chat_grounding import repair_feedback, verify_grounding
+from weeing_weeing.agent.chat_usage import ChatCallUsage, ChatReviewUsage, ChatRunUsage
 from weeing_weeing.agent.errors import (
     LlmAuthenticationError,
     LlmError,
@@ -62,6 +62,10 @@ SYSTEM = """너는 배터리 트레이 이송 공정의 자료 안내 챗봇이�
 부정·비교·수치 방향 등 질문의 의미를 바꾸지 않는다.
 기준·설명·점검 절차는 MANUAL, 과거 원인·조치·결과는 MAINTENANCE_HISTORY로 검색한다.
 둘 다 필요하면 각각 검색하고 매뉴얼 기준과 과거 사례를 구분해 설명한다.
+일반적인 'RPM 저하 시 조치'처럼 기준·점검 방법만 물으면 MANUAL부터 검색한다.
+과거 사례를 요청하지 않았는데 정비이력을 의무적으로 추가 검색하지 않는다.
+서로 독립적인 매뉴얼·이력 조회가 필요하면 같은 턴에 도구들을 함께 요청한다.
+앞선 조회 결과가 있어야 정할 수 있는 입력은 결과를 받은 뒤 요청한다.
 사용자가 지정한 설비·모델·코드·기간만 조건에 넣고, 생략한 조건은 null로 둔다.
 ID·코드·기간을 임의로 만들지 않는다. 상대 날짜는 제공된 기준 날짜·시간대로 해석한다.
 이전 대화는 질문의 의미를 이해하는 데 참고한다.
@@ -95,7 +99,12 @@ ID·코드·기간을 임의로 만들지 않는다. 상대 날짜는 제공된 
 위 예시는 설비·모델·코드·기간을 지정하지 않았으므로 해당 조건은 null이다.
 검색 문장의 부정·비교·수치 조건은 실제 근거에서도 확인한 뒤 답한다.
 
-필요한 자료를 찾지 못하면 검색어를 바꿔 다시 찾아본다.
+search_knowledge 결과의 availability=NO_CANDIDATES는 현재 조건에 맞는 최신 승인
+보고서가 DB에도 0건임을 뜻한다. scope_source를 인용하고 검색어 변경·query_history 재호출 없이 답한다.
+이는 해당 조회 시점·조건의 보고서 수이며 전체 고장 횟수나 모든 원본 기록의 부재가 아니다.
+NO_MATCHES/NO_RESULTS는 검색 결과 없음일 뿐 자료 자체의 부재가 아니다.
+이때만 필요한 자료를 찾기 위해 검색어를 바꿔 다시 찾아본다.
+질문에 답할 근거를 확보했으면 예방적인 추가 검색 없이 submit_answer로 제출한다.
 질문의 일부만 확인되면 확인된 내용을 출처와 함께 OK로 답하고, 확인할 수 없는 부분을 구분한다.
 답할 내용이 없으면 INSUFFICIENT_EVIDENCE로 안내한다. message에는 관련 자료를 못 찾았는지,
 자료는 있지만 어떤 내용이 부족한지 설명한다.
@@ -103,6 +112,19 @@ ID·코드·기간을 임의로 만들지 않는다. 상대 날짜는 제공된 
 NEEDS_CLARIFICATION을 쓴다. message에 확인이 필요한 이유를 설명하고,
 clarification_questions에 사용자가 알려줘야 할 항목을 구체적으로 질문한다.
 없는 사실이나 조치·재가동 지시를 확인 질문에 넣지 않는다.
+앞선 문맥 없이 '그거'라고만 물으면 어떤 문제·알림을 뜻하는지 최소 질문으로 확인한다.
+설비·모델·코드·기간 전체를 요구하거나 고장 후보를 임의로 만들지 않는다.
+
+첫 답변은 질문에 필요한 핵심 내용 위주로 간결하게 작성한다.
+각 부분의 수치·조치·원인 표현은 그 부분이 인용하는 근거의 강도를 넘지 않는다.
+점검 권고를 원인 확정·필수 교체·재가동 허가로 바꾸지 않는다.
+매뉴얼 기준과 사건 측정값, 과거 사례와 현재 지침을 구분한다.
+서로 다른 자료의 주장은 부분을 나누고 각각 해당 source_id를 인용한다.
+도구의 검토 피드백이 있으면 문제 부분·이유를 우선 수정한다. 근거가 충분하면 재검색하지 않는다.
+OK만 parts와 인용을 담고, 다른 상태는 parts를 비운다.
+NEEDS_CLARIFICATION만 clarification_questions를 담는다.
+지시 대상 부재로 의도를 아직 정할 수 없으면 intent=COMBINED로 확인 질문을 제출한다.
+OUT_OF_SCOPE 의도는 실제 범위 밖 질문에만 쓰고 status도 OUT_OF_SCOPE로 맞춘다.
 
 현재 주의·경고와 알림 발생 이유는 query_incidents(state=ACTIVE)로 조회한다.
 진행 중은 OPEN·ACKNOWLEDGED이며, 집계 건수는 source의 전체 건수를 사용한다.
@@ -124,7 +146,7 @@ submit_answer로 답하고, OK의 본문은 parts에 쓰며 도구가 반환한 
 보고서 작성·결재·PLC 제어·원인 확정·정지 해제·재가동은 실행하지 않는다."""
 
 
-CHAT_PROMPT_VERSION = "chat-tools-v7"
+CHAT_PROMPT_VERSION = "chat-tools-v9"
 
 
 def _failure_code(exc: BaseException) -> str:
@@ -276,25 +298,31 @@ class _BudgetClient:
         client: "LlmClient",
         deadline: _Deadline,
         on_progress: ChatProgress | None = None,
+        review_client: "LlmClient | None" = None,
     ) -> None:
         self.client = client
+        # 근거 검토만 다른 모델·effort로 부를 수 있다(#216). 없으면 같은 클라이언트.
+        self.review_client = review_client or client
+        self._last = client  # 마지막으로 부른 클라이언트. 사용량은 여기서 읽는다
         self.deadline = deadline
         self.on_progress = on_progress
         self.calls: list[ChatCallUsage] = []
+        self.reviews: list[ChatReviewUsage] = []
         self.tracer = getattr(client, "tracer", NULL_TRACER)
 
     @property
     def last_usage(self):
-        return self.client.last_usage
+        return self._last.last_usage
 
     @property
     def last_attempts(self):
-        return getattr(self.client, "last_attempts", 1)
+        return getattr(self._last, "last_attempts", 1)
 
-    def _call(self, purpose, invoke):
+    def _call(self, purpose, invoke, client=None):
         started = time.monotonic()
         failed = True
         called = False
+        self._last = client or self.client
         try:
             remaining = self.deadline.remaining()
             if self.on_progress:
@@ -311,10 +339,10 @@ class _BudgetClient:
                 self.calls.append(
                     ChatCallUsage(
                         purpose=purpose,
-                        provider=getattr(self.client, "provider", "unknown"),
-                        model=getattr(self.client, "last_response_model", None)
-                        or getattr(self.client, "model_name", "unknown"),
-                        usage=self.client.last_usage,
+                        provider=getattr(self._last, "provider", "unknown"),
+                        model=getattr(self._last, "last_response_model", None)
+                        or getattr(self._last, "model_name", "unknown"),
+                        usage=self._last.last_usage,
                         elapsed_s=time.monotonic() - started,
                         failed=failed,
                         attempts=self.last_attempts,
@@ -330,9 +358,10 @@ class _BudgetClient:
     def generate_json(self, system, user, *, schema, timeout_s):
         return self._call(
             "grounding",
-            lambda remaining: self.client.generate_json(
+            lambda remaining: self.review_client.generate_json(
                 system, user, schema=schema, timeout_s=remaining
             ),
+            client=self.review_client,
         )
 
 
@@ -350,6 +379,7 @@ class ToolChatService:
         faq: "FaqCatalog",
         *,
         max_turns: int = 6,
+        review_client: "LlmClient | None" = None,
     ) -> None:
         if (
             isinstance(max_turns, bool)
@@ -358,6 +388,7 @@ class ToolChatService:
         ):
             raise ValueError("max_turns는 1~12 정수여야 함")
         self._client = client
+        self._review_client = review_client
         self._knowledge = knowledge
         self._faq = faq
         self._max_turns = max_turns
@@ -383,7 +414,9 @@ class ToolChatService:
             acquired = self._lock.acquire(timeout=deadline.remaining())
             if not acquired:
                 raise LlmTimeoutError("대화 처리 대기 시간 초과")
-            client = _BudgetClient(self._client, deadline, on_progress)
+            client = _BudgetClient(
+                self._client, deadline, on_progress, self._review_client
+            )
             return self._traced_reply(
                 question, context, deadline, client, memory, on_progress
             )
@@ -411,6 +444,7 @@ class ToolChatService:
                     calls=tuple(client.calls) if client else (),
                     tool_names=tuple(call.name for call in memory.tool_calls),
                     elapsed_s=time.monotonic() - started,
+                    reviews=tuple(client.reviews) if client else (),
                 )
                 self._lock.release()
 
@@ -465,6 +499,15 @@ class ToolChatService:
                         "llm_calls": len(client.calls),
                         "turns": memory.turns,
                         "tools": [call.name for call in memory.tool_calls],
+                        "reviews": [
+                            {
+                                "mode": review.mode,
+                                "verdict": review.verdict,
+                                "unsupported_parts": list(review.unsupported_parts),
+                                "reasons": list(review.reasons),
+                            }
+                            for review in client.reviews
+                        ],
                     }
                 )
 
@@ -509,6 +552,14 @@ class ToolChatService:
             nonlocal reviews
             verdict = verify_grounding(client, payload, timeout_s=deadline.remaining())
             reviews += 1
+            client.reviews.append(
+                ChatReviewUsage(
+                    mode=payload.get("mode") or "ANSWER",
+                    verdict=verdict.verdict,
+                    unsupported_parts=tuple(verdict.unsupported_parts),
+                    reasons=tuple(issue.reason for issue in verdict.issues),
+                )
+            )
             score_trace(
                 client.tracer,
                 "chat.grounding_verdict",
@@ -584,6 +635,8 @@ class ToolChatService:
                 raise ToolInputError("검색 호출은 최대 8회다")
             search_count += 1
             query.conditions = conditions_for(query.conditions)
+            scope_source = None
+            availability = "NO_RESULTS"
             try:
                 # 미지원 필터·미등록 설비 등은 ToolInputError로 모델이 확인 질문하게 한다.
                 # 직책별 열람 제한은 없다. 필터·승인/개정 상태는 검증한다.
@@ -614,6 +667,35 @@ class ToolChatService:
                     )
                 ):
                     raise _SearchUnavailableError("검색 대상 상태가 변경됨")
+                if checked:
+                    availability = "RESULTS"
+                elif query.kind == "MAINTENANCE_HISTORY" and callable(
+                    getattr(self._knowledge, "query_history", None)
+                ):
+                    # 빈 벡터 결과만으로 자료 부재를 단정하지 않는다. 같은 도구 호출에서
+                    # DB의 정확한 조회 범위를 확인해 추가 LLM 왕복 없이 0건 출처를 제공한다.
+                    scope_query = ChatHistoryQuery(
+                        conditions=query.conditions, code=query.code
+                    )
+                    scope = ChatHistoryResult.model_validate(
+                        knowledge.query_history(
+                            scope_query, timeout_s=deadline.remaining()
+                        )
+                    )
+                    deadline.remaining()
+                    if (
+                        scope.source.conditions != scope_query.conditions
+                        or scope.source.code != scope_query.code
+                    ):
+                        raise RuntimeError("조회 조건 불일치")
+                    availability = "NO_MATCHES"
+                    if scope.source.total == 0:
+                        if not knowledge.is_searchable(
+                            scope.source, timeout_s=deadline.remaining()
+                        ):
+                            raise _SearchUnavailableError("검색 범위 상태가 변경됨")
+                        scope_source = scope.source
+                        availability = "NO_CANDIDATES"
             except (ToolInputError, LlmTimeoutError):
                 raise
             except Exception as exc:
@@ -622,6 +704,12 @@ class ToolChatService:
             # 빈 추가 검색이 앞서 확보한 근거의 조건 잠금을 해제해서는 안 된다.
             conditions_locked = conditions_locked or bool(checked)
             combined = {**texts, **{hit.source.source_id: hit.text for hit in checked}}
+            if scope_source is not None:
+                scope_text = to_json(scope_source.model_dump(mode="json"))
+                previous = sources.get(scope_source.source_id)
+                if previous is not None and previous != scope_source:
+                    raise _SearchUnavailableError("출처 ID 충돌")
+                combined[scope_source.source_id] = scope_text
             if len(combined) > 20 or sum(map(len, combined.values())) > 32000:
                 raise ToolInputError(
                     "검색 근거가 너무 많다. 결과 개수나 검색 범위를 줄인다"
@@ -635,14 +723,28 @@ class ToolChatService:
                 sources[hit.source.source_id] = hit.source
                 texts[hit.source.source_id] = hit.text
                 hits[hit.source.source_id] = hit
+            if scope_source is not None:
+                sources[scope_source.source_id] = scope_source
+                texts[scope_source.source_id] = scope_text
+                conditions_locked = True
             retrievals.append(
                 {
                     "tool": "search_knowledge",
                     "query": query.model_dump(mode="json"),
                     "returned": len(checked),
+                    "availability": availability,
+                    **({"scope_total": 0} if scope_source is not None else {}),
                 }
             )
-            return to_json([hit.model_dump(mode="json") for hit in checked])
+            return to_json(
+                {
+                    "hits": [hit.model_dump(mode="json") for hit in checked],
+                    "availability": availability,
+                    "scope_source": scope_source.model_dump(mode="json")
+                    if scope_source is not None
+                    else None,
+                }
+            )
 
         def history(data: dict[str, Any], memory: RunMemory) -> str:
             """query_history 도구: top-k 검색 대신 DB에서 정확한 기간 목록·건수를 구한다."""
@@ -875,6 +977,22 @@ class ToolChatService:
                     "OK": "검색 근거를 바탕으로 안내합니다.",
                     "OUT_OF_SCOPE": "설비 매뉴얼 · 정비이력 · 주의·경고 및 회복 사건 · FAQ 관련 질문을 안내할 수 있습니다.",
                 }[draft.status]
+            # 검토 통과 뒤 계약 조합 오류로 다시 작성하면 유료 검토와 횟수 예산을 낭비한다.
+            # 먼저 기존 최종 응답 계약 전체를 검증하되 내용의 근거 검토는 생략하지 않는다.
+            try:
+                response = ChatResponse(
+                    **response_data,
+                    request_id=question.request_id,
+                    applied_conditions=applied,
+                    sources=[source for key, source in sources.items() if key in cited],
+                    generated_at=datetime.now(UTC),
+                )
+            except ValueError as exc:
+                raise ToolInputError(
+                    "응답 상태·의도·본문·인용 조합을 맞춘다. OK만 parts와 출처를 담고, "
+                    "NEEDS_CLARIFICATION만 확인 질문을 담는다. 의도가 불명확하면 COMBINED를 "
+                    "쓰며 OUT_OF_SCOPE 의도와 상태는 실제 범위 밖 질문에만 함께 쓴다."
+                ) from exc
             if draft.status == "NEEDS_CLARIFICATION":
                 # 자유 문구를 그대로 노출하지 않고 이유·질문도 별도 검토한다.
                 # optional 필터를 생략했다는 이유로 재질문하거나 조치 지시를 숨기지 못하게 한다.
@@ -899,8 +1017,11 @@ class ToolChatService:
                 )
                 if verdict.verdict != "SUPPORTED":
                     raise ToolInputError(
-                        "확인 이유·질문에 근거 없는 단정, 불필요한 조건 요구 또는 조치 지시가 있다. "
-                        "생략 조건은 먼저 제한 없이 검색하고, 실제 선택이 필요한 이유와 질문만 다시 제출한다."
+                        repair_feedback(verdict)
+                        + " "
+                        + "확인 이유·질문을 현재 질문·문맥에 맞춰 수정한다. "
+                        "지시 대상 부재나 실제 선택이 필요한 이유와 최소 질문만 제출한다. "
+                        "선택 필터가 생략됐다는 이유만으로 모두 요구하지 않는다."
                     )
                 response_data["message"] = draft.message
             if draft.status == "INSUFFICIENT_EVIDENCE":
@@ -914,16 +1035,11 @@ class ToolChatService:
                 verdict = review(explanation_payload("INSUFFICIENCY", [draft.message]))
                 if verdict.verdict != "SUPPORTED":
                     raise ToolInputError(
-                        "실제 조회 결과를 기준으로 무엇을 못 찾았거나 확인하지 못했는지 설명한다. "
+                        repair_feedback(verdict)
+                        + " "
+                        + "실제 조회 결과를 기준으로 무엇을 못 찾았거나 확인하지 못했는지 설명한다. "
                         "일부라도 답할 수 있으면 출처와 함께 OK로 답하고 확인 불가 부분을 구분한다."
                     )
-            response = ChatResponse(
-                **response_data,
-                request_id=question.request_id,
-                applied_conditions=applied,
-                sources=[source for key, source in sources.items() if key in cited],
-                generated_at=datetime.now(UTC),
-            )
             if response.status == "OK":
                 # 존재하는 인용이라도 본문이 과장·일반화됐을 수 있어 별도 호출로 대조한다.
                 # 같은 답변은 최대 두 번만 검토해 수정 루프의 추가 비용을 제한한다.
@@ -950,13 +1066,17 @@ class ToolChatService:
                 if verdict.verdict != "SUPPORTED":
                     if verdict.verdict == "CONFLICT":
                         raise ToolInputError(
-                            "근거의 적용 조건이 충돌한다. 자료를 구분해 답변하거나, "
+                            repair_feedback(verdict)
+                            + " "
+                            + "근거의 적용 조건이 충돌한다. 자료를 구분해 답변하거나, "
                             "NEEDS_CLARIFICATION으로 충돌한 조건과 확인이 필요한 이유를 "
                             "설명하고 사용자가 선택해야 할 항목을 구체적으로 질문한다."
                         )
                     if grounding_attempts < 2:
                         raise ToolInputError(
-                            "인용 근거로 확인되지 않는 주장이 있다. 추가 검색하거나 해당 주장을 빼고, 확인된 내용과 확인할 수 없는 부분을 구분해 답한다. 답할 내용이 없으면 부족한 내용을 설명하고 INSUFFICIENT_EVIDENCE로 제출한다."
+                            repair_feedback(verdict)
+                            + " "
+                            + "인용 근거로 확인되지 않는 주장이 있다. 추가 검색하거나 해당 주장을 빼고, 확인된 내용과 확인할 수 없는 부분을 구분해 답한다. 답할 내용이 없으면 부족한 내용을 설명하고 INSUFFICIENT_EVIDENCE로 제출한다."
                         )
                     return unverified_answer(draft.intent)
                 # 검토 호출 동안 삭제·개정됐을 수도 있으므로 외부에 반환하기 직전에 재확인한다.

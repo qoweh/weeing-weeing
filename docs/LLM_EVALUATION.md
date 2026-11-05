@@ -121,4 +121,10 @@ make chat-baseline ARGS="--execute --only L01,L05 --label after-216"
 - 결과: `outputs/chat_baseline/report-<시각>-<label>.md`·`.json`(Git 제외). 개선 PR 본문에 전후 요약 줄을 붙인다.
 - 재생 모드의 상태·시간은 측정 흐름 확인용이며 기준선 값이 아니다.
 - 실제 실행은 질문당 LLM 3~5번이다. 같은 설정으로 전후를 재고, 모델·effort를 바꾸는 비교(#216·#217)는 `--label`로 구분한다.
+- 챗봇 전용 설정 비교(#216·#217): 같은 질문 세트를 설정만 바꿔 다시 잰다. 비우면 공용 `LLM_MODEL`·`LLM_EFFORT`.
+  ```bash
+  CHAT_LLM_EFFORT=low make chat-baseline ARGS="--execute --label effort-low"                       # 도구 루프 effort
+  CHAT_REVIEW_MODEL=claude-haiku-5-5 CHAT_REVIEW_EFFORT=low make chat-baseline ARGS="--execute --label review-haiku"  # 근거 검토만
+  ```
+  보고서의 `검토(초)`·`루프(초)` 열과 기대 상태 일치 수를 기준선과 비교한다. 품질이 떨어지면 채택하지 않는다.
 - 첫 질문은 프롬프트 캐시가 비어 있어 느릴 수 있다. 캐시 효과(#218)를 볼 때는 같은 실행 안의 2번째 질문부터 비교한다.

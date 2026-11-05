@@ -50,6 +50,10 @@ class Settings:
     langfuse_base_url: str = ""  # 비어 있으면 기록하지 않는다
     langfuse_tracing_environment: str = "dev"  # dev | demo | ci
     langfuse_capture_content: bool = True  # 프롬프트·응답 본문까지 보낼지
+    # 챗봇 전용 LLM 설정(#216·#217). 비우면 LLM_MODEL·LLM_EFFORT를 그대로 쓴다
+    chat_llm_effort: str = ""  # 챗봇 도구 루프 effort
+    chat_review_model: str = ""  # 근거 검토 호출 모델(예: claude-haiku-5-5)
+    chat_review_effort: str = ""  # 근거 검토 호출 effort(비우면 챗봇 effort)
     analysis_auto_enabled: bool = False  # 유료 자동 호출은 명시적으로 켠다
     analysis_mode: str = "single"  # single | multi
     analysis_verification_enabled: bool = False
@@ -107,6 +111,9 @@ def get_settings() -> Settings:
         llm_user=env("LLM_USER", ""),
         langfuse_base_url=env("LANGFUSE_BASE_URL", ""),
         langfuse_tracing_environment=env("LANGFUSE_TRACING_ENVIRONMENT", "dev"),
+        chat_llm_effort=env("CHAT_LLM_EFFORT", "").strip().lower(),
+        chat_review_model=env("CHAT_REVIEW_MODEL", "").strip(),
+        chat_review_effort=env("CHAT_REVIEW_EFFORT", "").strip().lower(),
         langfuse_capture_content=env("LANGFUSE_CAPTURE_CONTENT", "true").lower()
         in ("1", "true", "yes"),
         analysis_auto_enabled=env("ANALYSIS_AUTO_ENABLED", "false").lower()

@@ -30,7 +30,12 @@ RECOVERED 조회의 시간 미지정 결과는 조건에 맞는 가장 최근 �
 HISTORY_QUERY의 total=0도 유효한 조회 근거다. 가상 보고서 수와 전체 수를 구분한다.
 자료별 차이를 구분해 설명하는 것은 허용한다. 서로 양립하지 않는 적용 조건/절차를
 하나로 합쳐 단정했다면 CONFLICT다. 모든 주장이 뒷받침될 때만 SUPPORTED다.
-verdict와 unsupported_parts(0부터 시작하는 부분 번호)만 JSON으로 반환한다."""
+verdict와 unsupported_parts(0부터 시작하는 부분 번호), issues를 JSON으로 반환한다.
+issues는 문제가 된 부분 번호 part와 이유 reason의 목록이다. reason은 다음 중 선택한다:
+UNSUPPORTED_CLAIM(근거 없는 주장), SCOPE_OVERSTATEMENT(조회 범위를 전체로 확대),
+CONDITION_CONFLICT(적용 조건 충돌), INCOMPLETE_ANSWER(확인된 답 누락),
+UNNECESSARY_CONDITION(불필요한 조건 요구), UNCLEAR_QUESTION(확인 질문이 모호함).
+SUPPORTED이면 issues도 빈 목록이다. 근거 문구와 동등한 바꿔 쓰기는 허용한다."""
 
 
 CLARIFICATION_SYSTEM = """너는 챗봇의 추가 확인 이유와 질문을 검토한다.
@@ -43,9 +48,14 @@ parts[0]은 확인이 필요한 이유, 나머지는 사용자에게 보여줄 �
 자료가 없다는 사실만으로 필터 입력이 필수라고 단정해도 UNSUPPORTED다.
 구체적으로 무엇을 알려줘야 하는지 이유에 대응하는 최소 질문이어야 한다.
 '더 구체적으로 알려주세요'만 있거나 모든 조건을 일괄 요구하면 UNSUPPORTED다.
+이전 문맥 없이 '그거'라고만 질문했다면 지시 대상 부재다. 어떤 문제·알림을 뜻하는지
+묻는 최소 질문은 구체적인 확인 질문으로 인정한다. 없는 고장 후보를 나열할 필요는 없다.
 검색되지 않은 후보·고장 원인·조치 결과를 꾸미거나 교체·운전·재가동 지시를 숨기면 UNSUPPORTED다.
 실제 선택이 필요한 이유와 구체적인 확인 질문만 있으면 SUPPORTED다.
-verdict와 unsupported_parts(0부터 시작하는 문제 문장 번호)만 JSON으로 반환한다."""
+verdict와 unsupported_parts(0부터 시작하는 문제 문장 번호), issues를 JSON으로 반환한다.
+issues는 part(문제 문장 번호), reason(UNSUPPORTED_CLAIM, SCOPE_OVERSTATEMENT,
+CONDITION_CONFLICT, INCOMPLETE_ANSWER, UNNECESSARY_CONDITION, UNCLEAR_QUESTION 중 하나)의
+목록이다. SUPPORTED이면 issues도 빈 목록이다."""
 
 
 INSUFFICIENCY_SYSTEM = """너는 챗봇의 근거 부족 설명을 검토한다.
@@ -59,7 +69,46 @@ parts는 사용자에게 보여줄 근거 부족 설명이다. 실제 조회 기
 원인·조치 결과·검색 결과를 꾸미거나 작업·재가동 지시를 넣어도 UNSUPPORTED다.
 검색 결과가 없다는 이유로 사용자에게 선택 조건 전체를 입력하라고 요구하지 않는다.
 실제 조회 범위에서 확인하지 못한 주제·정보를 구체적으로 설명했을 때만 SUPPORTED다.
-verdict와 unsupported_parts(0부터 시작하는 문제 문장 번호)만 JSON으로 반환한다."""
+verdict와 unsupported_parts(0부터 시작하는 문제 문장 번호), issues를 JSON으로 반환한다.
+issues는 part(문제 문장 번호), reason(UNSUPPORTED_CLAIM, SCOPE_OVERSTATEMENT,
+CONDITION_CONFLICT, INCOMPLETE_ANSWER, UNNECESSARY_CONDITION, UNCLEAR_QUESTION 중 하나)의
+목록이다. SUPPORTED이면 issues도 빈 목록이다."""
+
+
+class GroundingIssue(ChatModel):
+    part: Annotated[int, Field(ge=0, strict=True)]
+    reason: Literal[
+        "UNSUPPORTED_CLAIM",
+        "SCOPE_OVERSTATEMENT",
+        "CONDITION_CONFLICT",
+        "INCOMPLETE_ANSWER",
+        "UNNECESSARY_CONDITION",
+        "UNCLEAR_QUESTION",
+    ]
+
+
+_REPAIRS = {
+    "UNSUPPORTED_CLAIM": "근거에 없는 단정·수치·조치 지시를 제거하거나 근거 수준으로 표현을 낮춘다",
+    "SCOPE_OVERSTATEMENT": "조회 조건과 범위를 명시하고 전체 시스템·전체 고장으로 일반화하지 않는다",
+    "CONDITION_CONFLICT": "자료별 적용 조건을 구분하고 필요한 선택만 구체적으로 질문한다",
+    "INCOMPLETE_ANSWER": "근거로 확인된 부분은 출처와 함께 답하고 확인 불가 부분만 구분한다",
+    "UNNECESSARY_CONDITION": "선택 조건의 일괄 요구를 제거하고 실제로 필요한 항목만 질문한다",
+    "UNCLEAR_QUESTION": "어떤 문제·알림·적용 조건을 확인해야 하는지 최소 질문으로 표현한다",
+}
+
+
+def repair_feedback(verdict: "GroundingVerdict") -> str:
+    """자유 생성 지시 대신 검증된 번호·고정 이유로 수정 범위를 전달한다."""
+    details = "; ".join(
+        f"부분 {issue.part}: {_REPAIRS[issue.reason]}" for issue in verdict.issues
+    )
+    return (
+        f"검토={verdict.verdict}, 문제 부분(0부터)={verdict.unsupported_parts}. "
+        + details
+        + " 문제 부분을 우선 수정하되 연결된 문맥·인용도 일관되게 유지한다. "
+        "근거가 이미 있으면 다시 검색하지 말고 수정한 답변을 submit_answer로 제출한다. "
+        "수정 답변도 같은 근거 검토를 거친다."
+    )
 
 
 class GroundingVerdict(ChatModel):
@@ -67,6 +116,7 @@ class GroundingVerdict(ChatModel):
     unsupported_parts: list[Annotated[int, Field(ge=0, strict=True)]] = Field(
         default_factory=list, max_length=20
     )
+    issues: list[GroundingIssue] = Field(default_factory=list, max_length=20)
 
     @model_validator(mode="after")
     def _consistent(self):
@@ -74,6 +124,8 @@ class GroundingVerdict(ChatModel):
             raise ValueError("근거 판정과 문제 부분 목록이 다름")
         if any(type(i) is not int or i < 0 for i in self.unsupported_parts):
             raise ValueError("잘못된 답변 부분 번호")
+        if any(issue.part not in self.unsupported_parts for issue in self.issues):
+            raise ValueError("문제 부분 목록에 없는 수정 사유")
         return self
 
 

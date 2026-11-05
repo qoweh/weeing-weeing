@@ -27,6 +27,8 @@ flowchart LR
 - **태그(진입점)**: `analyze`, `llm-check`, 기본값 `app`. 새 기능에서 `get_llm_client(entrypoint="chatbot")`처럼 이름을 주면 기능별로 나뉜다.
 - **본문은 기본으로 보낸다.** 프롬프트·응답·도구 입력까지 기록한다. 메타데이터만 보내려면 `LANGFUSE_CAPTURE_CONTENT=false`로 끈다.
 - API 키, 사번·결재 정보는 어떤 경우에도 보내지 않는다.
+- **개인정보 가리기(#212)**: 본문을 보내더라도 이메일·전화번호·주민등록번호 형식은 SDK가 보내기 전에 `[이메일]`·`[전화번호]`·`[주민번호]`로 바꾼다(`agent.tracing.mask_personal`). 설비 ID·오류 코드(`BLDC-001`, `BTT2-P03`)는 그대로 둔다. 사람 이름·사번은 형식만으로 구분할 수 없어 가리지 못하므로, 운영에서 본문 수집이 부담되면 `LANGFUSE_CAPTURE_CONTENT=false`로 끈다.
+- **샘플링**: 기록량을 줄이려면 `LANGFUSE_SAMPLE_RATE`(0~1, 예 `0.3`)를 둔다. SDK가 trace 단위로 고르므로 한 질문의 기록은 통째로 남거나 빠진다. 비용 집계(Slack 알림)가 같이 줄어들므로 팀 PC에서는 쓰지 않는다.
 - **우리 SDK가 만든 기록만 보낸다**(`should_export_span=is_langfuse_span`). Anthropic SDK도 호출마다 자체 span(`anthropic.messages.create`)을 남기는데, 이것까지 보내면 같은 호출 비용이 두 번 집계된다(#228). 2026-11-05 이전 기록에는 이 중복이 남아 있어, 사용량 알림은 그 이름을 빼고 합산한다.
 
 ## 팀원 설정 (한 번만)

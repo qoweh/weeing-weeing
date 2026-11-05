@@ -17,11 +17,20 @@ class ChatCallUsage:
 
 
 @dataclass(frozen=True)
+class ChatReviewUsage:
+    mode: str
+    verdict: str
+    unsupported_parts: tuple[int, ...] = ()
+    reasons: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class ChatRunUsage:
     request_id: str = ""
     calls: tuple[ChatCallUsage, ...] = ()
     tool_names: tuple[str, ...] = ()
     elapsed_s: float = 0
+    reviews: tuple[ChatReviewUsage, ...] = ()
 
     @property
     def unknown_calls(self) -> int:

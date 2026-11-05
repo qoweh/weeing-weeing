@@ -458,3 +458,81 @@ def test_unverified_insufficiency_explanations_have_bounded_review_attempts():
     assert result.failure.code == "INVALID_RESPONSE"
     assert "UNVERIFIED_REASON" not in result.model_dump_json()
     assert len(client.checks) == 2
+
+
+def test_review_client_handles_grounding_and_its_usage_is_recorded():
+    """근거 검토만 다른 모델로 부르고, 호출 기록에 실제 검토 모델을 남긴다(#216)."""
+    from weeing_weeing.agent.errors import LlmUsage
+
+    main = ReviewingClient(reply(search()), reply(submit()))
+    main.model_name = "main-model"
+
+    class Reviewer:
+        provider = "fake"
+        model_name = "review-model"
+        last_response_model = None
+        last_attempts = 1
+
+        def __init__(self):
+            self.calls = 0
+            self.last_usage = None
+
+        def generate_json(self, system, user, **kwargs):
+            self.calls += 1
+            self.last_usage = LlmUsage(7, 3, 0.1)
+            return '{"verdict":"SUPPORTED","unsupported_parts":[]}'
+
+    reviewer = Reviewer()
+    service = ToolChatService(
+        main, CommonKnowledge(), load_faq_catalog(), review_client=reviewer
+    )
+    response = service.reply(
+        ChatQuestion(request_id=uuid4(), question="점검 방법"),
+        context=ChatContext(),
+        timeout_s=10,
+    )
+    assert response.status == "OK"
+    assert reviewer.calls == 1
+    by_purpose = {(c.purpose, c.model) for c in service.last_run.calls}
+    assert ("grounding", "review-model") in by_purpose
+    assert all(
+        c.model != "review-model"
+        for c in service.last_run.calls
+        if c.purpose == "dialogue"
+    )
+    grounding = next(c for c in service.last_run.calls if c.purpose == "grounding")
+    assert grounding.usage == LlmUsage(7, 3, 0.1)
+
+
+def test_chat_settings_pick_effort_and_review_model(monkeypatch):
+    """CHAT_* 설정이 비면 공용 설정 그대로, 있으면 챗봇에만 적용한다(#216·#217)."""
+    import dataclasses
+
+    from weeing_weeing.agent.interface import get_chat_service
+    from weeing_weeing.config import get_settings
+
+    monkeypatch.delenv("LANGFUSE_BASE_URL", raising=False)
+    base = dataclasses.replace(
+        get_settings(),
+        llm_model="claude-sonnet-5-5",
+        llm_effort="medium",
+        langfuse_base_url="",
+    )
+    plain = get_chat_service(CommonKnowledge(), settings=base)
+    assert (plain._client.model_name, plain._client._effort) == (
+        "claude-sonnet-5-5",
+        "medium",
+    )
+    assert plain._review_client is None
+
+    tuned = get_chat_service(
+        CommonKnowledge(),
+        settings=dataclasses.replace(
+            base, chat_llm_effort="low", chat_review_model="claude-haiku-5-5"
+        ),
+    )
+    assert tuned._client._effort == "low"
+    assert (tuned._review_client.model_name, tuned._review_client._effort) == (
+        "claude-haiku-5-5",
+        "low",  # 검토 effort를 비우면 챗봇 effort
+    )
