@@ -495,3 +495,30 @@ def test_combined_answer_can_cite_manual_and_report(knowledge, store):
     )
     assert result.status == "OK" and result.intent == "COMBINED"
     assert {source.kind for source in result.sources} == {"DOCUMENT", "REPORT"}
+
+
+def test_search_and_batch_recheck_read_document_list_once_each(knowledge, store):
+    """결과마다 문서 목록을 다시 읽지 않는다(#220). 판 변경 감지는 그대로다."""
+    record = seed_manual(knowledge, store)
+    calls = []
+    original = knowledge.documents.listed
+
+    def counted():
+        calls.append(1)
+        return original()
+
+    knowledge.documents.listed = counted
+    hits = search(knowledge)
+    assert hits
+    # 검증 1번 + 검색 대상 선정 1번 + 검색 후 재확인 1번
+    assert len(calls) == 3
+
+    calls.clear()
+    sources = [hits[0].source, hits[0].source, hits[0].source]
+    assert knowledge.are_searchable(sources, timeout_s=5) == [True, True, True]
+    assert len(calls) == 1  # 출처가 여러 개여도 목록은 한 번
+
+    remove(knowledge, record.doc_id)
+    assert knowledge.are_searchable([hits[0].source], timeout_s=5) == [False]
+    assert knowledge.is_searchable(hits[0].source, timeout_s=5) is False
+    assert knowledge.are_searchable([], timeout_s=5) == []

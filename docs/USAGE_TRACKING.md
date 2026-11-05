@@ -118,12 +118,12 @@ chat (chain)                         ← 질문 1건. session=대화 ID, metadat
   ├ search_knowledge (tool)
   │ ├ knowledge.validate_query (span)
   │ ├ knowledge.search (retriever)   ← DB 대상 선정 + RAG 검색 + 서버 출처 확인
-  │ └ knowledge.is_searchable (span) ← stage=search_knowledge
+  │ └ knowledge.are_searchable (span) ← stage=search_knowledge, 결과 전체를 한 번에 재확인
   ├ chat-assistant.turn-2 (generation)
   └ submit_answer (tool)
-    ├ knowledge.is_searchable        ← stage=before_submit
+    ├ knowledge.are_searchable       ← stage=before_submit
     ├ grounding-review.answer (generation)
-    └ knowledge.is_searchable        ← stage=after_review
+    └ knowledge.are_searchable       ← stage=after_review
 ```
 
 ### 호출 이름 (#202)
@@ -138,7 +138,7 @@ chat (chain)                         ← 질문 1건. session=대화 ID, metadat
 
 ### 조회 단계 span (#203)
 
-`knowledge.<메서드>` span의 metadata에는 `stage`(어느 도구·단계에서 불렀는지), `kind`·`state`·`source_kind`, `returned`(결과 수)·`searchable`(재확인 결과)만 남긴다. 본문은 남기지 않는다. 임베딩·Qdrant·리랭크 세부 시간은 `knowledge.search` 안에 합쳐져 있다(rag 내부 계측은 #203 후속).
+`knowledge.<메서드>` span의 metadata에는 `stage`(어느 도구·단계에서 불렀는지), `kind`·`state`·`source_kind`, `returned`(결과 수)·`sources`·`searchable`(재확인한 출처 수·통과 수)만 남긴다. 출처 재확인은 단계마다 묶어서 한 번 한다(#220). 본문은 남기지 않는다. 임베딩·Qdrant·리랭크 세부 시간은 `knowledge.search` 안에 합쳐져 있다(rag 내부 계측은 #203 후속).
 
 ### 세션 (#204)
 

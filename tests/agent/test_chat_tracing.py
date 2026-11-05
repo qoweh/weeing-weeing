@@ -64,9 +64,9 @@ def test_chat_question_is_one_trace_with_knowledge_spans_by_stage():
     assert spans == [
         ("knowledge.validate_query", "search_knowledge"),
         ("knowledge.search", "search_knowledge"),
-        ("knowledge.is_searchable", "search_knowledge"),
-        ("knowledge.is_searchable", "before_submit"),
-        ("knowledge.is_searchable", "after_review"),
+        ("knowledge.are_searchable", "search_knowledge"),
+        ("knowledge.are_searchable", "before_submit"),
+        ("knowledge.are_searchable", "after_review"),
     ]
     search_span = next(
         o for o in fake.observations if o.kwargs["name"] == "knowledge.search"
@@ -124,3 +124,33 @@ def test_grounding_review_generation_is_named_by_mode():
     [gen] = fake.observations
     assert gen.kwargs["name"] == "grounding-review.insufficiency"
     assert gen.updates["metadata"]["mode"] == "INSUFFICIENCY"
+
+
+class BatchKnowledge(CommonKnowledge):
+    """묶음 재확인을 제공하는 지식. 단계마다 몇 번 불렸는지 센다."""
+
+    def __init__(self, hits=None):
+        super().__init__(hits)
+        self.batches = []
+
+    def are_searchable(self, sources, *, timeout_s):
+        self.batches.append([s.source_id for s in sources])
+        return [True for _ in sources]
+
+    def is_searchable(self, source, *, timeout_s):  # 묶음이 있으면 쓰지 않는다
+        raise AssertionError("are_searchable이 있으면 출처마다 묻지 않는다")
+
+
+def test_source_rechecks_are_batched_once_per_stage_and_deduplicated():
+    """같은 출처를 여러 부분이 인용해도 단계마다 한 번만 재확인한다(#220)."""
+    knowledge = BatchKnowledge()
+    twice = submit(
+        parts=[
+            dict(kind="MANUAL", text="첫 문단", source_ids=["manual:1"]),
+            dict(kind="MANUAL", text="둘째 문단", source_ids=["manual:1"]),
+        ]
+    )
+    response, _ = run(Reviewing(reply(search()), reply(twice)), knowledge)
+    assert response.status == "OK"
+    # 검색 직후·제출 전·검토 후 각 1번, 출처는 중복 없이 1개
+    assert knowledge.batches == [["manual:1"], ["manual:1"], ["manual:1"]]
