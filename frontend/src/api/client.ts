@@ -296,6 +296,26 @@ export function getIncidentAnalysis(id: string) {
   return request(`/incidents/${encodeURIComponent(id)}/analysis`)
 }
 
+export function retryIncidentAnalysis(
+  id: string,
+  body: unknown,
+  signal?: AbortSignal,
+) {
+  return request(`/incidents/${encodeURIComponent(id)}/analysis/retry`, {
+    method: 'POST',
+    body,
+    signal,
+  })
+}
+
+export function listIncidentApprovedReports(id: string) {
+  return request(`/incidents/${encodeURIComponent(id)}/approved-reports`)
+}
+
+export function deleteIncident(id: string) {
+  return request(`/incidents/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
 export function getIncidentReportContext(id: string, reportId?: string) {
   const query = reportId ? `?report_id=${encodeURIComponent(reportId)}` : ''
   return request(`/incidents/${encodeURIComponent(id)}/report-context${query}`)
@@ -311,6 +331,12 @@ export function saveReport(id: string | undefined, body: unknown) {
   return request(id ? `/reports/${encodeURIComponent(id)}/draft` : '/reports', {
     method: id ? 'PUT' : 'POST',
     body,
+  })
+}
+export function deleteReport(id: string, revision: number, draft = false) {
+  return request(`/reports/${encodeURIComponent(id)}${draft ? '/draft' : ''}`, {
+    method: 'DELETE',
+    body: { expected_revision: revision },
   })
 }
 export function actOnReport(

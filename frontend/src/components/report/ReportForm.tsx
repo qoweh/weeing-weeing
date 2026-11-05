@@ -20,6 +20,7 @@ type SensorEvidence = {
 }
 export type ReportIncident = {
   incident_id: string
+  incident_number?: string | null
   process_id?: string
   asset_id?: string
   first_detected_at?: string
@@ -41,12 +42,23 @@ export type Analysis = {
   suspected_causes?: {
     cause: string
     basis: string
+    likelihood?: string
+    observations?: string[]
+    unconfirmed?: string[]
     evidence_ids?: string[]
   }[]
   recommended_checks?: string[]
   recommended_actions?: string[]
   actions_requiring_approval?: string[]
-  evidence?: { citation: string; evidence_id?: string }[]
+  evidence?: {
+    citation: string
+    evidence_id?: string
+    title?: string
+    doc_id?: string
+    doc_version?: string
+    page?: number
+    section?: string
+  }[]
   limitations?: string
 }
 type Values = Record<string, string>
@@ -539,24 +551,23 @@ export default function ReportForm({
               <div className="report-cell">
                 <strong>연결 사건</strong>
                 <span>
-                  <Auto>{incident?.incident_id}</Auto>
-                </span>
-              </div>
-              <div className="report-cell">
-                <strong>공정 설비</strong>
-                <span>
                   <Auto>
-                    {[incident?.process_id, incident?.asset_id]
-                      .filter(Boolean)
-                      .join(' / ')}
+                    {incident?.incident_number || incident?.incident_id}
                   </Auto>
                 </span>
               </div>
               <div className="report-cell">
-                <strong>설비명 모델</strong>
+                <strong>공정</strong>
+                <span>
+                  <Auto>{incident?.process_id}</Auto>
+                </span>
+              </div>
+              <div className="report-cell">
+                <strong>설비</strong>
                 <span>
                   <Auto>
-                    {reportEquipmentLabel(incident?.asset_id, assetName)}
+                    {incident?.asset_id ||
+                      reportEquipmentLabel(incident?.asset_id, assetName)}
                   </Auto>
                 </span>
               </div>
@@ -705,7 +716,7 @@ export default function ReportForm({
                   ]}
                 />
               </div>
-              <strong className="report-th">확인 원인 및 근거</strong>
+              <strong className="report-th">확인 원인</strong>
               <div className="report-td">
                 <SubRows
                   rows={[
@@ -718,21 +729,6 @@ export default function ReportForm({
                         placeholder: '미확인이면 그 사실, 확인했다면 원인',
                       }),
                       true,
-                    ],
-                    [
-                      '원인 확인 근거',
-                      renderField('causeEvidence', '원인 확인 근거', {
-                        bare: true,
-                        type: 'textarea',
-                        placeholder: '확인했다면 원인과 확인 근거',
-                      }),
-                    ],
-                    [
-                      '원인 분류',
-                      renderField('causeCategory', '원인 분류', {
-                        bare: true,
-                        placeholder: '입력',
-                      }),
                     ],
                     [
                       'AI 제안과 실제 결과 비교',
@@ -809,37 +805,6 @@ export default function ReportForm({
                   options: ['미확인', '해결', '미해결', '보류'],
                   bare: true,
                 })}
-              </div>
-              <strong className="report-th">후속 조치 및 담당</strong>
-              <div className="report-td report-td--span">
-                <SubRows
-                  rows={[
-                    [
-                      '후속 조치',
-                      renderField('followUp', '후속 조치', {
-                        bare: true,
-                        type: 'textarea',
-                        placeholder:
-                          '미해결 사항 · 담당자 · 기한 (해당 없으면 ‘없음’)',
-                      }),
-                    ],
-                    [
-                      '후속 조치 담당자',
-                      renderField('followUpOwner', '후속 조치 담당자', {
-                        bare: true,
-                        placeholder: '입력',
-                      }),
-                    ],
-                    [
-                      '후속 조치 기한',
-                      renderField('followUpDue', '후속 조치 기한', {
-                        bare: true,
-                        type: 'date',
-                        placeholder: '입력',
-                      }),
-                    ],
-                  ]}
-                />
               </div>
               <strong className="report-th">작성 확인</strong>
               <div className="report-td">

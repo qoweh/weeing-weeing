@@ -207,8 +207,16 @@ export default function Header({
   }, [severity, screenZoom])
   return (
     <header className="header">
-      <button type="button" className="brand" aria-label="대시보드로 이동" disabled={busy} onClick={onNavigateDashboard}>
-        <span className="brand__mark"><img src="/assets/IMAGE/weeing-logo.png" alt="" /></span>
+      <button
+        type="button"
+        className="brand"
+        aria-label="대시보드로 이동"
+        disabled={busy}
+        onClick={onNavigateDashboard}
+      >
+        <span className="brand__mark">
+          <img src="/assets/IMAGE/weeing-logo.png" alt="" />
+        </span>
         <span>
           위잉위잉<small>Equipment AI</small>
         </span>
@@ -384,10 +392,15 @@ export default function Header({
                     .map((incident, index) => (
                       <tr
                         key={incident.incident_id}
-                        className="header-alert-popup__clickable-row"
-                        tabIndex={0}
+                        className={
+                          severity === 'Error'
+                            ? 'header-alert-popup__clickable-row'
+                            : undefined
+                        }
+                        tabIndex={severity === 'Error' ? 0 : undefined}
                         onClick={(event) => {
                           if (
+                            severity === 'Error' &&
                             event.target instanceof Element &&
                             !event.target.closest('button')
                           ) {
@@ -397,6 +410,7 @@ export default function Header({
                         }}
                         onKeyDown={(event) => {
                           if (
+                            severity === 'Error' &&
                             event.target === event.currentTarget &&
                             (event.key === 'Enter' || event.key === ' ')
                           ) {
@@ -409,16 +423,20 @@ export default function Header({
                         <td>{String(index + 1).padStart(2, '0')}</td>
                         <td>{incident.asset_id || '—'}</td>
                         <td>
-                          <button
-                            type="button"
-                            className="header-alert-popup__incident-link"
-                            onClick={() => {
-                              setSeverity(null)
-                              onIncidentSelect?.(incident)
-                            }}
-                          >
-                            {incident.codes?.join(', ') || '사건 보고서 열기'}
-                          </button>
+                          {severity === 'Error' ? (
+                            <button
+                              type="button"
+                              className="header-alert-popup__incident-link"
+                              onClick={() => {
+                                setSeverity(null)
+                                onIncidentSelect?.(incident)
+                              }}
+                            >
+                              {incident.codes?.join(', ') || '사건 보고서 열기'}
+                            </button>
+                          ) : (
+                            <span>{incident.codes?.join(', ') || '—'}</span>
+                          )}
                         </td>
                         <td>{dateLabel(incident.first_detected_at, true)}</td>
                       </tr>
