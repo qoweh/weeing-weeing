@@ -8,7 +8,18 @@ from weeing_weeing.config import get_settings
 ENV_EXAMPLE = Path(__file__).resolve().parents[1] / ".env.example"
 # docker compose만 읽는 항목, Anthropic SDK가 직접 읽는 비밀 값(Settings에 두지 않음)
 COMPOSE_ONLY = {"POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"}
-SDK_ONLY = {"ANTHROPIC_API_KEY"}
+SDK_ONLY = {
+    "ANTHROPIC_API_KEY",
+    "VOYAGE_API_KEY",
+    "LANGFUSE_PUBLIC_KEY",
+    "LANGFUSE_SECRET_KEY",
+}
+# 예시 파일은 실제 코드 기본값과 다른 멀티 분석 시연 설정을 제공한다.
+EXAMPLE_OVERRIDES = {
+    "ANALYSIS_MODE",
+    "ANALYSIS_VERIFICATION_ENABLED",
+    "ANALYSIS_TOTAL_TIMEOUT_S",
+}
 
 
 def _example() -> dict[str, str]:
@@ -31,6 +42,8 @@ def test_defaults_match_env_example(monkeypatch):
     settings = get_settings()
 
     for key, value in example.items():
+        if key in EXAMPLE_OVERRIDES:
+            continue
         actual = getattr(settings, key.lower())
         if isinstance(actual, bool):  # bool("false")는 True라 문자열로 비교한다
             assert actual == (value.lower() in ("1", "true", "yes")), key
@@ -38,6 +51,16 @@ def test_defaults_match_env_example(monkeypatch):
             assert value == "", key
         else:
             assert actual == type(actual)(value), key
+
+
+def test_example_analysis_overrides_are_valid(monkeypatch):
+    example = _example()
+    for key in EXAMPLE_OVERRIDES:
+        monkeypatch.setenv(key, example[key])
+    settings = get_settings()
+    assert settings.analysis_mode in {"single", "multi"}
+    assert example["ANALYSIS_VERIFICATION_ENABLED"].lower() in {"true", "false"}
+    assert settings.analysis_total_timeout_s > 0
 
 
 @pytest.mark.parametrize(
