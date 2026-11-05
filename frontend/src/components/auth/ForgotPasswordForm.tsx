@@ -1,15 +1,15 @@
-import { useState, type FormEvent } from 'react'
-import Button from '../ui/Button'
+import { useState, type FormEvent } from "react";
+import Button from "../ui/Button";
 
 export default function ForgotPasswordForm() {
-  const [employeeNo, setEmployeeNo] = useState('')
-  const [email, setEmail] = useState('')
-  const [message, setMessage] = useState('')
+  const [employeeNo, setEmployeeNo] = useState("");
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+    event.preventDefault();
     // 재설정 API가 아직 없어 안내만 표시한다.
-    setMessage('비밀번호 찾기 서비스는 준비 중입니다.')
+    setMessage("비밀번호 찾기 서비스는 준비 중입니다.");
   }
 
   return (
@@ -20,8 +20,8 @@ export default function ForgotPasswordForm() {
           id="forgot-id"
           value={employeeNo}
           onChange={(event) => {
-            setEmployeeNo(event.target.value)
-            setMessage('')
+            setEmployeeNo(event.target.value);
+            setMessage("");
           }}
           placeholder="사번을 입력해 주세요"
           autoComplete="username"
@@ -35,8 +35,8 @@ export default function ForgotPasswordForm() {
           type="email"
           value={email}
           onChange={(event) => {
-            setEmail(event.target.value)
-            setMessage('')
+            setEmail(event.target.value);
+            setMessage("");
           }}
           placeholder="가입한 이메일을 입력해 주세요"
           autoComplete="email"
@@ -55,5 +55,5 @@ export default function ForgotPasswordForm() {
         재설정 안내 받기
       </Button>
     </form>
-  )
+  );
 }

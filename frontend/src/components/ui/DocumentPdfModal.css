@@ -39,7 +39,7 @@
 
 .pdf-modal__title h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--fs-heading-m);
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
@@ -47,7 +47,8 @@
 .pdf-modal__title p {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
 }
 
 .pdf-modal__actions {
@@ -59,7 +60,8 @@
 
 .pdf-modal__actions a {
   color: var(--primary);
-  font-size: 13px;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
   white-space: nowrap;
 }
 
@@ -103,7 +105,7 @@
 
   .pdf-modal__title h2 {
     overflow: hidden;
-    font-size: 15px;
+    font-size: var(--fs-emphasis);
     line-height: 1.3;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -112,7 +114,8 @@
   .pdf-modal__title p {
     overflow: hidden;
     margin-top: 2px;
-    font-size: 11px;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -122,12 +125,14 @@
   }
 
   .pdf-modal__actions a {
-    font-size: 12px;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
   }
 
   .pdf-modal__actions button {
     min-height: 32px;
     padding: 0 10px;
-    font-size: 13px;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
   }
 }

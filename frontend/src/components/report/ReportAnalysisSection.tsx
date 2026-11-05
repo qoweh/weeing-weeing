@@ -1,50 +1,50 @@
-import type { Analysis, ReportIncident } from './ReportForm'
-import './ReportForm.css'
+import type { Analysis, ReportIncident } from "./ReportForm";
+import "./ReportForm.css";
 
-function evidenceLabel(item: NonNullable<Analysis['evidence']>[number]) {
-  if (!item.page && !item.title) return item.citation
+function evidenceLabel(item: NonNullable<Analysis["evidence"]>[number]) {
+  if (!item.page && !item.title) return item.citation;
   return [
-    item.title || item.doc_id || '문서',
+    item.title || item.doc_id || "문서",
     item.doc_version && `v${item.doc_version}`,
     item.page && `PDF ${item.page}쪽`,
     item.section,
   ]
     .filter(Boolean)
-    .join(' · ')
+    .join(" · ");
 }
 
 function readableText(text: string, incident?: ReportIncident | null) {
-  const header = `사건:\n사건 ID: ${incident?.incident_id}`
+  const header = `사건:\n사건 ID: ${incident?.incident_id}`;
   const display =
     incident?.incident_id && (text === header || text.startsWith(`${header}\n`))
-      ? `사건번호: ${incident.incident_number || '확인되지 않음'}${text.slice(header.length)}`
-      : text
+      ? `사건번호: ${incident.incident_number || "확인되지 않음"}${text.slice(header.length)}`
+      : text;
   const fields: Record<string, string> = {
-    motor_housing_temp_c: '모터 외함 온도',
-    rpm: '모터 회전 속도',
-    dc_input_current_a: 'DC 입력 전류',
-    dc_bus_voltage_v: 'DC 버스 전압',
-    infeed_present: '입구 센서',
-    outfeed_present: '출구 센서',
-    de_vibration_rms_g: '구동측 진동 RMS',
-    nde_vibration_rms_g: '반구동측 진동 RMS',
-    de_kurtosis: '구동측 첨도',
-    nde_kurtosis: '반구동측 첨도',
-  }
+    motor_housing_temp_c: "모터 외함 온도",
+    rpm: "모터 회전 속도",
+    dc_input_current_a: "DC 입력 전류",
+    dc_bus_voltage_v: "DC 버스 전압",
+    infeed_present: "입구 센서",
+    outfeed_present: "출구 센서",
+    de_vibration_rms_g: "구동측 진동 RMS",
+    nde_vibration_rms_g: "반구동측 진동 RMS",
+    de_kurtosis: "구동측 첨도",
+    nde_kurtosis: "반구동측 첨도",
+  };
   const statistics: Record<string, string> = {
-    min: '최솟값',
-    max: '최댓값',
-    mean: '평균',
-    first: '처음값',
-    last: '마지막값',
-    delta: '변화량',
-    valid_count: '유효 표본 수',
-    missing_count: '결측 수',
-    true_count: '감지 표본 수',
-    false_count: '미감지 표본 수',
-  }
+    min: "최솟값",
+    max: "최댓값",
+    mean: "평균",
+    first: "처음값",
+    last: "마지막값",
+    delta: "변화량",
+    valid_count: "유효 표본 수",
+    missing_count: "결측 수",
+    true_count: "감지 표본 수",
+    false_count: "미감지 표본 수",
+  };
   return display
-    .replace(/\bwindow-(\d+)\b/g, '조회 구간 $1')
+    .replace(/\bwindow-(\d+)\b/g, "조회 구간 $1")
     .replace(
       /\b([a-z_]+)\.(min|max|mean|first|last|delta|valid_count|missing_count|true_count|false_count)\b/g,
       (whole, field, stat) =>
@@ -53,25 +53,25 @@ function readableText(text: string, incident?: ReportIncident | null) {
     .replace(
       /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})\b/g,
       (value) => {
-        const date = new Date(value)
-        if (Number.isNaN(date.getTime())) return value
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value;
         const parts = Object.fromEntries(
-          new Intl.DateTimeFormat('ko-KR', {
-            timeZone: 'Asia/Seoul',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hourCycle: 'h23',
+          new Intl.DateTimeFormat("ko-KR", {
+            timeZone: "Asia/Seoul",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hourCycle: "h23",
           })
             .formatToParts(date)
             .map(({ type, value }) => [type, value]),
-        )
-        return `${parts.year}. ${parts.month}. ${parts.day}. ${parts.hour}:${parts.minute}:${parts.second}`
+        );
+        return `${parts.year}. ${parts.month}. ${parts.day}. ${parts.hour}:${parts.minute}:${parts.second}`;
       },
-    )
+    );
 }
 
 function Items({
@@ -79,19 +79,19 @@ function Items({
   ordered = false,
   empty,
 }: {
-  items?: string[]
-  ordered?: boolean
-  empty: string
+  items?: string[];
+  ordered?: boolean;
+  empty: string;
 }) {
-  if (!items?.length) return <span>{empty}</span>
-  const List = ordered ? 'ol' : 'ul'
+  if (!items?.length) return <span>{empty}</span>;
+  const List = ordered ? "ol" : "ul";
   return (
     <List className="report-analysis-list">
       {items.map((text, index) => (
         <li key={index}>{text}</li>
       ))}
     </List>
-  )
+  );
 }
 
 export default function ReportAnalysisSection({
@@ -99,18 +99,18 @@ export default function ReportAnalysisSection({
   incident = null,
   showTitle = true,
 }: {
-  analysis: Analysis | null
-  incident?: ReportIncident | null
-  showTitle?: boolean
+  analysis: Analysis | null;
+  incident?: ReportIncident | null;
+  showTitle?: boolean;
 }) {
-  const ready = analysis?.status === 'OK'
+  const ready = analysis?.status === "OK";
   const message = !analysis
-    ? 'AI 초안이 아직 연결되지 않았습니다.'
-    : analysis.status === 'INSUFFICIENT_EVIDENCE'
-      ? '근거가 부족해 AI 초안 작성을 중단했습니다.'
-      : analysis.status === 'OK'
-        ? '제시된 원인 후보 없음'
-        : 'AI 분석에 실패했습니다. 담당자 확인이 필요합니다.'
+    ? "AI 초안이 아직 연결되지 않았습니다."
+    : analysis.status === "INSUFFICIENT_EVIDENCE"
+      ? "근거가 부족해 AI 초안 작성을 중단했습니다."
+      : analysis.status === "OK"
+        ? "제시된 원인 후보 없음"
+        : "AI 분석에 실패했습니다. 담당자 확인이 필요합니다.";
   return (
     <section className="report-section">
       {showTitle && (
@@ -129,19 +129,19 @@ export default function ReportAnalysisSection({
                     <strong>{item.cause}</strong>
                     {item.likelihood && (
                       <>
-                        {' '}
-                        ·{' '}
-                        {item.likelihood === '미평가'
-                          ? '미평가 · 추가 점검 필요'
+                        {" "}
+                        ·{" "}
+                        {item.likelihood === "미평가"
+                          ? "미평가 · 추가 점검 필요"
                           : `가능성 ${item.likelihood}`}
                       </>
                     )}
                     {item.basis &&
-                      item.basis.replace(/\r\n/g, '\n').trim() !==
+                      item.basis.replace(/\r\n/g, "\n").trim() !==
                         analysis.observed_facts
-                          ?.replace(/\r\n/g, '\n')
+                          ?.replace(/\r\n/g, "\n")
                           .trim() && (
-                        <p style={{ whiteSpace: 'pre-wrap' }}>
+                        <p style={{ whiteSpace: "pre-wrap" }}>
                           {readableText(item.basis, incident)}
                         </p>
                       )}
@@ -224,5 +224,5 @@ export default function ReportAnalysisSection({
         </div>
       </div>
     </section>
-  )
+  );
 }

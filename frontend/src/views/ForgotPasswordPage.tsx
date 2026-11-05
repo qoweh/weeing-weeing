@@ -1,11 +1,11 @@
-import AuthHero from '../components/auth/AuthHero'
-import ForgotPasswordForm from '../components/auth/ForgotPasswordForm'
-import '../components/auth/login.scss'
+import AuthHero from "../components/auth/AuthHero";
+import ForgotPasswordForm from "../components/auth/ForgotPasswordForm";
+import "../components/auth/login.scss";
 
 export default function ForgotPasswordPage({
   onLogin,
 }: {
-  onLogin: () => void
+  onLogin: () => void;
 }) {
   return (
     <main className="login-page">
@@ -29,5 +29,5 @@ export default function ForgotPasswordPage({
       </section>
       <footer className="login-footer">© 위잉위잉 · Equipment AI</footer>
     </main>
-  )
+  );
 }

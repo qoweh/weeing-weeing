@@ -1,6 +1,6 @@
-import SignupForm from '../components/auth/SignupForm'
-import '../components/auth/login.scss'
-import '../components/auth/signup.scss'
+import SignupForm from "../components/auth/SignupForm";
+import "../components/auth/login.scss";
+import "../components/auth/signup.scss";
 
 export default function SignupPage({ onLogin }: { onLogin: () => void }) {
   return (
@@ -22,7 +22,7 @@ export default function SignupPage({ onLogin }: { onLogin: () => void }) {
         </p>
         <SignupForm />
         <div className="login-card__contact">
-          이미 계정이 있으신가요?{' '}
+          이미 계정이 있으신가요?{" "}
           <button className="auth-link" type="button" onClick={onLogin}>
             로그인
           </button>
@@ -30,5 +30,5 @@ export default function SignupPage({ onLogin }: { onLogin: () => void }) {
       </section>
       <footer className="login-footer">© 위잉위잉 · Equipment AI</footer>
     </main>
-  )
+  );
 }

@@ -1,2 +1,2 @@
 // JavaScript compatibility entry, matching client.js.
-export * from './telemetry.ts'
+export * from "./telemetry.ts";

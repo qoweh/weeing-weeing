@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react'
-import Card from '../ui/Card'
-import Badge from '../ui/Badge'
+import type { ReactNode } from "react";
+import Card from "../ui/Card";
+import Badge from "../ui/Badge";
 export default function MetricCard({
   title,
   value,
@@ -9,12 +9,12 @@ export default function MetricCard({
   tone,
   icon,
 }: {
-  title: ReactNode
-  value: ReactNode
-  unit: ReactNode
-  note: ReactNode
-  tone: string
-  icon: ReactNode
+  title: ReactNode;
+  value: ReactNode;
+  unit: ReactNode;
+  note: ReactNode;
+  tone: string;
+  icon: ReactNode;
 }) {
   return (
     <Card className="metric">
@@ -30,5 +30,5 @@ export default function MetricCard({
       </div>
       <Badge tone={tone}>{note}</Badge>
     </Card>
-  )
+  );
 }

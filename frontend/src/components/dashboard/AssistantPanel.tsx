@@ -1,4 +1,4 @@
-import Card from '../ui/Card'
+import Card from "../ui/Card";
 export default function AssistantPanel() {
   return (
     <Card className="assistant">
@@ -25,5 +25,5 @@ export default function AssistantPanel() {
       </div>
       <p className="assistant__note">AI의 제안과 근거는 담당자가 검토합니다.</p>
     </Card>
-  )
+  );
 }

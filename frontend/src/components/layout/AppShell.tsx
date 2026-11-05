@@ -1,10 +1,10 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import ChatWidget from '../chat/ChatWidget.jsx'
-import type { Incident } from '../../api/client'
-import Header from './Header'
-import Sidebar from './Sidebar'
-import './layout.scss'
-import { readSettings, saveSettings, type Settings } from './settings'
+import { useEffect, useState, type ReactNode } from "react";
+import ChatWidget from "../chat/ChatWidget.jsx";
+import type { Incident } from "../../api/client";
+import Header from "./Header";
+import Sidebar from "./Sidebar";
+import "./layout.scss";
+import { readSettings, saveSettings, type Settings } from "./settings";
 
 export default function AppShell({
   theme,
@@ -18,33 +18,33 @@ export default function AppShell({
   onSessionExpired,
   children,
 }: {
-  theme: string
-  onToggleTheme: () => void
-  user: { name: string; role: string; employee_no: string }
-  onLogout: () => void
-  busy: boolean
-  page: string
-  onNavigate: (page: string) => void
-  onIncidentSelect: (incident: Incident) => void
-  onSessionExpired: () => void
-  children: ReactNode
+  theme: string;
+  onToggleTheme: () => void;
+  user: { name: string; role: string; employee_no: string };
+  onLogout: () => void;
+  busy: boolean;
+  page: string;
+  onNavigate: (page: string) => void;
+  onIncidentSelect: (incident: Incident) => void;
+  onSessionExpired: () => void;
+  children: ReactNode;
 }) {
-  const [settings, setSettings] = useState(readSettings)
+  const [settings, setSettings] = useState(readSettings);
   function changeSettings(next: Settings) {
-    setSettings(next)
-    saveSettings(next)
+    setSettings(next);
+    saveSettings(next);
   }
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
-      return localStorage.getItem('weeing-sidebar') === 'collapsed'
+      return localStorage.getItem("weeing-sidebar") === "collapsed";
     } catch {
-      return false
+      return false;
     }
-  })
+  });
   function changeSidebarCollapsed(next: boolean) {
-    setSidebarCollapsed(next)
+    setSidebarCollapsed(next);
     try {
-      localStorage.setItem('weeing-sidebar', next ? 'collapsed' : 'expanded')
+      localStorage.setItem("weeing-sidebar", next ? "collapsed" : "expanded");
     } catch {
       /* Storage may be unavailable. */
     }
@@ -53,73 +53,73 @@ export default function AppShell({
   // 사용자가 직접 바꾼 값은 이 브라우저에 저장해 다음에도 유지한다.
   const [defaultScreenZoom] = useState(() =>
     window.innerWidth < 1800 ? 90 : 100,
-  )
+  );
   const [screenZoom, setScreenZoom] = useState(() => {
     try {
-      const saved = Number(localStorage.getItem('weeing-zoom'))
-      if ([80, 90, 100, 110, 120].includes(saved)) return saved
+      const saved = Number(localStorage.getItem("weeing-zoom"));
+      if ([80, 90, 100, 110, 120].includes(saved)) return saved;
     } catch {
       /* Storage may be unavailable. */
     }
-    return defaultScreenZoom
-  })
+    return defaultScreenZoom;
+  });
   function changeScreenZoom(next: number | ((value: number) => number)) {
-    const value = typeof next === 'function' ? next(screenZoom) : next
-    setScreenZoom(value)
+    const value = typeof next === "function" ? next(screenZoom) : next;
+    setScreenZoom(value);
     try {
-      localStorage.setItem('weeing-zoom', String(value))
+      localStorage.setItem("weeing-zoom", String(value));
     } catch {
       /* Storage may be unavailable. */
     }
   }
   function resetScreenZoom() {
-    setScreenZoom(defaultScreenZoom)
+    setScreenZoom(defaultScreenZoom);
     try {
-      localStorage.removeItem('weeing-zoom')
+      localStorage.removeItem("weeing-zoom");
     } catch {
       /* Storage may be unavailable. */
     }
   }
 
   useEffect(() => {
-    document.documentElement.style.zoom = `${screenZoom}%`
+    document.documentElement.style.zoom = `${screenZoom}%`;
     // zoom은 vh까지 같이 배율을 곱하므로, 셸 높이가 화면에 맞도록 배율을 CSS 변수로 넘긴다.
     document.documentElement.style.setProperty(
-      '--screen-zoom',
+      "--screen-zoom",
       String(screenZoom / 100),
-    )
+    );
     return () => {
-      document.documentElement.style.zoom = ''
-      document.documentElement.style.removeProperty('--screen-zoom')
-    }
-  }, [screenZoom])
+      document.documentElement.style.zoom = "";
+      document.documentElement.style.removeProperty("--screen-zoom");
+    };
+  }, [screenZoom]);
 
   useEffect(() => {
     function preventZoomShortcut(event: KeyboardEvent) {
       if (
         (event.ctrlKey || event.metaKey) &&
-        (['+', '-', '=', '_'].includes(event.key) ||
-          ['NumpadAdd', 'NumpadSubtract'].includes(event.code))
+        (["+", "-", "=", "_"].includes(event.key) ||
+          ["NumpadAdd", "NumpadSubtract"].includes(event.code))
       ) {
-        event.preventDefault()
+        event.preventDefault();
       }
     }
     function preventZoomWheel(event: WheelEvent) {
-      if (event.ctrlKey || event.metaKey) event.preventDefault()
+      if (event.ctrlKey || event.metaKey) event.preventDefault();
     }
-    window.addEventListener('keydown', preventZoomShortcut, true)
-    window.addEventListener('wheel', preventZoomWheel, {
+    window.addEventListener("keydown", preventZoomShortcut, true);
+    window.addEventListener("wheel", preventZoomWheel, {
       passive: false,
       capture: true,
-    })
+    });
     return () => {
-      window.removeEventListener('keydown', preventZoomShortcut, true)
-      window.removeEventListener('wheel', preventZoomWheel, true)
-    }
-  }, [])
+      window.removeEventListener("keydown", preventZoomShortcut, true);
+      window.removeEventListener("wheel", preventZoomWheel, true);
+    };
+  }, []);
 
   return (
-    <div className={`shell ${sidebarCollapsed ? 'shell--collapsed' : ''}`}>
+    <div className={`shell ${sidebarCollapsed ? "shell--collapsed" : ""}`}>
       <Header
         user={user}
         onLogout={onLogout}
@@ -133,7 +133,7 @@ export default function AppShell({
         sidebarCollapsed={sidebarCollapsed}
         onChangeSidebarCollapsed={changeSidebarCollapsed}
         onIncidentSelect={onIncidentSelect}
-        onNavigateDashboard={() => onNavigate('dashboard')}
+        onNavigateDashboard={() => onNavigate("home")}
         onSessionExpired={onSessionExpired}
         settings={settings}
         onChangeSettings={changeSettings}
@@ -148,7 +148,11 @@ export default function AppShell({
       <main className="shell__content" id="main-content">
         {children}
       </main>
-      <ChatWidget screenZoom={screenZoom} displayMode={settings.chatDisplay} onSessionExpired={onSessionExpired} />
+      <ChatWidget
+        screenZoom={screenZoom}
+        displayMode={settings.chatDisplay}
+        onSessionExpired={onSessionExpired}
+      />
     </div>
-  )
+  );
 }

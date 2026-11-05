@@ -1,6 +1,6 @@
-import { useEffect, useId, useRef } from 'react'
-import Button from './Button'
-import './ReplaceDocumentDialog.css'
+import { useEffect, useId, useRef } from "react";
+import Button from "./Button";
+import "./ReplaceDocumentDialog.css";
 
 export default function ReplaceDocumentDialog({
   docId,
@@ -9,27 +9,27 @@ export default function ReplaceDocumentDialog({
   onCancel,
   onConfirm,
 }: {
-  docId: string
-  existingVersions: string[]
-  newVersion: string
-  onCancel: () => void
-  onConfirm: () => void
+  docId: string;
+  existingVersions: string[];
+  newVersion: string;
+  onCancel: () => void;
+  onConfirm: () => void;
 }) {
-  const dialog = useRef<HTMLDialogElement>(null)
-  const cancelButton = useRef<HTMLButtonElement>(null)
-  const titleId = useId()
-  const descriptionId = useId()
+  const dialog = useRef<HTMLDialogElement>(null);
+  const cancelButton = useRef<HTMLButtonElement>(null);
+  const titleId = useId();
+  const descriptionId = useId();
 
   useEffect(() => {
-    const element = dialog.current
-    const previousFocus = window.document.activeElement
-    if (element && !element.open) element.showModal()
-    cancelButton.current?.focus()
+    const element = dialog.current;
+    const previousFocus = window.document.activeElement;
+    if (element && !element.open) element.showModal();
+    cancelButton.current?.focus();
     return () => {
-      if (element?.open) element.close()
-      if (previousFocus instanceof HTMLElement) previousFocus.focus()
-    }
-  }, [])
+      if (element?.open) element.close();
+      if (previousFocus instanceof HTMLElement) previousFocus.focus();
+    };
+  }, []);
 
   return (
     <dialog
@@ -38,15 +38,16 @@ export default function ReplaceDocumentDialog({
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
       onCancel={(event) => {
-        event.preventDefault()
-        onCancel()
+        event.preventDefault();
+        onCancel();
       }}
     >
       <h2 id={titleId}>기존 문서 버전이 있습니다</h2>
       <p className="replace-document-dialog__name">{docId}</p>
       <p id={descriptionId}>
-        같은 문서 ID로 등록된 버전 {existingVersions.map((item) => `v${item}`).join(', ')}
-        이 있습니다. 새 버전 v{newVersion}을 등록할까요?
+        같은 문서 ID로 등록된 버전{" "}
+        {existingVersions.map((item) => `v${item}`).join(", ")}이 있습니다. 새
+        버전 v{newVersion}을 등록할까요?
       </p>
       <div className="replace-document-dialog__actions">
         <Button ref={cancelButton} type="button" onClick={onCancel}>
@@ -61,5 +62,5 @@ export default function ReplaceDocumentDialog({
         </Button>
       </div>
     </dialog>
-  )
+  );
 }

@@ -11,10 +11,12 @@
 .signup-page .login-brand__mark {
   width: 44px;
   height: 44px;
-  font-size: 22px;
+  font-size: var(--fs-heading-l);
+  line-height: var(--lh-heading-l);
 }
 .signup-page .login-brand {
-  font-size: 20px;
+  font-size: var(--fs-heading-l);
+  line-height: var(--lh-heading-l);
 }
 .signup-page {
   padding-top: 40px;

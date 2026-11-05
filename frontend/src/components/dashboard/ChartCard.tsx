@@ -1,15 +1,15 @@
-import type { ReactNode } from 'react'
-import Card from '../ui/Card'
+import type { ReactNode } from "react";
+import Card from "../ui/Card";
 export default function ChartCard({
   title,
   description,
   children,
-  className = '',
+  className = "",
 }: {
-  title: ReactNode
-  description?: ReactNode
-  children: ReactNode
-  className?: string
+  title: ReactNode;
+  description?: ReactNode;
+  children: ReactNode;
+  className?: string;
 }) {
   return (
     <Card className={`chart-card ${className}`}>
@@ -22,5 +22,5 @@ export default function ChartCard({
       </div>
       {children}
     </Card>
-  )
+  );
 }

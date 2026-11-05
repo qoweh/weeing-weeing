@@ -1,13 +1,13 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import Button from '../ui/Button'
+import { useEffect, useState, type FormEvent } from "react";
+import Button from "../ui/Button";
 
-const savedEmployeeNoKey = 'weeing-saved-employee-no'
+const savedEmployeeNoKey = "weeing-saved-employee-no";
 
 function readSavedEmployeeNo() {
   try {
-    return localStorage.getItem(savedEmployeeNoKey) || ''
+    return localStorage.getItem(savedEmployeeNoKey) || "";
   } catch {
-    return ''
+    return "";
   }
 }
 
@@ -30,7 +30,7 @@ export function EyeIcon({ off = false }: { off?: boolean }) {
         />
       )}
     </svg>
-  )
+  );
 }
 
 export default function LoginForm({
@@ -38,45 +38,45 @@ export default function LoginForm({
   onForgotPassword,
   sessionError,
 }: {
-  onLogin: (id: string, password: string) => Promise<void>
-  onForgotPassword: () => void
-  sessionError?: string
+  onLogin: (id: string, password: string) => Promise<void>;
+  onForgotPassword: () => void;
+  sessionError?: string;
 }) {
-  const [savedEmployeeNo] = useState(readSavedEmployeeNo)
-  const [id, setId] = useState(savedEmployeeNo)
+  const [savedEmployeeNo] = useState(readSavedEmployeeNo);
+  const [id, setId] = useState(savedEmployeeNo);
   const [rememberEmployeeNo, setRememberEmployeeNo] = useState(
     Boolean(savedEmployeeNo),
-  )
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
+  );
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     try {
       if (rememberEmployeeNo && id.trim()) {
-        localStorage.setItem(savedEmployeeNoKey, id.trim())
+        localStorage.setItem(savedEmployeeNoKey, id.trim());
       } else {
-        localStorage.removeItem(savedEmployeeNoKey)
+        localStorage.removeItem(savedEmployeeNoKey);
       }
     } catch {
       // 브라우저 저장소를 사용할 수 없어도 로그인은 계속할 수 있다.
     }
-  }, [id, rememberEmployeeNo])
+  }, [id, rememberEmployeeNo]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (busy) return
-    setBusy(true)
-    setError('')
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setError("");
     try {
-      await onLogin(id.trim(), password)
+      await onLogin(id.trim(), password);
     } catch (failure) {
       setError(
-        failure instanceof Error ? failure.message : '로그인에 실패했습니다.',
-      )
+        failure instanceof Error ? failure.message : "로그인에 실패했습니다.",
+      );
     } finally {
-      setBusy(false)
+      setBusy(false);
     }
   }
 
@@ -88,8 +88,8 @@ export default function LoginForm({
           id="login-id"
           value={id}
           onChange={(event) => {
-            setId(event.target.value)
-            setError('')
+            setId(event.target.value);
+            setError("");
           }}
           placeholder="사번을 입력해 주세요"
           autoComplete="username"
@@ -103,11 +103,11 @@ export default function LoginForm({
         <div className="login-password">
           <input
             id="login-password"
-            type={showPassword ? 'text' : 'password'}
+            type={showPassword ? "text" : "password"}
             value={password}
             onChange={(event) => {
-              setPassword(event.target.value)
-              setError('')
+              setPassword(event.target.value);
+              setError("");
             }}
             placeholder="비밀번호를 입력해 주세요"
             autoComplete="current-password"
@@ -118,7 +118,7 @@ export default function LoginForm({
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
+            aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
           >
             <EyeIcon off={showPassword} />
           </button>
@@ -136,7 +136,7 @@ export default function LoginForm({
             checked={rememberEmployeeNo}
             onChange={(event) => setRememberEmployeeNo(event.target.checked)}
             disabled={busy}
-          />{' '}
+          />{" "}
           사번 저장
         </label>
         <button
@@ -148,8 +148,8 @@ export default function LoginForm({
         </button>
       </div>
       <Button variant="primary" type="submit" disabled={busy}>
-        {busy ? '로그인 중…' : '로그인'}
+        {busy ? "로그인 중…" : "로그인"}
       </Button>
     </form>
-  )
+  );
 }

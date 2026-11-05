@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import PageTitle from "../components/ui/PageTitle";
+import ModelViewer from "../components/dashboard/ModelViewer";
+import ModelViewerModal from "../components/dashboard/ModelViewerModal";
 import DashboardAside from "../components/dashboard/DashboardAside";
 import useTelemetryDashboard from "./useTelemetryDashboard";
+import useDragScroll from "./useDragScroll";
 import {
   sensorCharts,
   sensorValue,
@@ -9,6 +12,7 @@ import {
   sensorPath,
   sensorStatus,
 } from "./telemetryCharts";
+import { reportEquipmentName } from "../components/report/reportPresentation";
 import "./DashboardPage.scss";
 
 const charts = sensorCharts;
@@ -23,9 +27,12 @@ export default function DashboardPage({
 }) {
   const [refreshInterval, setRefreshInterval] = useState("1");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [viewerExpanded, setViewerExpanded] = useState(false);
   const [hiddenCharts, setHiddenCharts] = useState<string[]>([]);
   const settingsRef = useRef<HTMLDivElement>(null);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  useDragScroll(gridRef);
   const { model, error, now } = useTelemetryDashboard(
     Number(refreshInterval) * 1000,
     onSessionExpired,
@@ -33,8 +40,15 @@ export default function DashboardPage({
   const state = model.snapshot;
   const record = state?.telemetry;
   const status = sensorStatus(model, error, now);
+  // 센서 스트림은 현재 BLDC-001 한 대뿐이라, 수신 기록에 설비 ID가 없으면 이 설비로 본다.
+  const assetId =
+    typeof record?.asset_id === "string" ? record.asset_id : "BLDC-001";
+  const equipmentName = reportEquipmentName(assetId) || assetId;
+  // 안내 문구가 실제로 하나라도 보일 때만 감싸는 div를 그린다(빈 div의 여백 방지).
   const hasConnectionNotice =
-    state?.context_preset ||
+    state?.context_preset === "UNREAL_STATE" ||
+    state?.context_preset === "SIM_RPM" ||
+    (state?.context_preset && state?.run_id) ||
     (!status.current && record) ||
     model.sessionChanged ||
     error;
@@ -62,8 +76,17 @@ export default function DashboardPage({
   return (
     <div className="sensor-dashboard">
       <div className="sensor-dashboard__header">
-        <div>
-          <PageTitle>대시보드</PageTitle>
+        <div className="home-heading">
+          {onNavigate && (
+            <button
+              type="button"
+              className="home-back"
+              onClick={() => onNavigate("home")}
+            >
+              <span aria-hidden="true">‹</span> 대시보드로 돌아가기
+            </button>
+          )}
+          <PageTitle>{equipmentName}</PageTitle>
         </div>
         <div className="sensor-dashboard__settings" ref={settingsRef}>
           <button
@@ -212,7 +235,7 @@ export default function DashboardPage({
         </div>
       )}
       <div className="sensor-dashboard__body">
-        <div className="sensor-dashboard__grid">
+        <div className="sensor-dashboard__grid" ref={gridRef}>
           {charts
             .filter((chart) => !hiddenCharts.includes(chart.title))
             .map((chart) => {
@@ -229,11 +252,22 @@ export default function DashboardPage({
                   <div className="sensor-chart__heading">
                     <h2>
                       {chart.title}
+                      {chart.unit && (
+                        <span className="sensor-chart__unit">
+                          {" "}
+                          [{chart.unit}]
+                        </span>
+                      )}
                       <span className="sensor-chart__code">
                         {" "}
                         ({chart.code})
                       </span>
                     </h2>
+                  </div>
+                  <div className="sensor-chart__row">
+                    <p className="sensor-chart__value">
+                      {formatSensor(value, chart.digits)}
+                    </p>
                     <span
                       className="sensor-chart__badge"
                       data-state={
@@ -251,45 +285,52 @@ export default function DashboardPage({
                           : "마지막 수신값"}
                     </span>
                   </div>
-                  <p className="sensor-chart__value">
-                    {formatSensor(value, chart.digits)}
-                    {chart.unit && (
-                      <span className="sensor-chart__unit"> {chart.unit}</span>
-                    )}
-                  </p>
-                  <svg
-                    className="sensor-chart__graph"
-                    viewBox="0 0 600 80"
-                    preserveAspectRatio="none"
-                    role="img"
-                    aria-label={`${chart.title}의 최근 수신 추이`}
-                  >
-                    <path
-                      d="M0 16H600 M0 45H600 M0 74H600"
-                      className="sensor-chart__gridline"
-                    />
-                    {path && model.samples.length > 1 ? (
-                      <path d={path} className="sensor-chart__line" />
-                    ) : (
-                      <text
-                        x="300"
-                        y="45"
-                        textAnchor="middle"
-                        className="sensor-chart__placeholder"
-                      >
+                  <div className="sensor-chart__plot">
+                    <svg
+                      className="sensor-chart__graph"
+                      viewBox="0 0 600 80"
+                      preserveAspectRatio="none"
+                      role="img"
+                      aria-label={`${chart.title}의 최근 수신 추이`}
+                    >
+                      <path
+                        d="M0 16H600 M0 45H600 M0 74H600"
+                        className="sensor-chart__gridline"
+                      />
+                      {path && model.samples.length > 1 ? (
+                        <path d={path} className="sensor-chart__line" />
+                      ) : null}
+                    </svg>
+                    {!(path && model.samples.length > 1) && (
+                      <span className="sensor-chart__placeholder">
                         {value === null ? "미수신" : "표본 수집 중"}
-                      </text>
+                      </span>
                     )}
-                  </svg>
+                  </div>
                   <p className="sensor-chart__footer">최근 60초</p>
                 </section>
               );
             })}
         </div>
-        <DashboardAside
-          onNavigate={onNavigate}
-          onSessionExpired={onSessionExpired}
-        />
+        <div className="sensor-dashboard__lower">
+          <section
+            className="sensor-dashboard__placeholder"
+            aria-label="3D 모델 뷰어"
+          >
+            <ModelViewer
+              paused={viewerExpanded}
+              onExpand={() => setViewerExpanded(true)}
+            />
+            <ModelViewerModal
+              open={viewerExpanded}
+              onClose={() => setViewerExpanded(false)}
+            />
+          </section>
+          <DashboardAside
+            onNavigate={onNavigate}
+            onSessionExpired={onSessionExpired}
+          />
+        </div>
       </div>
       {hiddenCharts.length === charts.length && (
         <p className="sensor-dashboard__empty">

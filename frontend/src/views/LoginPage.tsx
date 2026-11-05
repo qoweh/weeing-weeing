@@ -1,7 +1,7 @@
-import { AuthBrand } from '../components/auth/AuthHero'
-import LoginForm from '../components/auth/LoginForm'
-import TestAccounts from '../components/auth/TestAccounts'
-import '../components/auth/login.scss'
+import { AuthBrand } from "../components/auth/AuthHero";
+import LoginForm from "../components/auth/LoginForm";
+import TestAccounts from "../components/auth/TestAccounts";
+import "../components/auth/login.scss";
 
 export default function LoginPage({
   onLogin,
@@ -9,10 +9,10 @@ export default function LoginPage({
   onForgotPassword,
   error,
 }: {
-  onLogin: (employeeNo: string, password: string) => Promise<void>
-  onSignup: () => void
-  onForgotPassword: () => void
-  error?: string
+  onLogin: (employeeNo: string, password: string) => Promise<void>;
+  onSignup: () => void;
+  onForgotPassword: () => void;
+  error?: string;
 }) {
   return (
     <main className="login-page login-page--sign-in login-page--with-accounts">
@@ -30,7 +30,7 @@ export default function LoginPage({
           sessionError={error}
         />
         <div className="login-card__contact">
-          계정이 필요하신가요?{' '}
+          계정이 필요하신가요?{" "}
           <button className="auth-link" type="button" onClick={onSignup}>
             회원가입
           </button>
@@ -38,5 +38,5 @@ export default function LoginPage({
       </section>
       <footer className="login-footer">© 위잉위잉 · Equipment AI</footer>
     </main>
-  )
+  );
 }

@@ -43,20 +43,21 @@
   border-radius: 50%;
   background: var(--warning-bg);
   color: var(--warning);
-  font-size: 28px;
-  font-weight: 700;
+  font-size: var(--fs-display);
+  font-weight: 800;
   line-height: 1;
 }
 
 .report-draft-dialog__notice h2 {
   margin: 18px 0 8px;
   color: var(--text);
-  font-size: 19px;
+  font-size: var(--fs-heading-l);
+  line-height: var(--lh-heading-l);
 }
 
 .report-draft-dialog__notice p {
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.6;
   word-break: keep-all;
 }
@@ -104,11 +105,12 @@
 .report-draft-dialog__header p {
   margin-bottom: 4px;
   color: var(--muted, #6d7d96);
-  font-size: 12px;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
 }
 
 .report-draft-dialog__header h2 {
-  font-size: 18px;
+  font-size: var(--fs-heading-m);
   line-height: 1.4;
 }
 
@@ -123,7 +125,7 @@
   background: transparent;
   color: inherit;
   cursor: pointer;
-  font-size: 24px;
+  font-size: var(--fs-heading-l);
   line-height: 1;
 }
 
@@ -136,7 +138,7 @@
   margin: 16px 24px 0;
   padding: 12px 14px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: var(--fs-caption);
   line-height: 1.6;
 }
 

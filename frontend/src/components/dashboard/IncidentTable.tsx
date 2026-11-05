@@ -1,31 +1,31 @@
-import Card from '../ui/Card'
-import Badge from '../ui/Badge'
+import Card from "../ui/Card";
+import Badge from "../ui/Badge";
 const rows = [
   [
-    'INC-024',
-    '컨베이어 1호기',
-    '진동 수치 확인',
-    '10:32',
-    '확인 대기',
-    'warning',
+    "INC-024",
+    "컨베이어 1호기",
+    "진동 수치 확인",
+    "10:32",
+    "확인 대기",
+    "warning",
   ],
   [
-    'INC-023',
-    '컨베이어 1호기',
-    '온도 추이 확인',
-    '09:15',
-    '검토 중',
-    'neutral',
+    "INC-023",
+    "컨베이어 1호기",
+    "온도 추이 확인",
+    "09:15",
+    "검토 중",
+    "neutral",
   ],
   [
-    'INC-022',
-    '컨베이어 1호기',
-    '센서 신호 확인',
-    '어제 16:40',
-    '검토 완료',
-    'success',
+    "INC-022",
+    "컨베이어 1호기",
+    "센서 신호 확인",
+    "어제 16:40",
+    "검토 완료",
+    "success",
   ],
-]
+];
 export default function IncidentTable() {
   return (
     <Card className="incident-card">
@@ -66,5 +66,5 @@ export default function IncidentTable() {
         표시된 사건은 화면 구성을 위한 예시입니다.
       </p>
     </Card>
-  )
+  );
 }

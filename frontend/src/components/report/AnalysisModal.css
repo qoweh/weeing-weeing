@@ -43,15 +43,18 @@
 .analysis-dialog header p {
   margin: 0 0 4px;
   color: var(--muted, #6d7d96);
-  font-size: 12px;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
 }
 .analysis-dialog header h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--fs-heading-m);
+  line-height: var(--lh-heading-m);
 }
 .analysis-dialog__state {
   margin: 16px 24px 0;
-  font-size: 13px;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
 }
 .analysis-dialog .analysis-dialog__sheet {
   --report-line: var(--border, #d1d9e5);

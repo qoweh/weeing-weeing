@@ -44,7 +44,8 @@ select:focus-visible {
   align-items: center;
   border-radius: 7px;
   padding: 0.3rem 0.55rem;
-  font-size: 0.75rem;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
   font-weight: 700;
   white-space: nowrap;
 }
@@ -67,7 +68,7 @@ select:focus-visible {
 .page-title {
   margin: 0 0 24px;
   color: var(--text);
-  font-size: 1.5rem;
+  font-size: var(--fs-heading-l);
   font-weight: 700;
   line-height: 1.3;
 }

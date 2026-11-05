@@ -7,6 +7,7 @@ import {
 } from "./api/client";
 import AppShell from "./components/layout/AppShell";
 import DashboardPage from "./views/DashboardPage";
+import HomePage from "./views/HomePage";
 import LoginPage from "./views/LoginPage";
 import { ManualPage, ManualUploadPage } from "./views/ManualPages";
 import IncidentHistoryPage from "./incident-hmi/pages/IncidentHistoryPage";
@@ -35,6 +36,7 @@ type Account = {
 const sessionKey = "weeing-report-session";
 const historyKey = "weeing-app-view";
 const pages = new Set([
+  "home",
   "dashboard",
   "manuals",
   "manual-upload",
@@ -76,7 +78,7 @@ export default function App() {
     Boolean(sessionStorage.getItem(sessionKey)),
   );
   const [initialView] = useState(
-    () => readHistoryView() || { page: "dashboard", reportSelection: null },
+    () => readHistoryView() || { page: "home", reportSelection: null },
   );
   const [reportSelection, setReportSelection] = useState(
     initialView.reportSelection || null,
@@ -95,10 +97,10 @@ export default function App() {
     sessionStorage.removeItem(sessionKey);
     setUser(null);
     setAuthPage("login");
-    setPage("dashboard");
+    setPage("home");
     setReportSelection(null);
     setIncidentFocus(null);
-    writeHistoryView({ page: "dashboard", reportSelection: null }, true);
+    writeHistoryView({ page: "home", reportSelection: null }, true);
   }, []);
 
   useEffect(() => {
@@ -117,7 +119,7 @@ export default function App() {
 
     function restoreHistoryView() {
       const view = readHistoryView();
-      setPage(view?.page || "dashboard");
+      setPage(view?.page || "home");
       setReportSelection(view?.reportSelection || null);
     }
 
@@ -153,9 +155,9 @@ export default function App() {
     setAccessToken(session.access_token);
     setError("");
     setUser(session.user);
-    setPage("dashboard");
+    setPage("home");
     setReportSelection(null);
-    writeHistoryView({ page: "dashboard", reportSelection: null }, true);
+    writeHistoryView({ page: "home", reportSelection: null }, true);
   }
 
   async function logout() {
@@ -284,6 +286,14 @@ export default function App() {
         <p className="workspace-error" role="alert">
           {error}
         </p>
+      )}
+      {page === "home" && (
+        <HomePage
+          user={user}
+          onNavigate={navigate}
+          onSessionExpired={forgetSession}
+          onOpenReport={(id) => openReportDraft(null, id)}
+        />
       )}
       <div hidden={page !== "dashboard"}>
         <DashboardPage onSessionExpired={forgetSession} onNavigate={navigate} />
