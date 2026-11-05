@@ -3,39 +3,63 @@
 import argparse
 from urllib.parse import urlsplit
 
-from report_case_variants import VARIANTS
+from report_case_variants import MORE_VARIANTS, VARIANTS
 from seed_22_reports import CASES, index_cases, seed_cases
 
 from weeing_weeing.config import get_settings
 from weeing_weeing.db import interface as db
 from weeing_weeing.rag import interface as rag
 
-# 각 원인 유형의 점검 기록은 서로 유사할 수 있으며 측정값을 임의로 추가하지 않는다.
-TRIAL_NOTES = (
-    "점검 후 관련 센서 표시와 설비 동작을 대조했다.",
-    "조치 전후 센서 표시와 운전 상태를 비교했다.",
-    "시험 과정에서 동일 이상이 재발하는지 확인했다.",
-    "동일한 운전 조건에서 설비 동작을 다시 확인했다.",
-    "관측값과 실제 설비 상태가 일치하는지 확인했다.",
-)
+RECOVERY = {
+    "P01": ("시험 트레이 이송시간", (14.7, 15.0, 15.3), "초"),
+    "P02": ("시험 트레이 이송시간", (14.6, 15.1, 15.4), "초"),
+    "P03": ("입구 센서 해제 유지 시간", (2.5, 3.0, 3.5), "초"),
+    "P04": ("출구 센서 해제 유지 시간", (2.6, 3.1, 3.6), "초"),
+    "P05": ("시험 투입 간격", (4.8, 5.0, 5.2), "초"),
+    "P06": ("시험 트레이 이송시간", (14.8, 15.1, 15.4), "초"),
+    "P07": ("시험 트레이 이송시간 중앙값", (14.8, 15.0, 15.2), "초"),
+    "M02": ("회복 후 모터 속도", (1010, 1015, 1020), "rpm"),
+    "M03": ("회복 후 모터 속도", (1010, 1015, 1020), "rpm"),
+    "M05": ("회복 후 DC 입력전류", (0.091, 0.092, 0.093), "A"),
+    "M06": ("회복 후 DC 입력전류", (0.091, 0.092, 0.093), "A"),
+    "M07": ("회복 후 DC 버스전압", (23.8, 24.0, 24.2), "V"),
+    "M08": ("회복 후 DC 버스전압", (23.8, 24.0, 24.2), "V"),
+    "M10": ("회복 후 모터 외함 온도", (67, 69, 71), "℃"),
+    "M11": ("회복 후 구동측 진동 RMS", (0.052, 0.060, 0.068), "g"),
+    "M12": ("회복 후 구동측 진동 RMS", (0.052, 0.060, 0.068), "g"),
+    "M13": ("회복 후 구동측 첨도", (4.1, 4.8, 5.4), ""),
+    "M14": ("회복 후 구동측 첨도", (4.1, 4.8, 5.4), ""),
+    "M15": ("회복 후 반구동측 진동 RMS", (0.052, 0.055, 0.059), "g"),
+    "M16": ("회복 후 반구동측 진동 RMS", (0.052, 0.055, 0.059), "g"),
+    "M17": ("회복 후 반구동측 첨도", (3.8, 4.2, 4.8), ""),
+    "M18": ("회복 후 반구동측 첨도", (3.8, 4.2, 4.8), ""),
+}
 
 
 def build_entries():
     expected = {case[0] for case in CASES}
-    if len(CASES) != 22 or set(VARIANTS) != expected:
+    if (
+        len(CASES) != 22
+        or set(VARIANTS) != expected
+        or set(MORE_VARIANTS) != expected
+        or set(RECOVERY) != expected
+    ):
         raise ValueError("22개 코드의 사례 구성이 올바르지 않습니다.")
     entries = []
     for base in CASES:
         code, field, value, unit, threshold, cause, action, trial = base
         alternatives = VARIANTS[code]
-        if len(alternatives) != 2:
-            raise ValueError(f"{code}의 추가 원인 유형은 두 개여야 합니다.")
-        types = [(cause, action, trial), *alternatives]
+        if len(alternatives) != 2 or len(MORE_VARIANTS[code]) != 2:
+            raise ValueError(f"{code}의 추가 원인 유형은 네 개여야 합니다.")
+        types = [(cause, action, trial), *alternatives, *MORE_VARIANTS[code]]
         for type_index, (new_cause, new_action, new_trial) in enumerate(types):
-            for repeat in range(5):
-                sequence = type_index * 5 + repeat + 1
+            for repeat in range(3):
+                sequence = type_index * 3 + repeat + 1
+                label, readings, unit_label = RECOVERY[code]
                 trial_text = (
-                    new_trial if sequence == 1 else f"{new_trial} {TRIAL_NOTES[repeat]}"
+                    new_trial
+                    if sequence == 1
+                    else f"{new_trial} {label}: {readings[repeat]}{unit_label}."
                 )
                 entries.append(
                     (

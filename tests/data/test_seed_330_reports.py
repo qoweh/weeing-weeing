@@ -22,7 +22,9 @@ def test_cases_and_environment_checks(monkeypatch):
     assert len(entries) == 330
     assert set(Counter(case[0] for case, _ in entries).values()) == {15}
     for code in {case[0] for case, _ in entries}:
-        assert len({case[5] for case, _ in entries if case[0] == code}) == 3
+        cases = [case for case, _ in entries if case[0] == code]
+        assert len({case[5] for case in cases}) == 5
+        assert len({(case[5], case[6], case[7]) for case in cases}) == 15
     local = SimpleNamespace(
         database_url="postgresql://user@localhost/db",
         vector_store="qdrant",
