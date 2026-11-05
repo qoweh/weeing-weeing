@@ -47,7 +47,7 @@ MANUAL_ONLY = f"""
 doc_id = "BTT-MANUAL"
 doc_type = "manual"
 asset_id = "BLDC-001"
-path = "{MANUAL}"
+path = "{MANUAL.as_posix()}"
 """
 
 
@@ -109,7 +109,9 @@ def test_seed_keeps_web_replaced_file_unless_replace(env):
     other = tmp_path / "BTT-MANUAL_v2.1.pdf"
     other.write_bytes(MANUAL.read_bytes() + b"\n% web upload\n")
     run(
-        seed.load_seed(manifest(tmp_path, MANUAL_ONLY.replace(str(MANUAL), str(other))))
+        seed.load_seed(
+            manifest(tmp_path, MANUAL_ONLY.replace(MANUAL.as_posix(), other.as_posix()))
+        )
     )
 
     items = seed.load_seed(manifest(tmp_path, MANUAL_ONLY))
@@ -151,7 +153,7 @@ def test_explicit_version_overrides_filename(env):
     ("body", "message"),
     [
         (MANUAL_ONLY.replace('"manual"', '"report"'), "doc_type"),
-        (MANUAL_ONLY.replace(str(MANUAL), "/없는/파일.pdf"), "PDF 파일이 없다"),
+        (MANUAL_ONLY.replace(MANUAL.as_posix(), "/없는/파일.pdf"), "PDF 파일이 없다"),
         (MANUAL_ONLY + MANUAL_ONLY, "중복"),
         (MANUAL_ONLY.replace('"BTT-MANUAL"', '"RPT-1"'), "doc_id"),
         (MANUAL_ONLY.replace('"BLDC-001"', '""'), "asset_id"),

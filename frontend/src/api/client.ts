@@ -29,6 +29,10 @@ export type IncidentOverview = {
 }
 
 export type MlPrediction = {
+  reference_time?: string
+  input_valid?: boolean
+  evaluation_eligible?: boolean
+  deadline_exceeded?: boolean
   status?: string
   reason?: string
   probabilities?: Record<string, number> | null
@@ -38,6 +42,8 @@ export type MlPrediction = {
   warning_threshold?: number
 }
 export type MlSnapshot = {
+  run_id?: string | null
+  model_version?: string | null
   enabled: boolean
   producer_connected: boolean
   stale: boolean
@@ -45,8 +51,8 @@ export type MlSnapshot = {
   prediction: MlPrediction
 }
 
-export function getMlPrediction(): Promise<MlSnapshot> {
-  return request('/ml/prediction')
+export function getMlPrediction(signal?: AbortSignal): Promise<MlSnapshot> {
+  return request('/ml/prediction', { signal, timeoutMs: 10_000 })
 }
 
 export function listIncidentOverview(): Promise<IncidentOverview[]> {
