@@ -24,7 +24,7 @@ function Show-Usage {
 
 서버 명령 (서버에서 실행)
   ps | health | logs [서비스] [줄수] | logs-all [줄수] | images
-  volumes | disk | rag | db | env-keys
+  volumes | disk | rag | db | env-keys | env-check | env-sync
   seed-docs [--replace] | reindex-reports | retry-reports
   restart <서비스> | up | pull-up | langfuse-ps | langfuse-logs [줄수]
   자세한 설명: .\ops\aws.ps1 server-help

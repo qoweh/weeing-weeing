@@ -89,6 +89,7 @@ Windows는 `ops/aws.sh`를 `.\ops\aws.ps1`로 바꾸면 된다.
 | `rag` | `.env`의 RAG 줄만 grep(끝 공백 표시), `curl localhost:6333/collections`, `document`·`report_index_job` 상태별 개수 |
 | `db` | `docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB"'` |
 | `env-keys` | `.env`의 변수 이름만 |
+| `env-check` / `env-sync` | 떠 있는 api 이미지로 `docker run --network none ... python check_env.py --no-shell-check` / `--add-missing` (서버 `.env.example`·`check_env.py`는 배포 워크플로가 복사) |
 | `seed-docs [--replace]` | `docker compose exec -T api python scripts/seed_documents.py` |
 | `reindex-reports` / `retry-reports` | `docker compose exec -T api python scripts/index_reports.py --all` / `--retry-failed` |
 | `restart <서비스>` | `docker compose restart <서비스>` |

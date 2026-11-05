@@ -8,13 +8,18 @@
     # 운영 서버(~/weeing-weeing): 컨테이너 안의 .env.example과 서버 .env를 비교
     docker compose run --rm --no-deps -v "$PWD/.env:/tmp/check.env:ro" api \
         python scripts/check_env.py --file /tmp/check.env --no-shell-check
+    # 빠진 키만 .env 끝에 추가(배포 워크플로가 실행. 서버: ops/aws.sh env-sync)
+    python scripts/check_env.py --file .env --example .env.example --add-missing
 
 종료 코드: 0 고칠 것 없음 / 1 고칠 것 있음(중복·형식 오류·빈 키·셸 값 충돌) / 2 파일 없음
+--add-missing은 0(추가했거나 추가할 것 없음) / 2(파일 없음)
 """
 
 import argparse
+import datetime
 import os
 import re
+import shutil
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -139,6 +144,47 @@ def check(
     return report, len(fix)
 
 
+def missing_lines(env: EnvFile, example_text: str) -> list[tuple[str, str]]:
+    """.env에 키가 아예 없는 .env.example 줄을 (키, 원래 줄)로 돌려준다.
+
+    값이 있든 비었든(KEY=), 주석(# KEY=)이든 .env에 키가 보이면 있는 것으로 본다.
+    .env.example의 줄은 주석이면 주석 그대로, 예시 값이 있으면 그 값 그대로 옮긴다.
+    """
+    present = set(env.lines) | set(env.commented)
+    found: list[tuple[str, str]] = []
+    for raw in example_text.splitlines():
+        line = raw.strip()
+        match = COMMENTED.match(line) or ACTIVE.match(line)
+        if match and match[1] not in present:
+            present.add(match[1])
+            found.append((match[1], line))
+    return found
+
+
+def add_missing(env_path: Path, example_path: Path) -> list[str]:
+    """빠진 키만 .env 끝에 덧붙이고 추가한 키 이름을 돌려준다.
+
+    기존 줄은 고치거나 지우지 않는다. 바꾸기 전 .env를 같은 폴더의 .env.bak으로
+    남긴다(권한 유지). 파일을 새로 만들지 않고 이어 써서 소유자·권한·마운트가 그대로다.
+    """
+    text = env_path.read_text(encoding="utf-8-sig")
+    lines = missing_lines(
+        parse_text(text), example_path.read_text(encoding="utf-8-sig")
+    )
+    if not lines:
+        return []
+    shutil.copy2(env_path, env_path.with_name(env_path.name + ".bak"))
+    today = datetime.date.today().isoformat()
+    block = [f"# ── {example_path.name}에서 자동 추가 ({today}) ──"]
+    block += [line for _, line in lines]
+    with env_path.open("a", encoding="utf-8", newline="\n") as file:
+        # 마지막 줄에 줄바꿈이 없으면 덧붙인 줄이 그 줄에 붙으므로 먼저 줄을 바꾼다.
+        if text and not text.endswith("\n"):
+            file.write("\n")
+        file.write("\n" + "\n".join(block) + "\n")
+    return [name for name, _ in lines]
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--file", type=Path, default=ROOT / ".env")
@@ -148,11 +194,26 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="셸 환경변수와 비교하지 않는다(컨테이너 안에서 실행할 때)",
     )
+    parser.add_argument(
+        "--add-missing",
+        action="store_true",
+        help="키가 아예 없는 .env.example 줄만 .env 끝에 추가한다(키 이름만 출력)",
+    )
     args = parser.parse_args(argv)
     for path in (args.file, args.example):
         if not path.is_file():
             print(f"{path} 파일이 없다. cp .env.example .env로 만든다", file=sys.stderr)
             return 2
+    if args.add_missing:
+        added = add_missing(args.file, args.example)
+        if added:
+            print(
+                f"{args.file}에 {len(added)}개 추가 (이전 파일: {args.file.name}.bak)"
+            )
+            print("\n".join(f"  + {name}" for name in added))
+        else:
+            print(f"{args.file}: 추가할 키 없음")
+        return 0
     env, example = parse(args.file), parse(args.example)
     shell = None if args.no_shell_check else dict(os.environ)
     report, problems = check(env, example, shell=shell)

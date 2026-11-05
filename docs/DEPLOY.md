@@ -14,9 +14,11 @@ GitHub (main push 또는 Run workflow)
   └─ Actions: 이미지 3개 빌드 → GHCR(ghcr.io/qoweh/weeing-weeing-*:<커밋 SHA>)
        └─ SSH로 서버 접속 → docker compose pull && up -d → API 헬스체크
 
-EC2 ~/weeing-weeing/          (레포 clone 없음. 이 두 파일만 있다)
+EC2 ~/weeing-weeing/          (레포 clone 없음)
   docker-compose.yml          ← deploy/docker-compose.prod.yml을 워크플로가 복사
-  .env                        ← 서버에서 직접 작성(비밀 값)
+  .env                        ← 서버에서 직접 작성(비밀 값). 빠진 키는 워크플로가 끝에 추가
+  .env.bak                    ← 워크플로가 키를 추가하기 직전의 .env
+  .env.example, check_env.py  ← 워크플로가 복사(.env 점검·보충용)
 
 web(Caddy :80/:443) ─┬─ /api/*  → api(FastAPI :8000)  ─┬─ postgres
                      ├─ /hmi/*  → hmi/web 정적 파일     ├─ qdrant
@@ -149,13 +151,32 @@ chmod 600 .env
 - `ANALYSIS_AUTO_ENABLED=true`는 사건마다 Claude API를 호출한다(비용). 시연할 때만 켠다
 - `SITE_ADDRESS=<EC2_IP>`로 HTTPS를 켠다. 자세한 내용은 [HTTPS·Langfuse·내부 서비스 접속](#httpslangfuse내부-서비스-접속)
 - `IMAGE_TAG`·`IMAGE_PREFIX`는 배포 워크플로가 적는다. 직접 고치지 않는다
-- 새 버전을 배포한 뒤에는 서버 `.env`에 빠진·낡은 변수가 없는지 점검한다. 값과 키는 출력하지 않는다. **기존 서버 `.env`를 `.env.example`로 통째로 덮어쓰지 않는다.** `POSTGRES_PASSWORD`가 예시 값으로 바뀌면 DB가 처음 값을 그대로 쓰고 있어 `password authentication failed`가 나고 로그인이 HTTP 503이 된다. 빠진 줄만 추가한다
+- **기존 서버 `.env`를 `.env.example`로 통째로 덮어쓰지 않는다.** `POSTGRES_PASSWORD`가 예시 값으로 바뀌면 DB가 처음 값을 그대로 쓰고 있어 `password authentication failed`가 나고 로그인이 HTTP 503이 된다
+
+#### 새 변수 자동 추가 (배포마다)
+
+배포 워크플로가 컨테이너를 바꾸기 전에 `.env.example`·`scripts/check_env.py`를 서버에 복사하고 `ops/server.sh env-sync`를 실행한다.
+
+| 서버 `.env`에서 그 키가 | 처리 |
+|---|---|
+| `KEY=값` / `KEY=`(빈 값) / `# KEY=…`(주석) | 그대로 둔다 |
+| 아예 없음 | `.env.example`의 그 줄을 **그대로**(주석이면 주석, 예시 값이면 예시 값) `.env` 끝에 추가 |
+
+- 기존 줄은 고치거나 지우지 않는다. `.env.example`에 없는 키도 그대로 둔다
+- 추가하기 전 `.env`를 `.env.bak`으로 남긴다(권한 600 유지, 다음 추가 때 덮어씀). 로그에는 추가한 **키 이름만** 나온다
+- 떠 있는 api 이미지의 Python으로 네트워크 없이 실행한다. `docker compose run`은 쓰지 않는다(새 compose가 요구하는 변수가 없으면 compose가 먼저 멈춘다)
+- 실패하면 컨테이너를 바꾸기 전에 배포가 멈춘다. 떠 있는 api가 없으면(첫 설치) 건너뛴다
+- 추가된 예시 값이 운영에 맞지 않으면(비밀 키·서버 주소 등) 배포 로그의 키 이름을 보고 서버에서 값을 고친 뒤 `ops/aws.sh up`
+
+#### 서버에서 직접 실행
 
 ```
-cd ~/weeing-weeing
-docker compose run --rm --no-deps -v "$PWD/.env:/tmp/check.env:ro" api \
-  python scripts/check_env.py --file /tmp/check.env --no-shell-check
+ops/aws.sh env-check      # 내 PC에서: .env ↔ .env.example 비교 (비밀 값은 설정됨/비어 있음만)
+ops/aws.sh env-sync       # 내 PC에서: 빠진 키만 추가
+ops/aws.sh up             # 추가·수정한 값을 컨테이너에 반영
 ```
+
+서버에 SSH로 들어가 있다면 `bash ~/server.sh env-sync`처럼 쓴다([ops/README](../ops/README.md)). 되돌리기: `cd ~/weeing-weeing && cp .env.bak .env && docker compose up -d`
 
 ## 배포
 

@@ -116,9 +116,19 @@ jobs:
           ssh "$EC2" 'mkdir -p ~/weeing-weeing && test -f ~/weeing-weeing/.env' \
             || { echo "::error::서버에 ~/weeing-weeing/.env가 없습니다(docs/DEPLOY.md 서버 .env)"; exit 1; }
 
-      - name: compose 파일 복사
+      - name: compose 파일·.env.example 복사
         run: |
           scp deploy/docker-compose.prod.yml "$EC2":~/weeing-weeing/docker-compose.yml
+          # .env 점검·보충용(ops/server.sh env-check·env-sync). .env 자체는 덮어쓰지 않는다.
+          scp .env.example "$EC2":~/weeing-weeing/.env.example
+          scp scripts/check_env.py "$EC2":~/weeing-weeing/check_env.py
+
+      - name: 서버 .env에 빠진 키 추가
+        run: |
+          # .env.example에 있는데 서버 .env에 키가 아예 없는 줄만 끝에 덧붙인다. 값이 비었거나
+          # 주석인 키는 그대로 둔다. 바꾸기 전 .env.bak을 남기고 추가한 키 이름만 출력한다.
+          # 컨테이너를 바꾸기 전에 돌려 새 변수가 이번 배포부터 적용된다. 실패하면 여기서 멈춘다.
+          ssh "$EC2" 'bash -s env-sync' < ops/server.sh
 
       - name: 이미지 받기·교체
         env:

@@ -29,6 +29,8 @@ usage() {
   rag                    RAG 설정(비밀 아닌 값만), Qdrant 컬렉션·포인트 수, DB 문서·보고서 색인 상태 개수
   db                     운영 DB psql 접속 (컨테이너 안 계정 사용). 조회 위주
   env-keys               서버 .env에 있는 변수 이름만 (값은 출력 안 함)
+  env-check              서버 .env를 .env.example과 비교 (비밀 값은 설정됨/비어 있음만)
+  env-sync               .env에 키가 아예 없는 .env.example 줄만 끝에 추가 (배포 때 자동 실행)
   seed-docs [--replace]  팀 문서(매뉴얼·룰·규정) 미리 등록·임베딩. 이미 임베딩된 같은 파일은 건너뜀
   reindex-reports        승인 보고서를 지금 컬렉션에 전부 다시 등록 (컬렉션을 바꾼 뒤)
   retry-reports          실패한 승인 보고서 색인만 다시 시도
@@ -114,6 +116,25 @@ SQL
     exec docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB"' ;;
   env-keys)
     grep -oE '^[A-Za-z_][A-Za-z0-9_]*=' .env | tr -d '=' | sort ;;
+  env-check|env-sync)
+    # 배포 워크플로가 복사해 둔 .env.example·check_env.py를 떠 있는 api 이미지의 Python으로 돌린다.
+    # docker compose run을 쓰지 않는다: 새 compose 파일이 요구하는 변수가 .env에 없으면
+    # compose가 파일을 읽다가 멈춰서, 그 변수를 채우려는 이 명령도 돌지 못한다.
+    for f in .env .env.example check_env.py; do
+      [ -f "$f" ] || { echo "$APP_DIR/$f 가 없다. .env는 docs/DEPLOY.md, 나머지는 배포 워크플로가 복사한다"; exit 1; }
+    done
+    image=$(docker ps --filter "label=com.docker.compose.project=$PROJECT" \
+      --filter label=com.docker.compose.service=api --format '{{.Image}}' | head -n1)
+    if [ -z "$image" ]; then
+      echo "떠 있는 api 컨테이너가 없어 $cmd를 건너뛴다. 처음 설치는 docs/DEPLOY.md 서버 .env 절을 따른다"
+      exit 0
+    fi
+    opts=(--no-shell-check)
+    [ "$cmd" = env-sync ] && opts=(--add-missing)
+    # 네트워크 없이, 서버 사용자 권한으로 실행해 .env·.env.bak 소유자와 권한(600)을 유지한다.
+    docker run --rm --pull never --network none --user "$(id -u):$(id -g)" \
+      -v "$APP_DIR:/work" -v "$APP_DIR/check_env.py:/tmp/check_env.py:ro" "$image" \
+      python /tmp/check_env.py --file /work/.env --example /work/.env.example "${opts[@]}" ;;
   seed-docs)
     # 떠 있는 api 컨테이너 안에서 실행한다(같은 .env·업로드 볼륨·Qdrant).
     if [ -n "${1:-}" ] && [ "$1" != "--replace" ]; then echo "seed-docs 인자는 --replace만 받는다"; exit 2; fi
