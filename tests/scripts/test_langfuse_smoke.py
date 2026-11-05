@@ -117,3 +117,20 @@ def test_real_knowledge_refuses_paid_search_settings(monkeypatch, capsys):
     monkeypatch.setattr(module, "get_settings", lambda: paid)
     assert module.main(["--real-knowledge"]) == 2
     assert "hashing" in capsys.readouterr().err
+
+
+def test_script_tells_where_to_find_the_trace(monkeypatch, capsys):
+    module = load_script()
+    fake = FakeLangfuse()
+    real = module.get_replay_llm_client
+
+    def client(settings):
+        built = real(settings)
+        built.tracer = tracer(fake)
+        return built
+
+    monkeypatch.setattr(module, "get_replay_llm_client", client)
+    assert module.main(["입구 센서 점검", "--session", "smoke-1"]) == 0
+    out = capsys.readouterr().out
+    assert "세션 smoke-1" in out and "metadata.run_id" in out
+    assert "셸에 export된 LANGFUSE_*" in out
