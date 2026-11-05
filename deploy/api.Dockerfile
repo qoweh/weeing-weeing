@@ -15,12 +15,15 @@ WORKDIR /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --locked --no-install-project --no-dev
+    uv sync --locked --no-install-project --no-dev --group ml
 
 COPY alembic.ini .env.example ./
 COPY src ./src
 COPY scripts ./scripts
 COPY data ./data
+# scripts/fetch_ml_model.py가 고정 릴리스에서 받아 해시를 검증한 파일만 복사한다.
+COPY deploy/ml-models/model.joblib /app/models/future_error.joblib
+COPY deploy/ml_model.json /app/models/manifest.json
 
 # 볼륨으로 붙는 폴더를 미리 만들어 두면 새 볼륨이 이 소유자를 물려받는다.
 RUN useradd --create-home --uid 1000 app \

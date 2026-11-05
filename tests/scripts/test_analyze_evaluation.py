@@ -79,6 +79,50 @@ def test_existing_metrics_path_rejected_before_api(tmp_path, monkeypatch):
     assert output.read_text("utf-8") == "keep"
 
 
+def test_cli_sensor_reader_preserves_saved_provenance(
+    tmp_path, sample_rows, monkeypatch
+):
+    from datetime import timedelta
+
+    from weeing_weeing.contracts import TelemetryRecord
+    from weeing_weeing.contracts.telemetry import TelemetryProvenance
+    from weeing_weeing.db.interface import open_telemetry
+
+    module = script()
+    sensors = open_telemetry(f"sqlite:///{tmp_path / 'source.db'}")
+    row = TelemetryRecord.model_validate(sample_rows[0])
+    source = TelemetryProvenance(origin="SIMULATION", expected_interval_s=1)
+    sensors.save_many([row], provenance=source)
+    monkeypatch.setattr(module.db, "get_telemetry", lambda: sensors)
+    monkeypatch.setattr(
+        module, "get_llm_client", lambda **kw: SimpleNamespace(tracer=NULL_TRACER)
+    )
+    monkeypatch.setattr(module, "get_retriever", lambda: object())
+
+    def factory(*args, sensor_reader, **kwargs):
+        def analyze(item):
+            batch = sensor_reader(
+                item, row.timestamp, row.timestamp + timedelta(seconds=1), limit=100
+            )
+            assert batch.records == [row]
+            assert batch.sources == {row.timestamp: source}
+            return AnalysisResult(
+                incident_id=item.incident_id,
+                status="INSUFFICIENT_EVIDENCE",
+                observed_facts="fake",
+                model="fake",
+                generated_at=row.timestamp,
+            )
+
+        return SimpleNamespace(analyze=analyze)
+
+    monkeypatch.setattr(module, "get_analyzer", factory)
+    try:
+        assert module.main(["--sensor-window"]) == 0
+    finally:
+        sensors._engine.dispose()
+
+
 def test_hidden_key_refuses_non_terminal_before_client(monkeypatch):
     module = script()
     monkeypatch.setattr(module.sys.stdin, "isatty", lambda: False)

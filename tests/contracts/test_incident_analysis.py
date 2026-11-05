@@ -39,6 +39,55 @@ def make_incident(**overrides) -> Incident:
     return Incident(**(data | overrides))
 
 
+def test_check_citations_and_unverified_draft_are_validated():
+    result = make_analysis(
+        status="VERIFICATION_FAILED",
+        recommended_checks=["센서 앞 상태 확인"],
+        check_citations=[{"check_index": 0, "evidence_ids": [EVIDENCE.evidence_id]}],
+    )
+    assert result.suspected_causes and result.check_citations
+    for citations in (
+        [{"check_index": 1, "evidence_ids": [EVIDENCE.evidence_id]}],
+        [{"check_index": 0, "evidence_ids": ["unknown"]}],
+        [{"check_index": 0, "evidence_ids": [EVIDENCE.evidence_id]}] * 2,
+    ):
+        with pytest.raises(ValidationError):
+            make_analysis(recommended_checks=["점검"], check_citations=citations)
+
+
+def test_action_citations_and_candidate_details_round_trip():
+    result = make_analysis(
+        recommended_actions=["담당자에게 점검 요청"],
+        action_citations=[{"action_index": 0, "evidence_ids": [EVIDENCE.evidence_id]}],
+        actions_requiring_approval=["승인 후 재가동 판단"],
+        approval_citations=[
+            {"action_index": 0, "evidence_ids": [EVIDENCE.evidence_id]}
+        ],
+    )
+    result.suspected_causes[0].unconfirmed = ["현장 점검 결과"]
+    result.suspected_causes[0].observations = ["검증된 관측"]
+    assert AnalysisResult.model_validate_json(result.model_dump_json()) == result
+    for field in ("action_citations", "approval_citations"):
+        for citations in (
+            [{"action_index": 1, "evidence_ids": [EVIDENCE.evidence_id]}],
+            [{"action_index": 0, "evidence_ids": ["unknown"]}],
+            [{"action_index": 0, "evidence_ids": [EVIDENCE.evidence_id]}] * 2,
+        ):
+            data = result.model_dump()
+            data[field] = citations
+            with pytest.raises(ValidationError):
+                AnalysisResult.model_validate(data)
+
+
+def test_incident_number_is_optional_and_round_trips():
+    incident = make_incident()
+    assert incident.incident_number is None
+    numbered = incident.model_copy(
+        update={"incident_number": "INC-BTT2-P03-20261005-001"}
+    )
+    assert Incident.model_validate_json(numbered.model_dump_json()) == numbered
+
+
 def make_analysis(**overrides) -> AnalysisResult:
     data = {
         "incident_id": "INC-20261005-001",
@@ -75,6 +124,29 @@ def test_analysis_ok_requires_evidence():
         make_analysis(evidence=[], suspected_causes=[])
 
 
+def test_reference_cases_require_known_single_report_and_unique_bounded_cases():
+    case = dict(
+        symptom="고온",
+        action="팬 청소",
+        outcome="온도 회복",
+        similarity="고온 증상",
+        differences="현장 확인 필요",
+        evidence_ids=[EVIDENCE.evidence_id],
+    )
+    assert make_analysis().reference_cases == []
+    result = make_analysis(reference_cases=[case])
+    assert AnalysisResult.model_validate_json(result.model_dump_json()) == result
+    other = EVIDENCE.model_copy(update={"evidence_id": "other", "doc_id": "RPT-other"})
+    for cases in (
+        [dict(case, evidence_ids=["invented"])],
+        [dict(case, evidence_ids=[EVIDENCE.evidence_id, "other"])],
+        [case, case],
+        [case] * 3,
+    ):
+        with pytest.raises(ValidationError):
+            make_analysis(evidence=[EVIDENCE, other], reference_cases=cases)
+
+
 def test_analysis_rejects_citation_to_missing_evidence():
     bad = CauseCandidate(
         cause="x", likelihood="중", basis="y", evidence_ids=["NOT-RETRIEVED"]
@@ -95,6 +167,40 @@ def test_insufficient_evidence_is_allowed_without_evidence():
         status="INSUFFICIENT_EVIDENCE", evidence=[], suspected_causes=[]
     )
     assert result.status == "INSUFFICIENT_EVIDENCE"
+
+
+def test_unevaluated_candidate_still_requires_real_citation():
+    candidate = CauseCandidate(
+        cause="냉각 상태 점검",
+        likelihood="미평가",
+        basis="점검 결과 없음",
+        evidence_ids=[EVIDENCE.evidence_id],
+    )
+    analysis = make_analysis(suspected_causes=[candidate])
+    assert AnalysisResult.model_validate_json(analysis.model_dump_json()) == analysis
+    with pytest.raises(ValidationError):
+        make_analysis(evidence=[], suspected_causes=[candidate])
+
+
+def test_incident_can_preserve_declared_provenance():
+    item = make_incident(
+        telemetry_provenance={"origin": "SIMULATION", "expected_interval_s": 1}
+    )
+    assert Incident.model_validate_json(item.model_dump_json()) == item
+    assert make_incident().telemetry_provenance is None
+
+
+@pytest.mark.parametrize("page", [0, -1, True, "8", 1.5])
+def test_evidence_page_rejects_non_pdf_page_values(page):
+    with pytest.raises(ValidationError):
+        Evidence(**{**EVIDENCE.model_dump(), "page": page})
+
+
+def test_evidence_title_and_pdf_page_are_optional_for_legacy_snapshots():
+    old = EVIDENCE.model_dump(exclude={"page", "title"})
+    assert Evidence.model_validate(old).page is None
+    new = Evidence(**{**old, "page": 8, "title": "이송 설비 매뉴얼"})
+    assert Evidence.model_validate_json(new.model_dump_json()) == new
 
 
 def test_report_round_trips_as_json():

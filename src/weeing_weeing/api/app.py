@@ -11,12 +11,14 @@ from weeing_weeing.api.analysis import router as analysis_router
 from weeing_weeing.api.auth import router as auth_router
 from weeing_weeing.api.chat import router as chat_router
 from weeing_weeing.api.documents import router as documents_router
+from weeing_weeing.api.ml import router as ml_router
 from weeing_weeing.api.reports import router as reports_router
 from weeing_weeing.api.telemetry import router as telemetry_router
 from weeing_weeing.api.telemetry_live import router as telemetry_live_router
 from weeing_weeing.config import get_settings
 from weeing_weeing.contracts import RULE_VERSION, SCHEMA_VERSION
 from weeing_weeing.db.interface import DatabaseUnavailableError
+from weeing_weeing.ml.interface import create_live_service
 
 
 @asynccontextmanager
@@ -27,6 +29,12 @@ async def lifespan(app):
         if settings.analysis_auto_enabled or settings.telemetry_db_enabled
         else None
     )
+    app.state.ml_service = create_live_service(
+        enabled=settings.ml_prediction_enabled,
+        model_path=settings.ml_model_path,
+        model_sha256=settings.ml_model_sha256,
+        output_dir=settings.ml_prediction_dir,
+    ).start()
     app.state.analysis_service = service
     if service and service.analysis_enabled:
         service.start()
@@ -41,6 +49,7 @@ async def lifespan(app):
     try:
         yield
     finally:
+        await anyio.to_thread.run_sync(app.state.ml_service.stop)
         if service:
             await anyio.to_thread.run_sync(service.stop)
 
@@ -52,6 +61,7 @@ app.include_router(chat_router)
 app.include_router(documents_router)
 app.include_router(telemetry_router)
 app.include_router(telemetry_live_router)
+app.include_router(ml_router)
 app.include_router(reports_router)
 
 
@@ -65,9 +75,19 @@ def _db_unavailable(_: Request, exc: DatabaseUnavailableError) -> JSONResponse:
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
-    return {
+def health():
+    service = getattr(app.state, "ml_service", None)
+    model_ready = service is None or not service.enabled or service.loaded
+    result = {
         "status": "ok",
         "schema_version": SCHEMA_VERSION,
         "rule_version": RULE_VERSION,
+        "ml_prediction": "disabled"
+        if service is None or not service.enabled
+        else "ready"
+        if service.loaded
+        else "unavailable",
     }
+    if not model_ready:
+        return JSONResponse(status_code=503, content={**result, "status": "degraded"})
+    return result

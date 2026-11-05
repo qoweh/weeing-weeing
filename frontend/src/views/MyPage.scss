@@ -33,6 +33,31 @@
   font-weight: 700;
   line-height: 1;
 }
+.mypage__settings {
+  display: grid;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  margin-left: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.mypage__settings:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.mypage__settings:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.mypage__settings svg {
+  width: 22px;
+  height: 22px;
+}
 .mypage__identity {
   display: grid;
   flex: 1 1 auto;

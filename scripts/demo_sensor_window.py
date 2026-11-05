@@ -101,7 +101,9 @@ def main():
         )
 
     print("[오프라인 시연] 합성 표본 3개 / 실제 Claude 호출·DB 변경 없음", flush=True)
-    analyzer = get_analyzer(NoSearch(), client=DemoLlm(), sensor_reader=reader)
+    analyzer = get_analyzer(
+        NoSearch(), client=DemoLlm(), sensor_reader=reader, mode="single"
+    )
     result = analyzer.analyze(incident)
     print("\n[최종 관측]\n" + result.observed_facts)
     print("\n[관측 한계]\n" + (result.limitations or ""))

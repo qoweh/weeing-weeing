@@ -203,7 +203,7 @@ export default function ReportWorkspace({ user, onSessionExpired, onBusyChange, 
         {editable && <div className="fields">
           <label>연결 사건<select value={incidentId} onChange={(event) => setIncidentId(event.target.value)} disabled={busy || Boolean(document?.incident_id)}>
             <option value="">사건을 선택해 주세요</option>
-            {availableIncidents.map((item) => <option key={item.incident_id} value={item.incident_id}>{item.incident_id} · {item.asset_id} · {item.codes.join(", ")}</option>)}
+            {availableIncidents.map((item) => <option key={item.incident_id} value={item.incident_id}>{item.incident_number || item.incident_id} · {item.asset_id} · {item.codes.join(", ")}</option>)}
           </select></label>
           <label>데이터 출처<select value={origin} onChange={(event) => setOrigin(event.target.value)} disabled={busy}>
             <option value="LIVE">실제 운전</option><option value="REPLAY">재생 데이터</option><option value="SYNTHETIC">가상 사례</option>

@@ -6,7 +6,7 @@
 
 - **근거 기반**: 모든 제안에 센서값·룰 코드·문서 인용을 붙이고, 근거가 없으면 멈춘다
 - **사람 우선**: AI는 제안까지. 원인 확정·정지 해제·재가동은 사람이 한다
-- **에이전트**: 상용 LLM(Claude)이 검색 도구를 스스로 골라 근거를 모은다. 지금은 싱글 에이전트, 멀티 에이전트로 넓힐 수 있게 설계([docs/AGENT.md](docs/AGENT.md))
+- **에이전트**: 상용 LLM(Claude)이 검색 도구로 근거를 모은다. 기본 단일 분석과 LangGraph 기반 멀티 분석·선택 검증을 제공한다([docs/AGENT.md](docs/AGENT.md), [단계별 근거 확인](docs/MULTI_AGENT_ANALYSIS.md))
 
 ## 빠른 시작
 
@@ -71,6 +71,7 @@ ops/           로컬·운영 서버 명령 모음 (local.sh, aws.sh)
 | [CHANGE_WORKFLOW](docs/CHANGE_WORKFLOW.md) | 이슈·브랜치·커밋·PR·머지 규칙 |
 | [DECISIONS](docs/DECISIONS.md) | 기술 결정 기록 |
 | [AGENT](docs/AGENT.md) | 에이전트 구조(싱글), 도구·검사, 멀티 에이전트·메모리 확장 계획 |
+| [MULTI_AGENT_ANALYSIS](docs/MULTI_AGENT_ANALYSIS.md) | LangGraph 사건 분석·선택 검증·HMI 단계별 근거 확인 |
 | [LLM_EVALUATION](docs/LLM_EVALUATION.md) | Claude 모델·effort 비교, 32사례 평가셋과 센서·검색 결합 검증 (#106) |
 | [USAGE_TRACKING](docs/USAGE_TRACKING.md) | LLM 사용량 기록(Langfuse): 무엇을 남기는지, 팀원 설정 |
 | [DIRECTION_CHANGES](docs/DIRECTION_CHANGES.md) | 방향 전환 때 없앤 것·바꾼 것 기록(로컬 LLM 폐지 등) |
@@ -86,3 +87,11 @@ ops/           로컬·운영 서버 명령 모음 (local.sh, aws.sh)
 ## 팀
 
 임보영(팀장) · 길용현 · 김민우 · 안규현 · 이승민 · 홍동인
+
+## 미래 Error 예측 실험
+
+센서 최근 30초로 미래 60초 내 첫 Error를 예측하는 독립 RandomForest 실험은
+[ML 사용 설명서](docs/ML_FUTURE_ERROR.md)와 [평가 결과](docs/ML_FUTURE_ERROR_RESULTS.md)를 따른다.
+선택 의존성은 `uv sync --locked --no-install-project --group ml`로 설치한다.
+
+실시간 관찰 연결과 로그인 후 결과 확인은 [ML_LIVE](docs/ML_LIVE.md)를 참고하세요.

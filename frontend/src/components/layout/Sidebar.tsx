@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react'
+
 type NavigationItem = {
   icon: string
   activeIcon?: string
@@ -38,6 +40,19 @@ export default function Sidebar({
       : page === 'report-write'
         ? 'maintenance'
         : page
+  // 좁은 화면에서는 메뉴를 드롭다운으로 접어 둔다.
+  const [menuOpen, setMenuOpen] = useState(false)
+  const currentItem = navigation.find((item) => item.id === current)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const close = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+    window.addEventListener('keydown', close)
+    return () => window.removeEventListener('keydown', close)
+  }, [menuOpen])
+
   return (
     <aside className={`sidebar ${collapsed ? 'sidebar--collapsed' : ''}`}>
       <div className="sidebar__top">
@@ -61,7 +76,35 @@ export default function Sidebar({
           </svg>
         </button>
       </div>
-      <nav aria-label="주 메뉴">
+      <button
+        type="button"
+        className="sidebar__mobile-toggle"
+        aria-expanded={menuOpen}
+        aria-controls="sidebar-nav"
+        onClick={() => setMenuOpen((open) => !open)}
+      >
+        {currentItem && (
+          <img
+            src={`/assets/ICONS/${currentItem.activeIcon ?? currentItem.icon}.svg`}
+            alt=""
+          />
+        )}
+        <span>{currentItem?.label ?? '메뉴'}</span>
+        <svg viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <path
+            d="M2 4.2 6 8l4-3.8"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+      <nav
+        id="sidebar-nav"
+        aria-label="주 메뉴"
+        className={menuOpen ? 'is-open' : undefined}
+      >
         {navigation.map(({ icon, activeIcon, label, id, pending }) => (
           <button
             key={id}
@@ -71,7 +114,10 @@ export default function Sidebar({
             aria-label={label}
             disabled={busy || pending}
             title={pending ? '설비 모니터링 준비 중' : label}
-            onClick={() => onNavigate(id)}
+            onClick={() => {
+              setMenuOpen(false)
+              onNavigate(id)
+            }}
           >
             <img
               src={`/assets/ICONS/${current === id && activeIcon ? activeIcon : icon}.svg`}
@@ -82,7 +128,7 @@ export default function Sidebar({
         ))}
       </nav>
       <div className="sidebar__bottom">
-        <p className="sidebar__caption">위잉위잉 · 설비 관리</p>
+        <p className="sidebar__caption">Copyright © 위잉위잉.<br />All rights reserved.</p>
       </div>
     </aside>
   )

@@ -8,6 +8,11 @@ import './DocumentPdfModal.css'
 const safeFile = (value: unknown) =>
   typeof value === 'string' && value.startsWith('blob:') ? value : ''
 
+// 좁은 화면에서는 PDF 뷰어의 썸네일 패널을 닫은 채로 시작한다.
+const MOBILE_QUERY = '(max-width: 680px)'
+const isMobile = () =>
+  typeof window !== 'undefined' && window.matchMedia(MOBILE_QUERY).matches
+
 export default function DocumentPdfModal({
   doc,
   onClose,
@@ -129,7 +134,10 @@ export default function DocumentPdfModal({
         ) : error ? (
           <p role="alert">{error}</p>
         ) : (
-          <iframe title={`${doc.name} PDF`} src={url} />
+          <iframe
+            title={`${doc.name} PDF`}
+            src={isMobile() ? `${url}#pagemode=none&navpanes=0` : url}
+          />
         )}
       </div>
     </dialog>

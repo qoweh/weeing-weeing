@@ -1,0 +1,49 @@
+{
+  "source_path": "/Users/boyeong/Desktop/hanwha-ac/project/conveyor_dataset.csv",
+  "sha256": "26ed78c3c1eb53d15e6aba9fa752b6aad8f70d16921033867c22594be03086a1",
+  "rows": 37274,
+  "columns": [
+    "record_id",
+    "timestamp",
+    "process_id",
+    "asset_id",
+    "schema_version",
+    "infeed_present",
+    "outfeed_present",
+    "rpm",
+    "dc_input_current_a",
+    "dc_bus_voltage_v",
+    "motor_housing_temp_c",
+    "de_vibration_rms_g",
+    "de_kurtosis",
+    "nde_vibration_rms_g",
+    "nde_kurtosis",
+    "target_label",
+    "run_id"
+  ],
+  "labels": {
+    "NO_ERROR": 16185,
+    "BTT2-M02": 1794,
+    "": 13909,
+    "BTT2-M12": 1792,
+    "BTT2-M10": 1797,
+    "BTT2-M07": 1797
+  },
+  "runs": 60,
+  "runs_by_code": {
+    "BTT2-M02": 15,
+    "BTT2-M12": 15,
+    "BTT2-M10": 15,
+    "BTT2-M07": 15
+  },
+  "duplicate_record_ids": 0,
+  "sensor_issues": {},
+  "timestamp_order_issues": {},
+  "sample_gap_seconds": {
+    "min": 0.132,
+    "max": 0.534
+  },
+  "gaps_over_0_8s": 0,
+  "differences_from_supplied_counts": {},
+  "blank_label_reasons": "CSV alone cannot distinguish already Error vs insufficient future"
+}

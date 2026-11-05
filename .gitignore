@@ -70,3 +70,9 @@ frontend/*.tsbuildinfo
 # 서버 접속 키·AWS 콘솔 자격증명 (#117)
 *.pem
 *credentials*.csv
+
+# ML 원본 데이터와 로컬 학습 산출물
+conveyor_dataset.csv
+/data/ml/raw/
+*.joblib
+/deploy/ml-models/

@@ -1,0 +1,46 @@
+.replace-document-dialog {
+  width: min(440px, calc(100vw - 32px));
+  margin: auto;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 24px 72px rgb(10 24 44 / 28%);
+}
+
+.replace-document-dialog::backdrop {
+  background: rgb(12 24 40 / 58%);
+  backdrop-filter: blur(3px);
+}
+
+.replace-document-dialog h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+.replace-document-dialog p {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.replace-document-dialog .replace-document-dialog__name {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.replace-document-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.replace-document-dialog .replace-document-dialog__confirm {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--surface);
+}

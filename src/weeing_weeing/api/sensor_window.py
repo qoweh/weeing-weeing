@@ -12,7 +12,7 @@ def sensor_reader(repository: TelemetryRepository) -> SensorReader:
         latest = repository.latest(incident.asset_id, process_id=incident.process_id)
         watermark = latest.timestamp if latest else None
         rows = (
-            repository.between(
+            repository.observations_between(
                 incident.asset_id,
                 start,
                 min(end, watermark + timedelta(microseconds=1)),
@@ -22,6 +22,13 @@ def sensor_reader(repository: TelemetryRepository) -> SensorReader:
             if watermark is not None and watermark >= start
             else []
         )
-        return SensorBatch([r for r in rows if r.timestamp <= watermark], watermark)
+        rows = [
+            (record, source) for record, source in rows if record.timestamp <= watermark
+        ]
+        return SensorBatch(
+            [record for record, _ in rows],
+            watermark,
+            {record.timestamp: source for record, source in rows if source is not None},
+        )
 
     return read

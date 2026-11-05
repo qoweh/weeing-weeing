@@ -158,6 +158,7 @@ export function listIncidents() { return request("/incidents"); }
 export function listIncidentOverview() { return request("/incidents/overview"); }
 export function listIncidentApprovedReports(id) { return request(`/incidents/${encodeURIComponent(id)}/approved-reports`); }
 export function getIncidentAnalysis(id) { return request(`/incidents/${encodeURIComponent(id)}/analysis`); }
+export function retryIncidentAnalysis(id, body, signal) { return request(`/incidents/${encodeURIComponent(id)}/analysis/retry`, { method: "POST", body, signal }); }
 export function deleteIncident(id) { return request(`/incidents/${encodeURIComponent(id)}`, { method: "DELETE" }); }
 export function getIncidentReportContext(id) { return request(`/incidents/${encodeURIComponent(id)}/report-context`); }
 export function listReports(scope = "mine") { return request(`/reports?scope=${scope}`); }

@@ -2,6 +2,12 @@
 
 Unreal 없이도 CSV로 실제 WebSocket 전송을 시험할 수 있다.
 
+선택적 연결 쿼리 `origin=UNKNOWN|SIMULATION|REPLAY|MEASURED`, `interval_s=1`로
+송신자 출처와 표본 timestamp의 예상 간격(0초 초과~60초)을 선언할 수 있다.
+미제공 기본 출처는 UNKNOWN이다. 이 선언은 실측 검증·인증을 대신하지 않으며 기존 15필드
+메시지는 유지한다. 웹 시뮬레이터는 SIMULATION/1초를 보내고 서버가 표본별로 별도 저장한다.
+CSV 재생의 실제 전송 대기 시간과 표본 timestamp 간격을 혼동하지 않는다.
+
 ```text
 CSV 송신기 / Unreal
   → ws://localhost:8000/ws/telemetry

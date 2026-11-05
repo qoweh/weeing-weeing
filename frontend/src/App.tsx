@@ -295,7 +295,7 @@ export default function App() {
           onBusyChange={setBusy}
         />
       )}
-      {page === "manual-upload" && (
+      {page === "manual-upload" && user?.role === "관제 담당자" && (
         <ManualUploadPage
           onNavigate={navigate}
           onSessionExpired={forgetSession}
@@ -305,15 +305,6 @@ export default function App() {
       {page === "maintenance" && (
         <MaintenancePage
           user={user}
-          onCreateReportPreview={() => {
-            setError("");
-            setReportSelection({
-              incident: null,
-              incidentId: "",
-              reportId: "",
-              previewOnly: true,
-            });
-          }}
           onSessionExpired={forgetSession}
           refreshKey={maintenanceRefreshKey}
           onOpen={(reportId, _incidentId, row) =>

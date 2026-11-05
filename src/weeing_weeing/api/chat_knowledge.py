@@ -189,7 +189,12 @@ class DatabaseChatKnowledge:
         )
 
     def search(
-        self, query: ChatSearchQuery, *, timeout_s: float
+        self,
+        query: ChatSearchQuery,
+        *,
+        timeout_s: float,
+        report_ids: frozenset[str] | None = None,
+        codes: tuple[str, ...] | None = None,
     ) -> list[ChatSearchHit]:
         """DB로 검색 대상을 좁힌 뒤 RAG 유사 검색을 실행하고 서버 출처를 붙인다."""
         budget = _Budget(timeout_s)
@@ -212,6 +217,7 @@ class DatabaseChatKnowledge:
                 for r in self._matching_reports(
                     ChatHistoryQuery(conditions=query.conditions, code=query.code)
                 )
+                if report_ids is None or r.report_id in report_ids
             }
             records = {}
             versions = {key: str(r.report_version) for key, r in reports.items()}
@@ -228,6 +234,8 @@ class DatabaseChatKnowledge:
         }
         if query.code:
             filters["code"] = query.code
+        elif codes:
+            filters["codes"] = list(codes)
         budget.check()
         found = self.retriever.search_hits(
             query.query, k=query.conditions.limit, filters=filters, versions=versions

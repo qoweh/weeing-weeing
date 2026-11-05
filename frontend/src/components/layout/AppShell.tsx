@@ -133,6 +133,7 @@ export default function AppShell({
         sidebarCollapsed={sidebarCollapsed}
         onChangeSidebarCollapsed={changeSidebarCollapsed}
         onIncidentSelect={onIncidentSelect}
+        onNavigateDashboard={() => onNavigate('dashboard')}
         onSessionExpired={onSessionExpired}
         settings={settings}
         onChangeSettings={changeSettings}

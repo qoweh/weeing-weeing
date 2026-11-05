@@ -21,7 +21,7 @@ flowchart LR
 | 기록 | 언제 | 담는 것 |
 |---|---|---|
 | trace (`agent`) | 에이전트 실행 1번(`make analyze`, 사건 분석) | 사람(`user_id`), 사건 ID(`session_id`), 태그(진입점·프롬프트 버전), 반복 횟수·도구 호출 수·토큰 합계 |
-| generation (`claude`) | LLM 호출 1번 | 모델(대체 모델이 답했으면 실제 모델), 입력·출력·캐시 읽기·캐시 쓰기 토큰, 시간, `stop_reason`, effort, 오류 |
+| generation | LLM 호출 1번. 이름은 아래 "호출 이름" 표 | 모델(대체 모델이 답했으면 실제 모델), 입력·출력·캐시 읽기·캐시 쓰기 토큰, 시간, `stop_reason`, effort, 목적·턴 번호, 오류 |
 | tool | 도구 호출 1번 | 도구 이름, 입력 오류면 WARNING |
 
 - **태그(진입점)**: `analyze`, `llm-check`, 기본값 `app`. 새 기능에서 `get_llm_client(entrypoint="chatbot")`처럼 이름을 주면 기능별로 나뉜다.
@@ -100,6 +100,69 @@ Haiku 5.5는 프롬프트가 10만 토큰을 넘으면 단가가 5배가 된다(
 - **호출을 막는 예산 상한은 없다.** 기록은 사후에 보는 것이다. 1~2주 기록을 보고 필요하면 홈서버에 LLM 게이트웨이(팀원별 가상 키와 예산)를 두는 방법을 따로 정한다.
 - API 서버(`make api`)·챗봇은 `get_llm_client`를 쓰면 자동으로 기록된다. 다만 오래 떠 있는 프로세스라 따로 flush하지 않아도 SDK가 주기적으로 보낸다.
 
+
+## 챗봇 기록 구조 (#201)
+
+챗봇 질문 1건은 trace 하나다. 지연 원인을 이름으로 바로 찾을 수 있게 나눠 남긴다.
+
+```
+chat (chain)                         ← 질문 1건. session=대화 ID, metadata.run_id=요청 ID
+└ chat-assistant (agent)             ← 도구 루프
+  ├ chat-assistant.turn-1 (generation)
+  ├ search_knowledge (tool)
+  │ ├ knowledge.validate_query (span)
+  │ ├ knowledge.search (retriever)   ← DB 대상 선정 + RAG 검색 + 서버 출처 확인
+  │ └ knowledge.is_searchable (span) ← stage=search_knowledge
+  ├ chat-assistant.turn-2 (generation)
+  └ submit_answer (tool)
+    ├ knowledge.is_searchable        ← stage=before_submit
+    ├ grounding-review.answer (generation)
+    └ knowledge.is_searchable        ← stage=after_review
+```
+
+### 호출 이름 (#202)
+
+| 이름 | 뜻 |
+|---|---|
+| `<에이전트>.turn-<n>` | 도구 루프 n번째 호출(`chat-assistant`, `incident-analyst`). metadata `purpose=tool_loop`, `turn` |
+| `grounding-review.answer` / `.clarification` / `.insufficiency` | 챗봇 근거 검토(답변 / 확인 질문 / 근거 부족 설명). metadata `purpose=grounding_review`, `mode` |
+| `claude` | 위에 해당하지 않는 단발 호출(`make llm-check` 등) |
+
+코드는 `agent.tracing.generation_label()`로 이름을 정한다. `LlmClient` 메서드 모양은 그대로다.
+
+### 조회 단계 span (#203)
+
+`knowledge.<메서드>` span의 metadata에는 `stage`(어느 도구·단계에서 불렀는지), `kind`·`state`·`source_kind`, `returned`(결과 수)·`searchable`(재확인 결과)만 남긴다. 본문은 남기지 않는다. 임베딩·Qdrant·리랭크 세부 시간은 `knowledge.search` 안에 합쳐져 있다(rag 내부 계측은 #203 후속).
+
+### 세션 (#204)
+
+API(`StoredChatService`)는 `agent.interface.trace_session(대화 ID)` 범위에서 챗봇을 실행한다. 같은 대화의 질문은 Langfuse Sessions에서 한 세션으로 보인다. 요청 ID는 trace metadata `run_id`로 찾는다. CLI(`make chat`)처럼 대화 ID가 없으면 요청 ID가 세션이다. 사건 분석의 세션(사건 ID)은 그대로다.
+
+### 점수 (#205)
+
+| score | 종류 | 언제 |
+|---|---|---|
+| `chat.status` | CATEGORICAL | 질문 끝. OK·NEEDS_CLARIFICATION·INSUFFICIENT_EVIDENCE·OUT_OF_SCOPE·FAILED |
+| `chat.failure_code` | CATEGORICAL | FAILED일 때. TIMEOUT·SEARCH_UNAVAILABLE·RATE_LIMITED 등(응답의 실패 코드와 같은 기준) |
+| `chat.llm_calls` | NUMERIC | 질문 끝. 도구 루프 + 근거 검토 호출 수 |
+| `chat.grounding_verdict` | CATEGORICAL | 근거 검토마다. SUPPORTED·UNSUPPORTED·CONFLICT. comment에 `<mode> #<몇 번째 검토>` |
+
+Langfuse Traces에서 score로 거르면 "재검토가 일어난 느린 질문", "근거 부족으로 끝난 질문"을 바로 찾을 수 있다. 점수 기록이 실패해도 답변은 그대로 나간다.
+
+### 무과금 기록 확인 (`make langfuse-smoke`, #206)
+
+trace 모양을 바꿨을 때 실제 Claude·Voyage를 부르지 않고 확인한다. LLM 자리는 정해진 응답을 재생하고(`replay-no-cost` 모델, 토큰 0), 기록만 Langfuse로 보낸다.
+
+```bash
+make langfuse-smoke                                        # 샘플 매뉴얼 3건, environment=test
+make langfuse-smoke ARGS='"모터 과열 점검" --session smoke-1'   # 같은 세션으로 여러 번
+make langfuse-smoke ARGS='--real-knowledge'                # 프로젝트 DB·벡터 색인 사용
+```
+
+- 기본 environment는 `test`라 dev·demo 기록과 섞이지 않는다(`--environment`로 변경).
+- `--real-knowledge`는 비용이 없도록 `EMBEDDING_PROVIDER=hashing`이고 `RERANKER_MODEL`이 비어 있을 때만 실행한다.
+- Langfuse 설정이 없으면 기록 없이 결과만 출력한다. 홈서버 대신 `deploy/langfuse`의 로컬 Langfuse에 보내려면 `LANGFUSE_BASE_URL`과 그 서버에서 만든 키를 쓴다.
+- 자동 테스트(`tests/scripts/test_langfuse_smoke.py`)는 가짜 Langfuse 클라이언트로 같은 흐름을 검증한다.
 
 ## 챗봇 호출 통계 (#89)
 

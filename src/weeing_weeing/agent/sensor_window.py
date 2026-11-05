@@ -2,7 +2,8 @@
 
 import logging
 import math
-from dataclasses import dataclass
+from collections import Counter
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from statistics import fmean
 from typing import Literal, Protocol
@@ -11,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictFloat, Stri
 
 from weeing_weeing.agent.runtime import AgentTool, RunMemory, to_json
 from weeing_weeing.contracts import Incident, TelemetryRecord
+from weeing_weeing.contracts.telemetry import TelemetryProvenance
 
 logger = logging.getLogger("uvicorn.error.analysis")
 MAX_ROWS = 512
@@ -44,6 +46,7 @@ SensorField = Literal[
 class SensorBatch:
     records: list[TelemetryRecord]
     available_through: datetime | None
+    sources: dict[datetime, TelemetryProvenance] = field(default_factory=dict)
 
 
 class SensorReader(Protocol):
@@ -80,6 +83,86 @@ class SensorClaim(BaseModel):
     value: StrictBool | StrictInt | StrictFloat
 
 
+def _quality(rows, batch, start, stop, truncated):
+    profiles = [batch.sources.get(row.timestamp, TelemetryProvenance()) for row in rows]
+    origins = dict(Counter(profile.origin for profile in profiles))
+    periods = {profile.expected_interval_s for profile in profiles}
+    period = next(iter(periods)) if len(periods) == 1 else None
+    unobserved = []
+
+    def missing(kind, left, right):
+        if right > left:
+            unobserved.append(
+                {
+                    "kind": kind,
+                    "start": left.isoformat(),
+                    "end": right.isoformat(),
+                    "duration_s": (right - left).total_seconds(),
+                }
+            )
+
+    if rows:
+        missing("leading", start, rows[0].timestamp)
+        missing(
+            "trailing_or_truncated" if truncated else "trailing",
+            rows[-1].timestamp,
+            stop,
+        )
+        if period is not None:
+            for a, b in zip(rows, rows[1:]):
+                if (b.timestamp - a.timestamp).total_seconds() > period * 1.5:
+                    missing("between_samples", a.timestamp, b.timestamp)
+    else:
+        missing("entire_window", start, stop)
+    notes = [
+        "출처는 송신자 선언이며 실측 검증이 아니다. 값이 일정하거나 문서의 시연값과 비슷하다는 이유로 출처·대체값 여부를 추정하지 않는다.",
+        "최대 표본 간격은 반환된 표본 사이에만 해당한다. 요청 전체 구간을 연속으로 간주하지 않는다.",
+    ]
+    if origins:
+        notes.append(
+            "표본 출처: "
+            + ", ".join(f"{origin} {count}개" for origin, count in origins.items())
+        )
+    if "SIMULATION" in origins:
+        notes.append(
+            "SIMULATION은 시뮬레이션 값이다. 가상 시나리오의 관측과 실제 장비 원인 진단을 구분한다."
+        )
+    if "UNKNOWN" in origins or not origins:
+        notes.append("출처 미확인 표본은 실측으로 간주하지 않는다.")
+    if period is None:
+        notes.append(
+            "예상 전송 주기가 없거나 혼합되어 고정 0.5초 기준으로 표본 누락을 판정하지 않는다."
+        )
+    else:
+        notes.append(f"송신자가 선언한 예상 전송 주기는 {period:g}초다.")
+    for interval in unobserved:
+        label = (
+            "미반환 구간(표본 상한 영향 가능)"
+            if interval["kind"] == "trailing_or_truncated"
+            else "표본 미관측 구간"
+        )
+        notes.append(
+            f"{label}: {interval['start']}~{interval['end']} ({interval['duration_s']:.3f}초). 이 구간의 상태와 원인을 추정하지 않는다."
+        )
+    return {
+        "requested_duration_s": (stop - start).total_seconds(),
+        "observed_span_s": (rows[-1].timestamp - rows[0].timestamp).total_seconds()
+        if rows
+        else 0,
+        "leading_unobserved_s": (rows[0].timestamp - start).total_seconds()
+        if rows
+        else (stop - start).total_seconds(),
+        "trailing_unobserved_s": (stop - rows[-1].timestamp).total_seconds()
+        if rows
+        else 0,
+        "max_gap_scope": "returned_samples_only",
+        "origins": origins,
+        "provenance_basis": "sender_declared_or_unknown",
+        "expected_interval_s": period,
+        "unobserved_intervals": unobserved,
+    }, notes
+
+
 def window_tool(incident: Incident, reader: SensorReader) -> AgentTool:
     def handler(data, memory: RunMemory):
         query = WindowQuery.model_validate(data)
@@ -114,10 +197,8 @@ def window_tool(incident: Incident, reader: SensorReader) -> AgentTool:
             notes.append("요청 시작 시각의 표본이 없다.")
         if rows and rows[-1].timestamp < stop:
             notes.append("요청 종료 시각의 표본이 없다.")
-        if any(g > 0.75 for g in gaps):
-            notes.append(
-                "0.5초 전송 기준 0.75초 초과 관측 간격이 있다. 구간을 연속으로 간주하지 않는다."
-            )
+        quality, quality_notes = _quality(rows, batch, start, stop, truncated)
+        notes.extend(quality_notes)
         if truncated:
             notes.append("표본 상한으로 일부만 집계했다. 더 좁은 구간을 조회해야 한다.")
         fields = {}
@@ -176,6 +257,7 @@ def window_tool(incident: Incident, reader: SensorReader) -> AgentTool:
             "sample_count": len(rows),
             "truncated": truncated,
             "max_gap_seconds": max(gaps, default=None),
+            "quality": quality,
             "notes": notes,
             "fields": fields,
         }

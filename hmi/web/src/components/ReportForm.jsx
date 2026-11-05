@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from "react";
 
 import { alarmDescriptions, measurementSummary } from "./reportPresentation";
 import "./ReportForm.css";
+import { evidenceLabel } from "./evidenceLabels";
+import InspectionChecks from "./InspectionChecks";
+import CauseCandidates from "./CauseCandidates";
+import AnalysisActions from "./AnalysisActions";
 
 const initialValues = {
   author: "",
@@ -196,7 +200,6 @@ export default function ReportForm({
   analysis = null,
   telemetry = null,
   reportId = "",
-  assetName = "",
   savedValues = {},
   author = null,
   statusLabel = "초안",
@@ -227,6 +230,8 @@ export default function ReportForm({
     ? "AI 초안이 아직 연결되지 않았습니다."
     : linkedAnalysis.status === "INSUFFICIENT_EVIDENCE"
       ? "근거가 부족해 AI 초안 작성을 중단했습니다."
+      : linkedAnalysis.status === "VERIFICATION_FAILED"
+        ? "AI 분석이 검증을 통과하지 못했습니다. 사건 상세에서 초안과 검증 지적을 확인해 주세요."
       : "AI 분석에 실패했습니다. 담당자 확인이 필요합니다.";
 
   function clearFeedback() {
@@ -305,15 +310,13 @@ export default function ReportForm({
               {reportId || "저장 시 자동 발급"}
             </ReadValue>
             <ReadValue label="연결 사건">
-              {incident?.incident_id}
+              {incident?.incident_number || incident?.incident_id}
             </ReadValue>
-            <ReadValue label="공정 / 설비">
-              {incident
-                ? `${incident.process_id} / ${incident.asset_id}`
-                : null}
+            <ReadValue label="공정">
+              {incident?.process_id}
             </ReadValue>
-            <ReadValue label="설비명 / 모델">
-              {assetName || null}
+            <ReadValue label="설비">
+              {incident?.asset_id}
             </ReadValue>
             <ReadValue label="발생 시각">
               {formatTime(incident?.first_detected_at)}
@@ -365,19 +368,7 @@ export default function ReportForm({
             <dl className="report-read-grid">
               <ReadValue label="추정 원인 및 근거" wide>
                 {linkedAnalysis.suspected_causes.length ? (
-                  <ul>
-                    {linkedAnalysis.suspected_causes.map((item, index) => (
-                      <li key={index}>
-                        <strong>{item.cause}</strong>
-                        <br />
-                        설비: {incident.process_id} / {incident.asset_id}
-                        <br />
-                        코드: {incident.codes.join(", ")}
-                        <br />
-                        근거 ID: {item.evidence_ids.join(", ")}
-                      </li>
-                    ))}
-                  </ul>
+                  <CauseCandidates analysis={linkedAnalysis} incident={incident} showSources={false} />
                 ) : (
                   "제시된 원인 후보 없음"
                 )}
@@ -385,11 +376,7 @@ export default function ReportForm({
 
               <ReadValue label="권고 점검 절차" wide>
                 {linkedAnalysis.recommended_checks.length ? (
-                  <ol>
-                    {linkedAnalysis.recommended_checks.map((text, index) => (
-                      <li key={index}>{text}</li>
-                    ))}
-                  </ol>
+                  <InspectionChecks analysis={linkedAnalysis} showSources={false} />
                 ) : (
                   "제시된 점검 절차 없음"
                 )}
@@ -397,11 +384,7 @@ export default function ReportForm({
 
               <ReadValue label="권고 조치" wide>
                 {linkedAnalysis.recommended_actions.length ? (
-                  <ul>
-                    {linkedAnalysis.recommended_actions.map((text, index) => (
-                      <li key={index}>{text}</li>
-                    ))}
-                  </ul>
+                  <AnalysisActions analysis={linkedAnalysis} showSources={false} />
                 ) : (
                   "제시된 권고 조치 없음"
                 )}
@@ -409,11 +392,7 @@ export default function ReportForm({
 
               <ReadValue label="승인이 필요한 조치" wide>
                 {linkedAnalysis.actions_requiring_approval.length ? (
-                  <ul>
-                    {linkedAnalysis.actions_requiring_approval.map(
-                      (text, index) => <li key={index}>{text}</li>,
-                    )}
-                  </ul>
+                  <AnalysisActions analysis={linkedAnalysis} approval showSources={false} />
                 ) : (
                   "별도 제시 없음"
                 )}
@@ -423,7 +402,7 @@ export default function ReportForm({
                 <ul>
                   {linkedAnalysis.evidence.map((item) => (
                     <li key={item.evidence_id}>
-                      {item.citation} · 근거 ID: {item.evidence_id}
+                      {evidenceLabel(item)}
                     </li>
                   ))}
                 </ul>
@@ -442,9 +421,6 @@ export default function ReportForm({
             </div>
           )}
 
-          {linkedAnalysis?.limitations && (
-            <p className="report-note">{linkedAnalysis.limitations}</p>
-          )}
         </Section>
 
         <Section number="04" title="실제 점검 및 조치 결과">

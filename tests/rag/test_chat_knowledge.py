@@ -135,6 +135,133 @@ def test_manual_metadata_filters_and_changed_file_are_checked(knowledge, store):
     )  # 같은 판 번호라도 파일 교체 뒤 옛 본문을 쓰지 않는다.
 
 
+def test_analysis_research_scopes_sources_and_rechecks_deleted_manual(knowledge, store):
+    from concurrent.futures import ThreadPoolExecutor
+
+    from weeing_weeing.api.analysis_knowledge import DatabaseAnalysisKnowledge
+
+    record = seed_manual(knowledge, store)
+    row = report()
+    knowledge.reports.rows = [row]
+    store.replace_document(row.report_id, [report_chunk(row)])
+    item = row.incident.model_copy(update={"asset_id": "A1"})
+    adapter = DatabaseAnalysisKnowledge(
+        knowledge.documents, knowledge.reports, HybridRetriever(store)
+    )
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        documents = pool.submit(
+            adapter.search, "documents", item, "센서 점검", k=5, timeout_s=10
+        )
+        reports = pool.submit(
+            adapter.search, "reports", item, "센서 점검", k=5, timeout_s=10
+        )
+        documents, reports = documents.result(), reports.result()
+    assert [e.doc_id for e in documents] == [record.doc_id]
+    assert [e.doc_id for e in reports] == [row.report_id]
+    assert "가상 사례" in reports[0].citation
+    assert adapter.is_current(documents[0], timeout_s=10)
+    remove(knowledge, record.doc_id)
+    assert not adapter.is_current(documents[0], timeout_s=10)
+    assert adapter.search("documents", item, "센서 점검", k=5, timeout_s=10) == []
+
+
+def test_analysis_evidence_retains_pdf_page_along_with_section(knowledge, store):
+    from weeing_weeing.api.analysis_knowledge import DatabaseAnalysisKnowledge
+
+    record = seed_manual(knowledge, store, page=8, section="고온 점검")
+    item = report().incident.model_copy(update={"asset_id": "A1"})
+    adapter = DatabaseAnalysisKnowledge(
+        knowledge.documents, knowledge.reports, HybridRetriever(store)
+    )
+    [evidence] = adapter.search("documents", item, "센서 점검", k=5, timeout_s=10)
+    assert evidence.page == 8 and evidence.title == record.title
+    assert "PDF 8쪽" in evidence.citation and "고온 점검" in evidence.citation
+
+
+def test_analysis_report_timing_is_calculated_with_timezones(knowledge, store):
+    from datetime import timedelta
+
+    from weeing_weeing.api.analysis_knowledge import DatabaseAnalysisKnowledge
+
+    row = report()
+    row.maintenance.actions_taken[0].at = datetime(
+        2026, 11, 5, 0, 42, tzinfo=timezone(timedelta(hours=9))
+    )
+    item = row.incident.model_copy(
+        update={
+            "asset_id": "A1",
+            "first_detected_at": datetime(2026, 11, 4, 15, 44, 15, tzinfo=timezone.utc),
+        }
+    )
+    knowledge.reports.rows = [row]
+    store.replace_document(row.report_id, [report_chunk(row)])
+    adapter = DatabaseAnalysisKnowledge(
+        knowledge.documents, knowledge.reports, HybridRetriever(store)
+    )
+    [hit] = adapter.search("reports", item, "센서", k=5, timeout_s=10)
+    assert hit.report_timing[0].offset_seconds == -135
+    assert hit.report_timing[0].action_at == datetime(
+        2026, 11, 4, 15, 42, tzinfo=timezone.utc
+    )
+
+
+def test_analysis_research_empty_history_and_other_process_are_not_evidence(
+    knowledge, store
+):
+    from weeing_weeing.api.analysis_knowledge import DatabaseAnalysisKnowledge
+
+    seed_manual(knowledge, store)
+    row = report()
+    item = row.incident.model_copy(update={"asset_id": "A1"})
+    adapter = DatabaseAnalysisKnowledge(
+        knowledge.documents, knowledge.reports, HybridRetriever(store)
+    )
+    assert adapter.search("reports", item, "점검", k=5, timeout_s=10) == []
+    row.incident.process_id = "other-process"
+    knowledge.reports.rows = [row]
+    store.replace_document(row.report_id, [report_chunk(row)])
+    assert adapter.search("reports", item, "점검", k=5, timeout_s=10) == []
+
+
+def test_analysis_report_code_or_filter_and_process_scope_are_applied_before_top_k(
+    knowledge, store
+):
+    from weeing_weeing.api.analysis_knowledge import DatabaseAnalysisKnowledge
+
+    record = seed_manual(knowledge, store, codes=[])
+    relevant, wrong_code, wrong_process = report(1), report(2), report(3)
+    wrong_code.incident.codes = ["BTT2-M10"]
+    wrong_process.incident.process_id = "other-process"
+    knowledge.reports.rows = [relevant, wrong_code, wrong_process]
+    for row in knowledge.reports.rows:
+        store.replace_document(row.report_id, [report_chunk(row)])
+    item = relevant.incident.model_copy(
+        update={"asset_id": "A1", "codes": ["BTT2-P04", "BTT2-P03"]}
+    )
+    calls = []
+    retriever = HybridRetriever(store)
+
+    def search_hits(query, **kwargs):
+        calls.append(kwargs)
+        return retriever.search_hits(query, **kwargs)
+
+    adapter = DatabaseAnalysisKnowledge(
+        knowledge.documents, knowledge.reports, SimpleNamespace(search_hits=search_hits)
+    )
+    hits = adapter.search("reports", item, "센서", k=1, timeout_s=10)
+    assert [hit.doc_id for hit in hits] == [relevant.report_id]
+    assert calls[0]["versions"] == {relevant.report_id: str(relevant.report_version)}
+    assert calls[0]["filters"]["codes"] == item.codes
+    hits = adapter.search("documents", item, "센서", k=1, timeout_s=10)
+    assert [hit.doc_id for hit in hits] == [record.doc_id]
+    assert "code" not in calls[-1]["filters"] and "codes" not in calls[-1]["filters"]
+    # 같은 코드 보고서가 없으면 다른 에러 사례로 범위를 자동 확대하지 않는다.
+    item.codes = ["BTT2-M19"]
+    before = len(calls)
+    assert adapter.search("reports", item, "점검", k=1, timeout_s=10) == []
+    assert len(calls) == before
+
+
 def test_manual_deletion_revision_location_and_index_lag(knowledge, store):
     record = seed_manual(knowledge, store, page=None)
     assert search(knowledge) == []

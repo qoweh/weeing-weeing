@@ -36,7 +36,10 @@ test('sends a complete frame and returns the actual detected error', async () =>
   assert.equal(FakeSocket.instance.sent.length, 1)
   assert.equal(Object.keys(FakeSocket.instance.sent[0]).length, 15)
   assert.equal(FakeSocket.instance.sent[0].motor_housing_temp_c, 95)
-  assert.match(FakeSocket.instance.url, /\/api\/ws\/telemetry\?context=MINIMAL$/)
+  const url = new URL(FakeSocket.instance.url)
+  assert.equal(url.searchParams.get('context'), 'MINIMAL')
+  assert.equal(url.searchParams.get('origin'), 'SIMULATION')
+  assert.equal(url.searchParams.get('interval_s'), '1')
   assert.equal(FakeSocket.instance.closed, true)
 })
 

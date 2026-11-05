@@ -6,12 +6,20 @@ from uuid import uuid4
 from sqlalchemy import func, select, text, update
 
 from weeing_weeing.contracts import AnalysisResult, Incident, IncidentStatus, Severity
-from weeing_weeing.db.incidents import SqlIncidents, UnknownIncidentError, _columns
+from weeing_weeing.contracts.analysis_workflow import (
+    AnalysisAgentRun,
+    AnalysisCheckpoint,
+)
+from weeing_weeing.db.incidents import SqlIncidents, UnknownIncidentError
 from weeing_weeing.db.models import (
+    AnalysisAgentRunRow,
+    AnalysisCheckpointRow,
     AnalysisJobRow,
     AnalysisRow,
     DeletedIncidentRow,
     IncidentRow,
+    ReportRow,
+    ReportVersionRow,
     TelemetryRow,
 )
 from weeing_weeing.db.session import now, utc
@@ -91,7 +99,9 @@ class SqlAnalysisJobs(SqlIncidents):
         )
         return _job(row)
 
-    def record_frame(self, record, incidents, *, capacity=100, enqueue_analysis=True):
+    def record_frame(
+        self, record, incidents, *, capacity=100, enqueue_analysis=True, provenance=None
+    ):
         """센서·사건은 항상 저장하고, 분석 등록은 옵션이다. 실패하면 전체 롤백."""
         jobs = []
         with self._transaction() as session:
@@ -102,24 +112,16 @@ class SqlAnalysisJobs(SqlIncidents):
             )
             session.execute(
                 self._insert(TelemetryRow)
-                .values(**_values(record))
+                .values(**_values(record, provenance))
                 .on_conflict_do_nothing(index_elements=KEY)
             )
-            for incident in incidents:
+            for incident in sorted(
+                incidents,
+                key=lambda item: (self._number_prefix(item), item.incident_id),
+            ):
                 if session.get(DeletedIncidentRow, incident.incident_id) is not None:
                     continue
-                values = _columns(incident) | {"updated_at": now()}
-                statement = self._insert(IncidentRow).values(
-                    incident_id=incident.incident_id, **values
-                )
-                session.execute(
-                    statement.on_conflict_do_update(
-                        index_elements=["incident_id"],
-                        set_={name: statement.excluded[name] for name in values},
-                        where=IncidentRow.last_detected_at
-                        <= statement.excluded.last_detected_at,
-                    )
-                )
+                incident = self._save_in_transaction(session, incident)
                 if (
                     enqueue_analysis
                     and incident.severity == Severity.ERROR
@@ -144,6 +146,98 @@ class SqlAnalysisJobs(SqlIncidents):
                     )
                 )
             )
+
+    def save_agent_run(self, job_id, run: AnalysisAgentRun):
+        run = AnalysisAgentRun.model_validate(run.model_dump())
+        with self._transaction() as session:
+            self._save_agent_run(session, job_id, run)
+
+    def _save_agent_run(self, session, job_id, run):
+        job = session.get(AnalysisJobRow, job_id)
+        if job is None or job.status != "RUNNING":
+            raise AnalysisConflictError("실행 중인 분석 작업이 아닙니다")
+        existing = session.get(AnalysisAgentRunRow, (job_id, run.role, run.attempt))
+        if existing and existing.data["status"] in (
+            "COMPLETED",
+            "FAILED",
+            "SKIPPED",
+        ):
+            if existing.data == run.model_dump(mode="json"):
+                return
+            raise AnalysisConflictError("완료된 단계 결과는 덮어쓸 수 없습니다")
+        values = dict(
+            job_id=job_id,
+            role=run.role,
+            attempt=run.attempt,
+            data=run.model_dump(mode="json"),
+            updated_at=now(),
+        )
+        session.execute(
+            self._insert(AnalysisAgentRunRow)
+            .values(**values)
+            .on_conflict_do_update(
+                index_elements=["job_id", "role", "attempt"],
+                set_={"data": values["data"], "updated_at": values["updated_at"]},
+            )
+        )
+
+    def save_progress(self, job_id, run, checkpoint: AnalysisCheckpoint):
+        """단계 공개 결과와 재개 입력을 같은 COMMIT으로 보존한다."""
+        checkpoint = AnalysisCheckpoint.model_validate(checkpoint.model_dump())
+        run = AnalysisAgentRun.model_validate(run.model_dump())
+        if run not in checkpoint.runs:
+            raise AnalysisConflictError("단계 결과와 체크포인트 불일치")
+        with self._transaction() as session:
+            job = session.get(AnalysisJobRow, job_id)
+            if job is None or checkpoint.incident_id != job.incident_id:
+                raise AnalysisConflictError("체크포인트 사건 ID 불일치")
+            self._save_agent_run(session, job_id, run)
+            values = dict(
+                job_id=job_id, data=checkpoint.model_dump(mode="json"), updated_at=now()
+            )
+            session.execute(
+                self._insert(AnalysisCheckpointRow)
+                .values(**values)
+                .on_conflict_do_update(
+                    index_elements=["job_id"],
+                    set_={"data": values["data"], "updated_at": values["updated_at"]},
+                )
+            )
+
+    def checkpoint(self, job_id):
+        with self._transaction() as session:
+            row = session.get(AnalysisCheckpointRow, job_id)
+            return AnalysisCheckpoint.model_validate(row.data) if row else None
+
+    @staticmethod
+    def _has_approved_report(session, incident_id):
+        return (
+            session.scalar(
+                select(ReportRow.report_id)
+                .join(
+                    ReportVersionRow, ReportVersionRow.report_id == ReportRow.report_id
+                )
+                .where(
+                    ReportRow.incident_id == incident_id,
+                    ReportVersionRow.report_status == "APPROVED",
+                )
+                .limit(1)
+            )
+            is not None
+        )
+
+    def has_approved_report(self, incident_id):
+        with self._transaction() as session:
+            return self._has_approved_report(session, incident_id)
+
+    def agent_runs(self, job_id):
+        order = {"documents": 0, "reports": 1, "synthesis": 2, "verification": 3}
+        with self._transaction() as session:
+            rows = session.scalars(
+                select(AnalysisAgentRunRow).where(AnalysisAgentRunRow.job_id == job_id)
+            )
+            runs = [AnalysisAgentRun.model_validate(row.data) for row in rows]
+        return sorted(runs, key=lambda run: (run.attempt, order[run.role]))
 
     def analysis_input(self, result: AnalysisResult) -> Incident | None:
         """저장된 분석과 정확히 일치하는 실행 입력. 최신 재분석과 섞지 않는다."""
@@ -222,7 +316,7 @@ class SqlAnalysisJobs(SqlIncidents):
             )
             return row.id
 
-    def retry(self, incident_id, request_id, *, capacity=100):
+    def retry(self, incident_id, request_id, *, capacity=100, expected_job_id=None):
         with self._transaction() as session:
             if self._engine.dialect.name == "sqlite":
                 session.execute(text("BEGIN IMMEDIATE"))
@@ -236,6 +330,10 @@ class SqlAnalysisJobs(SqlIncidents):
             )
             if previous:
                 return _job(previous)
+            if self._has_approved_report(session, incident_id):
+                raise AnalysisConflictError(
+                    "최종 승인된 보고서가 있는 사건은 분석을 재시도할 수 없습니다"
+                )
             latest = session.scalar(
                 select(AnalysisJobRow)
                 .where(AnalysisJobRow.incident_id == incident_id)
@@ -243,18 +341,64 @@ class SqlAnalysisJobs(SqlIncidents):
                     AnalysisJobRow.created_at.desc(), AnalysisJobRow.job_id.desc()
                 )
             )
+            if expected_job_id is not None and (
+                latest is None or latest.job_id != expected_job_id
+            ):
+                raise AnalysisConflictError(
+                    "분석 작업이 변경되었습니다. 결과를 새로고침해 주세요"
+                )
             if latest and latest.status in ACTIVE:
                 return _job(latest)
             if latest is None or latest.status != "FAILED":
                 raise AnalysisConflictError("실패한 작업만 수동 재요청할 수 있습니다")
             # 실패한 원래 입력 스냅샷을 재사용한다. 회복 뒤의 현재 사건과 섞지 않는다.
-            return self._enqueue(
+            job = self._enqueue(
                 session, Incident.model_validate(latest.snapshot), key, capacity
             )
+            saved = session.get(AnalysisCheckpointRow, latest.job_id)
+            if saved:
+                checkpoint = AnalysisCheckpoint.model_validate(saved.data)
+                # 실패·진행 단계는 새로 실행하며 성공 단계는 원래 호출 통계까지 보존한다.
+                checkpoint.runs = [
+                    run.model_copy(
+                        update={
+                            "reused_from_job_id": run.reused_from_job_id
+                            or latest.job_id
+                        }
+                    )
+                    for run in checkpoint.runs
+                    if run.status == "COMPLETED"
+                ]
+                session.add(
+                    AnalysisCheckpointRow(
+                        job_id=job["job_id"],
+                        data=checkpoint.model_dump(mode="json"),
+                        updated_at=now(),
+                    )
+                )
+                for run in checkpoint.runs:
+                    session.add(
+                        AnalysisAgentRunRow(
+                            job_id=job["job_id"],
+                            role=run.role,
+                            attempt=run.attempt,
+                            data=run.model_dump(mode="json"),
+                            updated_at=now(),
+                        )
+                    )
+            return job
 
     def recover_interrupted(self):
         """단일 API 프로세스 시작 시 실행. 유료 호출을 자동 재실행하지 않는다."""
         with self._transaction() as session:
+            job_ids = list(
+                session.scalars(
+                    select(AnalysisJobRow.job_id).where(
+                        AnalysisJobRow.status == "RUNNING"
+                    )
+                )
+            )
+            self._close_agent_runs(session, job_ids, "interrupted")
             return session.execute(
                 update(AnalysisJobRow)
                 .where(AnalysisJobRow.status == "RUNNING")
@@ -270,6 +414,17 @@ class SqlAnalysisJobs(SqlIncidents):
                 .limit(1)
             )
             if row is None:
+                return None
+            # 재시도 예약 후 보고서가 승인된 경우에도 새 유료 실행을 시작하지 않는다.
+            if row.request_key.startswith("manual:") and self._has_approved_report(
+                session, row.incident_id
+            ):
+                row.status, row.error_code, row.updated_at = (
+                    "FAILED",
+                    "report_approved",
+                    now(),
+                )
+                self._close_agent_runs(session, [row.job_id], "report_approved")
                 return None
             claimed = session.execute(
                 update(AnalysisJobRow)
@@ -311,10 +466,14 @@ class SqlAnalysisJobs(SqlIncidents):
             job.status = "FAILED" if result.status == "FAILED" else "COMPLETED"
             job.error_code = "analysis_failed" if result.status == "FAILED" else None
             job.updated_at = now()
+            self._close_agent_runs(
+                session, [job_id], job.error_code or "workflow_finished"
+            )
             return row.id
 
     def fail(self, job_id, code):
         with self._transaction() as session:
+            self._close_agent_runs(session, [job_id], code)
             session.execute(
                 update(AnalysisJobRow)
                 .where(
@@ -322,3 +481,22 @@ class SqlAnalysisJobs(SqlIncidents):
                 )
                 .values(status="FAILED", error_code=code, updated_at=now())
             )
+
+    @staticmethod
+    def _close_agent_runs(session, job_ids, code):
+        if not job_ids:
+            return
+        rows = session.scalars(
+            select(AnalysisAgentRunRow).where(AnalysisAgentRunRow.job_id.in_(job_ids))
+        )
+        for row in rows:
+            run = AnalysisAgentRun.model_validate(row.data)
+            if run.status in ("PENDING", "RUNNING"):
+                run.status = "FAILED" if run.status == "RUNNING" else "SKIPPED"
+                run.error_code, run.summary = (
+                    code,
+                    "상위 분석 작업이 종료되어 실행을 중단했습니다.",
+                )
+                run.finished_at = now()
+                row.data = run.model_dump(mode="json")
+                row.updated_at = now()

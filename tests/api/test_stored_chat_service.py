@@ -279,3 +279,20 @@ def test_separate_conversations_use_independent_services_concurrently(setup):
         assert first.result(timeout=10).state == "COMPLETED"
         assert second.result(timeout=10).state == "COMPLETED"
     assert len(instances) == 2 and all(service.calls == 1 for service in instances)
+
+
+def test_chat_run_is_traced_under_conversation_session(setup):
+    from weeing_weeing.agent import tracing
+
+    repo, service, app, cid = setup
+    seen = []
+    original = service.reply
+
+    def reply(question, **kwargs):
+        seen.append(tracing._session.get())
+        return original(question, **kwargs)
+
+    service.reply = reply
+    app.submit("owner", cid, item())
+    assert seen == [str(cid)]
+    assert tracing._session.get() is None  # 실행이 끝나면 원래대로

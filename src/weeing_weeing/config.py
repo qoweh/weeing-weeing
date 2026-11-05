@@ -51,11 +51,19 @@ class Settings:
     langfuse_tracing_environment: str = "dev"  # dev | demo | ci
     langfuse_capture_content: bool = True  # 프롬프트·응답 본문까지 보낼지
     analysis_auto_enabled: bool = False  # 유료 자동 호출은 명시적으로 켠다
+    analysis_mode: str = "single"  # single | multi
+    analysis_verification_enabled: bool = False
+    analysis_total_timeout_s: float = 180
+    analysis_max_calls: int = 24
     telemetry_db_enabled: bool = False  # 분석 작업 없이 센서·사건만 저장
     telemetry_auth_required: bool = False  # 운영 compose는 항상 true
     telemetry_producer_token_sha256: str = ""  # 원본 토큰 대신 SHA-256만 보관
     telemetry_simulation_rpm_enabled: bool = False  # loopback RPM 시나리오 시험만
     telemetry_unreal_context_enabled: bool = False  # 명시적 시뮬레이터 상태 프레임 수신
+    ml_prediction_enabled: bool = False
+    ml_model_path: Path = Path("models/future_error.joblib")
+    ml_model_sha256: str = ""
+    ml_prediction_dir: Path = Path("outputs/ml_live")
 
 
 def get_settings() -> Settings:
@@ -103,6 +111,13 @@ def get_settings() -> Settings:
         in ("1", "true", "yes"),
         analysis_auto_enabled=env("ANALYSIS_AUTO_ENABLED", "false").lower()
         in ("1", "true", "yes"),
+        analysis_mode=env("ANALYSIS_MODE", "single").strip().lower(),
+        analysis_verification_enabled=env(
+            "ANALYSIS_VERIFICATION_ENABLED", "false"
+        ).lower()
+        in ("1", "true", "yes"),
+        analysis_total_timeout_s=float(env("ANALYSIS_TOTAL_TIMEOUT_S", "180")),
+        analysis_max_calls=int(env("ANALYSIS_MAX_CALLS", "24")),
         telemetry_db_enabled=env("TELEMETRY_DB_ENABLED", "false").lower()
         in ("1", "true", "yes"),
         telemetry_auth_required=env("TELEMETRY_AUTH_REQUIRED", "false").lower()
@@ -112,6 +127,11 @@ def get_settings() -> Settings:
             "TELEMETRY_SIMULATION_RPM_ENABLED", "false"
         ).lower()
         in ("1", "true", "yes"),
+        ml_prediction_enabled=env("ML_PREDICTION_ENABLED", "false").lower()
+        in ("1", "true", "yes"),
+        ml_model_path=Path(env("ML_MODEL_PATH", "models/future_error.joblib")),
+        ml_model_sha256=env("ML_MODEL_SHA256", "").strip().lower(),
+        ml_prediction_dir=Path(env("ML_PREDICTION_DIR", "outputs/ml_live")),
         telemetry_unreal_context_enabled=env(
             "TELEMETRY_UNREAL_CONTEXT_ENABLED", "false"
         ).lower()

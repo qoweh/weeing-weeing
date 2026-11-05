@@ -30,7 +30,7 @@ function IncidentDeleteDialog({ incident, busy, error, onCancel, onConfirm }) {
   }, [])
   return <dialog ref={dialog} className="incident-history-dialog incident-delete-dialog" aria-labelledby="incident-delete-title" aria-describedby="incident-delete-description" onCancel={(event) => { event.preventDefault(); if (!busy) onCancel() }}>
     <h2 id="incident-delete-title">이 사건을 삭제할까요?</h2>
-    <p className="incident-delete-dialog__identity">{incident.codes.join(', ')} · {incident.incident_id}</p>
+    <p className="incident-delete-dialog__identity">{incident.codes.join(', ')} · {incident.incident_number || incident.incident_id}</p>
     <p id="incident-delete-description">연결된 모든 보고서와 결재 이력, AI 분석 결과와 보고서 검색 자료가 함께 삭제됩니다. 센서 원본 기록은 유지됩니다.</p>
     {incident.has_approved_report && <p className="incident-delete-dialog__warning">최종 승인된 보고서가 연결된 사건입니다.</p>}
     {error && <p className="incident-test__error" role="alert">{error}</p>}
@@ -38,7 +38,7 @@ function IncidentDeleteDialog({ incident, busy, error, onCancel, onConfirm }) {
   </dialog>
 }
 
-function IncidentDetailDialog({ incident, result, reports, onRefresh, onClose, onOpenDraft, onOpenReport, onDelete, canWrite, busy }) {
+function IncidentDetailDialog({ user, onResult, onSessionExpired, incident, result, reports, onRefresh, onClose, onOpenDraft, onOpenReport, onDelete, canWrite, busy }) {
   const dialog = useRef(null)
   const closeButton = useRef(null)
   useEffect(() => {
@@ -51,7 +51,7 @@ function IncidentDetailDialog({ incident, result, reports, onRefresh, onClose, o
 
   return <dialog ref={dialog} className="incident-history-dialog" aria-labelledby="incident-detail-title" onCancel={(event) => { event.preventDefault(); onClose() }}>
     <div className="incident-history__detail"><div><p className="incident-history-dialog__eyebrow">INCIDENT ANALYSIS</p><h2 id="incident-detail-title">사건 분석 결과</h2></div><button ref={closeButton} type="button" className="incident-history-dialog__close" onClick={onClose} aria-label="사건 분석 결과 닫기">×</button></div>
-    <AnalysisCard incident={incident} result={result} />
+    <AnalysisCard key={incident.incident_id} incident={incident} result={result} user={user} onResult={onResult} onSessionExpired={onSessionExpired} onOpenReport={onOpenReport} busy={busy} />
     {incident.has_approved_report && <section className="incident-history-dialog__reports" aria-label="최종 승인 보고서"><h3>최종 승인 보고서</h3>
       {!reports ? <p role="status">보고서를 불러오는 중입니다.</p> : reports.error ? <p className="incident-test__error" role="alert">{reports.error}</p> : reports.items.length === 0 ? <p>승인된 보고서를 찾을 수 없습니다. 목록을 새로고침해 주세요.</p> : <ul>{reports.items.map((report) => <li key={report.report_id}><button type="button" disabled={busy} onClick={() => onOpenReport(report.report_id, incident.incident_id, report.report_version)}><span><strong>{report.report_id}</strong><small>v{report.report_version} · {report.author_name}</small></span><span aria-hidden="true">→</span></button></li>)}</ul>}
     </section>}
@@ -64,9 +64,10 @@ function IncidentTable({ title, items, onSelect, active = false }) {
   const [page, setPage] = useState(1)
   const [expanded, setExpanded] = useState(false)
   const [sort, setSort] = useState({ key: 'first_detected_at', direction: -1 })
-  const columns = [['number', '번호'], ['codes', '사건'], ['asset_id', '설비 모델'], ['first_detected_at', '발생 시각'], ['equipment', '설비 상태'], ['processing', '처리 상태'], ['incident_id', '사건 번호']]
+  const columns = [['number', '번호'], ['codes', '사건'], ['asset_id', '설비 모델'], ['first_detected_at', '발생 시각'], ['equipment', '설비 상태'], ['processing', '처리 상태'], ['incident_number', '사건 번호']]
   const sorted = [...items].sort((a, b) => {
     if (sort.key === 'number') return (String(b.first_detected_at).localeCompare(String(a.first_detected_at))) * sort.direction * -1
+    if (sort.key === 'incident_number') return String(a.incident_number || a.incident_id).localeCompare(String(b.incident_number || b.incident_id), 'ko', { numeric: true }) * sort.direction
     return String(a[sort.key] ?? '').localeCompare(String(b[sort.key] ?? ''), 'ko', { numeric: true }) * sort.direction
   })
   const pageSize = active && !expanded ? 3 : 10
@@ -77,7 +78,7 @@ function IncidentTable({ title, items, onSelect, active = false }) {
     <div className="library-summary"><h2>{title} <span>{items.length}건</span></h2><p>열 제목을 클릭하여 오름차순 / 내림차순 정렬</p></div>
     <div className="library-table-scroll" role="region" aria-label={`${title} 표`} tabIndex={0}>
       <table className="library-table incident-history__library-table"><thead><tr>{columns.map(([key, label]) => <th key={key} aria-sort={sort.key === key ? (sort.direction === 1 ? 'ascending' : 'descending') : 'none'}><button type="button" onClick={() => { setSort({ key, direction: sort.key === key ? -sort.direction : 1 }); setPage(1) }}>{label}{sort.key === key && <span aria-hidden="true"> {sort.direction === 1 ? '↑' : '↓'}</span>}</button></th>)}</tr></thead>
-        <tbody>{rows.map((item, index) => <tr key={item.incident_id}><td>{String((current - 1) * pageSize + index + 1).padStart(2, '0')}</td><td><button type="button" className="library-link" onClick={() => onSelect(item)}>{item.codes.join(', ')}</button></td><td>{item.asset_id}</td><td>{new Date(item.first_detected_at).toLocaleString('ko-KR')}</td><td>{item.equipment}</td><td><span className={`library-status library-status--${item.report_status === 'REJECTED' ? 'danger' : active ? 'warning' : 'success'}`}>{item.processing}</span></td><td>{item.incident_id}</td></tr>)}
+        <tbody>{rows.map((item, index) => <tr key={item.incident_id}><td>{String((current - 1) * pageSize + index + 1).padStart(2, '0')}</td><td><button type="button" className="library-link" onClick={() => onSelect(item)}>{item.codes.join(', ')}</button></td><td>{item.asset_id}</td><td>{new Date(item.first_detected_at).toLocaleString('ko-KR')}</td><td>{item.equipment}</td><td><span className={`library-status library-status--${item.report_status === 'REJECTED' ? 'danger' : active ? 'warning' : 'success'}`}>{item.processing}</span></td><td>{item.incident_number || item.incident_id}</td></tr>)}
           {!rows.length && <tr><td className="library-empty" colSpan={columns.length}>표시할 사건이 없습니다.</td></tr>}</tbody></table>
     </div>
     {active && items.length > 3 && <div className="incident-history__more"><button type="button" onClick={() => { setExpanded(!expanded); setPage(1) }}>{expanded ? '접기' : `전체 ${items.length}건 보기`}</button></div>}
@@ -176,7 +177,7 @@ export default function IncidentHistoryPage({ focus, onFocusHandled, onSessionEx
   // React가 선택 변경을 감지하지 못해 결과만 지워질 수 있다.
   function select(item) { setResult(null); setReports(null); setSelected({ ...item }) }
   const term = query.trim().toLowerCase()
-  const visible = incidents.filter((item) => [item.incident_id, item.asset_id, ...item.codes].some((value) => value?.toLowerCase().includes(term)))
+  const visible = incidents.filter((item) => [item.incident_number, item.incident_id, item.asset_id, ...item.codes].some((value) => value?.toLowerCase().includes(term)))
 
   return <div className="library-page incident-history" aria-label="이상 현황">
     <h1 className="incident-history__title">이상현황</h1>
@@ -187,7 +188,7 @@ export default function IncidentHistoryPage({ focus, onFocusHandled, onSessionEx
       <IncidentTable title="처리 완료된 사건" items={visible.filter((item) => item.has_approved_report)} onSelect={select} />
       <p className="incident-result__note">최근 Error 사건 최대 100건을 표시합니다. 보고서 최종 승인 여부로 처리 상태를 구분합니다.</p>
     </>}
-    {selected && <IncidentDetailDialog incident={selected} result={result} reports={reports} onRefresh={() => select(selected)} onClose={() => setSelected(null)} onOpenDraft={onOpenDraft} onOpenReport={onOpenReport} onDelete={user.role === '관제 담당자' ? () => { setDeleteError(''); setDeleteTarget(selected) } : undefined} busy={busy} canWrite={['현장 점검자', '보전 팀장'].includes(user.role)} />}
+    {selected && <IncidentDetailDialog user={user} onResult={setResult} onSessionExpired={onSessionExpired} incident={selected} result={result} reports={reports} onRefresh={() => select(selected)} onClose={() => setSelected(null)} onOpenDraft={onOpenDraft} onOpenReport={onOpenReport} onDelete={user.role === '관제 담당자' ? () => { setDeleteError(''); setDeleteTarget(selected) } : undefined} busy={busy} canWrite={['현장 점검자', '보전 팀장'].includes(user.role)} />}
     {deleteTarget && <IncidentDeleteDialog incident={deleteTarget} busy={deleteBusy} error={deleteError} onCancel={() => setDeleteTarget(null)} onConfirm={removeIncident} />}
   </div>
 }

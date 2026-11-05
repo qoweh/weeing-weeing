@@ -24,3 +24,12 @@
 - 모든 수치는 시연용 합성·지정값이다. 실제 설비 진단 근거로 쓰지 않는다(정의서 1절).
 - 합성 정비 이력의 AI 분석 칸도 `model=synthetic/example`인 예시이며 실제 모델 실행 결과가 아니다. 정비 조치·결재 사번 `SYN-*`도 모두 가상이다. 사례 정의를 바꾸면 `PYTHONPATH=src uv run --no-sync python scripts/generate_synthetic_reports.py`로 JSONL을 재생성하고 `uv run --no-sync pytest tests/data/test_synthetic_reports.py`로 검증한다.
 - 큰 파일(수십 MB 이상)이나 개인정보는 커밋하지 않는다.
+
+## 미래 Error ML 첫 실험
+
+| 경로 | 내용 | 출처 |
+|---|---|---|
+| `eval/ml_future60_v1/` | 원본 검증, 고정 실행 분리, window 집계, 검증 후보, 메타데이터, 평가 및 시험 혼동행렬. 원본 센서 행은 포함하지 않음 | 사용자 제공 Unreal 합성 `conveyor_dataset.csv`, SHA-256 `26ed78c3…3086a1`; [실험 설명](../docs/ML_FUTURE_ERROR.md) |
+
+원본 CSV는 저장소 밖 실제 경로에서 읽으며 수정·Git 추가하지 않는다.
+모델 joblib과 행별 예측은 Git 제외 `outputs/ml/`에 저장한다.

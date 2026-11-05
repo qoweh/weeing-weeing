@@ -2,7 +2,7 @@ import pytest
 from pydantic import ValidationError
 
 from weeing_weeing.contracts import SCHEMA_VERSION, TelemetryRecord
-from weeing_weeing.contracts.telemetry import COLUMNS
+from weeing_weeing.contracts.telemetry import COLUMNS, TelemetryProvenance
 
 
 def test_sample_csv_matches_contract(sample_rows):
@@ -31,3 +31,28 @@ def test_rejects_unknown_column(sample_rows):
     row = sample_rows[0] | {"belt_speed": "0.25"}
     with pytest.raises(ValidationError):
         TelemetryRecord.model_validate(row)
+
+
+def test_provenance_is_separate_from_fifteen_field_record(sample_rows):
+    record = TelemetryRecord.model_validate(sample_rows[0])
+    assert set(record.model_dump()) == set(COLUMNS)
+    assert TelemetryProvenance().origin == "UNKNOWN"
+    profile = TelemetryProvenance(origin="SIMULATION", expected_interval_s=1)
+    assert TelemetryProvenance.model_validate_json(profile.model_dump_json()) == profile
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"origin": "guess"},
+        {"expected_interval_s": 0},
+        {"expected_interval_s": -1},
+        {"expected_interval_s": float("nan")},
+        {"expected_interval_s": float("inf")},
+        {"expected_interval_s": 61},
+        {"api_key": "fake-only"},
+    ],
+)
+def test_provenance_rejects_invalid_fields(values):
+    with pytest.raises(ValidationError):
+        TelemetryProvenance(**values)

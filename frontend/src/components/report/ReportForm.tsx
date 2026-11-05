@@ -6,6 +6,7 @@ import {
   type ReactNode,
   type ComponentPropsWithoutRef,
   type ChangeEvent,
+  type KeyboardEvent,
   type FormEvent,
 } from 'react'
 
@@ -242,6 +243,8 @@ function Auto({ children }: { children?: ReactNode }) {
   return children || <span className="report-placeholder">자동 입력</span>
 }
 
+const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+
 function PhotoField({
   side,
   title,
@@ -252,6 +255,7 @@ function PhotoField({
   onEdit: () => void
 }) {
   const [file, setFile] = useState<File | null>(null)
+  const [photoError, setPhotoError] = useState('')
   const imageRef = useRef<HTMLImageElement>(null)
 
   useEffect(() => {
@@ -263,22 +267,32 @@ function PhotoField({
     return () => URL.revokeObjectURL(url)
   }, [file])
 
-  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const input = event.currentTarget
-    const selected = input.files?.[0] ?? null
-    const allowed = ['image/jpeg', 'image/png', 'image/webp']
+  // 읽기 상태(fieldset disabled)에서도 선택창이 열리도록 fieldset 밖에서 만든 input을 사용한다.
+  function openPicker() {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = PHOTO_TYPES.join(',')
+    input.addEventListener('change', () => {
+      const selected = input.files?.[0] ?? null
 
-    if (selected && !allowed.includes(selected.type)) {
-      input.setCustomValidity('JPG, PNG, WebP 이미지를 선택하세요.')
-      input.reportValidity()
-      input.value = ''
-      setFile(null)
-    } else {
-      input.setCustomValidity('')
-      setFile(selected)
+      if (selected && !PHOTO_TYPES.includes(selected.type)) {
+        setFile(null)
+        setPhotoError('JPG, PNG, WebP 이미지를 선택하세요.')
+      } else {
+        setPhotoError('')
+        if (selected) setFile(selected)
+      }
+
+      onEdit()
+    })
+    input.click()
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      openPicker()
     }
-
-    onEdit()
   }
 
   return (
@@ -286,7 +300,14 @@ function PhotoField({
       <h4>{title}</h4>
 
       <div className="report-photo-body">
-        <label className="report-photo-preview">
+        <div
+          className="report-photo-preview"
+          role="button"
+          tabIndex={0}
+          aria-label={`${title} 사진 첨부`}
+          onClick={openPicker}
+          onKeyDown={handleKeyDown}
+        >
           {file ? (
             <img ref={imageRef} alt={`${title} 미리보기`} />
           ) : (
@@ -296,13 +317,12 @@ function PhotoField({
               비율 유지 / 원본은 연결 사건에 보관
             </p>
           )}
-          <input
-            type="file"
-            name={`${side}_photo`}
-            accept="image/jpeg,image/png,image/webp"
-            onChange={handleFileChange}
-          />
-        </label>
+        </div>
+        {photoError && (
+          <p className="error" role="alert">
+            {photoError}
+          </p>
+        )}
 
         <label className="report-photo-caption">
           <span>
@@ -390,9 +410,8 @@ export default function ReportForm({
   }))
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
-  // AI가 채운 초안은 읽기 상태로 열고, 수정 버튼을 눌러야 입력할 수 있다.
-  const [editing, setEditing] = useState(false)
-  const locked = readOnly || busy || (saveOnly && !editing)
+  // 수정 버튼 없이 바로 입력할 수 있다. 읽기 전용이거나 저장 중일 때만 잠근다.
+  const locked = readOnly || busy
 
   // 다른 사건의 분석 결과가 현재 보고서에 섞이지 않도록 확인한다.
   const linkedAnalysis =
@@ -887,15 +906,6 @@ export default function ReportForm({
           )}
           {!readOnly && saveOnly && (
             <>
-              <button
-                type="button"
-                className="report-edit-button"
-                aria-pressed={editing}
-                disabled={busy || editing}
-                onClick={() => setEditing(true)}
-              >
-                {editing ? '수정 중' : '수정'}
-              </button>
               <button
                 type="button"
                 className="report-check-button"

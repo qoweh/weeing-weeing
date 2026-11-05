@@ -7,7 +7,7 @@ const features: [string, string][] = [
 export function AuthBrand() {
   return (
     <div className="login-brand">
-      <span className="login-brand__mark">W</span>
+      <span className="login-brand__mark"><img src="/assets/IMAGE/weeing-logo.png" alt="" /></span>
       <span>
         위잉위잉<small>Equipment AI</small>
       </span>

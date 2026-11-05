@@ -82,6 +82,7 @@ class IncidentRow(Base):
     __tablename__ = "incident"
 
     incident_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    incident_number: Mapped[str | None] = mapped_column(String(128))
     process_id: Mapped[str] = mapped_column(String(64))
     asset_id: Mapped[str] = mapped_column(String(64))
     status: Mapped[str] = mapped_column(String(16))
@@ -96,9 +97,19 @@ class IncidentRow(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (
+        Index("ix_incident_number_unique", "incident_number", unique=True),
         Index("ix_incident_asset_status", "asset_id", "status"),
         Index("ix_incident_first_detected_at", "first_detected_at"),
     )
+
+
+class IncidentNumberCounterRow(Base):
+    """사건 삭제 후에도 에러코드·날짜별 발급 순번을 보존한다."""
+
+    __tablename__ = "incident_number_counter"
+
+    prefix: Mapped[str] = mapped_column(String(120), primary_key=True)
+    last_number: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
 class DeletedIncidentRow(Base):
@@ -156,6 +167,34 @@ class AnalysisJobRow(Base):
     )
 
 
+class AnalysisAgentRunRow(Base):
+    """분석 작업 안의 역할·시도별 결과. 검색 지식과 분리한다."""
+
+    __tablename__ = "analysis_agent_run"
+    job_id: Mapped[str] = mapped_column(
+        String(32),
+        ForeignKey("analysis_job.job_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    role: Mapped[str] = mapped_column(String(16), primary_key=True)
+    attempt: Mapped[int] = mapped_column(Integer, primary_key=True)
+    data: Mapped[dict] = mapped_column(JsonColumn)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AnalysisCheckpointRow(Base):
+    """단계 재시도용 입력. 작업 삭제 시 단계 기록과 함께 삭제한다."""
+
+    __tablename__ = "analysis_checkpoint"
+    job_id: Mapped[str] = mapped_column(
+        String(32),
+        ForeignKey("analysis_job.job_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    data: Mapped[dict] = mapped_column(JsonColumn)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class TelemetryRow(Base):
     """센서 1초 집계 한 줄(contracts/telemetry.py, v3 15컬럼). 칼럼 이름은 계약과 같다.
 
@@ -180,6 +219,7 @@ class TelemetryRow(Base):
     de_kurtosis: Mapped[float] = mapped_column(Float)
     nde_vibration_rms_g: Mapped[float] = mapped_column(Float)
     nde_kurtosis: Mapped[float] = mapped_column(Float)
+    provenance: Mapped[dict | None] = mapped_column(JsonColumn, nullable=True)
 
     __table_args__ = (
         # 중복 방지와 구간 조회(asset_id + 시각 범위·최신순)를 함께 맡는다. 앞 칼럼 순서가 중요하다.

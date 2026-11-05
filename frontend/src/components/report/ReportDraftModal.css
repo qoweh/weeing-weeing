@@ -4,7 +4,8 @@
   margin: auto;
   width: min(1200px, calc(100vw - 32px));
   max-width: none;
-  max-height: calc(100dvh - 32px);
+  height: calc(100dvh / var(--screen-zoom, 1) - 48px);
+  max-height: calc(100dvh / var(--screen-zoom, 1) - 48px);
   padding: 0;
   overflow: auto;
   border: 1px solid var(--border, #d7e0eb);
@@ -20,6 +21,7 @@
 }
 
 .report-draft-dialog.report-draft-dialog--notice {
+  height: auto;
   width: min(440px, calc(100vw - 32px));
   font-family: inherit;
 }
@@ -178,10 +180,20 @@
 
 @media (max-width: 680px) {
   .report-draft-dialog {
-    inset: 8px;
-    width: calc(100vw - 16px);
-    max-height: calc(100dvh - 16px);
-    border-radius: 10px;
+    inset: 0;
+    width: calc(100vw / var(--screen-zoom, 1));
+    height: calc(100dvh / var(--screen-zoom, 1));
+    max-height: calc(100dvh / var(--screen-zoom, 1));
+    border: 0;
+    border-radius: 0;
+  }
+
+  .report-draft-dialog.report-draft-dialog--notice {
+    inset: 16px;
+    width: min(440px, calc(100vw - 32px));
+    height: auto;
+    border: 1px solid var(--border);
+    border-radius: 14px;
   }
 
   .report-draft-dialog__header {

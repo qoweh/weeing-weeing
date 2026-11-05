@@ -60,7 +60,7 @@ def make_analysis(**overrides) -> AnalysisResult:
 
 def test_save_and_get_round_trip(incidents):
     incident = make_incident()
-    incidents.save_incident(incident)
+    incident = incidents.save_incident(incident)
 
     assert incidents.get_incident(incident.incident_id) == incident
     assert incidents.get_incident("INC-없음") is None
@@ -73,7 +73,7 @@ def test_same_id_updates_instead_of_duplicating(incidents):
         last_detected_at=T0 + timedelta(seconds=40),
         recovered_at=T0 + timedelta(seconds=41),
     )
-    incidents.save_incident(recovered)
+    recovered = incidents.save_incident(recovered)
 
     assert incidents.list_incidents() == [recovered]
     assert incidents.list_incidents(statuses=[IncidentStatus.OPEN]) == []
@@ -129,7 +129,7 @@ def test_older_update_arriving_late_is_ignored(incidents):
         last_detected_at=T0 + timedelta(seconds=40),
         recovered_at=T0 + timedelta(seconds=41),
     )
-    incidents.save_incident(recovered)
+    recovered = incidents.save_incident(recovered)
     incidents.save_incident(make_incident())  # 재전송된 옛 OPEN
 
     assert incidents.get_incident(recovered.incident_id) == recovered
@@ -144,7 +144,65 @@ def test_concurrent_first_saves_do_not_conflict(incidents):
     with ThreadPoolExecutor(max_workers=8) as pool:
         list(pool.map(incidents.save_incident, versions))
 
-    assert incidents.get_incident(versions[0].incident_id) == versions[-1]
+    saved = incidents.get_incident(versions[0].incident_id)
+    assert saved == versions[-1].model_copy(
+        update={"incident_number": saved.incident_number}
+    )
+
+
+def test_number_sequence_is_stable_and_not_reused(incidents):
+    first = incidents.save_incident(make_incident(incident_id="INC-first"))
+    second = incidents.save_incident(make_incident(incident_id="INC-second"))
+    assert first.incident_number == "INC-BTT2-P03-20261005-001"
+    assert second.incident_number == "INC-BTT2-P03-20261005-002"
+    updated = incidents.save_incident(make_incident(incident_id="INC-first"))
+    assert updated.incident_number == first.incident_number
+    from sqlalchemy import delete
+
+    from weeing_weeing.db.models import IncidentRow
+
+    with incidents._transaction() as session:
+        session.execute(
+            delete(IncidentRow).where(IncidentRow.incident_id == first.incident_id)
+        )
+    third = incidents.save_incident(make_incident(incident_id="INC-third"))
+    assert third.incident_number == "INC-BTT2-P03-20261005-003"
+
+
+def test_numbers_use_korea_date_and_are_unique_under_concurrency(incidents):
+    from concurrent.futures import ThreadPoolExecutor
+
+    at = datetime(2026, 10, 4, 15, 0, tzinfo=timezone.utc)
+    items = [
+        make_incident(incident_id=f"INC-{i}", first_detected_at=at) for i in range(12)
+    ]
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        saved = list(pool.map(incidents.save_incident, items))
+    assert {item.incident_number for item in saved} == {
+        f"INC-BTT2-P03-20261005-{i:03d}" for i in range(1, 13)
+    }
+
+
+def test_legacy_incident_gets_number_without_overwriting_newer_data(incidents):
+    from sqlalchemy import update
+
+    from weeing_weeing.db.models import IncidentRow
+
+    original = incidents.save_incident(make_incident())
+    with incidents._transaction() as session:
+        row = session.get(IncidentRow, original.incident_id)
+        data = dict(row.data)
+        data.pop("incident_number")
+        session.execute(
+            update(IncidentRow)
+            .where(IncidentRow.incident_id == original.incident_id)
+            .values(incident_number=None, data=data)
+        )
+    older = make_incident(last_detected_at=T0)
+    incidents.save_incident(older)
+    saved = incidents.get_incident(original.incident_id)
+    assert saved.last_detected_at == original.last_detected_at
+    assert saved.incident_number == "INC-BTT2-P03-20261005-002"
 
 
 def test_chat_alert_counts_are_full_and_filters_are_exact(incidents):
