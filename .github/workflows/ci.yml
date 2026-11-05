@@ -102,7 +102,10 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --locked --no-install-project --group ml
-      - run: uv run --no-sync pytest
+      # 러너 코어 수만큼 병렬(pytest-xdist). PostgreSQL 테스트는 작업자마다 DB를 따로 만든다(tests/db/conftest.py).
+      # --durations로 느린 테스트를 로그에 남겨 다음 개선 대상을 본다.
+      # auto는 psutil이 있으면 물리 코어 수라 2 vCPU 러너에서 작업자가 1개가 된다. logical로 vCPU 수만큼 띄운다.
+      - run: echo "vCPU $(nproc)" && uv run --no-sync pytest -n logical --durations=15
 
   make-compat:
     name: Make compatibility (${{ matrix.os }})

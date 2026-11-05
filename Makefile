@@ -37,8 +37,8 @@ fmt: ## 린트 자동 수정 + 포맷
 	$(RUN) ruff check --fix .
 	$(RUN) ruff format .
 
-test: ## 테스트
-	$(RUN) pytest
+test: ## 테스트 (CPU 수만큼 병렬, 한 줄씩 보려면 uv run --no-sync pytest)
+	$(RUN) pytest -n logical
 
 check: lint test ## PR 올리기 전 전체 검사
 	$(RUN) python scripts/sync_skills.py --check
