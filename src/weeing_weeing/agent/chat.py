@@ -234,6 +234,39 @@ class _TracedKnowledge:
             "is_searchable", {"source_kind": source.kind}, source, timeout_s=timeout_s
         )
 
+    def are_searchable(self, sources, *, timeout_s) -> list[bool]:
+        """같은 단계의 출처들을 한 번에 재확인한다(#220). 중복 출처는 한 번만 묻는다.
+
+        지식 구현이 are_searchable을 제공하면 목록 조회를 묶어 한 번에 하고, 없으면
+        is_searchable을 출처마다 부른다. 결과는 입력 순서와 같다.
+        """
+        unique = list({source.source_id: source for source in sources}.values())
+        if not unique:
+            return []
+        batch = getattr(self._knowledge, "are_searchable", None)
+        with self._tracer.observe(
+            "knowledge.are_searchable", as_type="span"
+        ) as observation:
+            if batch is not None:
+                found = list(batch(unique, timeout_s=timeout_s))
+                if len(found) != len(unique):
+                    raise RuntimeError("출처 재확인 결과 개수 불일치")
+            else:
+                found = [
+                    self._knowledge.is_searchable(source, timeout_s=timeout_s)
+                    for source in unique
+                ]
+            observation.update(
+                metadata={
+                    "stage": self.stage,
+                    "sources": len(unique),
+                    "searchable": sum(map(bool, found)),
+                    "batched": batch is not None,
+                }
+            )
+        result = {source.source_id: bool(ok) for source, ok in zip(unique, found)}
+        return [result[source.source_id] for source in sources]
+
 
 class _BudgetClient:
     """도구 루프와 근거 검토의 호출 예산·추적·사용량을 같은 요청에 묶는다."""
@@ -569,14 +602,18 @@ class ToolChatService:
                         and hit.source.kind != "REPORT"
                     ):
                         raise RuntimeError("문서 종류 불일치")
-                    if not knowledge.is_searchable(
-                        hit.source, timeout_s=deadline.remaining()
-                    ):
-                        raise _SearchUnavailableError("검색 대상 상태가 변경됨")
                     previous = hits.get(hit.source.source_id)
                     if previous is not None and previous != hit:
                         raise RuntimeError("동일 출처 ID의 내용이 변경됨")
                     checked.append(hit)
+                # 결과마다 따로 묻지 않고 한 번에 재확인한다(#220).
+                if not all(
+                    knowledge.are_searchable(
+                        [hit.source for hit in checked],
+                        timeout_s=deadline.remaining(),
+                    )
+                ):
+                    raise _SearchUnavailableError("검색 대상 상태가 변경됨")
             except (ToolInputError, LlmTimeoutError):
                 raise
             except Exception as exc:
@@ -635,11 +672,14 @@ class ToolChatService:
                 ]
                 # 집계 자체의 출처와 개별 보고서 출처를 함께 등록해 0건도 인용할 수 있게 한다.
                 returned.extend((hit.source, hit.text) for hit in result.reports)
+                if not all(
+                    knowledge.are_searchable(
+                        [source for source, _ in returned],
+                        timeout_s=deadline.remaining(),
+                    )
+                ):
+                    raise _SearchUnavailableError("조회 대상 상태가 변경됨")
                 for source, _ in returned:
-                    if not knowledge.is_searchable(
-                        source, timeout_s=deadline.remaining()
-                    ):
-                        raise _SearchUnavailableError("조회 대상 상태가 변경됨")
                     if (
                         source.source_id in sources
                         and sources[source.source_id] != source
@@ -791,29 +831,31 @@ class ToolChatService:
             cited = {key for part in draft.parts for key in part.source_ids}
             if cited - sources.keys():
                 raise ToolInputError("이번 대화에서 도구가 반환하지 않은 출처를 인용함")
-            for part in draft.parts:
-                for key in part.source_ids:
-                    source = sources[key]
-                    if source.kind == "FAQ":
-                        current = self._faq.get_answer(source.faq_id)
-                        if (
-                            current.source != source
-                            or current.answer != texts[source.source_id]
-                        ):
-                            raise _SearchUnavailableError("FAQ 내용이 변경됨")
-                    else:
-                        try:
-                            searchable = knowledge.is_searchable(
-                                source, timeout_s=deadline.remaining()
-                            )
-                        except LlmTimeoutError:
-                            raise
-                        except Exception as exc:
-                            raise _SearchUnavailableError(
-                                "출처 상태 확인 실패"
-                            ) from exc
-                        if not searchable:
-                            raise _SearchUnavailableError("검색 대상 상태가 변경됨")
+            pending = []
+            for key in dict.fromkeys(
+                k for part in draft.parts for k in part.source_ids
+            ):
+                source = sources[key]
+                if source.kind == "FAQ":
+                    current = self._faq.get_answer(source.faq_id)
+                    if (
+                        current.source != source
+                        or current.answer != texts[source.source_id]
+                    ):
+                        raise _SearchUnavailableError("FAQ 내용이 변경됨")
+                else:
+                    pending.append(source)
+            # 인용한 출처를 한 번에 재확인한다(#220). 같은 출처를 여러 부분이 인용해도 한 번이다.
+            try:
+                searchable = knowledge.are_searchable(
+                    pending, timeout_s=deadline.remaining()
+                )
+            except LlmTimeoutError:
+                raise
+            except Exception as exc:
+                raise _SearchUnavailableError("출처 상태 확인 실패") from exc
+            if not all(searchable):
+                raise _SearchUnavailableError("검색 대상 상태가 변경됨")
             for part in draft.parts:
                 if any(
                     sources[key].kind == "INCIDENT_QUERY"
@@ -919,6 +961,7 @@ class ToolChatService:
                     return unverified_answer(draft.intent)
                 # 검토 호출 동안 삭제·개정됐을 수도 있으므로 외부에 반환하기 직전에 재확인한다.
                 knowledge.stage = "after_review"
+                pending = []
                 for source in response.sources:
                     if source.kind == "FAQ":
                         current_faq = self._faq.get_answer(source.faq_id)
@@ -928,18 +971,17 @@ class ToolChatService:
                         ):
                             raise _SearchUnavailableError("FAQ 내용 변경")
                     else:
-                        try:
-                            current = knowledge.is_searchable(
-                                source, timeout_s=deadline.remaining()
-                            )
-                        except LlmTimeoutError:
-                            raise
-                        except Exception as exc:
-                            raise _SearchUnavailableError(
-                                "검토 후 출처 확인 실패"
-                            ) from exc
-                        if not current:
-                            raise _SearchUnavailableError("검토 중 출처 변경")
+                        pending.append(source)
+                try:
+                    current = knowledge.are_searchable(
+                        pending, timeout_s=deadline.remaining()
+                    )
+                except LlmTimeoutError:
+                    raise
+                except Exception as exc:
+                    raise _SearchUnavailableError("검토 후 출처 확인 실패") from exc
+                if not all(current):
+                    raise _SearchUnavailableError("검토 중 출처 변경")
             return response
 
         # 별도 분류용 LLM 호출은 없다. 같은 Claude 실행이 필요한 도구를 골라 반복 호출한다.

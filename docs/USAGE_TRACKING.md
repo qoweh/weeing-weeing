@@ -27,6 +27,7 @@ flowchart LR
 - **태그(진입점)**: `analyze`, `llm-check`, 기본값 `app`. 새 기능에서 `get_llm_client(entrypoint="chatbot")`처럼 이름을 주면 기능별로 나뉜다.
 - **본문은 기본으로 보낸다.** 프롬프트·응답·도구 입력까지 기록한다. 메타데이터만 보내려면 `LANGFUSE_CAPTURE_CONTENT=false`로 끈다.
 - API 키, 사번·결재 정보는 어떤 경우에도 보내지 않는다.
+- **우리 SDK가 만든 기록만 보낸다**(`should_export_span=is_langfuse_span`). Anthropic SDK도 호출마다 자체 span(`anthropic.messages.create`)을 남기는데, 이것까지 보내면 같은 호출 비용이 두 번 집계된다(#228). 2026-11-05 이전 기록에는 이 중복이 남아 있어, 사용량 알림은 그 이름을 빼고 합산한다.
 
 ## 팀원 설정 (한 번만)
 
@@ -49,6 +50,9 @@ flowchart LR
 - 터미널에 `Langfuse` 경고가 찍혔는지
 - `LANGFUSE_BASE_URL`에 `https://`까지 들어 있는지
 - 브라우저로 `<주소>/api/public/health`가 열리는지
+- **셸에 `LANGFUSE_*`가 export돼 있지 않은지.** `make`는 `uv run --env-file .env`로 실행하는데, uv는 셸 환경변수를 `.env`보다 우선한다. 다른 도구용으로 셸(`~/.zshrc` 등)에 개인 프로젝트 키를 export해 두면 기록이 그 프로젝트로 가고, 팀 비용 집계·Slack 알림에서 빠진다. 확인: `env | grep -c '^LANGFUSE_'`(0이어야 함). 셸 값을 비우고 `.env`만으로 실행하려면 `env -u LANGFUSE_PUBLIC_KEY -u LANGFUSE_SECRET_KEY -u LANGFUSE_BASE_URL make <명령>`.
+- 화면 왼쪽 위 프로젝트가 `weeing-weeing`인지, Environment 필터에 해당 환경(`dev`·`test` 등)이 선택돼 있는지
+- (서버 관리자) Langfuse v4는 기록을 ClickHouse `events_core`·`events_full`에 저장한다. 예전 `traces`·`observations` 테이블이 비어 있어도 정상이다. 특정 기록이 어느 프로젝트로 갔는지는 `events_core`에서 `session_id`·`trace_id`로 찾는다.
 
 ## 비용을 아끼는 약속
 
@@ -85,6 +89,8 @@ flowchart LR
 | `cache_read_input_tokens` | 프롬프트 캐시에서 읽은 입력 |
 | `cache_creation_input_tokens` | 프롬프트 캐시에 쓴 입력 |
 
+prompt caching(#218): 도구 루프는 도구 정의·SYSTEM과 앞 턴 대화를, 단발 호출(근거 검토·`llm-check`)은 SYSTEM까지를 캐시한다. 캐시는 Anthropic 서버에 5분 보관되며 매 요청이 갱신한다. 챗봇 질문 1건이면 `turn-1`은 `cache_creation_input_tokens`(쓰기, 입력 단가 1.25배), `turn-2`부터는 `cache_read_input_tokens`(읽기, 0.1배)가 보여야 한다. 둘 다 0이면 SYSTEM·도구 정의에 매번 바뀌는 값이 섞였는지 확인한다.
+
 홈서버 Langfuse(4.71.0)의 기본 모델 목록에 아래 세 모델이 위 키 이름 그대로 들어 있어 따로 등록하지 않았다. 2026-10-30에 [공식 가격표](https://platform.claude.com/docs/en/about-claude/pricing)와 대조했다(100만 토큰당 USD).
 
 | 모델 | `input` | `output` | `cache_read_input_tokens` | `cache_creation_input_tokens` (5분) |
@@ -112,12 +118,12 @@ chat (chain)                         ← 질문 1건. session=대화 ID, metadat
   ├ search_knowledge (tool)
   │ ├ knowledge.validate_query (span)
   │ ├ knowledge.search (retriever)   ← DB 대상 선정 + RAG 검색 + 서버 출처 확인
-  │ └ knowledge.is_searchable (span) ← stage=search_knowledge
+  │ └ knowledge.are_searchable (span) ← stage=search_knowledge, 결과 전체를 한 번에 재확인
   ├ chat-assistant.turn-2 (generation)
   └ submit_answer (tool)
-    ├ knowledge.is_searchable        ← stage=before_submit
+    ├ knowledge.are_searchable       ← stage=before_submit
     ├ grounding-review.answer (generation)
-    └ knowledge.is_searchable        ← stage=after_review
+    └ knowledge.are_searchable       ← stage=after_review
 ```
 
 ### 호출 이름 (#202)
@@ -132,7 +138,7 @@ chat (chain)                         ← 질문 1건. session=대화 ID, metadat
 
 ### 조회 단계 span (#203)
 
-`knowledge.<메서드>` span의 metadata에는 `stage`(어느 도구·단계에서 불렀는지), `kind`·`state`·`source_kind`, `returned`(결과 수)·`searchable`(재확인 결과)만 남긴다. 본문은 남기지 않는다. 임베딩·Qdrant·리랭크 세부 시간은 `knowledge.search` 안에 합쳐져 있다(rag 내부 계측은 #203 후속).
+`knowledge.<메서드>` span의 metadata에는 `stage`(어느 도구·단계에서 불렀는지), `kind`·`state`·`source_kind`, `returned`(결과 수)·`sources`·`searchable`(재확인한 출처 수·통과 수)만 남긴다. 출처 재확인은 단계마다 묶어서 한 번 한다(#220). 본문은 남기지 않는다. 임베딩·Qdrant·리랭크 세부 시간은 `knowledge.search` 안에 합쳐져 있다(rag 내부 계측은 #203 후속).
 
 ### 세션 (#204)
 

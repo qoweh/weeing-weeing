@@ -312,3 +312,21 @@ def test_score_is_attached_only_inside_an_open_trace_and_never_raises(caplog):
     # score_trace가 없는 기록기·NullTracer도 받는다
     score_trace(object(), "x", 1)
     score_trace(NULL_TRACER, "x", 1)
+
+
+def test_build_tracer_exports_only_our_spans_to_avoid_double_cost(monkeypatch):
+    """Anthropic SDK의 자체 span까지 보내면 같은 호출 비용이 두 번 집계된다."""
+    import langfuse
+
+    seen = {}
+
+    class Recorder:
+        def __init__(self, **kwargs):
+            seen.update(kwargs)
+
+    monkeypatch.setattr(langfuse, "Langfuse", Recorder)
+    monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", "pk-lf-fake")
+    monkeypatch.setenv("LANGFUSE_SECRET_KEY", "sk-lf-fake")
+    on = dataclasses.replace(get_settings(), langfuse_base_url="https://lf.example.com")
+    assert isinstance(build_tracer(on, entrypoint="x"), LangfuseTracer)
+    assert seen["should_export_span"] is langfuse.is_langfuse_span

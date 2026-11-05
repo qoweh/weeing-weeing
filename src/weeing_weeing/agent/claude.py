@@ -9,6 +9,10 @@
 - 실패는 LlmError 하위 예외로 알린다. 429·5xx·연결 오류는 전체 예산 안에서 최대 2번 재시도한다.
   SDK 내부 재시도는 끄고 _send에서 시간 예산·대기를 제어한다.
 - API 키는 SDK가 ANTHROPIC_API_KEY(또는 ant auth login 프로필)에서 직접 읽는다.
+- prompt caching(#218): SYSTEM 끝에 캐시 지점을 둬 모든 질문이 같은 도구 정의·SYSTEM 처리 결과를
+  재사용하게 하고, 도구 루프(create)는 top-level 자동 캐싱으로 앞 턴 대화까지 다음 턴에 재사용한다.
+  단발 호출(generate_json)은 사용자 입력이 매번 달라 SYSTEM까지만 캐시한다(뒷부분 쓰기 비용 방지).
+  캐시는 Anthropic 서버에 5분 보관되며 적중 여부는 usage.cache_read_input_tokens로 본다.
 - 호출 1번을 tracer에 generation 1개로 남긴다(모델·토큰·오류, #113).
   이름·목적은 tracing.generation_label()이 정한다. 없으면 claude(#202).
 """
@@ -40,6 +44,13 @@ PROVIDER = "anthropic"
 # "default"는 거부 사유에 맞는 대체 모델을 서버가 고른다. 헤더는 이 형식 전용이다.
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 MAX_TOKENS = 16000  # 비스트리밍 요청이 HTTP 제한 시간에 걸리지 않는 선
+CACHE = {"type": "ephemeral"}  # 기본 5분 보관. 매 요청이 갱신한다
+
+
+def cached_system(system: str) -> list[dict[str, Any]]:
+    """SYSTEM을 캐시 지점이 붙은 블록으로 바꾼다. 도구 정의는 SYSTEM보다 앞이라 함께 캐시된다."""
+    return [{"type": "text", "text": system, "cache_control": CACHE}]
+
 
 # 구조화 출력·strict 도구가 받지 않는 JSON 스키마 키워드. 값 검사는 pydantic이 다시 한다.
 _UNSUPPORTED = {
@@ -118,7 +129,7 @@ class ClaudeClient:
             }
         response = self._call(
             timeout_s,
-            system=system,
+            system=cached_system(system),
             messages=[{"role": "user", "content": user}],
             output_config=output_config,
         )
@@ -143,10 +154,12 @@ class ClaudeClient:
         """도구 호출 루프 한 걸음. SDK 응답(Message)을 그대로 돌려준다."""
         return self._call(
             timeout_s,
-            system=system,
+            system=cached_system(system),
             messages=messages,
             tools=tools,
             output_config={"effort": self._effort},
+            # 마지막 블록에 자동 캐시 지점: 다음 턴이 이번 턴까지의 대화를 그대로 재사용한다
+            cache_control=CACHE,
         )
 
     def close(self) -> None:

@@ -270,11 +270,14 @@ class DatabaseChatKnowledge:
                     ),
                     text=chunk.text[:8000],
                 )
-            if self.is_searchable(
-                result.source, timeout_s=max(budget.end - time.monotonic(), 0)
-            ):
-                if result.source.source_id not in {r.source.source_id for r in results}:
-                    results.append(result)
+            if result.source.source_id not in {r.source.source_id for r in results}:
+                results.append(result)
+        # 유사 검색 뒤 판이 바뀌었는지 결과 전체를 한 번에 재확인한다(#220).
+        searchable = self.are_searchable(
+            [r.source for r in results],
+            timeout_s=max(budget.end - time.monotonic(), 0),
+        )
+        results = [r for r, ok in zip(results, searchable) if ok]
         budget.check()
         return results
 
@@ -335,7 +338,35 @@ class DatabaseChatKnowledge:
 
     def is_searchable(self, source, *, timeout_s: float) -> bool:
         """검색 이후 자료가 바뀌지 않았는지 재검사한다. 직책별 열람 권한 검사는 아니다."""
+        return self.are_searchable([source], timeout_s=timeout_s)[0]
+
+    def are_searchable(self, sources, *, timeout_s: float) -> list[bool]:
+        """여러 출처를 재검사한다. 문서·보고서 목록은 이 호출 안에서 한 번씩만 읽는다(#220).
+
+        같은 시점의 목록으로 판정하므로 출처마다 따로 읽는 것과 보장 수준은 같다.
+        """
+        if not sources:
+            return []
         budget = _Budget(timeout_s)
+        listed: dict[str, list] = {}
+
+        def documents():
+            if "documents" not in listed:
+                listed["documents"] = self._documents()
+            return listed["documents"]
+
+        def reports():
+            if "reports" not in listed:
+                listed["reports"] = self._reports()
+            return listed["reports"]
+
+        results = [
+            self._searchable(source, budget, documents, reports) for source in sources
+        ]
+        budget.check()
+        return results
+
+    def _searchable(self, source, budget, documents, reports) -> bool:
         if isinstance(source, ChatIncidentSource):
             # 실시간 사건은 계속 갱신되므로 조회 시점 스냅샷으로 인용한다.
             # 자연스러운 지속/회복 갱신은 허용하지만 명시적으로 삭제된 사건은 반환하지 않는다.
@@ -347,7 +378,7 @@ class DatabaseChatKnowledge:
             # 0건이 1건이 되는 경우도 잡기 위해 집계 대상 전체의 스냅샷을 다시 비교한다.
             current = self.query_history(
                 ChatHistoryQuery(conditions=source.conditions, code=source.code),
-                timeout_s=timeout_s,
+                timeout_s=max(budget.end - time.monotonic(), 0),
             )
             result = current.source == source
         elif isinstance(source, ChatDocumentSource):
@@ -356,18 +387,17 @@ class DatabaseChatKnowledge:
                 r.doc_id == source.doc_id
                 and r.doc_version == source.doc_version
                 and source.source_id.endswith(":" + r.source_sha256)
-                for r in self._documents()
+                for r in documents()
             )
         elif isinstance(source, ChatReportSource):
             result = any(
                 r.report_id == source.report_id
                 and r.report_version == source.report_version
                 and (r.data_origin == "SYNTHETIC") == source.synthetic
-                for r in self._reports()
+                for r in reports()
             )
         else:
             result = False
-        budget.check()
         return result
 
 

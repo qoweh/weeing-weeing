@@ -1,0 +1,63 @@
+# 챗봇 지연 기준선 질문 세트 (#215). 지연 개선(#216~#221) 전후를 같은 질문으로 비교한다.
+# 질문 유형을 고르게 섞는다. expected_status는 참고값이며 통과 기준이 아니다(검색 자료에 따라 달라짐).
+# id는 바꾸지 않는다(전후 비교 키). 질문을 바꾸려면 새 버전 파일을 만든다.
+schema_version = 1
+
+[[cases]]
+id = "L01"
+kind = "MANUAL"
+question = "입구 센서가 오래 점유될 때 무엇부터 점검해?"
+expected_status = "OK"
+
+[[cases]]
+id = "L02"
+kind = "MANUAL"
+question = "모터 외함 온도 기준이 몇 도야?"
+expected_status = "OK"
+
+[[cases]]
+id = "L03"
+kind = "HISTORY"
+question = "모터가 과열됐을 때 어떻게 조치했어?"
+expected_status = "OK"
+
+[[cases]]
+id = "L04"
+kind = "HISTORY"
+question = "운전 중 진동이 심해졌던 원인이 뭐였어?"
+expected_status = "OK"
+
+[[cases]]
+id = "L05"
+kind = "COMBINED"
+question = "외함 온도 기준과 과거에 기준을 넘었던 사례를 같이 알려줘."
+expected_status = "OK"
+
+[[cases]]
+id = "L06"
+kind = "INCIDENT"
+question = "지금 떠 있는 경고가 있어? 왜 떴는지도 알려줘."
+
+[[cases]]
+id = "L07"
+kind = "COUNT"
+question = "승인된 정비 보고서가 지금까지 몇 건이야?"
+expected_status = "OK"
+
+[[cases]]
+id = "L08"
+kind = "FAQ"
+question = "보고서 승인 순서가 어떻게 돼?"
+expected_status = "OK"
+
+[[cases]]
+id = "L09"
+kind = "INSUFFICIENT"
+question = "컨베이어 벨트를 다른 회사 제품으로 바꾸면 수명이 얼마나 늘어?"
+expected_status = "INSUFFICIENT_EVIDENCE"
+
+[[cases]]
+id = "L10"
+kind = "OUT_OF_SCOPE"
+question = "오늘 점심 메뉴 추천해줘."
+expected_status = "OUT_OF_SCOPE"

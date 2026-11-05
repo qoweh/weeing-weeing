@@ -277,7 +277,7 @@ export default function App() {
         </p>
       )}
       <div hidden={page !== "dashboard"}>
-        <DashboardPage onSessionExpired={forgetSession} />
+        <DashboardPage onSessionExpired={forgetSession} onNavigate={navigate} />
       </div>
       {page === "mypage" && (
         <MyPage

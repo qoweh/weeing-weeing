@@ -66,7 +66,15 @@ def main(argv=None) -> int:
     if not getattr(client.tracer, "enabled", False):
         print("Langfuse 설정이 없어 기록하지 않았다(LANGFUSE_BASE_URL·키 확인).")
     else:
-        print("Langfuse Traces에서 environment·request_id(metadata.run_id)로 찾는다.")
+        session = args.session or str(question.request_id)
+        print(
+            f"Langfuse에서 environment={args.environment}를 고르고 세션 {session}으로 찾는다"
+            + (" (요청 ID는 trace metadata.run_id)." if args.session else ".")
+        )
+        print(
+            "안 보이면 셸에 export된 LANGFUSE_* 값이 .env보다 우선해 다른 프로젝트로"
+            " 갔는지 확인한다(docs/USAGE_TRACKING.md)."
+        )
     return 0 if response.status != "FAILED" else 1
 
 

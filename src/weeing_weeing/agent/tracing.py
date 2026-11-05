@@ -282,12 +282,15 @@ def build_tracer(settings: "Settings", *, entrypoint: str) -> Tracer:
         logger.warning("LANGFUSE_BASE_URL은 있지만 %s가 없어 기록하지 않는다", missing)
         return NULL_TRACER
     try:
-        from langfuse import Langfuse
+        from langfuse import Langfuse, is_langfuse_span
 
         client = Langfuse(
             base_url=settings.langfuse_base_url,
             environment=settings.langfuse_tracing_environment,
             timeout=TIMEOUT_S,
+            # Anthropic SDK가 자체 OTel span(anthropic.messages.create)을 남겨 기본 필터로는
+            # 같은 호출이 generation 2개가 되고 비용이 두 번 집계된다. 우리가 남긴 기록만 보낸다.
+            should_export_span=is_langfuse_span,
         )
     except Exception as exc:
         logger.warning(

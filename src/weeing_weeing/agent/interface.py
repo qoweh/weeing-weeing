@@ -2,6 +2,12 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
+from weeing_weeing.agent.chat_baseline import (
+    format_latency_report,
+    load_latency_cases,
+    run_latency_baseline,
+)
+from weeing_weeing.agent.chat_baseline import rows_as_dicts as latency_rows_as_dicts
 from weeing_weeing.agent.chat_usage import ChatCallUsage, ChatRunUsage
 from weeing_weeing.agent.errors import (
     LlmAuthenticationError,
@@ -71,6 +77,10 @@ if TYPE_CHECKING:
     from weeing_weeing.rag.interface import Retriever
 
 __all__ = [
+    "format_latency_report",
+    "load_latency_cases",
+    "run_latency_baseline",
+    "latency_rows_as_dicts",
     "get_replay_llm_client",
     "replay_sample_knowledge",
     "trace_session",
@@ -250,7 +260,11 @@ class ChatKnowledge(Protocol):
         *,
         timeout_s: float,
     ) -> bool:
-        """삭제·개정·승인 상태를 재확인한다. 사용자별 열람 권한을 검사하지 않는다."""
+        """삭제·개정·승인 상태를 재확인한다. 사용자별 열람 권한을 검사하지 않는다.
+
+        선택 구현: are_searchable(sources, *, timeout_s) -> list[bool]을 함께 두면 챗봇이
+        같은 단계의 출처를 한 번에 재확인한다(#220). 없으면 출처마다 이 메서드를 부른다.
+        """
         ...
 
 

@@ -1,29 +1,56 @@
 import type { TelemetryRecord, TelemetrySnapshot } from '../api/telemetry'
 
 export const sensorCharts = [
-  { title: '회전 속도', field: 'rpm', unit: 'rpm', digits: 1 },
-  { title: 'DC 입력 전류', field: 'dc_input_current_a', unit: 'A', digits: 4 },
-  { title: 'DC 버스 전압', field: 'dc_bus_voltage_v', unit: 'V', digits: 3 },
+  { title: '회전 속도', field: 'rpm', code: 'M02/M04', unit: 'rpm', digits: 1 },
+  {
+    title: 'DC 입력 전류',
+    field: 'dc_input_current_a',
+    code: 'M06',
+    unit: 'A',
+    digits: 4,
+  },
+  {
+    title: 'DC 버스 전압',
+    field: 'dc_bus_voltage_v',
+    code: 'M07/M08',
+    unit: 'V',
+    digits: 3,
+  },
   {
     title: '모터 외함 온도',
     field: 'motor_housing_temp_c',
+    code: 'M10',
     unit: '℃',
     digits: 2,
   },
   {
     title: '구동측 진동 RMS',
     field: 'de_vibration_rms_g',
+    code: 'M12',
     unit: 'g',
     digits: 5,
   },
-  { title: '구동측 진동 첨도', field: 'de_kurtosis', unit: '', digits: 4 },
+  {
+    title: '구동측 진동 첨도',
+    field: 'de_kurtosis',
+    code: 'M14',
+    unit: '',
+    digits: 4,
+  },
   {
     title: '반구동측 진동 RMS',
     field: 'nde_vibration_rms_g',
+    code: 'M16',
     unit: 'g',
     digits: 5,
   },
-  { title: '반구동측 진동 첨도', field: 'nde_kurtosis', unit: '', digits: 4 },
+  {
+    title: '반구동측 진동 첨도',
+    field: 'nde_kurtosis',
+    code: 'M18',
+    unit: '',
+    digits: 4,
+  },
 ] as const
 
 export type SensorSample = { time: number; record: TelemetryRecord }
