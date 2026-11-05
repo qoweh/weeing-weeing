@@ -280,13 +280,24 @@ def get_chat_service(
     from weeing_weeing.config import get_settings
 
     settings = settings or get_settings()
+    review_client = None
+    if client is None:
+        # 챗봇 전용 effort·검토 모델(#216·#217). 비우면 공용 LLM 설정과 같다.
+        effort = settings.chat_llm_effort or settings.llm_effort
+        client = get_llm_client(settings, entrypoint="chatbot", effort=effort)
+        if settings.chat_review_model or settings.chat_review_effort:
+            review_client = get_llm_client(
+                settings,
+                entrypoint="chatbot",
+                model=settings.chat_review_model or settings.llm_model,
+                effort=settings.chat_review_effort or effort,
+            )
     return ToolChatService(
-        client
-        if client is not None
-        else get_llm_client(settings, entrypoint="chatbot"),
+        client,
         knowledge,
         faq if faq is not None else load_faq_catalog(),
         max_turns=min(settings.agent_max_turns, 12),
+        review_client=review_client,
     )
 
 
@@ -336,8 +347,12 @@ def get_llm_client(
     *,
     entrypoint: str = "app",
     api_key: str | None = None,
+    model: str | None = None,
+    effort: str | None = None,
 ) -> LlmClient:
     """.env 설정(LLM_MODEL·LLM_EFFORT)으로 만든 Claude 클라이언트.
+
+    model·effort를 넘기면 그 값을 쓴다(챗봇 전용 설정, #216·#217).
 
     api_key를 전달하면 숨김 입력한 메모리의 키를 사용한다. 생략하면 첫 호출 때 SDK가
     환경변수/로그인 프로필을 읽는다. 키는 추적·로그에 전달하지 않는다.
@@ -350,8 +365,8 @@ def get_llm_client(
 
     settings = settings or get_settings()
     return ClaudeClient(
-        settings.llm_model,
-        effort=settings.llm_effort,
+        model or settings.llm_model,
+        effort=effort or settings.llm_effort,
         tracer=build_tracer(settings, entrypoint=entrypoint),
         api_key=api_key,
     )

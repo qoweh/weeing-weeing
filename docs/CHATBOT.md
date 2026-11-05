@@ -103,7 +103,9 @@ Claude 도구 호출 흐름 안에서 처리한다. 실제 검색·출처 상태
 ## 자유 질문과 Claude 도구 호출
 
 `agent.interface.get_chat_service(knowledge, ...)`가 기존 Claude `create()`와
-공용 실행기를 재사용한다. 사용자의 질문을 먼저 다른 분류 모델에 보내지 않는다.
+공용 실행기를 재사용한다.
+챗봇만 다른 effort(`CHAT_LLM_EFFORT`)나 근거 검토 전용 모델·effort(`CHAT_REVIEW_MODEL`·`CHAT_REVIEW_EFFORT`)를
+쓸 수 있다. 비우면 공용 `LLM_MODEL`·`LLM_EFFORT`와 같다(#216·#217, 비교 방법은 [LLM_EVALUATION](LLM_EVALUATION.md)의 지연 기준선). 사용자의 질문을 먼저 다른 분류 모델에 보내지 않는다.
 Claude가 `search_knowledge`의 문서 종류·검색어·설비·모델·오류 코드·기간을 선택하고,
 `submit_answer`로 검증할 답변을 제출한다. 모호하면 확인 질문을 제출할 수 있다.
 자유 질문에 FAQ 내용이 포함되면 `browse_faq`·`get_faq_answer` 도구를 사용할 수 있다.

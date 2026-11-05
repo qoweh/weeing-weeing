@@ -298,8 +298,12 @@ class _BudgetClient:
         client: "LlmClient",
         deadline: _Deadline,
         on_progress: ChatProgress | None = None,
+        review_client: "LlmClient | None" = None,
     ) -> None:
         self.client = client
+        # 근거 검토만 다른 모델·effort로 부를 수 있다(#216). 없으면 같은 클라이언트.
+        self.review_client = review_client or client
+        self._last = client  # 마지막으로 부른 클라이언트. 사용량은 여기서 읽는다
         self.deadline = deadline
         self.on_progress = on_progress
         self.calls: list[ChatCallUsage] = []
@@ -308,16 +312,17 @@ class _BudgetClient:
 
     @property
     def last_usage(self):
-        return self.client.last_usage
+        return self._last.last_usage
 
     @property
     def last_attempts(self):
-        return getattr(self.client, "last_attempts", 1)
+        return getattr(self._last, "last_attempts", 1)
 
-    def _call(self, purpose, invoke):
+    def _call(self, purpose, invoke, client=None):
         started = time.monotonic()
         failed = True
         called = False
+        self._last = client or self.client
         try:
             remaining = self.deadline.remaining()
             if self.on_progress:
@@ -334,10 +339,10 @@ class _BudgetClient:
                 self.calls.append(
                     ChatCallUsage(
                         purpose=purpose,
-                        provider=getattr(self.client, "provider", "unknown"),
-                        model=getattr(self.client, "last_response_model", None)
-                        or getattr(self.client, "model_name", "unknown"),
-                        usage=self.client.last_usage,
+                        provider=getattr(self._last, "provider", "unknown"),
+                        model=getattr(self._last, "last_response_model", None)
+                        or getattr(self._last, "model_name", "unknown"),
+                        usage=self._last.last_usage,
                         elapsed_s=time.monotonic() - started,
                         failed=failed,
                         attempts=self.last_attempts,
@@ -353,9 +358,10 @@ class _BudgetClient:
     def generate_json(self, system, user, *, schema, timeout_s):
         return self._call(
             "grounding",
-            lambda remaining: self.client.generate_json(
+            lambda remaining: self.review_client.generate_json(
                 system, user, schema=schema, timeout_s=remaining
             ),
+            client=self.review_client,
         )
 
 
@@ -373,6 +379,7 @@ class ToolChatService:
         faq: "FaqCatalog",
         *,
         max_turns: int = 6,
+        review_client: "LlmClient | None" = None,
     ) -> None:
         if (
             isinstance(max_turns, bool)
@@ -381,6 +388,7 @@ class ToolChatService:
         ):
             raise ValueError("max_turns는 1~12 정수여야 함")
         self._client = client
+        self._review_client = review_client
         self._knowledge = knowledge
         self._faq = faq
         self._max_turns = max_turns
@@ -406,7 +414,9 @@ class ToolChatService:
             acquired = self._lock.acquire(timeout=deadline.remaining())
             if not acquired:
                 raise LlmTimeoutError("대화 처리 대기 시간 초과")
-            client = _BudgetClient(self._client, deadline, on_progress)
+            client = _BudgetClient(
+                self._client, deadline, on_progress, self._review_client
+            )
             return self._traced_reply(
                 question, context, deadline, client, memory, on_progress
             )
