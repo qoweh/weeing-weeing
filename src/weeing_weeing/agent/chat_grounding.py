@@ -9,6 +9,7 @@ from typing import Annotated, Any, Literal
 from pydantic import Field, model_validator
 
 from weeing_weeing.agent.runtime import AgentError
+from weeing_weeing.agent.tracing import generation_label
 from weeing_weeing.contracts.chat import ChatModel
 
 SYSTEM = """너는 정비 챗봇 답변의 근거 검토자다. 주어진 자료만으로 검토한다.
@@ -82,15 +83,19 @@ def verify_grounding(
     """답변·확인 질문·근거 부족 설명을 검토한다. 형식 오류·API 장애는 그대로 전파한다."""
     import json
 
-    raw = client.generate_json(
-        {
-            "CLARIFICATION": CLARIFICATION_SYSTEM,
-            "INSUFFICIENCY": INSUFFICIENCY_SYSTEM,
-        }.get(payload.get("mode"), SYSTEM),
-        json.dumps(payload, ensure_ascii=False),
-        schema=GroundingVerdict.model_json_schema(),
-        timeout_s=timeout_s,
-    )
+    mode = payload.get("mode") or "ANSWER"
+    with generation_label(
+        f"grounding-review.{mode.lower()}", purpose="grounding_review", mode=mode
+    ):
+        raw = client.generate_json(
+            {
+                "CLARIFICATION": CLARIFICATION_SYSTEM,
+                "INSUFFICIENCY": INSUFFICIENCY_SYSTEM,
+            }.get(payload.get("mode"), SYSTEM),
+            json.dumps(payload, ensure_ascii=False),
+            schema=GroundingVerdict.model_json_schema(),
+            timeout_s=timeout_s,
+        )
     try:
         verdict = GroundingVerdict.model_validate_json(raw)
         if any(i >= len(payload["parts"]) for i in verdict.unsupported_parts):

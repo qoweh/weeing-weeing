@@ -92,6 +92,10 @@ chat: ## 챗봇 질문 실행 (Claude API 비용 발생, DB·색인 필요, ARGS
 chat-check: ## Claude 없이 FAQ·검색·DB 조회 확인 (ARGS='faq' 또는 'search "P03 점검"' 또는 'history')
 	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) $(ENV_FILE) python scripts/check_chat.py
 
+.PHONY: langfuse-smoke
+langfuse-smoke: ## Claude·Voyage 없이 챗봇 1건을 재생해 Langfuse 기록 확인 (비용 0, ARGS='"질문" --session 대화ID')
+	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) $(ENV_FILE) python scripts/langfuse_smoke.py
+
 .PHONY: chat-private
 chat-private: ## .env 자동 로딩 없이 Claude 키를 숨김 입력해 직접 대화 (API 비용 발생)
 	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) --no-env-file python scripts/chat.py --interactive --ask-key

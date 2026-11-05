@@ -13,6 +13,7 @@ from weeing_weeing.agent.interface import (
     FaqCatalog,
     FaqNotFoundError,
     load_faq_catalog,
+    trace_session,
 )
 from weeing_weeing.contracts import (
     ChatQuestion,
@@ -109,19 +110,21 @@ class StoredChatService:
                     actor_id, conversation_id, request_id, token
                 )
                 progressive = getattr(service, "reply_with_progress", None)
-                if on_progress is not None and callable(progressive):
-                    answer = progressive(
-                        question,
-                        context=context,
-                        timeout_s=timeout_s,
-                        on_progress=on_progress,
-                    )
-                else:
-                    if on_progress:
-                        on_progress("generating")
-                    answer = service.reply(
-                        question, context=context, timeout_s=timeout_s
-                    )
+                # 사용량 기록에서 같은 대화의 질문들을 한 세션으로 묶는다(#204).
+                with trace_session(str(conversation_id)):
+                    if on_progress is not None and callable(progressive):
+                        answer = progressive(
+                            question,
+                            context=context,
+                            timeout_s=timeout_s,
+                            on_progress=on_progress,
+                        )
+                    else:
+                        if on_progress:
+                            on_progress("generating")
+                        answer = service.reply(
+                            question, context=context, timeout_s=timeout_s
+                        )
                 response = ChatResponse.model_validate(answer)
         except FaqNotFoundError:
             return self.repository.fail_request(

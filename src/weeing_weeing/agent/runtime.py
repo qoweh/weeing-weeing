@@ -18,7 +18,7 @@ from typing import Any, Generic, TypeVar
 
 from weeing_weeing.agent.claude import strict_schema
 from weeing_weeing.agent.errors import LlmError, LlmUsage
-from weeing_weeing.agent.tracing import NULL_TRACER, Tracer
+from weeing_weeing.agent.tracing import NULL_TRACER, Tracer, generation_label
 from weeing_weeing.contracts import Evidence
 
 T = TypeVar("T")
@@ -163,12 +163,16 @@ def _loop(
 
     while memory.turns < spec.max_turns:
         memory.turns += 1
-        response = client.create(
-            system=spec.system,
-            messages=memory.messages,
-            tools=api_tools,
-            timeout_s=timeout_s,
-        )
+        # 기록에서 몇 번째 도구 루프 호출인지 이름으로 구분한다(#202).
+        with generation_label(
+            f"{spec.name}.turn-{memory.turns}", purpose="tool_loop", turn=memory.turns
+        ):
+            response = client.create(
+                system=spec.system,
+                messages=memory.messages,
+                tools=api_tools,
+                timeout_s=timeout_s,
+            )
         if client.last_usage is not None:
             memory.usage = memory.usage + client.last_usage
         else:

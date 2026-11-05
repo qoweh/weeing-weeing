@@ -37,7 +37,7 @@ from weeing_weeing.agent.llm_check import (
 )
 from weeing_weeing.agent.runtime import ToolInputError as InvalidChatQueryError
 from weeing_weeing.agent.sensor_window import SensorBatch, SensorReader
-from weeing_weeing.agent.tracing import Tracer
+from weeing_weeing.agent.tracing import Tracer, trace_session
 from weeing_weeing.contracts import AnalysisResult, Incident
 from weeing_weeing.contracts.chat import (
     ChatContext,
@@ -65,6 +65,9 @@ if TYPE_CHECKING:
     from weeing_weeing.rag.interface import Retriever
 
 __all__ = [
+    "get_replay_llm_client",
+    "replay_sample_knowledge",
+    "trace_session",
     "CheckReport",
     "check_case",
     "format_llm_check",
@@ -337,3 +340,17 @@ def get_analyzer(
         max_turns=settings.agent_max_turns,
         sensor_reader=sensor_reader,
     )
+
+
+def get_replay_llm_client(settings: "Settings", *, entrypoint: str = "trace-smoke"):
+    """기록 확인용 재생 LLM(#206). Claude를 부르지 않고 Langfuse 기록만 실제처럼 남긴다."""
+    from weeing_weeing.agent.trace_smoke import get_replay_llm_client as build
+
+    return build(settings, entrypoint=entrypoint)
+
+
+def replay_sample_knowledge() -> ChatKnowledge:
+    """기록 확인용 고정 매뉴얼 3건. DB·검색 서버·임베딩 API가 필요 없다."""
+    from weeing_weeing.agent.trace_smoke import SampleKnowledge
+
+    return SampleKnowledge()

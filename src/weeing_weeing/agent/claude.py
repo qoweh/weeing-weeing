@@ -10,6 +10,7 @@
   SDK 내부 재시도는 끄고 _send에서 시간 예산·대기를 제어한다.
 - API 키는 SDK가 ANTHROPIC_API_KEY(또는 ant auth login 프로필)에서 직접 읽는다.
 - 호출 1번을 tracer에 generation 1개로 남긴다(모델·토큰·오류, #113).
+  이름·목적은 tracing.generation_label()이 정한다. 없으면 claude(#202).
 """
 
 import json
@@ -29,7 +30,11 @@ from weeing_weeing.agent.errors import (
     LlmTimeoutError,
     LlmUsage,
 )
-from weeing_weeing.agent.tracing import NULL_TRACER, Tracer
+from weeing_weeing.agent.tracing import (
+    NULL_TRACER,
+    Tracer,
+    current_generation_label,
+)
 
 PROVIDER = "anthropic"
 # "default"는 거부 사유에 맞는 대체 모델을 서버가 고른다. 헤더는 이 형식 전용이다.
@@ -164,8 +169,9 @@ class ClaudeClient:
         return self._sdk
 
     def _call(self, timeout_s: float, **params: Any) -> Any:
+        name, label = current_generation_label()
         with self.tracer.observe(
-            "claude",
+            name,
             as_type="generation",
             input=params.get("messages"),
             model=self.model_name,
@@ -175,6 +181,7 @@ class ClaudeClient:
                 output=[_dump(b) for b in response.content],
                 usage_details=_usage_details(response),
                 metadata={
+                    **label,
                     "stop_reason": response.stop_reason,
                     "effort": self._effort,
                     "attempts": self.last_attempts,

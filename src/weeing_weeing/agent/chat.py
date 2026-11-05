@@ -31,7 +31,7 @@ from weeing_weeing.agent.runtime import (
     run_agent,
     to_json,
 )
-from weeing_weeing.agent.tracing import NULL_TRACER
+from weeing_weeing.agent.tracing import NULL_TRACER, score_trace
 from weeing_weeing.contracts.chat import (
     ChatAnswerPart,
     ChatContext,
@@ -124,6 +124,25 @@ submit_answer로 답하고, OK의 본문은 parts에 쓰며 도구가 반환한 
 보고서 작성·결재·PLC 제어·원인 확정·정지 해제·재가동은 실행하지 않는다."""
 
 
+CHAT_PROMPT_VERSION = "chat-tools-v7"
+
+
+def _failure_code(exc: BaseException) -> str:
+    """reply()의 실패 응답 변환과 같은 기준의 기록용 코드(본문·비밀값 없음)."""
+    for kinds, code in (
+        (LlmTimeoutError, "TIMEOUT"),
+        (_SearchUnavailableError, "SEARCH_UNAVAILABLE"),
+        (LlmAuthenticationError, "LLM_AUTHENTICATION"),
+        (LlmRateLimitError, "RATE_LIMITED"),
+        (LlmServiceError, "LLM_SERVICE"),
+        ((AgentError, LlmInvalidResponseError), "INVALID_RESPONSE"),
+        (LlmError, "LLM_SERVICE"),
+    ):
+        if isinstance(exc, kinds):
+            return code
+    return "INTERNAL_ERROR"
+
+
 class _Draft(ChatModel):
     intent: ChatIntent
     status: Literal[
@@ -166,6 +185,54 @@ class _Deadline:
         if remaining <= 0:
             raise LlmTimeoutError("대화 처리 시간 초과")
         return remaining
+
+
+class _TracedKnowledge:
+    """ChatKnowledge 호출마다 조회 단계 span을 남긴다(#203). 동작·예외는 그대로 전달한다.
+
+    stage는 출처 재확인이 검색 직후·제출 전·근거 검토 후 중 어디인지 구분한다.
+    본문은 남기지 않고 종류·개수·판정만 metadata로 남긴다.
+    """
+
+    _TYPES = {"search": "retriever", "query_history": "retriever"}
+
+    def __init__(self, knowledge: "ChatKnowledge", tracer) -> None:
+        self._knowledge = knowledge
+        self._tracer = tracer
+        self.stage = "tool"
+
+    def _run(self, method: str, metadata: dict[str, Any], *args, **kwargs):
+        with self._tracer.observe(
+            f"knowledge.{method}", as_type=self._TYPES.get(method, "span")
+        ) as observation:
+            result = getattr(self._knowledge, method)(*args, **kwargs)
+            if isinstance(result, list):
+                metadata["returned"] = len(result)
+            elif isinstance(result, bool):
+                metadata["searchable"] = result
+            observation.update(metadata={"stage": self.stage, **metadata})
+            return result
+
+    def validate_query(self, query, *, timeout_s):
+        return self._run(
+            "validate_query", {"kind": query.kind}, query, timeout_s=timeout_s
+        )
+
+    def search(self, query, *, timeout_s):
+        return self._run("search", {"kind": query.kind}, query, timeout_s=timeout_s)
+
+    def query_history(self, query, *, timeout_s):
+        return self._run("query_history", {}, query, timeout_s=timeout_s)
+
+    def query_incidents(self, query, *, timeout_s):
+        return self._run(
+            "query_incidents", {"state": query.state}, query, timeout_s=timeout_s
+        )
+
+    def is_searchable(self, source, *, timeout_s):
+        return self._run(
+            "is_searchable", {"source_kind": source.kind}, source, timeout_s=timeout_s
+        )
 
 
 class _BudgetClient:
@@ -284,7 +351,9 @@ class ToolChatService:
             if not acquired:
                 raise LlmTimeoutError("대화 처리 대기 시간 초과")
             client = _BudgetClient(self._client, deadline, on_progress)
-            return self._reply(question, context, deadline, client, memory, on_progress)
+            return self._traced_reply(
+                question, context, deadline, client, memory, on_progress
+            )
         except LlmTimeoutError:
             return self._failed(question, "TIMEOUT", True)
         except _SearchUnavailableError:
@@ -324,6 +393,48 @@ class ToolChatService:
             question, context=context, timeout_s=timeout_s, on_progress=on_progress
         )
 
+    def _traced_reply(self, question, context, deadline, client, memory, on_progress):
+        """질문 1건을 trace 하나로 묶고 끝에 상태·호출 수 점수를 남긴다(#205).
+
+        실패 응답 변환은 reply()가 하므로 여기서는 예외 종류로 실패 코드를 기록하고
+        예외를 그대로 올린다.
+        """
+        tracer = client.tracer
+        with tracer.observe(
+            "chat",
+            as_type="chain",
+            session_id=str(question.request_id),
+            tags=[CHAT_PROMPT_VERSION],
+        ) as observation:
+            status = failure = None
+            try:
+                response = self._reply(
+                    question, context, deadline, client, memory, on_progress
+                )
+                status = response.status
+                return response
+            except BaseException as exc:
+                status, failure = "FAILED", _failure_code(exc)
+                raise
+            finally:
+                score_trace(tracer, "chat.status", status, data_type="CATEGORICAL")
+                if failure:
+                    score_trace(
+                        tracer, "chat.failure_code", failure, data_type="CATEGORICAL"
+                    )
+                score_trace(
+                    tracer, "chat.llm_calls", len(client.calls), data_type="NUMERIC"
+                )
+                observation.update(
+                    metadata={
+                        "status": status,
+                        "failure_code": failure,
+                        "llm_calls": len(client.calls),
+                        "turns": memory.turns,
+                        "tools": [call.name for call in memory.tool_calls],
+                    }
+                )
+
     @staticmethod
     def _failed(question: ChatQuestion, code, retryable: bool) -> ChatResponse:
         return ChatResponse(
@@ -357,10 +468,21 @@ class ToolChatService:
         clarification_attempts = 0
         insufficiency_attempts = 0
         retrievals: list[dict[str, Any]] = []
+        knowledge = _TracedKnowledge(self._knowledge, client.tracer)
+        reviews = 0
 
         def review(payload):
             """답변과 상태 설명의 검토를 같은 시간·사용량 예산에 합산한다."""
+            nonlocal reviews
             verdict = verify_grounding(client, payload, timeout_s=deadline.remaining())
+            reviews += 1
+            score_trace(
+                client.tracer,
+                "chat.grounding_verdict",
+                verdict.verdict,
+                data_type="CATEGORICAL",
+                comment=f"{payload.get('mode') or 'ANSWER'} #{reviews}",
+            )
             if client.last_usage is not None:
                 memory.usage = memory.usage + client.last_usage
             else:
@@ -423,6 +545,7 @@ class ToolChatService:
             nonlocal applied, search_count, conditions_locked
             if on_progress:
                 on_progress("searching")
+            knowledge.stage = "search_knowledge"
             query = ChatSearchQuery.model_validate(data)
             if search_count >= 8:
                 raise ToolInputError("검색 호출은 최대 8회다")
@@ -431,8 +554,8 @@ class ToolChatService:
             try:
                 # 미지원 필터·미등록 설비 등은 ToolInputError로 모델이 확인 질문하게 한다.
                 # 직책별 열람 제한은 없다. 필터·승인/개정 상태는 검증한다.
-                self._knowledge.validate_query(query, timeout_s=deadline.remaining())
-                found = self._knowledge.search(query, timeout_s=deadline.remaining())
+                knowledge.validate_query(query, timeout_s=deadline.remaining())
+                found = knowledge.search(query, timeout_s=deadline.remaining())
                 deadline.remaining()
                 if len(found) > query.conditions.limit:
                     raise RuntimeError("검색 결과 상한 위반")
@@ -446,7 +569,7 @@ class ToolChatService:
                         and hit.source.kind != "REPORT"
                     ):
                         raise RuntimeError("문서 종류 불일치")
-                    if not self._knowledge.is_searchable(
+                    if not knowledge.is_searchable(
                         hit.source, timeout_s=deadline.remaining()
                     ):
                         raise _SearchUnavailableError("검색 대상 상태가 변경됨")
@@ -489,6 +612,7 @@ class ToolChatService:
             nonlocal applied, search_count, conditions_locked
             if on_progress:
                 on_progress("searching")
+            knowledge.stage = "query_history"
             query = ChatHistoryQuery.model_validate(data)
             # 전체 근거 상한 20개 중 1개는 집계 출처로 예약한다. DB 직접 조회는 20건까지 가능하다.
             query.conditions.limit = min(query.conditions.limit, 19)
@@ -498,7 +622,7 @@ class ToolChatService:
             search_count += 1
             try:
                 result = ChatHistoryResult.model_validate(
-                    self._knowledge.query_history(query, timeout_s=deadline.remaining())
+                    knowledge.query_history(query, timeout_s=deadline.remaining())
                 )
                 deadline.remaining()
                 if (
@@ -512,7 +636,7 @@ class ToolChatService:
                 # 집계 자체의 출처와 개별 보고서 출처를 함께 등록해 0건도 인용할 수 있게 한다.
                 returned.extend((hit.source, hit.text) for hit in result.reports)
                 for source, _ in returned:
-                    if not self._knowledge.is_searchable(
+                    if not knowledge.is_searchable(
                         source, timeout_s=deadline.remaining()
                     ):
                         raise _SearchUnavailableError("조회 대상 상태가 변경됨")
@@ -553,6 +677,7 @@ class ToolChatService:
             nonlocal search_count
             if on_progress:
                 on_progress("searching")
+            knowledge.stage = "query_incidents"
             query = ChatIncidentQuery.model_validate(data)
             if search_count >= 8:
                 raise ToolInputError("조회 호출은 최대 8회다")
@@ -588,9 +713,7 @@ class ToolChatService:
             query = ChatIncidentQuery.model_validate(query.model_dump())
             try:
                 result = ChatIncidentResult.model_validate(
-                    self._knowledge.query_incidents(
-                        query, timeout_s=deadline.remaining()
-                    )
+                    knowledge.query_incidents(query, timeout_s=deadline.remaining())
                 )
                 deadline.remaining()
                 expected = query.model_copy(deep=True)
@@ -664,6 +787,7 @@ class ToolChatService:
             nonlocal grounding_attempts, clarification_attempts, insufficiency_attempts
             deadline.remaining()
             draft = _Draft.model_validate(data)
+            knowledge.stage = "before_submit"
             cited = {key for part in draft.parts for key in part.source_ids}
             if cited - sources.keys():
                 raise ToolInputError("이번 대화에서 도구가 반환하지 않은 출처를 인용함")
@@ -679,7 +803,7 @@ class ToolChatService:
                             raise _SearchUnavailableError("FAQ 내용이 변경됨")
                     else:
                         try:
-                            searchable = self._knowledge.is_searchable(
+                            searchable = knowledge.is_searchable(
                                 source, timeout_s=deadline.remaining()
                             )
                         except LlmTimeoutError:
@@ -794,6 +918,7 @@ class ToolChatService:
                         )
                     return unverified_answer(draft.intent)
                 # 검토 호출 동안 삭제·개정됐을 수도 있으므로 외부에 반환하기 직전에 재확인한다.
+                knowledge.stage = "after_review"
                 for source in response.sources:
                     if source.kind == "FAQ":
                         current_faq = self._faq.get_answer(source.faq_id)
@@ -804,7 +929,7 @@ class ToolChatService:
                             raise _SearchUnavailableError("FAQ 내용 변경")
                     else:
                         try:
-                            current = self._knowledge.is_searchable(
+                            current = knowledge.is_searchable(
                                 source, timeout_s=deadline.remaining()
                             )
                         except LlmTimeoutError:
@@ -859,7 +984,7 @@ class ToolChatService:
                 _Draft.model_json_schema(),
                 submit,
             ),
-            prompt_version="chat-tools-v7",
+            prompt_version=CHAT_PROMPT_VERSION,
             max_turns=self._max_turns,
         )
         # '지난달' 같은 상대 날짜 해석을 위해 한국 시간 기준일과 사용자 조건을 함께 준다.
