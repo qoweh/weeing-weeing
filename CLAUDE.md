@@ -17,7 +17,7 @@
 - 잠금 파일 오류의 원인을 확인하고 --locked를 임의로 우회하지 않는다.
 - 코드 스타일은 pyproject.toml의 Ruff 설정을 따른다.
 - Python 변경 후 해당 파일에 uv run ruff check --fix <파일경로>와 uv run ruff format <파일경로>를 실행한다.
-- 완료 전 make check(= uv run --no-sync로 ruff check ., ruff format --check ., pytest)를 실행한다.
+- 완료 전 make check(= uv run --no-sync로 ruff check ., ruff format --check ., pytest -n logical)를 실행한다.
 - .env·.venv·API 키·개인정보는 커밋하지 않고 비밀 값을 로그에 남기지 않는다.
 - 새 환경변수는 비밀 값 없이 .env.example에 기록하고 외부 API에는 타임아웃과 실패 처리를 적용한다.
 - 새 작업은 최신 dev(기본 브랜치)에서 브랜치를 만들고 PR도 dev로 올린다. 미커밋 변경이 있으면 보존하고 main·dev에 직접 Push하지 않는다. main은 release PR(dev → main)로만 바꾼다.

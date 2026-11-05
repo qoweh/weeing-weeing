@@ -30,7 +30,7 @@ cd weeing-weeing
 uv sync --locked --no-install-project   # Python 3.12 자동 설치 + .venv 생성 + uv.lock 기준 설치
 cp .env.example .env                    # 필요한 값만 채운다
 make env-check                          # .env.example과 비교: 빠진·낡은·중복·주석 변수 (값은 출력 안 함)
-uv run --no-sync pytest                 # 테스트
+uv run --no-sync pytest -n logical         # 테스트(논리 CPU 수만큼 병렬, make test와 같음)
 uv run --no-sync ruff check . && uv run --no-sync ruff format --check .
 uv run --no-sync pre-commit install     # 커밋 전 자동 검사 (1회)
 ```

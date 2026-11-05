@@ -22,9 +22,13 @@ def account(no="E1001", **overrides) -> UserAccount:
     return UserAccount(**(data | overrides))
 
 
+@pytest.mark.real_scrypt
 def test_password_hash_round_trip():
+    assert (
+        module.SCRYPT_N == 2**17
+    )  # 운영 강도(테스트 전역 fixture가 낮추지 않는 유일한 곳)
     stored = module.hash_password(PASSWORD)
-    assert stored.startswith("scrypt$") and PASSWORD not in stored
+    assert stored.startswith("scrypt$131072$8$1$") and PASSWORD not in stored
     assert module.verify_password(PASSWORD, stored)
     assert not module.verify_password("wrong-password", stored)
     assert not module.verify_password(PASSWORD, "garbage")

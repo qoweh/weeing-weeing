@@ -9,7 +9,7 @@ x-app: &app
 services:
   postgres:
     <<: *app
-    image: postgres:16-alpine
+    image: postgres:16-alpine@sha256:0cefaabd882e42bcb2a2f3dc56d3ce4770560ba62fd7f197f1a2e008fd5731ab
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?.env에 POSTGRES_USER 필요}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?.env에 POSTGRES_PASSWORD 필요}
@@ -28,7 +28,7 @@ services:
   qdrant:
     <<: *app
     # 클라이언트(qdrant-client 1.20)와 같은 minor 버전. 로컬 docker-compose.yml과 맞춘다.
-    image: qdrant/qdrant:v1.20.0
+    image: qdrant/qdrant:v1.20.0@sha256:9bfc89f9914fc14876a88c05270685921a55b8877b254a98bcc1cc2f0a424cd2
     # 대시보드(/dashboard)도 SSH 터널로 본다.
     ports:
       - "127.0.0.1:6333:6333"

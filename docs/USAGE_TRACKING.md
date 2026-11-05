@@ -56,6 +56,15 @@ flowchart LR
 - 화면 왼쪽 위 프로젝트가 `weeing-weeing`인지, Environment 필터에 해당 환경(`dev`·`test` 등)이 선택돼 있는지
 - (서버 관리자) Langfuse v4는 기록을 ClickHouse `events_core`·`events_full`에 저장한다. 예전 `traces`·`observations` 테이블이 비어 있어도 정상이다. 특정 기록이 어느 프로젝트로 갔는지는 `events_core`에서 `session_id`·`trace_id`로 찾는다.
 
+## 운영 서버(EC2)에서 사람 나누기
+
+EC2 기록도 홈서버 Langfuse로 간다(EC2 전용 프로젝트, 2026-11-05부터. 서버 설정은 [DEPLOY](DEPLOY.md)). EC2는 서버 하나를 팀원 모두가 웹으로 쓴다. `LLM_USER`는 서버에 하나뿐이라, 이 값만 쓰면 모든 호출이 같은 사람으로 남는다.
+그래서 **챗봇 질문(`/messages`, `/messages/stream`)은 로그인한 계정의 이름(`name`)을 `user_id`로 쓴다**(`agent.tracing.trace_user`).
+
+- 계정 이름에는 본인 GitHub 핸들을 넣는다. 그러면 직책별 계정(관리자·관제·보전·현장 책임자·점검자) 5개를 써도 PC에서 쓴 기록과 같은 사람으로 묶인다. 실명은 넣지 않는다(Langfuse·Slack에 그대로 보인다)
+- 사번은 보내지 않는다
+- 로그인과 상관없이 도는 호출(센서가 만든 사건의 자동 분석, 분석 재실행, CLI)은 지금처럼 `LLM_USER`(EC2는 `ec2`)로 남는다. 분석 재실행은 요청한 사람이 아니라 백그라운드 실행기가 부른다
+
 ## 비용을 아끼는 약속
 
 - 개발 중에는 `LLM_MODEL=claude-sonnet-5-5` 또는 `claude-haiku-5-5`를 쓰고, Opus(기본값)는 평가·시연 때 쓴다.
@@ -107,6 +116,31 @@ Haiku 5.5는 프롬프트가 10만 토큰을 넘으면 단가가 5배가 된다(
 
 - **호출을 막는 예산 상한은 없다.** 기록은 사후에 보는 것이다. 1~2주 기록을 보고 필요하면 홈서버에 LLM 게이트웨이(팀원별 가상 키와 예산)를 두는 방법을 따로 정한다.
 - API 서버(`make api`)·챗봇은 `get_llm_client`를 쓰면 자동으로 기록된다. 다만 오래 떠 있는 프로세스라 따로 flush하지 않아도 SDK가 주기적으로 보낸다.
+
+
+## 사건 분석 기록 구조 (#207)
+
+멀티 분석(`ANALYSIS_MODE=multi`) 1건은 trace 하나다. 역할(문서 조사·보고서 조사·통합·검증)은 그 안의 `agent` 기록으로 들어간다. 병렬로 도는 두 조사 단계도 같은 trace에 들어간다. 그래서 대시보드에서 분석 1건당 지연·비용과 결과 상태 비율을 바로 볼 수 있다.
+
+```
+incident-analysis (chain)            ← 분석 1건. session=사건 ID, 태그=진입점·multi-analysis-vN
+├ incident-documents (agent)         ← 문서 조사(보고서 조사와 병렬)
+│ ├ incident-documents.turn-1 (generation)
+│ └ search_evidence / get_sensor_window ... (tool)
+├ incident-reports (agent)
+├ incident-synthesis (agent)         ← 검증이 REVISE면 한 번 더 생긴다
+└ incident-verification (agent)
+```
+
+| score | 종류 | 언제 |
+|---|---|---|
+| `analysis.status` | CATEGORICAL | 분석 끝. OK·INSUFFICIENT_EVIDENCE·VERIFICATION_FAILED·FAILED |
+| `analysis.failure_code` | CATEGORICAL | FAILED일 때만. 예외 이름 또는 `analysis_timeout` 같은 코드(자유 서술은 남기지 않음) |
+| `analysis.llm_calls` | NUMERIC | 이번 실행에서 실제로 보낸 LLM 호출 수(재개 시 재사용한 단계는 빠짐) |
+
+- 실패한 단계부터 다시 돌리는 재개(`resume_analysis`)는 같은 사건 session에 새 trace로 남고 `metadata.resumed=true`다.
+- 역할별 진입점 태그(`app:documents` 등)는 이제 바깥 trace에 붙지 않는다. 역할은 안쪽 기록 이름(`incident-<역할>`)으로 구분한다.
+- 단일 분석(`ANALYSIS_MODE=single`)은 그대로 에이전트 실행 1번이 trace 하나다.
 
 
 ## 챗봇 기록 구조 (#201)

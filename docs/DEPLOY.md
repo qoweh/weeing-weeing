@@ -14,14 +14,16 @@ GitHub (main push 또는 Run workflow)
   └─ Actions: 이미지 3개 빌드 → GHCR(ghcr.io/qoweh/weeing-weeing-*:<커밋 SHA>)
        └─ SSH로 서버 접속 → docker compose pull && up -d → API 헬스체크
 
-EC2 ~/weeing-weeing/          (레포 clone 없음. 이 두 파일만 있다)
+EC2 ~/weeing-weeing/          (레포 clone 없음)
   docker-compose.yml          ← deploy/docker-compose.prod.yml을 워크플로가 복사
-  .env                        ← 서버에서 직접 작성(비밀 값)
+  .env                        ← 서버에서 직접 작성(비밀 값). 빠진 키는 워크플로가 .env.example과 같은 위치에 추가
+  .env.bak                    ← 워크플로가 키를 추가하기 직전의 .env
+  .env.example, check_env.py  ← 워크플로가 복사(.env 점검·보충용)
 
 web(Caddy :80/:443) ─┬─ /api/*  → api(FastAPI :8000)  ─┬─ postgres
                      ├─ /hmi/*  → hmi/web 정적 파일     ├─ qdrant
-                     ├─ 그 외   → frontend(Next.js :3100) └─ langfuse-web (기록 전송)
-                     └─ langfuse.<EC2_IP>.sslip.io → langfuse-web (~/langfuse, 따로 띄움)
+                     ├─ 그 외   → frontend(Next.js :3100) └─ 홈서버 Langfuse (기록 전송, 서버 밖)
+                     └─ (멈춤) langfuse.<EC2_IP>.sslip.io → langfuse-web (~/langfuse)
 ```
 
 | 서비스 | 이미지 | 데이터(볼륨) |
@@ -29,10 +31,12 @@ web(Caddy :80/:443) ─┬─ /api/*  → api(FastAPI :8000)  ─┬─ postgres
 | web | `deploy/web.Dockerfile` (Caddy + hmi/web 빌드) | `caddy_data`(인증서) |
 | frontend | `deploy/frontend.Dockerfile` | - |
 | api | `deploy/api.Dockerfile` | `storage`(업로드), `outputs`(사건 이력) |
-| postgres | `postgres:16-alpine` | `postgres_data` |
-| qdrant | `qdrant/qdrant:v1.20.0` | `qdrant_data` |
+| postgres | `postgres:16-alpine` (digest 고정) | `postgres_data` |
+| qdrant | `qdrant/qdrant:v1.20.0` (digest 고정) | `qdrant_data` |
 
 - 서버는 빌드하지 않는다. 8GB에서 Next.js 빌드·의존성 설치를 피하고, 이미지 태그로 롤백하기 위해서다
+- 베이스·서비스 이미지는 `태그@sha256:digest`로 고정한다. 같은 태그라도 내용이 바뀌어 재현성이 깨지거나 공급망 위험이 생기는 것을 막는다. 갱신은 Dependabot(`.github/dependabot.yml`)이 주 1회 PR로 올린다(github-actions·uv·npm·docker·docker-compose, 새 버전 7일 뒤)
+- 빌드한 이미지는 커밋 SHA 태그로만 올리고 **Trivy 취약점 검사**를 한다. HIGH·CRITICAL은 실행 요약(Summary)에 표로 남기고, **수정판이 나온 CRITICAL이 있으면 배포를 멈춘다**. 통과한 이미지에만 `latest`를 붙인다
 - API 이미지에는 torch·로컬 AI 모델이 없다(D-31). 임베딩은 해시 방식 또는 외부 API다
 - 모든 서비스가 `restart: unless-stopped`라 서버를 껐다 켜면 2~3분 뒤 저절로 다시 뜬다
 - 경로: `https://<EC2_IP>/`(frontend), `/hmi/`(hmi/web), `/api/health`, `/api/docs`(API 문서)
@@ -102,7 +106,7 @@ ssh-copy-id -i ~/.ssh/ww-team/deploy_ed25519.pub ww-team
 
 레포 Settings → Environments → `production`:
 
-1. **Deployment branches and tags** → Selected branches and tags → `main`, `dev` 추가
+1. **Deployment branches and tags** → Selected branches and tags → `main`만 추가(2026-11-05부터 dev 제외: 검토되지 않은 dev 코드를 수동으로 운영에 올리지 않게)
 2. **Environment secrets**
 
    | 이름 | 값 |
@@ -111,7 +115,12 @@ ssh-copy-id -i ~/.ssh/ww-team/deploy_ed25519.pub ww-team
    | `EC2_SSH_KEY` | 배포 전용 개인 키 내용(`deploy_ed25519`, `.pub` 아님) |
    | `EC2_KNOWN_HOSTS` | 서버 ED25519 호스트 키 한 줄(아래 명령으로 확인 후 등록) |
 
-3. **Environment variables**(선택): `EC2_USER`. 없으면 `ubuntu`. 비밀이 아니므로 Secret에 넣지 않는다(Secret에 넣으면 로그의 같은 글자가 모두 `***`로 가려진다)
+3. **Environment variables**: 비밀이 아니므로 Secret에 넣지 않는다(Secret에 넣으면 로그의 같은 글자가 모두 `***`로 가려진다)
+
+   | 이름 | 값 | 필수 |
+   |---|---|---|
+   | `EC2_USER` | 서버 사용자. 없으면 `ubuntu` | 선택 |
+   | `WEB_HEALTH_URL` | Caddy만 배포(`web_only`)할 때 확인할 HTTPS 주소. 예: `https://telemetry.<EC2_IP>.sslip.io/api/health` | `web_only` 배포 때 필수(없으면 그 배포가 시작 전에 멈춘다) |
 4. 같은 이름의 **레포 Secrets는 지운다**(Settings → Secrets and variables → Actions). 남아 있으면 다른 브랜치의 워크플로가 계속 읽을 수 있다
 
 `gh` CLI로 등록할 때(`--env production`):
@@ -149,23 +158,45 @@ chmod 600 .env
 - `ANALYSIS_AUTO_ENABLED=true`는 사건마다 Claude API를 호출한다(비용). 시연할 때만 켠다
 - `SITE_ADDRESS=<EC2_IP>`로 HTTPS를 켠다. 자세한 내용은 [HTTPS·Langfuse·내부 서비스 접속](#httpslangfuse내부-서비스-접속)
 - `IMAGE_TAG`·`IMAGE_PREFIX`는 배포 워크플로가 적는다. 직접 고치지 않는다
-- 새 버전을 배포한 뒤에는 서버 `.env`에 빠진·낡은 변수가 없는지 점검한다. 값과 키는 출력하지 않는다. **기존 서버 `.env`를 `.env.example`로 통째로 덮어쓰지 않는다.** `POSTGRES_PASSWORD`가 예시 값으로 바뀌면 DB가 처음 값을 그대로 쓰고 있어 `password authentication failed`가 나고 로그인이 HTTP 503이 된다. 빠진 줄만 추가한다
+- **기존 서버 `.env`를 `.env.example`로 통째로 덮어쓰지 않는다.** `POSTGRES_PASSWORD`가 예시 값으로 바뀌면 DB가 처음 값을 그대로 쓰고 있어 `password authentication failed`가 나고 로그인이 HTTP 503이 된다
+
+#### 새 변수 자동 추가 (배포마다)
+
+배포 워크플로가 컨테이너를 바꾸기 전에 `.env.example`·`scripts/check_env.py`를 서버에 복사하고 `ops/server.sh env-sync`를 실행한다.
+
+| 서버 `.env`에서 그 키가 | 처리 |
+|---|---|
+| `KEY=값` / `KEY=`(빈 값) / `# KEY=…`(주석) | 그대로 둔다 |
+| 아예 없음 | `.env.example`의 그 줄을 **그대로**(주석이면 주석, 예시 값이면 예시 값) **템플릿과 같은 위치**에 추가. 바로 위 설명 주석도 함께 옮긴다 |
+
+- 위치: 템플릿에서 그 키 바로 앞의 키 중 `.env`에 있는 가장 가까운 키 다음 줄. 앞쪽 키가 없으면 뒤쪽 가장 가까운 키 앞, `.env`에 템플릿 키가 하나도 없을 때만 파일 끝(`# ── .env.example에서 자동 추가 (날짜) ──` 아래)
+- 그래서 서버·팀원 `.env`의 키 순서가 템플릿과 같게 유지돼, 두 파일을 줄 단위로 대조하기 쉽다. 줄바꿈 방식(LF·CRLF)도 그대로 둔다
+
+- 기존 줄은 고치거나 지우지 않는다. `.env.example`에 없는 키도 그대로 둔다
+- 추가하기 전 `.env`를 `.env.bak`으로 남긴다(권한 600 유지, 다음 추가 때 덮어씀). 로그에는 추가한 **키 이름만** 나온다
+- 떠 있는 api 이미지의 Python으로 네트워크 없이 실행한다. `docker compose run`은 쓰지 않는다(새 compose가 요구하는 변수가 없으면 compose가 먼저 멈춘다)
+- 실패하면 컨테이너를 바꾸기 전에 배포가 멈춘다. 떠 있는 api가 없으면(첫 설치) 건너뛴다
+- 추가된 예시 값이 운영에 맞지 않으면(비밀 키·서버 주소 등) 배포 로그의 키 이름을 보고 서버에서 값을 고친 뒤 `ops/aws.sh up`
+
+#### 서버에서 직접 실행
 
 ```
-cd ~/weeing-weeing
-docker compose run --rm --no-deps -v "$PWD/.env:/tmp/check.env:ro" api \
-  python scripts/check_env.py --file /tmp/check.env --no-shell-check
+ops/aws.sh env-check      # 내 PC에서: .env ↔ .env.example 비교 (비밀 값은 설정됨/비어 있음만)
+ops/aws.sh env-sync       # 내 PC에서: 빠진 키만 추가
+ops/aws.sh up             # 추가·수정한 값을 컨테이너에 반영
 ```
+
+서버에 SSH로 들어가 있다면 `bash ~/server.sh env-sync`처럼 쓴다([ops/README](../ops/README.md)). 되돌리기: `cd ~/weeing-weeing && cp .env.bak .env && docker compose up -d`
 
 ## 배포
 
 - **자동:** release PR(dev → main)이 머지되면 `Deploy (EC2)` 워크플로가 돈다
-- **수동:** Actions → Deploy (EC2) → Run workflow → `dev` 선택. Environment가 main·dev만 허용하므로 작업 브랜치는 빌드까지만 되고 배포 단계에서 막힌다
+- **수동:** Actions → Deploy (EC2) → Run workflow → `main` 선택(재배포·API만·Caddy만 배포). Environment가 main만 허용하므로 dev·작업 브랜치는 빌드까지만 되고 배포 단계에서 막힌다. dev 변경을 올리려면 release PR을 머지한다
 - 워크플로 파일이 기본 브랜치(dev)에 있어야 Run workflow 버튼이 보인다
 
 ### API만 배포
 
-Actions → Deploy (EC2) → Run workflow → `dev` → `api_only`를 체크한다.
+Actions → Deploy (EC2) → Run workflow → `main` → `api_only`를 체크한다.
 API 이미지만 빌드·수신·교체하며 frontend·web·PostgreSQL·Qdrant 컨테이너는 재생성하지 않는다.
 API 태그는 서버의 `API_IMAGE_TAG`에 별도로 기록하고 웹용 `IMAGE_TAG`는 유지한다.
 전체 배포에서는 두 태그를 같은 SHA로 갱신한다. API 상태 검사에 실패하면 이전 API 태그로
@@ -225,7 +256,28 @@ df -h / && docker system df           # 디스크 30GB
 - IP 접속은 SNI가 없어서 `default_sni`로 인증서를 고른다(`deploy/Caddyfile`)
 - 문제가 생기면 `SITE_ADDRESS` 줄을 지우고 `docker compose up -d web`으로 되돌린다(:80, HTTP)
 
-**Langfuse (EC2 서버의 LLM 기록).** 팀원 PC는 그대로 홈서버에 기록하고, EC2 api·챗봇만 여기에 기록한다.
+**Langfuse (LLM 기록).** 2026-11-05부터 EC2도 팀원 PC처럼 **홈서버 Langfuse**(EC2 전용 프로젝트)에 기록한다. 챗봇은 로그인 계정 이름으로 남는다([USAGE_TRACKING](USAGE_TRACKING.md#운영-서버ec2에서-사람-나누기)). 앱 `~/weeing-weeing/.env`:
+
+```
+LANGFUSE_BASE_URL=https://langfuse.<HOME_DOMAIN>   # /api/public은 Cloudflare Access 예외라 서버에서 바로 닿는다
+LANGFUSE_PUBLIC_KEY=<홈서버 EC2 프로젝트 키>
+LANGFUSE_SECRET_KEY=<홈서버 EC2 프로젝트 키>
+LLM_USER=ec2                                       # 로그인 없이 도는 자동 분석의 이름. 챗봇은 로그인 계정 이름
+LANGFUSE_TRACING_ENVIRONMENT=demo
+# LANGFUSE_ADDRESS=                                # 비워 둔다(EC2 자체 Langfuse 대시보드 끔)
+```
+
+홈서버가 꺼져 있으면 기록만 빠지고 분석·챗봇은 그대로 된다.
+
+### EC2 자체 Langfuse (`deploy/langfuse`, 지금은 멈춤)
+
+홈서버를 쓸 수 없는 곳에 **레포만으로 배포할 때** 쓰는 구성이다. EC2에서는 홈서버로 옮기면서 컨테이너만 멈춰 두었다(데이터 볼륨은 남아 있음). 지우지 않는다.
+
+```
+cd ~/langfuse && docker compose stop     # 멈춤. down -v는 기록까지 지우므로 쓰지 않는다
+cd ~/langfuse && docker compose start    # 다시 켜기. 아래 앱 .env 값으로 되돌린 뒤 docker compose up -d api web
+```
+
 - 공식 이미지가 하위 경로를 지원하지 않아 `langfuse.<EC2_IP>.sslip.io`(IP를 가리키는 무료 이름)로 연다
 - 앱과 따로 `~/langfuse/`에서 띄운다(`deploy/langfuse/`). 앱 배포 때 재시작되지 않는다. 앱을 먼저 한 번 띄워 네트워크 `weeing-weeing_default`가 있어야 한다
 - 가입은 막혀 있다. 관리자 계정·API 키는 `~/langfuse/.env`의 `LANGFUSE_INIT_*` 값으로 **처음 한 번만** 만들어진다. 나중에 `.env`의 비밀번호를 바꿔도 반영되지 않는다([AWS_ACCESS](AWS_ACCESS.md#5-langfuse-ec2-서버의-llm-기록))
@@ -236,7 +288,7 @@ mkdir -p ~/langfuse && cd ~/langfuse
 chmod 600 .env && docker compose up -d
 ```
 
-앱 `~/weeing-weeing/.env`에 넣고 `docker compose up -d api web`:
+자체 Langfuse를 쓸 때 앱 `~/weeing-weeing/.env`에 넣고 `docker compose up -d api web`:
 
 ```
 LANGFUSE_ADDRESS=langfuse.<EC2_IP>.sslip.io
@@ -247,11 +299,19 @@ LLM_USER=ec2
 LANGFUSE_TRACING_ENVIRONMENT=demo
 ```
 
+다른 서버에 배포할 때 확인할 것:
+- `NEXTAUTH_URL`(`deploy/langfuse/.env.example`)과 `LANGFUSE_ADDRESS`를 그 서버 주소로 바꾼다. 지금 값은 EC2 IP(`<EC2_IP>`)가 들어간 sslip.io 이름이다
+- `deploy/langfuse/docker-compose.yml`은 앱 네트워크 `weeing-weeing_default`에 붙는다. 앱 폴더 이름이 다르면 네트워크 이름도 바뀐다
+- 관리자 계정·API 키는 `LANGFUSE_INIT_*`로 처음 한 번만 만들어진다
+- 사람별 비용은 Langfuse 기록만 남는다. 홈서버의 Slack 사용량 알림은 이 서버를 조회하지 않는다
+
 **DB·Qdrant.** 서버 안(`127.0.0.1`)에만 열려 있다. 팀원은 SSH 터널로 접속한다([AWS_ACCESS](AWS_ACCESS.md#4-ssh-터널로-dbqdrant-접속)).
 
 ## 롤백
 
-Actions에서 예전 `Deploy (EC2)` 실행을 열고 **Re-run all jobs**를 누른다. 그 실행의 커밋 SHA 이미지로 다시 배포된다.
+**자동 복귀.** 전체 배포 뒤 헬스체크가 실패하면, 배포 직전에 남긴 태그(`~/weeing-weeing/.deploy-previous-tags`)로 `.env`를 되돌리고 이전 이미지를 다시 띄운다(GHCR에서 다시 받는다). 실행은 실패로 끝나 알 수 있다. 이전 이미지 정리(`docker image prune`)는 헬스체크가 통과한 뒤에만 한다. API·Caddy만 배포할 때는 교체 단계 안에서 이미 이전 이미지로 복원한다.
+
+수동으로 되돌릴 때는 Actions에서 예전 `Deploy (EC2)` 실행을 열고 **Re-run all jobs**를 누른다. 그 실행의 커밋 SHA 이미지로 다시 배포된다.
 
 급할 때 서버에서 직접 바꿀 수도 있다. `.env`의 `IMAGE_TAG`를 예전 SHA로 바꾸고 `docker compose up -d`를 실행한다. 다만 private 레포라 GHCR 로그인이 필요하므로, 되도록 Re-run을 쓴다.
 
@@ -276,7 +336,7 @@ scp 'ww-team:~/weeing-weeing/backup-*.sql' 'ww-team:~/weeing-weeing/files-*.tgz'
 
 | 증상 | 확인 |
 |---|---|
-| 워크플로가 `Secret이 필요합니다`로 실패 | Environment `production`의 Secrets 3개 이름 확인. 허용 브랜치(main·dev)가 아닌 곳에서 실행하면 값이 비어 이 오류가 난다 |
+| 워크플로가 `Secret이 필요합니다`로 실패 | Environment `production`의 Secrets 3개 이름 확인. 허용 브랜치(main)가 아닌 곳(dev 포함)에서 실행하면 값이 비어 이 오류가 난다 |
 | `Host key verification failed` / `No ED25519 host key is known` | `EC2_KNOWN_HOSTS`에 서버 ED25519 지문이 없음. [위 명령](#2-environment-production에-secrets-등록)으로 다시 등록. 이때 접속 실패가 `.env가 없습니다`로 함께 표시된다 |
 | `Connection timed out`(SSH) | 서버가 꺼져 있거나 보안그룹 22번이 닫혀 있음 |
 | `.env가 없습니다` | [서버 .env](#3-서버-env) 작성 |

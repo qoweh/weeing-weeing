@@ -8,6 +8,11 @@ import {
   type MlSnapshot,
   type ReportSummary,
 } from "../../api/client";
+import {
+  emptyPredictionState,
+  receivePrediction,
+  predictionDisplay,
+} from "./predictionDisplay";
 
 type DocumentItem = {
   doc_id: string;
@@ -67,16 +72,6 @@ function topPredictions(prediction: MlSnapshot["prediction"]): PredictionRow[] {
     .slice(0, 3);
 }
 
-function predictionNotice(snapshot: MlSnapshot | null, lost: boolean) {
-  if (lost || !snapshot) return "연결이 끊겼습니다.";
-  if (!snapshot.enabled) return "예측 기능이 꺼져 있습니다.";
-  if (!snapshot.producer_connected || snapshot.stale)
-    return "연결이 끊겼습니다.";
-  if (snapshot.prediction.status === "not_ready")
-    return "예측을 준비하고 있습니다.";
-  if (!snapshot.prediction_usable) return "지금은 예측을 표시할 수 없습니다.";
-  return "";
-}
 const refreshMs = 10_000;
 
 function isUnauthorized(error: unknown) {
@@ -108,23 +103,28 @@ export default function DashboardAside({
   const [incidents, setIncidents] = useState<IncidentOverview[] | null>(null);
   const [reports, setReports] = useState<ReportSummary[] | null>(null);
   const [documents, setDocuments] = useState<DocumentItem[] | null>(null);
-  const [mlSnapshot, setMlSnapshot] = useState<MlSnapshot | null>(null);
-  const [mlLost, setMlLost] = useState(false);
+  const [mlState, setMlState] = useState(emptyPredictionState);
 
   useEffect(() => {
     let active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    const controller = new AbortController();
     async function poll() {
       try {
-        const value = await getMlPrediction();
+        const value = await getMlPrediction(controller.signal);
         if (active) {
-          setMlSnapshot(value);
-          setMlLost(false);
+          setMlState((previous) =>
+            receivePrediction(previous, value, new Date().toISOString()),
+          );
         }
       } catch (error) {
         if (active) {
-          if (isUnauthorized(error)) onSessionExpired?.();
-          setMlLost(true);
+          if (isUnauthorized(error)) {
+            setMlState(emptyPredictionState());
+            onSessionExpired?.();
+            return;
+          }
+          setMlState((previous) => ({ ...previous, lost: true }));
         }
       }
       if (active) timer = setTimeout(poll, predictionRefreshMs);
@@ -133,6 +133,7 @@ export default function DashboardAside({
     return () => {
       active = false;
       clearTimeout(timer);
+      controller.abort();
     };
   }, [onSessionExpired]);
 
@@ -176,32 +177,50 @@ export default function DashboardAside({
   const recentReports = [...(reports ?? [])]
     .sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)))
     .slice(0, listLimit);
-  const notice = predictionNotice(mlSnapshot, mlLost);
-  const predictionData = notice ? null : (mlSnapshot?.prediction ?? null);
+  const mlDisplay = predictionDisplay(mlState);
+  const notice = mlDisplay.message;
+  const predictionData = mlDisplay.prediction;
   const predictionRows = predictionData ? topPredictions(predictionData) : [];
   const errorProbability = predictionData?.error_probability;
   const recentDocuments = (documents ?? []).slice(0, listLimit);
 
   return (
     <aside className="dashboard-aside" aria-label="설비 현황 요약">
-      <section className="dashboard-panel" aria-labelledby="aside-predictions">
+      <section
+        className="dashboard-panel"
+        aria-labelledby="aside-predictions"
+        data-prediction-error={mlDisplay.isError}
+      >
         <h2 id="aside-predictions">예측 이상 현상 내역</h2>
-        {notice ? (
+        {notice && (
           <p
             className="dashboard-panel__notice"
-            data-lost={notice === "연결이 끊겼습니다."}
-            role="status"
+            data-lost={mlDisplay.isError}
+            role={mlDisplay.isError ? "alert" : "status"}
           >
             {notice}
           </p>
-        ) : (
+        )}
+        {predictionData && (
           <>
+            {mlDisplay.timestamp && (
+              <p className="dashboard-panel__hint">
+                {mlDisplay.held && "갱신 대기 · 이전 결과 유지 · "}
+                {mlDisplay.timestampLabel}{" "}
+                {new Date(mlDisplay.timestamp).toLocaleString("ko-KR", {
+                  hour12: false,
+                })}
+              </p>
+            )}
             {typeof errorProbability === "number" && (
               <p
                 className="dashboard-prediction__summary"
                 data-tone={probabilityTone(errorProbability)}
               >
-                향후 60초 에러 확률 <strong>{percent(errorProbability)}</strong>
+                {mlDisplay.held
+                  ? "마지막 예측 시각 기준 향후 60초 에러 확률"
+                  : "향후 60초 에러 확률"}{" "}
+                <strong>{percent(errorProbability)}</strong>
               </p>
             )}
             <ul>

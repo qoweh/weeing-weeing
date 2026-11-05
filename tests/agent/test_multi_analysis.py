@@ -909,3 +909,95 @@ def test_repeated_manual_resume_keeps_revision_attempt_and_does_not_repeat_succe
     )
     assert counts == {"verification": 1}
     assert finished(resumed, "verification")[-1].attempt == 2
+
+
+def traced_setup(fake, **options):
+    """역할 클라이언트와 분석기가 같은 가짜 Langfuse 기록기를 쓴다(#207)."""
+    from test_tracing import tracer
+
+    shared = tracer(fake)
+    analyzer, calls, counts = setup(**options)
+    factory = analyzer.client_factory
+
+    def traced_factory(role):
+        client = factory(role)
+        client.tracer = shared
+        return client
+
+    analyzer.client_factory = traced_factory
+    analyzer.tracer = shared
+    return analyzer, calls
+
+
+def scores(fake):
+    return {s["name"]: s["value"] for s in fake.scores}
+
+
+def test_analysis_is_one_trace_with_roles_nested_and_status_score():
+    from test_tracing import FakeLangfuse
+
+    fake = FakeLangfuse()
+    analyzer, calls = traced_setup(fake, verify=True)
+    result = analyzer.analyze(INCIDENT)
+    assert result.status == "OK"
+    # 병렬 조사 노드도 같은 trace 안에 들어가야 trace 속성이 한 번만 붙는다.
+    assert [p["trace_name"] for p in fake.propagated] == ["incident-analysis"]
+    root = fake.propagated[0]
+    assert root["session_id"] == INCIDENT.incident_id
+    assert "multi-analysis-v5" in root["tags"]
+    assert fake.observations[0].kwargs["name"] == "incident-analysis"
+    agents = {
+        o.kwargs["name"] for o in fake.observations if o.kwargs["as_type"] == "agent"
+    }
+    assert agents == {
+        "incident-documents",
+        "incident-reports",
+        "incident-synthesis",
+        "incident-verification",
+    }
+    assert scores(fake) == {
+        "analysis.status": "OK",
+        "analysis.llm_calls": len(calls),
+    }
+    meta = fake.observations[0].updates["metadata"]
+    assert meta["status"] == "OK" and meta["resumed"] is False
+
+
+def test_failed_analysis_records_failure_code():
+    from test_tracing import FakeLangfuse
+
+    fake = FakeLangfuse()
+    analyzer, _ = traced_setup(
+        fake,
+        plans={
+            "documents": [[LlmTimeoutError("느림")]],
+            "reports": [research(REPORT)],
+            "synthesis": [[draft(REPORT.evidence_id)]],
+            "verification": [[verdict()]],
+        },
+    )
+    result = analyzer.analyze(INCIDENT)
+    recorded = scores(fake)
+    assert recorded["analysis.status"] == result.status
+    if result.status == "FAILED":
+        assert recorded["analysis.failure_code"] == result.limitations
+
+
+def test_analysis_without_tracer_still_runs():
+    analyzer, _, _ = setup()
+    assert analyzer.analyze(INCIDENT).status == "OK"
+
+
+def test_get_analyzer_gives_multi_analyzer_a_tracer():
+    import dataclasses
+
+    from weeing_weeing.agent.interface import get_analyzer
+    from weeing_weeing.agent.tracing import NULL_TRACER
+    from weeing_weeing.config import get_settings
+
+    settings = dataclasses.replace(get_settings(), langfuse_base_url="")
+    analyzer = get_analyzer(
+        None, settings=settings, knowledge=Knowledge(), mode="multi"
+    )
+    assert isinstance(analyzer, MultiIncidentAnalyzer)
+    assert analyzer.tracer is NULL_TRACER

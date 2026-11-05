@@ -4,7 +4,9 @@ Claude 키를 팀원 6명이 각자 쓰고 콘솔 사용량 화면을 볼 수 �
 어떤 모델로·토큰을 얼마나 썼는지 홈서버 Langfuse에 남긴다. 설명은 docs/USAGE_TRACKING.md.
 
 - 기록 단위: 에이전트 실행 1번 = trace(agent), LLM 호출 1번 = generation, 도구 호출 = tool.
-  가장 바깥 기록에 user_id(LLM_USER)·session_id(사건 ID)·tags(진입점·프롬프트 버전)를 붙인다.
+  가장 바깥 기록에 user_id·session_id(사건 ID)·tags(진입점·프롬프트 버전)를 붙인다.
+- 사람: trace_user()로 감싼 범위는 그 값(로그인 계정 이름)을 user_id로 쓴다. 서버 하나를 여럿이 쓸 때
+  사람별로 나누려는 것이다. 감싸지 않은 호출(자동 분석·CLI)은 LLM_USER로 남긴다.
 - LANGFUSE_BASE_URL이나 키가 없으면 NullTracer(아무것도 안 함). 테스트·CI가 그대로 돈다.
 - 기록은 보조 기능이다. 전송·기록 실패는 경고만 남기고 LLM 호출과 분석을 막지 않는다.
   보내기는 SDK가 백그라운드에서 모아서 한다.
@@ -37,6 +39,8 @@ _label: ContextVar[tuple[str, dict[str, Any]] | None] = ContextVar(
 )
 # 가장 바깥 기록의 session_id를 덮어쓸 값(대화 ID 등).
 _session: ContextVar[str | None] = ContextVar("weeing_trace_session", default=None)
+# 가장 바깥 기록의 user_id를 덮어쓸 값(로그인 계정 이름).
+_user: ContextVar[str | None] = ContextVar("weeing_trace_user", default=None)
 
 DEFAULT_GENERATION_NAME = "claude"
 
@@ -65,6 +69,16 @@ def trace_session(session_id: str | None) -> Iterator[None]:
         yield
     finally:
         _session.reset(token)
+
+
+@contextmanager
+def trace_user(user_id: str | None) -> Iterator[None]:
+    """이 범위의 가장 바깥 기록을 user_id 사람으로 남긴다. None이면 바꾸지 않는다."""
+    token = _user.set(user_id or None)
+    try:
+        yield
+    finally:
+        _user.reset(token)
 
 
 TIMEOUT_S = (
@@ -222,7 +236,7 @@ class LangfuseTracer:
             if _depth.get() == 0:
                 override = _session.get()
                 attributes: dict[str, Any] = dict(
-                    user_id=self._user_id,
+                    user_id=_user.get() or self._user_id,
                     session_id=override or session_id,
                     tags=[self._entrypoint, *tags],
                     trace_name=name,

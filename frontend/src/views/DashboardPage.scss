@@ -509,6 +509,11 @@
   gap: 8px;
 }
 
+.dashboard-panel[data-prediction-error="true"] {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 1px var(--danger);
+}
+
 .dashboard-prediction__percent {
   color: var(--tone, var(--text));
   font-size: 15px;

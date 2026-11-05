@@ -24,7 +24,7 @@ function Show-Usage {
 
 서버 명령 (서버에서 실행)
   ps | health | logs [서비스] [줄수] | logs-all [줄수] | images
-  volumes | disk | rag | db | env-keys
+  volumes | disk | rag | db | env-keys | env-check | env-sync
   seed-docs [--replace] | reindex-reports | retry-reports
   restart <서비스> | up | pull-up | langfuse-ps | langfuse-logs [줄수]
   자세한 설명: .\ops\aws.ps1 server-help
@@ -59,7 +59,7 @@ switch ($cmd) {
 웹(프론트)  https://<EC2_IP>/
 HMI        https://<EC2_IP>/hmi/
 API 문서    https://<EC2_IP>/api/docs
-Langfuse   https://langfuse.<EC2_IP>.sslip.io
+Langfuse   https://langfuse.<HOME_DOMAIN> (홈서버. EC2 자체 langfuse.<EC2_IP>.sslip.io는 멈춤)
 DB·Qdrant  .\ops\aws.ps1 tunnel 후 localhost:15432 / http://localhost:16333/dashboard
 '@ | Write-Output
     }

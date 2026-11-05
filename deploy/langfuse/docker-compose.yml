@@ -1,4 +1,5 @@
 # 운영 서버(EC2)의 Langfuse(LLM 사용량 기록). 서버 ~/langfuse/에 이 파일과 .env를 두고 직접 띄운다(docs/DEPLOY.md).
+# 2026-11-05부터 EC2도 홈서버 Langfuse로 기록해 이 구성은 멈춰 두었다. 레포만으로 다른 곳에 배포할 때 쓴다.
 #   docker compose up -d
 # 앱(deploy/docker-compose.prod.yml)과 따로 둔다. 앱 배포 때 재시작되지 않고, 앱 없이도 켜고 끌 수 있다.
 # langfuse-web만 앱 네트워크(weeing-weeing_default)에 붙어 Caddy(대시보드)와 api(기록 전송)가 이름으로 찾는다.

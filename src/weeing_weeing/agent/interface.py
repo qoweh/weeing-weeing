@@ -44,7 +44,7 @@ from weeing_weeing.agent.llm_check import (
 )
 from weeing_weeing.agent.runtime import ToolInputError as InvalidChatQueryError
 from weeing_weeing.agent.sensor_window import SensorBatch, SensorReader
-from weeing_weeing.agent.tracing import Tracer, trace_session
+from weeing_weeing.agent.tracing import Tracer, trace_session, trace_user
 from weeing_weeing.contracts import AnalysisResult, Incident
 from weeing_weeing.contracts.analysis_workflow import (
     AnalysisAgentRun,
@@ -84,6 +84,7 @@ __all__ = [
     "get_replay_llm_client",
     "replay_sample_knowledge",
     "trace_session",
+    "trace_user",
     "CheckReport",
     "check_case",
     "format_llm_check",
@@ -395,6 +396,7 @@ def get_analyzer(
         raise ValueError("ANALYSIS_MODE는 single 또는 multi여야 합니다")
     if mode == "multi":
         from weeing_weeing.agent.multi_analysis import MultiIncidentAnalyzer
+        from weeing_weeing.agent.tracing import build_tracer
 
         if knowledge is None or client is not None:
             raise ValueError("멀티 분석은 API에서 현재 출처 검사기를 주입해야 합니다")
@@ -406,6 +408,7 @@ def get_analyzer(
             max_turns=settings.agent_max_turns,
             verification_enabled=settings.analysis_verification_enabled,
             sensor_reader=sensor_reader,
+            tracer=build_tracer(settings, entrypoint=entrypoint),
         )
     if retriever is None:
         raise ValueError("단일 분석에는 검색기가 필요합니다")

@@ -13,7 +13,7 @@
 | 웹(프론트) | `https://<EC2_IP>/` | 없음 |
 | HMI | `https://<EC2_IP>/hmi/` | 없음 |
 | API 문서 | `https://<EC2_IP>/api/docs` | 없음 |
-| Langfuse(EC2 기록) | `https://langfuse.<EC2_IP>.sslip.io` | 아래 관리자 계정 |
+| Langfuse(LLM 기록) | 홈서버 `https://langfuse.<HOME_DOMAIN>` | 김민우가 프로젝트에 초대. EC2 자체 Langfuse(`langfuse.<EC2_IP>.sslip.io`)는 멈춤 |
 | PostgreSQL | SSH 터널 후 `localhost:15432` | 서버에 등록한 SSH 키 |
 | Qdrant 대시보드 | SSH 터널 후 `http://localhost:16333/dashboard` | 서버에 등록한 SSH 키 |
 
@@ -93,7 +93,9 @@ psql -h localhost -p 15432 -U <POSTGRES_USER> <POSTGRES_DB>
 
 ## 5. Langfuse (EC2 서버의 LLM 기록)
 
-- EC2의 api·챗봇 호출만 여기에 기록된다(사용자 `ec2`, 환경 `demo`). **팀원 PC의 기록은 그대로 홈서버 Langfuse**에 간다([USAGE_TRACKING](USAGE_TRACKING.md))
+> **지금은 멈춤(2026-11-05).** EC2 기록도 홈서버 Langfuse(EC2 전용 프로젝트)로 보낸다. 이 절은 자체 Langfuse를 다시 켜거나 레포만으로 다른 곳에 배포할 때를 위해 남겨 둔다. 켜고 끄는 방법은 [DEPLOY](DEPLOY.md#ec2-자체-langfuse-deploylangfuse-지금은-멈춤)
+
+- 켜져 있을 때는 EC2의 api·챗봇 호출이 여기에 기록됐다(사용자 `ec2`, 환경 `demo`). 팀원 PC의 기록은 그때도 홈서버 Langfuse에 갔다([USAGE_TRACKING](USAGE_TRACKING.md))
 - 가입은 막혀 있다(`AUTH_DISABLE_SIGNUP=true`). 팀원 계정이 필요하면 관리자가 잠시 가입을 열고(`deploy/langfuse/docker-compose.yml`에서 `false`로 바꾼 뒤 `docker compose up -d langfuse-web`), 팀원이 가입하면 Settings → Members에서 프로젝트에 추가한 뒤 다시 막는다
 - 관리자 계정(팀 공용). 서버 `~/langfuse/.env`의 `LANGFUSE_INIT_USER_*`와 같다
 
@@ -124,12 +126,12 @@ EOF
 |---|---|
 | `~/weeing-weeing/docker-compose.yml` | 앱 구성. 배포 워크플로가 `deploy/docker-compose.prod.yml`로 덮어쓴다 |
 | `~/weeing-weeing/.env` | 앱 비밀 값. `SITE_ADDRESS`(HTTPS), `LANGFUSE_*` 포함 |
-| `~/langfuse/docker-compose.yml` · `.env` | Langfuse 구성과 비밀 값(`deploy/langfuse/`). 앱 배포와 따로 움직인다 |
+| `~/langfuse/docker-compose.yml` · `.env` | 자체 Langfuse 구성과 비밀 값(`deploy/langfuse/`). 지금은 멈춤. 앱 배포와 따로 움직인다 |
 
 자주 쓰는 확인 명령(서버에서):
 
 ```
 cd ~/weeing-weeing && docker compose ps            # 앱
-cd ~/langfuse && docker compose ps                 # Langfuse
+cd ~/langfuse && docker compose ps                 # 자체 Langfuse(멈춤이면 목록 비어 있음)
 docker logs --tail 50 weeing-weeing-web-1          # HTTPS 인증서·Caddy
 ```

@@ -55,7 +55,7 @@ def test_chat_question_is_one_trace_with_knowledge_spans_by_stage():
     assert response.status == "OK"
     assert names(fake)[:2] == [("chain", "chat"), ("agent", "chat-assistant")]
     assert [p["trace_name"] for p in fake.propagated] == ["chat"]
-    assert "chat-tools-v9" in fake.propagated[0]["tags"]
+    assert "chat-tools-v10" in fake.propagated[0]["tags"]
     spans = [
         (o.kwargs["name"], o.updates["metadata"]["stage"])
         for o in fake.observations

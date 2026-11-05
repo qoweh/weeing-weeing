@@ -4,6 +4,10 @@
 
 `make env-check`는 내 `.env`를 `.env.example`과 비교해 고칠 것(중복·형식 오류·빈 `ANTHROPIC_API_KEY`·셸 값 충돌), 예전 변수, 주석이라 적용 안 되는 변수, 기본값을 쓰는 변수, 기본값과 다른 값을 보여 준다. 비밀 값(키·비밀번호·토큰·`DATABASE_URL`)은 "설정됨/비어 있음"만 표시한다. `.env`를 환경변수로 불러오지 않고 파일만 읽는다. 종료 코드 0 고칠 것 없음 / 1 있음 / 2 파일 없음. 서버 점검 명령은 [DEPLOY](../docs/DEPLOY.md#3-서버-env).
 
+## 환경변수 템플릿 점검 (`check_env_template.py`)
+
+`uv run --no-sync python scripts/check_env_template.py`는 코드(`env()`·`os.environ.get()`·`getenv()`)와 compose(`${KEY}`)가 읽는 키가 `.env.example`(Langfuse 서버는 `deploy/langfuse/.env.example`)에 모두 있는지 본다. `.env`는 열지 않는다. 새 키는 관련 키 바로 아래에 비밀 값 없이 넣는다(규칙: `.agents/skills/ww-review-before-pr`). 같은 검사가 pytest로 CI에서도 돈다. 종료 코드 0 빠진 키 없음 / 1 있음.
+
 ## Error 자동 분석 시연 (#104)
 
 `PYTHONPATH=src uv run --no-sync python scripts/demo_auto_analysis.py`는 실제 WebSocket과

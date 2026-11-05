@@ -31,7 +31,7 @@
 | D-09 | 2026-10-22 | 네이티브 클라이언트(qdrant-client, chromadb) 위에 rag 내부 Protocol(`rag/store.py`)을 둠. LangChain 벡터스토어 래퍼는 쓰지 않음 | 래퍼는 재실행 시 중복 적재, ID로만 삭제, 랜덤 `uuid4` ID, DB마다 다른 기본 거리(Chroma l2, Qdrant Cosine), 변경 감지 없음 | 확정 |
 | D-08 | 2026-10-22 | 벡터 DB는 `VectorStore` Protocol 하나에 Qdrant(기본)·Chroma 두 구현. 설정 `VECTOR_STORE`로 고름 | 같은 계약 테스트를 두 구현에 돌려 교체를 보증하고 성능 비교. Qdrant는 온프레미스에서 하이브리드를 DB 안에서 처리 | 확정 |
 | D-07 | 2026-10-20 | 스킬 원본은 `.agents/skills`, Claude Code용 `.claude/skills`는 `scripts/sync_skills.py`로 만든 복사본을 커밋 | Codex와 Claude Code가 찾는 위치가 다름. 심볼릭 링크는 Windows에서 깨질 수 있음. CI·pre-commit이 두 폴더가 같은지 검사 | 확정 |
-| D-06 | 2026-10-20 | 문서만 바뀐 PR은 Lint·Test를 건너뜀. 잡 단위 `if`로 건너뛰고 트리거 `paths` 필터는 쓰지 않음. Secret scan·Skills sync는 항상 실행 | Actions 시간 절약(private 레포는 월 사용량 한도). 트리거 필터는 필수 검사 지정 시 PR이 '대기 중'으로 멈춤. 판단이 불확실하면 실행하고, 건너뛸 경로만 목록으로 둠 | 확정 |
+| D-06 | 2026-10-20 (2026-11-05 갱신) | 문서만 바뀐 PR은 Lint·Test를 건너뜀. 잡 단위 `if`로 건너뛰고 트리거 `paths` 필터는 쓰지 않음. Secret scan·Skills sync는 항상 실행. main push에서는 CI를 다시 돌리지 않음(release PR CI가 합친 결과를 검사함). Windows·Ubuntu make 호환 검사는 make 경로가 바뀔 때만 | Actions 시간 절약(private 레포는 월 사용량 한도). 트리거 필터는 필수 검사 지정 시 PR이 '대기 중'으로 멈춤. 판단이 불확실하면 실행하고, 건너뛸 경로만 목록으로 둠 | 확정 |
 | D-05 | 2026-10-20 | CI 액션은 커밋 SHA로 고정. `actions/checkout`은 v6.1.0 유지 | 태그 바꿔치기 공급망 공격 방지. v7은 fork PR 체크아웃 동작이 바뀌는 큰 변경이라 보류함 | 확정 |
 | D-04 | 2026-10-20 | 운영용 기능(배포 자동화·백업·모니터링·dependabot)은 지금 넣지 않음 | 11월 첫째~둘째 주 완성이 우선. 6차(온프레미스 배포) 때 필요한 만큼만 추가 | 확정 |
 | D-03 | 2026-10-20 | 앱은 컨테이너 없이 `uv run`으로 실행, PostgreSQL·Ollama만 docker compose | 개발 중 재시작이 빠르고, macOS에서 컨테이너 Ollama는 GPU를 못 씀 | Ollama 부분은 D-25로 번복 |

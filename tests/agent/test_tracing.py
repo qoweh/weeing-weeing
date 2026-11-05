@@ -21,6 +21,7 @@ from weeing_weeing.agent.tracing import (
     mask_personal,
     score_trace,
     trace_session,
+    trace_user,
 )
 from weeing_weeing.config import get_settings
 
@@ -283,6 +284,24 @@ def test_trace_session_groups_outermost_trace_and_keeps_run_id():
     assert [p["session_id"] for p in fake.propagated] == ["conv-1", "INC-1"]
     assert fake.propagated[0]["metadata"] == {"run_id": "req-1"}
     assert "metadata" not in fake.propagated[1]
+
+
+def test_trace_user_overrides_outermost_user_and_falls_back_to_llm_user():
+    fake = FakeLangfuse()
+    t = tracer(fake)
+    with trace_user("Laplace888"):
+        with t.observe("chat"):
+            with t.observe("inner"):
+                pass
+    with trace_user(None), t.observe("chat"):  # 이름이 없으면 바꾸지 않음
+        pass
+    with t.observe("analyze"):  # 범위 밖(자동 분석 등)은 LLM_USER
+        pass
+    assert [p["user_id"] for p in fake.propagated] == [
+        "Laplace888",
+        "Gilssom",
+        "Gilssom",
+    ]
 
 
 def test_score_is_attached_only_inside_an_open_trace_and_never_raises(caplog):

@@ -354,3 +354,79 @@
     bottom: 20px;
   }
 }
+
+// 테스트 계정(TestAccounts.tsx). 시연이 끝나면 이 블록을 지운다.
+.login-page--with-accounts {
+  gap: 40px;
+}
+@media (min-width: 1101px) {
+  // 가운데 브랜드 자리에 표가 오므로 브랜드를 왼쪽 위로 올린다.
+  .login-page--with-accounts .login-brand {
+    top: 40px;
+    left: 8.74%;
+    transform: none;
+  }
+}
+.test-accounts {
+  flex: 1;
+  max-width: 860px;
+  padding: 24px 26px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: 0 12px 32px rgb(26 77 128 / 12%);
+}
+.test-accounts h2 {
+  font-size: 18px;
+}
+.test-accounts > p {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.test-accounts__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+.test-accounts__person {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.test-accounts__person caption {
+  padding-bottom: 6px;
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
+}
+.test-accounts__person th,
+.test-accounts__person td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+.test-accounts__person thead th {
+  color: var(--muted);
+  font-weight: 600;
+}
+.test-accounts__person tbody th {
+  font-weight: 500;
+}
+.test-accounts__person code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  user-select: all;
+}
+@media (max-width: 1100px) {
+  .login-page--with-accounts {
+    flex-direction: column-reverse;
+    align-items: center;
+  }
+  .test-accounts {
+    width: min(100%, 860px);
+  }
+}

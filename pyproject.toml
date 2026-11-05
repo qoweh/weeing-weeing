@@ -41,6 +41,7 @@ dev = [
     "ipykernel>=7.4.0",
     "pre-commit>=4.7.0",
     "pytest>=9.1.1",
+    "pytest-xdist>=3.8.0",
     "ruff>=0.17.1",
 ]
 ml = [
@@ -70,4 +71,7 @@ indent-style = "space"
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-q"
+markers = [
+    "real_scrypt: 비밀번호 해시를 운영 강도로 계산한다(테스트 전역 축소를 끈다)",
+]
 
