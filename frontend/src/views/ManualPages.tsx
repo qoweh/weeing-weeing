@@ -4,52 +4,52 @@ import {
   useState,
   type FormEvent,
   type DragEvent,
-} from 'react'
+} from "react";
 
 type Manual = {
-  doc_id: string
-  doc_version: string
-  source_sha256: string
-  upload_id?: string | null
-  title?: string
-  asset_id?: string
-  uploaded_at?: string
-  indexed_at?: string
-  status: string
-  doc_type?: string
-  file?: string
-  search_excerpt?: { before: string; match: string; after: string }
-}
-type ManualRow = ReturnType<typeof toManualRow>
+  doc_id: string;
+  doc_version: string;
+  source_sha256: string;
+  upload_id?: string | null;
+  title?: string;
+  asset_id?: string;
+  uploaded_at?: string;
+  indexed_at?: string;
+  status: string;
+  doc_type?: string;
+  file?: string;
+  search_excerpt?: { before: string; match: string; after: string };
+};
+type ManualRow = ReturnType<typeof toManualRow>;
 type PageActions = {
-  onNavigate: (page: string) => void
-  onSessionExpired: () => void
-  onBusyChange: (busy: boolean) => void
-}
+  onNavigate: (page: string) => void;
+  onSessionExpired: () => void;
+  onBusyChange: (busy: boolean) => void;
+};
 
-import { deleteDocument, listDocuments, uploadDocument } from '../api/client'
-import DeleteDocumentDialog from '../components/ui/DeleteDocumentDialog'
-import DocumentPdfModal from '../components/ui/DocumentPdfModal'
-import Button from '../components/ui/Button'
-import PageTitle from '../components/ui/PageTitle'
-import { documentVersionFromFilename } from '../components/ui/documentVersion'
-import ReplaceDocumentDialog from '../components/ui/ReplaceDocumentDialog'
+import { deleteDocument, listDocuments, uploadDocument } from "../api/client";
+import DeleteDocumentDialog from "../components/ui/DeleteDocumentDialog";
+import DocumentPdfModal from "../components/ui/DocumentPdfModal";
+import Button from "../components/ui/Button";
+import PageTitle from "../components/ui/PageTitle";
+import { documentVersionFromFilename } from "../components/ui/documentVersion";
+import ReplaceDocumentDialog from "../components/ui/ReplaceDocumentDialog";
 import {
   Filters,
   filterRows,
   LibraryTable,
   dateLabel,
-} from '../components/ui/library'
+} from "../components/ui/library";
 
 const labels: Record<string, string> = {
-  completed: '등록 완료',
-  queued: '대기 중',
-  processing: '처리 중',
-  failed: '등록 실패',
-  superseded: '이전 버전',
-  deleting: '삭제 중',
-  delete_failed: '삭제 실패',
-}
+  completed: "등록 완료",
+  queued: "대기 중",
+  processing: "처리 중",
+  failed: "등록 실패",
+  superseded: "이전 버전",
+  deleting: "삭제 중",
+  delete_failed: "삭제 실패",
+};
 function toManualRow(r: Manual) {
   return {
     ...r,
@@ -59,7 +59,7 @@ function toManualRow(r: Manual) {
     version: `v${r.doc_version}`,
     date: r.uploaded_at || r.indexed_at,
     status: labels[r.status] || r.status,
-  }
+  };
 }
 export function ManualPage({
   user,
@@ -67,90 +67,97 @@ export function ManualPage({
   onSessionExpired,
   onBusyChange,
 }: PageActions & { user: { role: string } }) {
-  const canManage = user?.role === '관제 담당자'
-  const [deleting, setDeleting] = useState<ManualRow | null>(null)
-  const [deleteBusy, setDeleteBusy] = useState(false)
-  const [notice, setNotice] = useState('')
-  const [rows, setRows] = useState<ManualRow[]>([])
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [reload, setReload] = useState(0)
-  const [query, setQuery] = useState('')
-  const [filters, setFilters] = useState({ period: '', docType: '' })
-  const [selected, setSelected] = useState<ManualRow | null>(null)
+  const canManage = user?.role === "관제 담당자";
+  const [deleting, setDeleting] = useState<ManualRow | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [rows, setRows] = useState<ManualRow[]>([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [reload, setReload] = useState(0);
+  const [query, setQuery] = useState("");
+  const [filters, setFilters] = useState({ period: "", docType: "" });
+  const [selected, setSelected] = useState<ManualRow | null>(null);
   const [search, setSearch] = useState<{
-    term: string
-    reload: number
-    items: ManualRow[]
-    error: string
-  }>({ term: '', reload: -1, items: [], error: '' })
+    term: string;
+    reload: number;
+    items: ManualRow[];
+    error: string;
+  }>({ term: "", reload: -1, items: [], error: "" });
   useEffect(() => {
-    let active = true
-    setLoading(true)
-    setError('')
+    let active = true;
+    setLoading(true);
+    setError("");
     listDocuments()
       .then((data) => {
-        if (active) setRows(data.map(toManualRow))
+        if (active) setRows(data.map(toManualRow));
       })
       .catch((e) => {
         if (active) {
-          setError(e instanceof Error ? e.message : '문서 처리에 실패했습니다.')
-          if (e instanceof Error && 'status' in e && e.status === 401)
-            onSessionExpired()
+          setError(
+            e instanceof Error ? e.message : "문서 처리에 실패했습니다.",
+          );
+          if (e instanceof Error && "status" in e && e.status === 401)
+            onSessionExpired();
         }
       })
       .finally(() => {
-        if (active) setLoading(false)
-      })
+        if (active) setLoading(false);
+      });
     return () => {
-      active = false
-    }
-  }, [reload, onSessionExpired])
-  const term = query.trim()
+      active = false;
+    };
+  }, [reload, onSessionExpired]);
+  const term = query.trim();
   const searchPending =
-    Boolean(term) && (search.term !== term || search.reload !== reload)
+    Boolean(term) && (search.term !== term || search.reload !== reload);
   useEffect(() => {
-    if (!term) return
-    let cancelled = false
+    if (!term) return;
+    let cancelled = false;
     // 입력이 멈춘 뒤 300ms 후에만 서버 검색을 요청한다.
     const timer = setTimeout(() => {
       listDocuments(term)
         .then((data) => {
           if (!cancelled)
-            setSearch({ term, reload, items: data.map(toManualRow), error: '' })
+            setSearch({
+              term,
+              reload,
+              items: data.map(toManualRow),
+              error: "",
+            });
         })
         .catch((failure) => {
-          if (cancelled) return
-          if (failure.status === 401) onSessionExpired()
-          setSearch({ term, reload, items: [], error: failure.message })
-        })
-    }, 300)
+          if (cancelled) return;
+          if (failure.status === 401) onSessionExpired();
+          setSearch({ term, reload, items: [], error: failure.message });
+        });
+    }, 300);
     return () => {
-      cancelled = true
-      clearTimeout(timer)
-    }
-  }, [term, reload, onSessionExpired])
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [term, reload, onSessionExpired]);
   async function removeDocument() {
-    if (!deleting || deleteBusy || !canManage) return
-    const target = deleting
-    setDeleteBusy(true)
-    onBusyChange?.(true)
-    setError('')
-    setNotice('')
+    if (!deleting || deleteBusy || !canManage) return;
+    const target = deleting;
+    setDeleteBusy(true);
+    onBusyChange?.(true);
+    setError("");
+    setNotice("");
     try {
-      await deleteDocument(target)
-      setRows((items) => items.filter((item) => item.id !== target.id))
-      setSelected(null)
-      setNotice(`‘${target.name}’ 문서와 검색 자료를 삭제했습니다.`)
-      setReload((n) => n + 1)
+      await deleteDocument(target);
+      setRows((items) => items.filter((item) => item.id !== target.id));
+      setSelected(null);
+      setNotice(`‘${target.name}’ 문서와 검색 자료를 삭제했습니다.`);
+      setReload((n) => n + 1);
     } catch (e) {
-      if (e instanceof Error && 'status' in e && e.status === 401)
-        onSessionExpired()
-      setError(e instanceof Error ? e.message : '문서 처리에 실패했습니다.')
+      if (e instanceof Error && "status" in e && e.status === 401)
+        onSessionExpired();
+      setError(e instanceof Error ? e.message : "문서 처리에 실패했습니다.");
     } finally {
-      setDeleting(null)
-      setDeleteBusy(false)
-      onBusyChange?.(false)
+      setDeleting(null);
+      setDeleteBusy(false);
+      onBusyChange?.(false);
     }
   }
   return (
@@ -168,7 +175,7 @@ export function ManualPage({
           <Button
             variant="primary"
             className="library-upload"
-            onClick={() => onNavigate('manual-upload')}
+            onClick={() => onNavigate("manual-upload")}
           >
             문서 등록
           </Button>
@@ -177,17 +184,17 @@ export function ManualPage({
       {notice && <p role="status">{notice}</p>}
       {loading || searchPending ? (
         <p role="status">
-          {loading ? '문서를 불러오는 중입니다.' : '문서를 검색하고 있습니다.'}
+          {loading ? "문서를 불러오는 중입니다." : "문서를 검색하고 있습니다."}
         </p>
       ) : error || (term && search.error) ? (
         <p className="workspace-error" role="alert">
-          {error || search.error}{' '}
+          {error || search.error}{" "}
           <Button onClick={() => setReload((n) => n + 1)}>다시 시도</Button>
         </p>
       ) : (
         <LibraryTable
           title="전체"
-          rows={filterRows(term ? search.items : rows, '', filters)}
+          rows={filterRows(term ? search.items : rows, "", filters)}
           highlight={term}
           onOpen={setSelected}
         />
@@ -210,58 +217,58 @@ export function ManualPage({
         />
       )}
     </div>
-  )
+  );
 }
 export function ManualUploadPage({
   onNavigate,
   onSessionExpired,
   onBusyChange,
 }: PageActions) {
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const [dragging, setDragging] = useState(false)
-  const [version, setVersion] = useState('1.0')
-  const [file, setFile] = useState<File | null>(null)
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [dragging, setDragging] = useState(false);
+  const [version, setVersion] = useState("1.0");
+  const [file, setFile] = useState<File | null>(null);
   const [replacement, setReplacement] = useState<{
-    docId: string
-    existingVersions: string[]
-    newVersion: string
-  } | null>(null)
-  const [pendingUpload, setPendingUpload] = useState<FormData | null>(null)
-  const dragDepth = useRef(0)
-  const formRef = useRef<HTMLFormElement>(null)
+    docId: string;
+    existingVersions: string[];
+    newVersion: string;
+  } | null>(null);
+  const [pendingUpload, setPendingUpload] = useState<FormData | null>(null);
+  const dragDepth = useRef(0);
+  const formRef = useRef<HTMLFormElement>(null);
 
   async function uploadFormData(
     data: FormData,
     file: FormDataEntryValue | null,
     confirmedReplacement = false,
   ) {
-    if (busy) return
-    setError('')
+    if (busy) return;
+    setError("");
     if (
       !(file instanceof File) ||
       !file.size ||
-      !file.name.toLowerCase().endsWith('.pdf') ||
+      !file.name.toLowerCase().endsWith(".pdf") ||
       file.size > 200 * 1024 * 1024
     ) {
-      setError('20 MB 이하의 비어 있지 않은 PDF 파일을 선택하세요.')
-      return
+      setError("20 MB 이하의 비어 있지 않은 PDF 파일을 선택하세요.");
+      return;
     }
-    for (const name of ['doc_id', 'doc_version', 'asset_id']) {
-      const value = String(data.get(name)).trim()
+    for (const name of ["doc_id", "doc_version", "asset_id"]) {
+      const value = String(data.get(name)).trim();
       if (!value) {
-        setError('필수 항목을 입력하세요.')
-        return
+        setError("필수 항목을 입력하세요.");
+        return;
       }
-      data.set(name, value)
+      data.set(name, value);
     }
-    setBusy(true)
-    onBusyChange(true)
+    setBusy(true);
+    onBusyChange(true);
     try {
       if (!confirmedReplacement) {
-        const docId = String(data.get('doc_id'))
-        const docVersion = String(data.get('doc_version'))
-        const existing = (await listDocuments()) as Manual[]
+        const docId = String(data.get("doc_id"));
+        const docVersion = String(data.get("doc_version"));
+        const existing = (await listDocuments()) as Manual[];
         const existingVersions = [
           ...new Set(
             existing
@@ -272,78 +279,78 @@ export function ManualUploadPage({
               )
               .map((document) => document.doc_version),
           ),
-        ]
+        ];
 
         if (existingVersions.length) {
-          setPendingUpload(data)
-          setReplacement({ docId, existingVersions, newVersion: docVersion })
-          return
+          setPendingUpload(data);
+          setReplacement({ docId, existingVersions, newVersion: docVersion });
+          return;
         }
       }
 
-      await uploadDocument(data)
-      onNavigate('manuals')
+      await uploadDocument(data);
+      onNavigate("manuals");
     } catch (e) {
-      setError(e instanceof Error ? e.message : '문서 처리에 실패했습니다.')
-      if (e instanceof Error && 'status' in e && e.status === 401)
-        onSessionExpired()
+      setError(e instanceof Error ? e.message : "문서 처리에 실패했습니다.");
+      if (e instanceof Error && "status" in e && e.status === 401)
+        onSessionExpired();
     } finally {
-      setBusy(false)
-      onBusyChange(false)
+      setBusy(false);
+      onBusyChange(false);
     }
   }
 
   async function submit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    const data = new FormData(e.currentTarget)
-    await uploadFormData(data, data.get('file'))
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    await uploadFormData(data, data.get("file"));
   }
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
-    if (!event.dataTransfer.types.includes('Files')) return
-    event.preventDefault()
-    if (busy) return
-    setDragging(false)
-    dragDepth.current = 0
-    const file = event.dataTransfer.files[0]
-    const form = formRef.current
-    if (!file || !form) return
-    const fileInput = form.elements.namedItem('file')
-    if (!(fileInput instanceof HTMLInputElement)) return
-    fileInput.files = event.dataTransfer.files
-    setFile(file)
-    const droppedVersion = documentVersionFromFilename(file.name)
-    setVersion(droppedVersion)
-    const id = form.elements.namedItem('doc_id')
+    if (!event.dataTransfer.types.includes("Files")) return;
+    event.preventDefault();
+    if (busy) return;
+    setDragging(false);
+    dragDepth.current = 0;
+    const file = event.dataTransfer.files[0];
+    const form = formRef.current;
+    if (!file || !form) return;
+    const fileInput = form.elements.namedItem("file");
+    if (!(fileInput instanceof HTMLInputElement)) return;
+    fileInput.files = event.dataTransfer.files;
+    setFile(file);
+    const droppedVersion = documentVersionFromFilename(file.name);
+    setVersion(droppedVersion);
+    const id = form.elements.namedItem("doc_id");
     if (id instanceof HTMLInputElement && !id.value.trim())
       id.value = file.name
-        .replace(/\.pdf$/i, '')
+        .replace(/\.pdf$/i, "")
         .trim()
-        .replace(/\s+/g, '-')
-    setError('')
+        .replace(/\s+/g, "-");
+    setError("");
   }
 
   return (
     <div
-      className={`manual-upload-page ${dragging ? 'manual-upload-page--dragging' : ''}`}
+      className={`manual-upload-page ${dragging ? "manual-upload-page--dragging" : ""}`}
       onDragEnter={(event) => {
-        if (!event.dataTransfer.types.includes('Files') || busy) return
-        event.preventDefault()
-        dragDepth.current += 1
-        setDragging(true)
+        if (!event.dataTransfer.types.includes("Files") || busy) return;
+        event.preventDefault();
+        dragDepth.current += 1;
+        setDragging(true);
       }}
       onDragOver={(event) => {
-        if (event.dataTransfer.types.includes('Files')) event.preventDefault()
+        if (event.dataTransfer.types.includes("Files")) event.preventDefault();
       }}
       onDragLeave={(event) => {
         if (
           event.relatedTarget instanceof Node &&
           event.currentTarget.contains(event.relatedTarget)
         )
-          return
-        event.preventDefault()
-        dragDepth.current = 0
-        setDragging(false)
+          return;
+        event.preventDefault();
+        dragDepth.current = 0;
+        setDragging(false);
       }}
       onDrop={handleDrop}
     >
@@ -362,10 +369,10 @@ export function ManualUploadPage({
             <label className="manual-upload-file">
               PDF 파일
               <span
-                className={`manual-upload-drop ${file ? (/\.pdf$/i.test(file.name) ? 'manual-upload-drop--ready' : 'manual-upload-drop--invalid') : ''}`}
+                className={`manual-upload-drop ${file ? (/\.pdf$/i.test(file.name) ? "manual-upload-drop--ready" : "manual-upload-drop--invalid") : ""}`}
               >
                 <span className="manual-upload-drop__icon" aria-hidden="true">
-                  {file ? (/\.pdf$/i.test(file.name) ? 'PDF' : 'DOC') : ''}
+                  {file ? (/\.pdf$/i.test(file.name) ? "PDF" : "DOC") : ""}
                 </span>
                 {file ? (
                   <span className="manual-upload-drop__text">
@@ -373,7 +380,7 @@ export function ManualUploadPage({
                     <small>
                       {/\.pdf$/i.test(file.name)
                         ? `${(file.size / 1048576).toFixed(1)} MB · PDF 파일`
-                        : 'PDF가 아닌 파일입니다'}
+                        : "PDF가 아닌 파일입니다"}
                     </small>
                   </span>
                 ) : (
@@ -393,9 +400,9 @@ export function ManualUploadPage({
                   accept=".pdf,application/pdf"
                   required
                   onChange={(event) => {
-                    const picked = event.target.files?.[0] ?? null
-                    setFile(picked)
-                    setVersion(documentVersionFromFilename(picked?.name ?? ''))
+                    const picked = event.target.files?.[0] ?? null;
+                    setFile(picked);
+                    setVersion(documentVersionFromFilename(picked?.name ?? ""));
                   }}
                 />
               </span>
@@ -444,15 +451,15 @@ export function ManualUploadPage({
             existingVersions={replacement.existingVersions}
             newVersion={replacement.newVersion}
             onCancel={() => {
-              setReplacement(null)
-              setPendingUpload(null)
+              setReplacement(null);
+              setPendingUpload(null);
             }}
             onConfirm={async () => {
-              if (!pendingUpload) return
-              const pendingFile = pendingUpload.get('file')
-              setReplacement(null)
-              setPendingUpload(null)
-              await uploadFormData(pendingUpload, pendingFile, true)
+              if (!pendingUpload) return;
+              const pendingFile = pendingUpload.get("file");
+              setReplacement(null);
+              setPendingUpload(null);
+              await uploadFormData(pendingUpload, pendingFile, true);
             }}
           />
         )}
@@ -461,7 +468,7 @@ export function ManualUploadPage({
         <Button
           type="button"
           disabled={busy}
-          onClick={() => onNavigate('manuals')}
+          onClick={() => onNavigate("manuals")}
         >
           목록
         </Button>
@@ -471,12 +478,12 @@ export function ManualUploadPage({
           variant="primary"
           disabled={busy}
         >
-          문서 등록 실행{' '}
+          문서 등록 실행{" "}
           {busy && (
             <span className="manual-upload-spinner" aria-label="등록 중" />
           )}
         </Button>
       </div>
     </div>
-  )
+  );
 }

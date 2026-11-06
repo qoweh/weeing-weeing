@@ -1,19 +1,21 @@
-@font-face {
-  font-family: 'Nanum Gothic';
-  src: url('/assets/FONTS/NanumGothic-Regular.ttf') format('truetype');
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Nanum Gothic';
-  src: url('/assets/FONTS/NanumGothic-Bold.ttf') format('truetype');
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
+/* 폰트 스타일 계층. Noto Sans KR 가변 폰트(100~900)를 쓴다. */
+:root {
+  --font-base: "Noto Sans KR Variable", "Noto Sans KR", sans-serif;
+  --fs-display: 32px;
+  --lh-display: 40px;
+  --fs-heading-l: 20px;
+  --lh-heading-l: 28px;
+  --fs-heading-m: 16px;
+  --lh-heading-m: 24px;
+  --fs-emphasis: 15px;
+  --lh-emphasis: 24px;
+  --fs-body: 14px;
+  --lh-body: 20px;
+  --fs-caption: 13px;
+  --lh-caption: 18px;
 }
 :root {
-  font-family: 'Nanum Gothic', sans-serif;
+  font-family: var(--font-base);
   color-scheme: light;
   --background: #f3f8fc;
   --surface: #fff;
@@ -37,7 +39,7 @@
   --sidebar-notice: rgba(255, 255, 255, 0.4);
   --side-card: #eaf4fa;
 }
-:root[data-theme='dark'] {
+:root[data-theme="dark"] {
   color-scheme: dark;
   --background: #101722;
   --surface: #1a2432;
@@ -75,7 +77,7 @@ dialog:modal {
 body {
   margin: 0;
   min-width: 320px;
-  font-size: 0.875rem;
+  font-size: var(--fs-body);
   line-height: 1.5;
   background: var(--background);
   color: var(--text);
@@ -96,7 +98,7 @@ p {
   --library-row: #fff;
   --library-button: #dceafa;
 }
-:root[data-theme='dark'] {
+:root[data-theme="dark"] {
   --background: #0d1724;
   --surface: #162538;
   --surface-hover: #1c324b;
@@ -113,11 +115,15 @@ p {
   --warning: #ffca74;
   --danger: #ff9eaa;
 }
-:root[data-theme='dark'] .header {
+:root[data-theme="dark"] .header {
   background: #192536;
 }
-:root[data-theme='dark'] .manual-upload-card {
+:root[data-theme="dark"] .manual-upload-card {
   --library-input: #111e2f;
+}
+:root[data-theme="dark"] .brand__mark img,
+:root[data-theme="dark"] .login-brand__mark img {
+  filter: brightness(0) invert(1);
 }
 [hidden] {
   display: none !important;

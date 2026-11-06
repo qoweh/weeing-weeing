@@ -1,12 +1,17 @@
 .report-sheet {
-  --report-navy: #17263f;
-  --report-yellow: #f4bc00;
-  --report-line: #d1d9e5;
-  --report-muted: #6d7d96;
+  /* 앱 전역 색상(Figma 디자인과 동일)을 따른다. 어두운 테마는 아래 블록에서 덮어쓴다. */
+  --report-navy: var(--text);
+  --report-accent: var(--primary);
+  --report-line: var(--border);
+  --report-muted: var(--muted);
+  --report-label: #eaf3fb;
+  --report-label-text: #3b5873;
+  /* 센서 값 표 헤더 */
+  --report-head: #e3e6ee;
 
   padding: 32px;
   margin-bottom: 24px;
-  border-top: 8px solid var(--report-navy);
+  border-top: 8px solid var(--report-accent);
   background: #fff;
   color: var(--report-navy);
 }
@@ -45,8 +50,8 @@
   width: 56px;
   height: 4px;
   margin-top: 18px;
-  background: var(--report-yellow);
-  content: '';
+  background: var(--report-accent);
+  content: "";
 }
 
 .report-heading h2 {
@@ -59,11 +64,13 @@
 .report-heading p {
   margin: 6px 0;
   color: var(--report-muted);
-  font-size: 13px;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
 }
 
 .report-meta {
-  font-size: 12px;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
   display: flex;
   justify-content: space-between;
   flex-wrap: wrap;
@@ -80,17 +87,23 @@
   gap: 10px;
   margin: 0 0 12px;
   font-size: 17px;
+  font-weight: 700;
+  line-height: 1.4;
 }
 
+/* 섹션 번호 배지: 30×30 정사각형, 둥근 모서리 8px, 파란 배경에 흰 글자 */
 .report-section-title > span {
   display: grid;
-  width: 32px;
-  height: 32px;
+  flex: none;
+  width: 30px;
+  height: 30px;
   place-items: center;
-  border-radius: 4px;
-  background: var(--report-navy);
-  color: var(--report-yellow);
-  font-size: 14px;
+  border-radius: 8px;
+  background: var(--report-accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .report-table {
@@ -117,13 +130,16 @@
   display: flex;
   align-items: center;
   padding: 10px 14px;
-  background: #f0f3f7;
+  background: var(--report-label);
+  color: var(--report-label-text);
+  font-weight: 700;
   border-right: 1px solid var(--report-line);
-  font-size: 14px;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .report-cell > span {
   padding: 10px 14px;
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.6;
   overflow-wrap: anywhere;
 }
@@ -150,13 +166,16 @@
   min-width: 0;
   margin: 0;
   background: #fff;
-  font-size: 14px;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .report-th {
   display: flex;
   align-items: center;
   padding: 10px 14px;
-  background: #f0f3f7;
+  background: var(--report-label);
+  color: var(--report-label-text);
+  font-weight: 700;
 }
 .report-td > span {
   display: block;
@@ -220,7 +239,8 @@ ul.report-analysis-list {
 }
 .report-cell-fields > label > span {
   color: #6d7d96;
-  font-size: 12px;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
 }
 .report-cell-fields textarea {
   min-height: 44px;
@@ -251,13 +271,14 @@ ul.report-analysis-list {
 .report-read-value dd {
   padding: 10px 12px;
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-caption);
   line-height: 1.7;
   overflow-wrap: anywhere;
 }
 
 .report-read-value dt {
-  background: #f0f3f7;
+  background: var(--report-label);
+  color: var(--report-label-text);
   font-weight: 700;
   border-right: 1px solid var(--report-line);
 }
@@ -291,7 +312,8 @@ ul.report-analysis-list {
   display: flex;
   flex-direction: column;
   gap: 7px;
-  font-size: 13px;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
   min-width: 0;
 }
 
@@ -346,7 +368,8 @@ ul.report-analysis-list {
 }
 
 .report-sheet .report-field--bare {
-  font-size: 14px;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 
 .report-sheet .report-field--bare select {
@@ -412,14 +435,15 @@ ul.report-analysis-list {
 .report-sensors strong,
 .report-sensors span {
   padding: 10px;
-  font-size: 12px;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
   overflow-wrap: anywhere;
 }
 
 .report-sensors strong {
   flex: 1;
-  background: var(--report-navy);
-  color: #fff;
+  background: var(--report-head);
+  color: var(--report-navy);
 }
 
 .report-empty {
@@ -446,7 +470,8 @@ ul.report-analysis-list {
   margin: 0;
   background: var(--report-navy);
   color: #fff;
-  font-size: 14px;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 
 .report-photo-body {
@@ -465,7 +490,7 @@ ul.report-analysis-list {
   cursor: pointer;
 }
 
-.report-photo-preview input[type='file'] {
+.report-photo-preview input[type="file"] {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -482,7 +507,8 @@ ul.report-analysis-list {
 .report-photo-preview p {
   padding: 16px;
   color: var(--report-muted);
-  font-size: 13px;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
   text-align: center;
 }
 
@@ -496,7 +522,8 @@ ul.report-analysis-list {
 
 .report-note {
   color: var(--report-muted);
-  font-size: 12px;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
 }
 
 .report-feedback {
@@ -507,13 +534,14 @@ ul.report-analysis-list {
 
 .report-footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   gap: 16px;
   padding-top: 18px;
   border-top: 1px solid var(--report-line);
   color: var(--report-muted);
-  font-size: 12px;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
 }
 
 /* 문서 등록 버튼(.library-upload)과 같은 토큰을 써서 라이트·다크 모드를 따른다. */
@@ -529,7 +557,8 @@ ul.report-analysis-list {
   border-radius: 12px;
   background: var(--library-button, #dceafa);
   color: var(--text, #172033);
-  font-size: 14px;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
   font-weight: 700;
   cursor: pointer;
   transition: filter 0.15s;
@@ -566,7 +595,8 @@ ul.report-analysis-list {
   padding-top: 14px;
   border-top: 1px solid var(--report-line);
   color: var(--report-muted);
-  font-size: 12px;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
 }
 
 .report-paper-footer::before {
@@ -575,8 +605,8 @@ ul.report-analysis-list {
   left: 0;
   width: 60px;
   height: 3px;
-  background: var(--report-yellow);
-  content: '';
+  background: var(--report-accent);
+  content: "";
 }
 
 @media (max-width: 680px) {
@@ -622,66 +652,79 @@ ul.report-analysis-list {
 
 /* 화면에서는 보고서도 선택한 테마를 따르고, 인쇄 시에는 종이 양식을 유지한다. */
 @media screen {
-  :root[data-theme='dark'] .report-sheet {
+  :root[data-theme="dark"] .report-sheet {
     --report-navy: var(--text);
     --report-line: var(--border);
     --report-muted: var(--muted);
+    --report-label-text: var(--text);
 
     background: var(--surface);
     border-top-color: var(--border);
     color: var(--text);
   }
 
-  :root[data-theme='dark'] .report-sheet .report-section-title > span,
-  :root[data-theme='dark'] .report-sheet .report-sensors strong,
-  :root[data-theme='dark'] .report-sheet .report-photo h4 {
+  :root[data-theme="dark"] .report-sheet .report-section-title > span,
+  :root[data-theme="dark"] .report-sheet .report-sensors strong,
+  :root[data-theme="dark"] .report-sheet .report-photo h4 {
     background: #243e5b;
   }
 
-  :root[data-theme='dark'] .report-sheet .report-cell > strong,
-  :root[data-theme='dark'] .report-sheet .report-th,
-  :root[data-theme='dark'] .report-sheet .report-read-value dt,
-  :root[data-theme='dark'] .report-sheet .report-photo-preview,
-  :root[data-theme='dark'] .report-sheet .report-empty,
-  :root[data-theme='dark'] .report-sheet .report-sub-label {
+  :root[data-theme="dark"] .report-sheet .report-cell > strong,
+  :root[data-theme="dark"] .report-sheet .report-th,
+  :root[data-theme="dark"] .report-sheet .report-read-value dt,
+  :root[data-theme="dark"] .report-sheet .report-photo-preview,
+  :root[data-theme="dark"] .report-sheet .report-empty,
+  :root[data-theme="dark"] .report-sheet .report-sub-label {
     background: var(--surface-hover);
   }
 
-  :root[data-theme='dark'] .report-sheet .report-td,
-  :root[data-theme='dark'] .report-sheet .report-read-value,
-  :root[data-theme='dark'] .report-sheet .report-sensors > div,
-  :root[data-theme='dark'] .report-sheet .report-subtable > * {
+  :root[data-theme="dark"] .report-sheet .report-td,
+  :root[data-theme="dark"] .report-sheet .report-read-value,
+  :root[data-theme="dark"] .report-sheet .report-sensors > div,
+  :root[data-theme="dark"] .report-sheet .report-subtable > * {
     background: var(--surface);
   }
 
-  :root[data-theme='dark'] .report-sheet .report-subtable > .report-sub-label {
+  :root[data-theme="dark"] .report-sheet .report-subtable > .report-sub-label {
     background: var(--surface-hover);
   }
 
-  :root[data-theme='dark'] .report-sheet input,
-  :root[data-theme='dark'] .report-sheet textarea,
-  :root[data-theme='dark'] .report-sheet select,
-  :root[data-theme='dark'] .report-sheet .report-fields:not(:disabled) .report-field--bare input:not([readonly]),
-  :root[data-theme='dark'] .report-sheet .report-fields:not(:disabled) .report-field--bare select,
-  :root[data-theme='dark'] .report-sheet .report-fields:not(:disabled) .report-field--bare textarea {
+  :root[data-theme="dark"] .report-sheet input,
+  :root[data-theme="dark"] .report-sheet textarea,
+  :root[data-theme="dark"] .report-sheet select,
+  :root[data-theme="dark"]
+    .report-sheet
+    .report-fields:not(:disabled)
+    .report-field--bare
+    input:not([readonly]),
+  :root[data-theme="dark"]
+    .report-sheet
+    .report-fields:not(:disabled)
+    .report-field--bare
+    select,
+  :root[data-theme="dark"]
+    .report-sheet
+    .report-fields:not(:disabled)
+    .report-field--bare
+    textarea {
     background-color: var(--library-input);
     color: var(--text);
   }
 
-  :root[data-theme='dark'] .report-sheet .report-fields:disabled input,
-  :root[data-theme='dark'] .report-sheet .report-fields:disabled textarea,
-  :root[data-theme='dark'] .report-sheet .report-fields:disabled select,
-  :root[data-theme='dark'] .report-sheet .report-field--bare input[readonly] {
+  :root[data-theme="dark"] .report-sheet .report-fields:disabled input,
+  :root[data-theme="dark"] .report-sheet .report-fields:disabled textarea,
+  :root[data-theme="dark"] .report-sheet .report-fields:disabled select,
+  :root[data-theme="dark"] .report-sheet .report-field--bare input[readonly] {
     background-color: transparent;
     color: var(--text);
     -webkit-text-fill-color: var(--text);
   }
 
-  :root[data-theme='dark'] .report-sheet .report-cell-fields > label > span {
+  :root[data-theme="dark"] .report-sheet .report-cell-fields > label > span {
     color: var(--report-muted);
   }
 
-  :root[data-theme='dark'] .report-sheet .report-feedback {
+  :root[data-theme="dark"] .report-sheet .report-feedback {
     background: var(--primary-soft);
     color: var(--text);
   }
@@ -712,9 +755,9 @@ ul.report-analysis-list {
   display: flex;
   align-items: center;
   padding: 10px 14px;
-  background: #f8fafc;
-  color: var(--report-muted);
-  font-size: 13px;
+  background: var(--report-label);
+  color: var(--report-label-text);
+  font-size: var(--fs-caption);
   font-weight: 700;
   line-height: 1.5;
 }
@@ -728,7 +771,8 @@ ul.report-analysis-list {
   border: 0;
   border-radius: 0;
   background-color: transparent;
-  font-size: 14px;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .report-sheet ::placeholder {
   color: var(--report-muted);
@@ -737,9 +781,9 @@ ul.report-analysis-list {
 
 /* 날짜 입력은 비어 있으면 브라우저 기본 문구 대신 안내 문구를 보여준다. */
 .report-field--bare.is-empty
-  input[type='datetime-local']:not(:focus)::-webkit-datetime-edit,
+  input[type="datetime-local"]:not(:focus)::-webkit-datetime-edit,
 .report-field--bare.is-empty
-  input[type='date']:not(:focus)::-webkit-datetime-edit {
+  input[type="date"]:not(:focus)::-webkit-datetime-edit {
   opacity: 0;
 }
 .report-field--bare.is-empty[data-placeholder]:not(:focus-within)::after {
@@ -752,8 +796,8 @@ ul.report-analysis-list {
   transform: translateY(-50%);
 }
 .report-fields:disabled
-  input[type='datetime-local']::-webkit-calendar-picker-indicator,
-.report-fields:disabled input[type='date']::-webkit-calendar-picker-indicator {
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+.report-fields:disabled input[type="date"]::-webkit-calendar-picker-indicator {
   display: none;
 }
 

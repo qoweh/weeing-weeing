@@ -1,11 +1,11 @@
-import Button from '../components/ui/Button'
-import PageTitle from '../components/ui/PageTitle'
-import './PreparingPage.css'
+import Button from "../components/ui/Button";
+import PageTitle from "../components/ui/PageTitle";
+import "./PreparingPage.css";
 
 export default function PreparingPage({
   onNavigate,
 }: {
-  onNavigate?: (page: string) => void
+  onNavigate?: (page: string) => void;
 }) {
   return (
     <div className="preparing-page">
@@ -32,11 +32,11 @@ export default function PreparingPage({
             <br />
             조금만 기다려 주세요.
           </p>
-          <Button variant="primary" onClick={() => onNavigate?.('incidents')}>
-            이상 현황으로 이동
+          <Button variant="primary" onClick={() => onNavigate?.("incidents")}>
+            사건 현황으로 이동
           </Button>
         </section>
       </div>
     </div>
-  )
+  );
 }

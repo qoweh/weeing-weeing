@@ -7,7 +7,8 @@
 }
 .eyebrow {
   color: var(--primary);
-  font-size: 0.7rem;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
   letter-spacing: 0.14em;
   font-weight: 800;
   margin-bottom: 8px;
@@ -29,7 +30,8 @@
   border-radius: 12px;
   padding: 12px 15px;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
   white-space: nowrap;
 }
 .period-label > span {
@@ -45,7 +47,7 @@
   border-radius: 10px;
   color: var(--primary);
   background: var(--primary-soft);
-  font-size: 0.78rem;
+  font-size: var(--fs-caption);
   line-height: 1.5;
   margin-bottom: 22px;
 }
@@ -89,7 +91,8 @@
   gap: 12px;
 }
 .metric h2 {
-  font-size: 0.88rem;
+  font-size: var(--fs-emphasis);
+  line-height: var(--lh-emphasis);
 }
 .metric__icon {
   display: grid;
@@ -99,12 +102,12 @@
   border-radius: 10px;
   background: var(--primary-soft);
   color: var(--primary);
-  font-size: 1.05rem;
+  font-size: var(--fs-heading-m);
   line-height: 1;
   text-align: center;
 }
 .metric__value {
-  font-size: 2rem;
+  font-size: var(--fs-display);
   font-weight: 800;
   letter-spacing: -0.04em;
   margin: 13px 0 10px;
@@ -113,7 +116,8 @@
 .metric__value span {
   margin-left: 4px;
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
   font-weight: 700;
   letter-spacing: 0;
 }
@@ -123,12 +127,13 @@
   padding: 22px;
 }
 .card-heading h2 {
-  font-size: 1rem;
+  font-size: var(--fs-heading-m);
+  line-height: var(--lh-heading-m);
   letter-spacing: -0.025em;
 }
 .card-heading p {
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: var(--fs-caption);
   margin-top: 7px;
   line-height: 1.45;
 }
@@ -137,7 +142,8 @@
   background: var(--surface-hover);
   border-radius: 6px;
   padding: 4px 7px;
-  font-size: 0.65rem;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
   white-space: nowrap;
 }
 .trend {
@@ -155,15 +161,19 @@
 .trend__summary > span,
 .trend__summary p {
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
 }
 .trend__summary strong {
   display: block;
   margin: 12px 0 8px;
-  font-size: 2rem;
+  font-size: var(--fs-display);
+  font-weight: 800;
+  line-height: var(--lh-display);
 }
 .trend__summary small {
-  font-size: 0.75rem;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
   color: var(--muted);
 }
 .trend__graph {
@@ -186,7 +196,8 @@
   justify-content: space-between;
   margin-top: 12px;
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
 }
 .bar-chart {
   height: 175px;
@@ -204,7 +215,8 @@
   align-items: center;
   gap: 10px;
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
 }
 .bar-chart__bar {
   width: min(100%, 32px);
@@ -223,7 +235,8 @@
   justify-content: space-between;
   padding: 12px 0;
   border-bottom: 1px solid var(--border);
-  font-size: 0.8rem;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
 }
 .status-list > div:last-child {
   border: 0;
@@ -256,11 +269,13 @@ table {
   border-collapse: collapse;
   text-align: left;
   white-space: nowrap;
-  font-size: 0.8rem;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
 }
 th {
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
   font-weight: 700;
   padding: 12px 10px;
   border-bottom: 1px solid var(--border);
@@ -278,7 +293,8 @@ tbody tr:last-child td {
   color: var(--muted);
 }
 .table-footnote {
-  font-size: 0.7rem;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
   margin-top: 15px;
 }
 .assistant__body {
@@ -293,16 +309,19 @@ tbody tr:last-child td {
   margin: 0 auto 18px;
   border-radius: 50%;
   color: white;
-  font-size: 1.8rem;
+  font-size: var(--fs-display);
+  font-weight: 800;
+  line-height: var(--lh-display);
   background: radial-gradient(circle at 30% 25%, #95c9ff, #2865ed 65%, #1640a1);
   box-shadow: 0 8px 28px rgba(40, 101, 237, 0.25);
 }
 .assistant__body strong {
-  font-size: 0.88rem;
+  font-size: var(--fs-emphasis);
+  line-height: var(--lh-emphasis);
 }
 .assistant__body p {
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: var(--fs-caption);
   line-height: 1.6;
   margin-top: 7px;
 }
@@ -315,11 +334,13 @@ tbody tr:last-child td {
   border-radius: 12px;
   background: var(--surface-hover);
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
 }
 .assistant__note {
   color: var(--muted);
-  font-size: 0.68rem;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
   margin-top: 10px;
 }
 @media (max-width: 1150px) {
@@ -349,7 +370,9 @@ tbody tr:last-child td {
     padding: 16px;
   }
   .metric__value {
-    font-size: 1.65rem;
+    font-size: var(--fs-display);
+    font-weight: 800;
+    line-height: var(--lh-display);
   }
   .chart-card,
   .incident-card,
@@ -395,7 +418,8 @@ tbody tr:last-child td {
     padding: 12px;
   }
   .metric h2 {
-    font-size: 0.78rem;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
   }
   .metric__icon {
     width: 26px;
@@ -403,11 +427,13 @@ tbody tr:last-child td {
   }
   .metric__value {
     margin: 6px 0;
-    font-size: 1.5rem;
+    font-size: var(--fs-heading-l);
+    line-height: var(--lh-heading-l);
   }
   .metric .badge {
     padding: 0.2rem 0.35rem;
-    font-size: 0.65rem;
+    font-size: var(--fs-caption);
+    line-height: var(--lh-caption);
     white-space: normal;
   }
   .chart-card,
@@ -459,7 +485,8 @@ tbody tr:last-child td {
     width: 40px;
     height: 40px;
     margin-bottom: 6px;
-    font-size: 1.2rem;
+    font-size: var(--fs-heading-l);
+    line-height: var(--lh-heading-l);
   }
   .assistant__body p {
     margin-top: 3px;

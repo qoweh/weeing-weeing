@@ -7,12 +7,12 @@ import {
 } from "./api/client";
 import AppShell from "./components/layout/AppShell";
 import DashboardPage from "./views/DashboardPage";
+import HomePage from "./views/HomePage";
 import LoginPage from "./views/LoginPage";
 import { ManualPage, ManualUploadPage } from "./views/ManualPages";
-import IncidentsPage from "./views/IncidentsPage";
+import IncidentHistoryPage from "./incident-hmi/pages/IncidentHistoryPage";
 import MaintenancePage from "./views/MaintenancePage";
 import ReportDraftModal from "./components/report/ReportDraftModal";
-import AnalysisModal from "./components/report/AnalysisModal";
 import SignupPage from "./views/SignupPage";
 import ForgotPasswordPage from "./views/ForgotPasswordPage";
 import MyPage from "./views/MyPage";
@@ -22,6 +22,7 @@ type ReportSelection = {
   incident: SelectedIncident | null;
   incidentId: string;
   reportId: string;
+  version?: number;
   previewOnly?: boolean;
 };
 type View = { page: string; reportSelection: ReportSelection | null };
@@ -35,6 +36,7 @@ type Account = {
 const sessionKey = "weeing-report-session";
 const historyKey = "weeing-app-view";
 const pages = new Set([
+  "home",
   "dashboard",
   "manuals",
   "manual-upload",
@@ -76,15 +78,15 @@ export default function App() {
     Boolean(sessionStorage.getItem(sessionKey)),
   );
   const [initialView] = useState(
-    () => readHistoryView() || { page: "dashboard", reportSelection: null },
+    () => readHistoryView() || { page: "home", reportSelection: null },
   );
   const [reportSelection, setReportSelection] = useState(
     initialView.reportSelection || null,
   );
   const [page, setPage] = useState(initialView.page);
-  const [analysisSelection, setAnalysisSelection] = useState<{
-    incident: SelectedIncident;
-    reportId?: string;
+  const [incidentFocus, setIncidentFocus] = useState<{
+    id: string;
+    key: number;
   } | null>(null);
   const [maintenanceRefreshKey, setMaintenanceRefreshKey] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -95,9 +97,10 @@ export default function App() {
     sessionStorage.removeItem(sessionKey);
     setUser(null);
     setAuthPage("login");
-    setPage("dashboard");
+    setPage("home");
     setReportSelection(null);
-    writeHistoryView({ page: "dashboard", reportSelection: null }, true);
+    setIncidentFocus(null);
+    writeHistoryView({ page: "home", reportSelection: null }, true);
   }, []);
 
   useEffect(() => {
@@ -116,7 +119,7 @@ export default function App() {
 
     function restoreHistoryView() {
       const view = readHistoryView();
-      setPage(view?.page || "dashboard");
+      setPage(view?.page || "home");
       setReportSelection(view?.reportSelection || null);
     }
 
@@ -152,9 +155,9 @@ export default function App() {
     setAccessToken(session.access_token);
     setError("");
     setUser(session.user);
-    setPage("dashboard");
+    setPage("home");
     setReportSelection(null);
-    writeHistoryView({ page: "dashboard", reportSelection: null }, true);
+    writeHistoryView({ page: "home", reportSelection: null }, true);
   }
 
   async function logout() {
@@ -187,11 +190,16 @@ export default function App() {
     setReportSelection(null);
   }, []);
 
+  const clearIncidentFocus = useCallback((key: number) => {
+    setIncidentFocus((current) => (current?.key === key ? null : current));
+  }, []);
+
   const openReportDraft = useCallback(
     (
       incident: SelectedIncident | null | undefined,
       reportId = "",
       row: { incidentId: string | null } | null = null,
+      version?: number,
     ) => {
       const selectedIncident =
         incident || (row?.incidentId ? { incident_id: row.incidentId } : null);
@@ -204,6 +212,7 @@ export default function App() {
         incident: selectedIncident,
         incidentId: selectedIncident?.incident_id || "",
         reportId,
+        version,
       };
 
       const origin = page === "incidents" ? "incidents" : "maintenance";
@@ -233,6 +242,7 @@ export default function App() {
 
   function handleReportSaved() {
     setMaintenanceRefreshKey((key) => key + 1);
+    window.dispatchEvent(new Event("weeing-incidents-changed"));
   }
 
   if (checking)
@@ -263,9 +273,10 @@ export default function App() {
       busy={busy}
       page={page}
       onNavigate={navigate}
-      onIncidentSelect={(incident: SelectedIncident) =>
-        setAnalysisSelection({ incident })
-      }
+      onIncidentSelect={(incident: SelectedIncident) => {
+        navigate("incidents");
+        setIncidentFocus({ id: incident.incident_id, key: Date.now() });
+      }}
       theme={theme}
       onToggleTheme={() =>
         setTheme((current) => (current === "light" ? "dark" : "light"))
@@ -275,6 +286,14 @@ export default function App() {
         <p className="workspace-error" role="alert">
           {error}
         </p>
+      )}
+      {page === "home" && (
+        <HomePage
+          user={user}
+          onNavigate={navigate}
+          onSessionExpired={forgetSession}
+          onOpenReport={(id) => openReportDraft(null, id)}
+        />
       )}
       <div hidden={page !== "dashboard"}>
         <DashboardPage onSessionExpired={forgetSession} onNavigate={navigate} />
@@ -313,26 +332,24 @@ export default function App() {
         />
       )}
       {page === "incidents" && (
-        <IncidentsPage
+        <IncidentHistoryPage
+          user={user}
+          busy={busy}
+          onBusyChange={setBusy}
+          focus={incidentFocus}
+          onFocusHandled={clearIncidentFocus}
           onSessionExpired={forgetSession}
-          refreshKey={maintenanceRefreshKey}
-          onOpen={(reportId, _incidentId, row) =>
-            setAnalysisSelection({ incident: row.incident, reportId })
+          onOpenDraft={(incidentId) =>
+            openReportDraft({ incident_id: incidentId })
           }
-        />
-      )}
-      {analysisSelection && (
-        <AnalysisModal
-          incidentId={analysisSelection.incident.incident_id}
-          onClose={() => setAnalysisSelection(null)}
-          onWrite={() => {
+          onOpenReport={(reportId, incidentId, version) =>
             openReportDraft(
-              analysisSelection.incident,
-              analysisSelection.reportId,
-            );
-            setAnalysisSelection(null);
-          }}
-          onSessionExpired={forgetSession}
+              incidentId ? { incident_id: incidentId } : null,
+              reportId,
+              null,
+              version,
+            )
+          }
         />
       )}
       {reportSelection && (
@@ -340,6 +357,7 @@ export default function App() {
           key={`${reportSelection.incidentId}:${reportSelection.reportId || "new"}`}
           incident={reportSelection.incident}
           reportId={reportSelection.reportId}
+          version={reportSelection.version}
           previewOnly={reportSelection.previewOnly}
           user={user}
           onClose={closeReportDraft}

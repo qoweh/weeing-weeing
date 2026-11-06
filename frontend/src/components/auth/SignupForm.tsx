@@ -1,22 +1,22 @@
-import { useState, type FormEvent } from 'react'
-import Button from '../ui/Button'
-import { EyeIcon } from './LoginForm'
+import { useState, type FormEvent } from "react";
+import Button from "../ui/Button";
+import { EyeIcon } from "./LoginForm";
 
 export default function SignupForm() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmation, setConfirmation] = useState('')
-  const [visible, setVisible] = useState(false)
-  const [confirmationVisible, setConfirmationVisible] = useState(false)
-  const [message, setMessage] = useState('')
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [visible, setVisible] = useState(false);
+  const [confirmationVisible, setConfirmationVisible] = useState(false);
+  const [message, setMessage] = useState("");
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+    event.preventDefault();
     if (password !== confirmation) {
-      setMessage('비밀번호가 일치하지 않습니다.')
-      return
+      setMessage("비밀번호가 일치하지 않습니다.");
+      return;
     }
-    setMessage('회원가입 서비스는 준비 중입니다.')
+    setMessage("회원가입 서비스는 준비 중입니다.");
   }
 
   return (
@@ -29,8 +29,8 @@ export default function SignupForm() {
           autoComplete="email"
           value={email}
           onChange={(event) => {
-            setEmail(event.target.value)
-            setMessage('')
+            setEmail(event.target.value);
+            setMessage("");
           }}
           placeholder="이메일을 입력해 주세요"
           required
@@ -41,12 +41,12 @@ export default function SignupForm() {
         <div className="login-password">
           <input
             id="signup-password"
-            type={visible ? 'text' : 'password'}
+            type={visible ? "text" : "password"}
             autoComplete="new-password"
             value={password}
             onChange={(event) => {
-              setPassword(event.target.value)
-              setMessage('')
+              setPassword(event.target.value);
+              setMessage("");
             }}
             placeholder="비밀번호를 입력해 주세요"
             required
@@ -54,7 +54,7 @@ export default function SignupForm() {
           <button
             type="button"
             onClick={() => setVisible(!visible)}
-            aria-label={visible ? '비밀번호 숨기기' : '비밀번호 보기'}
+            aria-label={visible ? "비밀번호 숨기기" : "비밀번호 보기"}
           >
             <EyeIcon off={visible} />
           </button>
@@ -65,15 +65,15 @@ export default function SignupForm() {
         <div className="login-password">
           <input
             id="signup-confirmation"
-            type={confirmationVisible ? 'text' : 'password'}
+            type={confirmationVisible ? "text" : "password"}
             autoComplete="new-password"
             value={confirmation}
             onChange={(event) => {
-              setConfirmation(event.target.value)
-              setMessage('')
+              setConfirmation(event.target.value);
+              setMessage("");
             }}
             placeholder="비밀번호를 다시 입력해 주세요"
-            aria-invalid={message === '비밀번호가 일치하지 않습니다.'}
+            aria-invalid={message === "비밀번호가 일치하지 않습니다."}
             required
           />
           <button
@@ -81,8 +81,8 @@ export default function SignupForm() {
             onClick={() => setConfirmationVisible(!confirmationVisible)}
             aria-label={
               confirmationVisible
-                ? '비밀번호 확인 숨기기'
-                : '비밀번호 확인 보기'
+                ? "비밀번호 확인 숨기기"
+                : "비밀번호 확인 보기"
             }
           >
             <EyeIcon off={confirmationVisible} />
@@ -98,5 +98,5 @@ export default function SignupForm() {
         회원가입
       </Button>
     </form>
-  )
+  );
 }

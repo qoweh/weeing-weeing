@@ -34,24 +34,22 @@ RAG(Retrieval-Augmented Generation) 시스템과 연동하여 정비 문서 기�
 
 ## ✨ Key Features
 
-- 🔎 **정비 정보 검색** — 설비 매뉴얼과 정비 문서에서 필요한 정보 탐색 *(계획)*
-- 💬 **AI 질의응답** — RAG 기반 정비 질문 및 답변 인터페이스 *(계획)*
-- 🧩 **Custom UI** — 재사용 가능한 컴포넌트 직접 구현 *(계획)*
-- 🔗 **API Integration** — FastAPI 백엔드와 연동 *(계획)*
+- 🔎 **정비 정보 검색** — 설비 매뉴얼과 정비 문서에서 필요한 정보 탐색 _(계획)_
+- 💬 **AI 질의응답** — RAG 기반 정비 질문 및 답변 인터페이스 _(계획)_
+- 🧩 **Custom UI** — 재사용 가능한 컴포넌트 직접 구현 _(계획)_
+- 🔗 **API Integration** — FastAPI 백엔드와 연동 _(계획)_
 
 ## 🛠️ Tech Stack
 
-| Category | Stack |
-| :--- | :--- |
-| **Core** | Next.js, React, TypeScript (TSX) |
-| **Styling** | Tailwind CSS, Sass (SCSS) |
-| **Routing** | Next.js App Router |
-| **State** | Redux *(도입 예정)* |
-| **API** | FastAPI (REST API 연동) |
-| **Quality** | 설정 예정 |
-| **UI** | Custom Components |
-
-
+| Category    | Stack                            |
+| :---------- | :------------------------------- |
+| **Core**    | Next.js, React, TypeScript (TSX) |
+| **Styling** | Tailwind CSS, Sass (SCSS)        |
+| **Routing** | Next.js App Router               |
+| **State**   | Redux _(도입 예정)_              |
+| **API**     | FastAPI (REST API 연동)          |
+| **Quality** | 설정 예정                        |
+| **UI**      | Custom Components                |
 
 ## 📸 Preview
 

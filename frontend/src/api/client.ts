@@ -1,115 +1,115 @@
-import { readChatStream } from './sse.js'
+import { readChatStream } from "./sse.js";
 import {
   parseTelemetrySnapshot,
   readTelemetryStream,
   type TelemetrySnapshot,
-} from './telemetry.js'
+} from "./telemetry.js";
 
 export type Incident = {
-  incident_id: string
-  codes: string[]
-  asset_id: string
-  first_detected_at: string
-  severity: string
-  status: string
-}
+  incident_id: string;
+  codes: string[];
+  asset_id: string;
+  first_detected_at: string;
+  severity: string;
+  status: string;
+};
 export type ReportSummary = {
-  report_id: string
-  incident_id: string | null
-  report_status: string
-  author_name: string
-  asset_id: string
-  updated_at: string
-}
+  report_id: string;
+  incident_id: string | null;
+  report_status: string;
+  author_name: string;
+  asset_id: string;
+  updated_at: string;
+};
 export type IncidentOverview = {
-  incident: Incident
-  has_approved_report: boolean
-  report_id: string | null
-  report_status: string | null
-}
+  incident: Incident;
+  has_approved_report: boolean;
+  report_id: string | null;
+  report_status: string | null;
+};
 
 export type MlPrediction = {
-  reference_time?: string
-  input_valid?: boolean
-  evaluation_eligible?: boolean
-  deadline_exceeded?: boolean
-  status?: string
-  reason?: string
-  probabilities?: Record<string, number> | null
-  error_probability?: number
-  fault_top3?: { code: string; confidence: number }[]
-  warning?: boolean
-  warning_threshold?: number
-}
+  reference_time?: string;
+  input_valid?: boolean;
+  evaluation_eligible?: boolean;
+  deadline_exceeded?: boolean;
+  status?: string;
+  reason?: string;
+  probabilities?: Record<string, number> | null;
+  error_probability?: number;
+  fault_top3?: { code: string; confidence: number }[];
+  warning?: boolean;
+  warning_threshold?: number;
+};
 export type MlSnapshot = {
-  run_id?: string | null
-  model_version?: string | null
-  enabled: boolean
-  producer_connected: boolean
-  stale: boolean
-  prediction_usable: boolean
-  prediction: MlPrediction
-}
+  run_id?: string | null;
+  model_version?: string | null;
+  enabled: boolean;
+  producer_connected: boolean;
+  stale: boolean;
+  prediction_usable: boolean;
+  prediction: MlPrediction;
+};
 
 export function getMlPrediction(signal?: AbortSignal): Promise<MlSnapshot> {
-  return request('/ml/prediction', { signal, timeoutMs: 10_000 })
+  return request("/ml/prediction", { signal, timeoutMs: 10_000 });
 }
 
 export function listIncidentOverview(): Promise<IncidentOverview[]> {
-  return request('/incidents/overview?limit=200')
+  return request("/incidents/overview?limit=200");
 }
 
 class ApiError extends Error {
-  status?: number
-  detail?: unknown
-  data?: unknown
+  status?: number;
+  detail?: unknown;
+  data?: unknown;
 }
 
-let accessToken = ''
+let accessToken = "";
 
 export function setAccessToken(token: string) {
-  accessToken = token
+  accessToken = token;
 }
 
 export async function watchTelemetry(
   signal: AbortSignal,
   onSnapshot: (state: TelemetrySnapshot) => void,
 ) {
-  const controller = new AbortController()
-  const cancel = () => controller.abort()
-  if (signal.aborted) controller.abort()
-  signal.addEventListener('abort', cancel, { once: true })
-  let timer: ReturnType<typeof setTimeout>
+  const controller = new AbortController();
+  const cancel = () => controller.abort();
+  if (signal.aborted) controller.abort();
+  signal.addEventListener("abort", cancel, { once: true });
+  let timer: ReturnType<typeof setTimeout>;
   const armTimeout = () => {
-    clearTimeout(timer)
-    timer = setTimeout(() => controller.abort(), 10_000)
-  }
-  armTimeout()
+    clearTimeout(timer);
+    timer = setTimeout(() => controller.abort(), 10_000);
+  };
+  armTimeout();
   try {
-    const response = await fetch('/api/telemetry/stream', {
-      cache: 'no-store',
+    const response = await fetch("/api/telemetry/stream", {
+      cache: "no-store",
       signal: controller.signal,
       headers: {
-        Accept: 'text/event-stream',
+        Accept: "text/event-stream",
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
-    })
+    });
     if (!response.ok) {
-      await response.body?.cancel().catch(() => {})
-      const error = new ApiError(`실시간 연결 실패: HTTP ${response.status}`)
-      error.status = response.status
-      throw error
+      await response.body?.cancel().catch(() => {});
+      const error = new ApiError(`실시간 연결 실패: HTTP ${response.status}`);
+      error.status = response.status;
+      throw error;
     }
     await readTelemetryStream(
       response,
       controller.signal,
       onSnapshot,
       armTimeout,
-    )
+    );
   } finally {
-    clearTimeout(timer!)
-    signal.removeEventListener('abort', cancel)
-    controller.abort()
+    clearTimeout(timer!);
+    signal.removeEventListener("abort", cancel);
+    controller.abort();
   }
 }
 
@@ -117,43 +117,43 @@ export async function getLatestTelemetry(
   signal: AbortSignal,
 ): Promise<TelemetrySnapshot> {
   return parseTelemetrySnapshot(
-    await request('/telemetry/latest', { signal, timeoutMs: 10_000 }),
-  )
+    await request("/telemetry/latest", { signal, timeoutMs: 10_000 }),
+  );
 }
 
 export async function request(
   path: string,
   {
-    method = 'GET',
+    method = "GET",
     body,
     signal,
-    responseType = 'json',
+    responseType = "json",
     onEvent,
     timeoutMs = 300_000,
   }: {
-    method?: string
-    body?: unknown
-    signal?: AbortSignal
-    responseType?: 'json' | 'blob' | 'stream'
-    onEvent?: (event: any) => void | Promise<void>
-    timeoutMs?: number
+    method?: string;
+    body?: unknown;
+    signal?: AbortSignal;
+    responseType?: "json" | "blob" | "stream";
+    onEvent?: (event: any) => void | Promise<void>;
+    timeoutMs?: number;
   } = {},
 ) {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
-  const isFormData = body instanceof FormData
-  const cancel = () => controller.abort()
-  if (signal?.aborted) controller.abort()
-  signal?.addEventListener('abort', cancel, { once: true })
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const isFormData = body instanceof FormData;
+  const cancel = () => controller.abort();
+  if (signal?.aborted) controller.abort();
+  signal?.addEventListener("abort", cancel, { once: true });
 
   try {
     const response = await fetch(`/api${path}`, {
       method,
-      cache: 'no-store',
+      cache: "no-store",
       signal: controller.signal,
       headers: {
         ...(body !== undefined && !isFormData
-          ? { 'Content-Type': 'application/json' }
+          ? { "Content-Type": "application/json" }
           : {}),
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
@@ -161,234 +161,260 @@ export async function request(
         body === undefined || isFormData
           ? (body as FormData | undefined)
           : JSON.stringify(body),
-    })
+    });
 
-    if (response.ok && responseType === 'stream')
+    if (response.ok && responseType === "stream")
       return await readChatStream(response, {
         onEvent,
         signal: controller.signal,
-      })
-    if (response.ok && responseType === 'blob') return await response.blob()
-    const text = await response.text()
-    let data
+      });
+    if (response.ok && responseType === "blob") return await response.blob();
+    const text = await response.text();
+    let data;
 
     try {
-      data = text ? JSON.parse(text) : null
+      data = text ? JSON.parse(text) : null;
     } catch {
       throw new Error(
         `서버가 JSON 형식으로 응답하지 않았습니다. HTTP ${response.status}`,
-      )
+      );
     }
 
     if (!response.ok) {
-      const detail = data?.detail ?? data?.message ?? '요청 실패'
+      const detail = data?.detail ?? data?.message ?? "요청 실패";
       const message =
-        typeof detail === 'string'
+        typeof detail === "string"
           ? detail
-          : (detail?.message ?? JSON.stringify(detail))
+          : (detail?.message ?? JSON.stringify(detail));
 
-      const error = new ApiError(`HTTP ${response.status}: ${message}`)
-      error.status = response.status
-      error.detail = detail
-      error.data = data
-      throw error
+      const error = new ApiError(`HTTP ${response.status}: ${message}`);
+      error.status = response.status;
+      error.detail = detail;
+      error.data = data;
+      throw error;
     }
 
-    return data
+    return data;
   } catch (error) {
-    if (signal?.aborted) throw error
-    if (error instanceof Error && error.name === 'AbortError') {
+    if (signal?.aborted) throw error;
+    if (error instanceof Error && error.name === "AbortError") {
       throw new Error(
-        '응답 대기 시간이 초과됐습니다. 서버에서 처리가 계속되는지 확인하세요.',
+        "응답 대기 시간이 초과됐습니다. 서버에서 처리가 계속되는지 확인하세요.",
         { cause: error },
-      )
+      );
     }
 
     if (error instanceof TypeError) {
       throw new Error(
-        '서버에 연결하지 못했습니다. FastAPI 실행 상태를 확인하세요.',
+        "서버에 연결하지 못했습니다. FastAPI 실행 상태를 확인하세요.",
         { cause: error },
-      )
+      );
     }
 
-    throw error
+    throw error;
   } finally {
-    signal?.removeEventListener('abort', cancel)
-    clearTimeout(timer)
+    signal?.removeEventListener("abort", cancel);
+    clearTimeout(timer);
   }
 }
 
 export function checkHealth() {
-  return request('/health')
+  return request("/health");
 }
 
 export async function uploadDocument(
   formData: FormData,
   onProgress: (stage: string) => void = () => {},
 ) {
-  onProgress('uploading')
+  onProgress("uploading");
 
-  let job = await request('/documents', {
-    method: 'POST',
+  let job = await request("/documents", {
+    method: "POST",
     body: formData,
-  })
+  });
 
-  const uploadId = job.upload_id
+  const uploadId = job.upload_id;
   if (!uploadId) {
-    throw new Error('서버 응답에 업로드 ID가 없습니다.')
+    throw new Error("서버 응답에 업로드 ID가 없습니다.");
   }
 
-  const deadline = Date.now() + 30 * 60 * 1000
+  const deadline = Date.now() + 30 * 60 * 1000;
 
   while (true) {
-    onProgress(job.stage ?? job.status)
+    onProgress(job.stage ?? job.status);
 
-    if (job.status === 'completed') {
-      return job
+    if (job.status === "completed") {
+      return job;
     }
 
-    if (job.status === 'failed') {
+    if (job.status === "failed") {
       throw new Error(
-        `${job.error ?? '문서 처리에 실패했습니다.'} 업로드 ID: ${uploadId}`,
-      )
+        `${job.error ?? "문서 처리에 실패했습니다."} 업로드 ID: ${uploadId}`,
+      );
     }
 
-    if (!['queued', 'processing'].includes(job.status)) {
-      throw new Error(`알 수 없는 처리 상태입니다: ${job.status}`)
+    if (!["queued", "processing"].includes(job.status)) {
+      throw new Error(`알 수 없는 처리 상태입니다: ${job.status}`);
     }
 
     if (Date.now() >= deadline) {
       throw new Error(
         `처리 상태 확인 시간이 초과됐습니다. 서버 작업은 계속될 수 있습니다. 업로드 ID: ${uploadId}`,
-      )
+      );
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     try {
-      job = await request(`/documents/${encodeURIComponent(uploadId)}`)
+      job = await request(`/documents/${encodeURIComponent(uploadId)}`);
     } catch (error) {
       throw new Error(
         `상태 조회에 실패했습니다. 서버 작업은 계속될 수 있습니다. 업로드 ID: ${uploadId}. ${error instanceof Error ? error.message : String(error)}`,
         { cause: error },
-      )
+      );
     }
   }
 }
 
 export function loginUser(employeeNo: string, password: string) {
-  return request('/auth/login', {
-    method: 'POST',
+  return request("/auth/login", {
+    method: "POST",
     body: { employee_no: employeeNo, password },
-  })
+  });
 }
 
 export function currentUser() {
-  return request('/auth/me')
+  return request("/auth/me");
 }
 export function logoutUser() {
-  return request('/auth/logout', { method: 'POST' })
+  return request("/auth/logout", { method: "POST" });
 }
 export function listIncidents(): Promise<Incident[]> {
-  return request('/incidents')
+  return request("/incidents");
 }
 export function getIncidentAnalysis(id: string) {
-  return request(`/incidents/${encodeURIComponent(id)}/analysis`)
+  return request(`/incidents/${encodeURIComponent(id)}/analysis`);
+}
+
+export function retryIncidentAnalysis(
+  id: string,
+  body: unknown,
+  signal?: AbortSignal,
+) {
+  return request(`/incidents/${encodeURIComponent(id)}/analysis/retry`, {
+    method: "POST",
+    body,
+    signal,
+  });
+}
+
+export function listIncidentApprovedReports(id: string) {
+  return request(`/incidents/${encodeURIComponent(id)}/approved-reports`);
+}
+
+export function deleteIncident(id: string) {
+  return request(`/incidents/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
 export function getIncidentReportContext(id: string, reportId?: string) {
-  const query = reportId ? `?report_id=${encodeURIComponent(reportId)}` : ''
-  return request(`/incidents/${encodeURIComponent(id)}/report-context${query}`)
+  const query = reportId ? `?report_id=${encodeURIComponent(reportId)}` : "";
+  return request(`/incidents/${encodeURIComponent(id)}/report-context${query}`);
 }
-export function listReports(scope = 'mine'): Promise<ReportSummary[]> {
-  return request(`/reports?scope=${encodeURIComponent(scope)}`)
+export function listReports(scope = "mine"): Promise<ReportSummary[]> {
+  return request(`/reports?scope=${encodeURIComponent(scope)}`);
 }
 export function getReport(id: string, version?: number, signal?: AbortSignal) {
-  const suffix = version ? `/versions/${version}` : ''
-  return request(`/reports/${encodeURIComponent(id)}${suffix}`, { signal })
+  const suffix = version ? `/versions/${version}` : "";
+  return request(`/reports/${encodeURIComponent(id)}${suffix}`, { signal });
 }
 export function saveReport(id: string | undefined, body: unknown) {
-  return request(id ? `/reports/${encodeURIComponent(id)}/draft` : '/reports', {
-    method: id ? 'PUT' : 'POST',
+  return request(id ? `/reports/${encodeURIComponent(id)}/draft` : "/reports", {
+    method: id ? "PUT" : "POST",
     body,
-  })
+  });
+}
+export function deleteReport(id: string, revision: number, draft = false) {
+  return request(`/reports/${encodeURIComponent(id)}${draft ? "/draft" : ""}`, {
+    method: "DELETE",
+    body: { expected_revision: revision },
+  });
 }
 export function actOnReport(
   id: string,
   action: string,
   revision: number,
-  comment = '',
+  comment = "",
 ) {
   return request(
     `/reports/${encodeURIComponent(id)}/${encodeURIComponent(action)}`,
     {
-      method: 'POST',
+      method: "POST",
       body: { expected_revision: revision, comment },
     },
-  )
+  );
 }
 
-export function listDocuments(query = '') {
-  const params = new URLSearchParams({ q: query })
-  return request(query ? `/documents?${params}` : '/documents')
+export function listDocuments(query = "") {
+  const params = new URLSearchParams({ q: query });
+  return request(query ? `/documents?${params}` : "/documents");
 }
 
 export function deleteDocument(document: {
-  doc_id: string
-  doc_version: string
-  source_sha256: string
-  upload_id?: string | null
+  doc_id: string;
+  doc_version: string;
+  source_sha256: string;
+  upload_id?: string | null;
 }) {
   return request(`/documents/${encodeURIComponent(document.doc_id)}`, {
-    method: 'DELETE',
+    method: "DELETE",
     body: {
       doc_version: document.doc_version,
       source_sha256: document.source_sha256,
       upload_id: document.upload_id,
     },
-  })
+  });
 }
 
 export async function fetchDocumentFile(uploadId: string) {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 60_000)
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 60_000);
 
   try {
     const response = await fetch(
       `/api/documents/${encodeURIComponent(uploadId)}/file`,
       {
-        cache: 'no-store',
+        cache: "no-store",
         signal: controller.signal,
         headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
       },
-    )
+    );
 
     if (!response.ok) {
       const error = new ApiError(
         [404, 405].includes(response.status)
-          ? '서버에서 문서 원문(PDF)을 찾을 수 없습니다.'
+          ? "서버에서 문서 원문(PDF)을 찾을 수 없습니다."
           : `문서 원문을 불러오지 못했습니다. HTTP ${response.status}`,
-      )
-      error.status = response.status
-      throw error
+      );
+      error.status = response.status;
+      throw error;
     }
 
-    return await response.blob()
+    return await response.blob();
   } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('문서 원문 응답 대기 시간이 초과됐습니다.', {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("문서 원문 응답 대기 시간이 초과됐습니다.", {
         cause: error,
-      })
+      });
     }
     if (error instanceof TypeError) {
       throw new Error(
-        '서버에 연결하지 못했습니다. FastAPI 실행 상태를 확인하세요.',
+        "서버에 연결하지 못했습니다. FastAPI 실행 상태를 확인하세요.",
         { cause: error },
-      )
+      );
     }
-    throw error
+    throw error;
   } finally {
-    clearTimeout(timer)
+    clearTimeout(timer);
   }
 }
 
@@ -396,5 +422,5 @@ export function chatRequest(
   path: string,
   options?: { method?: string; body?: unknown },
 ) {
-  return request(`/chat${path}`, options)
+  return request(`/chat${path}`, options);
 }

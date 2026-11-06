@@ -2,7 +2,14 @@
   --mypage-card-radius: 16px;
   width: 100%;
   min-width: 0;
+  /* 사건현황·정비이력·문서내역(.library-page)과 같은 좌우 여백 */
+  padding: 0 24px;
   color: var(--text);
+}
+@media (max-width: 1200px) {
+  .mypage {
+    padding: 0;
+  }
 }
 .mypage__profile,
 .mypage__card,
@@ -29,7 +36,7 @@
   border-radius: 50%;
   background: var(--primary-soft);
   color: var(--primary);
-  font-size: 24px;
+  font-size: var(--fs-heading-l);
   font-weight: 700;
   line-height: 1;
 }
@@ -72,7 +79,7 @@
 }
 .mypage__identity h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--fs-heading-l);
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.35;
@@ -86,7 +93,7 @@
   border-radius: 999px;
   background: var(--primary-soft);
   color: var(--primary);
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-weight: 700;
   line-height: 1.3;
 }
@@ -97,19 +104,21 @@
   gap: 6px 8px;
   margin: 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--fs-caption);
   line-height: 1.5;
 }
 .mypage__meta strong {
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
   font-weight: 700;
 }
 .mypage__admin {
   min-height: 21px;
   background: var(--surface-hover);
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
 }
 .mypage__summary {
   display: grid;
@@ -125,7 +134,7 @@
 }
 .mypage__summary-label {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--fs-caption);
   font-weight: 700;
   line-height: 1.45;
 }
@@ -133,15 +142,16 @@
   display: flex;
   align-items: baseline;
   gap: 5px;
-  font-size: 30px;
-  font-weight: 700;
+  font-size: var(--fs-display);
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.03em;
   line-height: 1;
 }
 .mypage__summary strong small {
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
   font-weight: 700;
   letter-spacing: 0;
 }
@@ -158,7 +168,7 @@
 .mypage__card h2,
 .mypage__action h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--fs-heading-m);
   font-weight: 700;
   letter-spacing: -0.015em;
   line-height: 1.4;
@@ -167,7 +177,7 @@
 .mypage__action p {
   margin: 6px 0 0;
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.55;
 }
 .mypage__list {
@@ -209,7 +219,7 @@
   min-width: 0;
 }
 .mypage__list strong {
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 700;
   line-height: 1.45;
 }
@@ -217,7 +227,7 @@
   display: block;
   margin-top: 4px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-caption);
   line-height: 1.45;
 }
 .mypage__status {
@@ -229,7 +239,7 @@
   border-radius: 999px;
   background: var(--primary-soft);
   color: var(--primary);
-  font-size: 12px;
+  font-size: var(--fs-caption);
   font-weight: 700;
   line-height: 1.3;
   white-space: nowrap;
@@ -256,7 +266,7 @@
   border-radius: 10px;
   background: var(--background);
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.55;
 }
 .mypage__link {
@@ -270,7 +280,8 @@
   border-radius: 4px;
   background: transparent;
   color: var(--primary);
-  font-size: 14px;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
   font-weight: 700;
   cursor: pointer;
 }
@@ -313,7 +324,8 @@
   background: var(--primary);
   color: var(--background);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
   font-weight: 700;
   cursor: pointer;
   transition: filter 140ms ease;
@@ -331,7 +343,8 @@
   border-radius: var(--mypage-card-radius);
   background: var(--surface);
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .mypage__retry {
   min-height: 36px;
@@ -342,7 +355,8 @@
   background: var(--surface);
   color: var(--danger);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
   font-weight: 700;
   cursor: pointer;
 }
@@ -364,10 +378,12 @@
     flex-basis: 56px;
     width: 56px;
     height: 56px;
-    font-size: 22px;
+    font-size: var(--fs-heading-l);
+    line-height: var(--lh-heading-m);
   }
   .mypage__identity h2 {
-    font-size: 18px;
+    font-size: var(--fs-heading-m);
+    line-height: var(--lh-heading-l);
   }
   .mypage__identity-heading {
     flex-wrap: wrap;
@@ -396,7 +412,8 @@
 }
 @media (max-width: 420px) {
   .mypage__summary strong {
-    font-size: 26px;
+    font-size: var(--fs-heading-l);
+    line-height: var(--lh-heading-l);
   }
   .mypage__list button {
     align-items: flex-start;

@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
-import { getIncidentAnalysis } from '../../api/client'
-import type { Analysis } from './ReportForm'
-import './AnalysisModal.css'
-import ReportAnalysisSection from './ReportAnalysisSection'
+import { useEffect, useRef, useState } from "react";
+import { getIncidentAnalysis } from "../../api/client";
+import type { Analysis } from "./ReportForm";
+import "./AnalysisModal.css";
+import ReportAnalysisSection from "./ReportAnalysisSection";
 
 export default function AnalysisModal({
   incidentId,
@@ -10,48 +10,48 @@ export default function AnalysisModal({
   onWrite,
   onSessionExpired,
 }: {
-  incidentId: string
-  onClose: () => void
-  onWrite: () => void
-  onSessionExpired: () => void
+  incidentId: string;
+  onClose: () => void;
+  onWrite: () => void;
+  onSessionExpired: () => void;
 }) {
-  const dialog = useRef<HTMLDialogElement>(null)
+  const dialog = useRef<HTMLDialogElement>(null);
   const [result, setResult] = useState<{
-    job: { status: string } | null
-    analysis: Analysis | null
-  } | null>(null)
-  const [error, setError] = useState('')
+    job: { status: string } | null;
+    analysis: Analysis | null;
+  } | null>(null);
+  const [error, setError] = useState("");
   useEffect(() => {
-    dialog.current?.showModal()
-    let active = true
+    dialog.current?.showModal();
+    let active = true;
     getIncidentAnalysis(incidentId)
       .then((data) => {
-        if (active) setResult(data)
+        if (active) setResult(data);
       })
       .catch((failure) => {
-        if (!active) return
-        if (failure.status === 401) onSessionExpired()
+        if (!active) return;
+        if (failure.status === 401) onSessionExpired();
         else
           setError(
-            '분석 결과를 불러오지 못했습니다. 창을 닫고 다시 시도해 주세요.',
-          )
-      })
+            "분석 결과를 불러오지 못했습니다. 창을 닫고 다시 시도해 주세요.",
+          );
+      });
     return () => {
-      active = false
-    }
-  }, [incidentId, onSessionExpired])
+      active = false;
+    };
+  }, [incidentId, onSessionExpired]);
   const analysis =
-    result?.analysis?.incident_id === incidentId ? result.analysis : null
+    result?.analysis?.incident_id === incidentId ? result.analysis : null;
   const pending =
-    result?.job && ['PENDING', 'RUNNING'].includes(result.job.status)
+    result?.job && ["PENDING", "RUNNING"].includes(result.job.status);
   return (
     <dialog
       ref={dialog}
       className="analysis-dialog"
       aria-labelledby="analysis-title"
       onCancel={(event) => {
-        event.preventDefault()
-        onClose()
+        event.preventDefault();
+        onClose();
       }}
     >
       <header>
@@ -84,7 +84,7 @@ export default function AnalysisModal({
             분석이 진행 중입니다. 잠시 후 다시 확인해 주세요.
           </p>
         )}
-        {!pending && result?.job?.status === 'FAILED' && (
+        {!pending && result?.job?.status === "FAILED" && (
           <p className="analysis-dialog__state" role="alert">
             분석 작업이 실패했습니다. 표시되는 결과는 이전 분석일 수 있습니다.
           </p>
@@ -105,5 +105,5 @@ export default function AnalysisModal({
         </button>
       </footer>
     </dialog>
-  )
+  );
 }

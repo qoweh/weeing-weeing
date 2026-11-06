@@ -8,6 +8,8 @@
   max-height: calc(100dvh / var(--screen-zoom, 1) - 48px);
   padding: 0;
   overflow: auto;
+  /* 고정 헤더(76px)에 가려지지 않도록 필수 입력 검증 시 스크롤 여백 확보 */
+  scroll-padding-top: 140px;
   border: 1px solid var(--border, #d7e0eb);
   border-radius: 14px;
   background: var(--surface, #fff);
@@ -43,20 +45,21 @@
   border-radius: 50%;
   background: var(--warning-bg);
   color: var(--warning);
-  font-size: 28px;
-  font-weight: 700;
+  font-size: var(--fs-display);
+  font-weight: 800;
   line-height: 1;
 }
 
 .report-draft-dialog__notice h2 {
   margin: 18px 0 8px;
   color: var(--text);
-  font-size: 19px;
+  font-size: var(--fs-heading-l);
+  line-height: var(--lh-heading-l);
 }
 
 .report-draft-dialog__notice p {
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.6;
   word-break: keep-all;
 }
@@ -101,14 +104,21 @@
   margin: 0;
 }
 
+.report-draft-dialog__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 16px;
+}
+
 .report-draft-dialog__header p {
-  margin-bottom: 4px;
   color: var(--muted, #6d7d96);
-  font-size: 12px;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
 }
 
 .report-draft-dialog__header h2 {
-  font-size: 18px;
+  font-size: var(--fs-heading-m);
   line-height: 1.4;
 }
 
@@ -123,7 +133,7 @@
   background: transparent;
   color: inherit;
   cursor: pointer;
-  font-size: 24px;
+  font-size: var(--fs-heading-l);
   line-height: 1;
 }
 
@@ -136,8 +146,94 @@
   margin: 16px 24px 0;
   padding: 12px 14px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: var(--fs-caption);
   line-height: 1.6;
+}
+
+.report-draft-dialog__history {
+  margin: 18px 24px;
+  padding: 18px;
+  border: 1px solid var(--border, #d7e0eb);
+  border-radius: 10px;
+  background: var(--surface, #fff);
+}
+.report-draft-dialog__history h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+.report-draft-dialog__history h4 {
+  margin: 20px 0 10px;
+  font-size: 14px;
+}
+.report-draft-dialog__history p {
+  margin: 8px 0;
+  color: var(--muted, #53647d);
+  font-size: 13px;
+}
+.report-draft-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.report-draft-dialog__actions button {
+  padding: 8px 12px;
+  border: 1px solid var(--border, #d7e0eb);
+  border-radius: 6px;
+  background: var(--surface, #fff);
+  color: var(--text, #17263f);
+  cursor: pointer;
+}
+.report-draft-dialog__actions button[aria-pressed="true"] {
+  border-color: var(--primary, #2255cc);
+  color: var(--primary, #2255cc);
+  font-weight: 700;
+}
+.report-draft-dialog__actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.report-draft-dialog__approvals {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.report-draft-dialog__approvals li {
+  padding: 12px;
+  border: 1px solid var(--border, #d7e0eb);
+  border-radius: 8px;
+  font-size: 14px;
+}
+.report-draft-dialog__approvals li.is-rejected {
+  border-color: var(--danger, #bd3b4f);
+  background: var(--danger-bg, #fff0f0);
+}
+.report-draft-dialog__approvals time {
+  display: inline-block;
+  margin-left: 12px;
+  color: var(--muted, #53647d);
+  font-size: 12px;
+}
+.report-draft-dialog__approvals li p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: inherit;
+}
+.report-draft-dialog__history label {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+.report-draft-dialog__history textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 8px;
+  border: 1px solid var(--border, #d7e0eb);
+  border-radius: 6px;
+  background: var(--surface, #fff);
+  color: var(--text, #17263f);
 }
 
 .report-draft-dialog__state {

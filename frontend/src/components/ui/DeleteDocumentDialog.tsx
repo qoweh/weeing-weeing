@@ -1,6 +1,6 @@
-import { useEffect, useId, useRef } from 'react'
-import Button from './Button'
-import './DeleteDocumentDialog.css'
+import { useEffect, useId, useRef } from "react";
+import Button from "./Button";
+import "./DeleteDocumentDialog.css";
 
 export default function DeleteDocumentDialog({
   doc,
@@ -8,26 +8,26 @@ export default function DeleteDocumentDialog({
   onCancel,
   onConfirm,
 }: {
-  doc: { name: string }
-  busy: boolean
-  onCancel: () => void
-  onConfirm: () => void
+  doc: { name: string };
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
 }) {
-  const dialog = useRef<HTMLDialogElement>(null)
-  const cancelButton = useRef<HTMLButtonElement>(null)
-  const titleId = useId()
-  const descriptionId = useId()
+  const dialog = useRef<HTMLDialogElement>(null);
+  const cancelButton = useRef<HTMLButtonElement>(null);
+  const titleId = useId();
+  const descriptionId = useId();
 
   useEffect(() => {
-    const element = dialog.current
-    const previousFocus = window.document.activeElement
-    if (element && !element.open) element.showModal()
-    cancelButton.current?.focus()
+    const element = dialog.current;
+    const previousFocus = window.document.activeElement;
+    if (element && !element.open) element.showModal();
+    cancelButton.current?.focus();
     return () => {
-      if (element?.open) element.close()
-      if (previousFocus instanceof HTMLElement) previousFocus.focus()
-    }
-  }, [])
+      if (element?.open) element.close();
+      if (previousFocus instanceof HTMLElement) previousFocus.focus();
+    };
+  }, []);
 
   return (
     <dialog
@@ -36,8 +36,8 @@ export default function DeleteDocumentDialog({
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
       onCancel={(event) => {
-        event.preventDefault()
-        if (!busy) onCancel()
+        event.preventDefault();
+        if (!busy) onCancel();
       }}
     >
       <h2 id={titleId}>문서를 삭제할까요?</h2>
@@ -61,9 +61,9 @@ export default function DeleteDocumentDialog({
           disabled={busy}
           onClick={onConfirm}
         >
-          {busy ? '삭제 중…' : '삭제하기'}
+          {busy ? "삭제 중…" : "삭제하기"}
         </Button>
       </div>
     </dialog>
-  )
+  );
 }

@@ -1,20 +1,29 @@
-import { useEffect, useId, useRef, useState, type CSSProperties } from 'react'
-import type { Settings } from './settings'
-import Button from '../ui/Button'
-import { refreshIntervals } from './settings'
-import './SettingsDialog.css'
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type CSSProperties,
+} from "react";
+import type { Settings } from "./settings";
+import Button from "../ui/Button";
+import ProfileAvatar from "./ProfileAvatar";
+import useProfilePhoto from "./useProfilePhoto";
+import { refreshIntervals } from "./settings";
+import "./SettingsDialog.css";
 
-const tabs = ['화면', '알림', '계정']
-const zoomSteps = [80, 90, 100, 110, 120]
+const tabs = ["화면", "알림", "계정"];
+const zoomSteps = [80, 90, 100, 110, 120];
 
 function Toggle({
   checked,
   onChange,
   label,
 }: {
-  checked: boolean
-  onChange: (checked: boolean) => void
-  label: string
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label: string;
 }) {
   return (
     <button
@@ -27,7 +36,7 @@ function Toggle({
     >
       <span />
     </button>
-  )
+  );
 }
 
 function ThemeCard({
@@ -36,10 +45,10 @@ function ThemeCard({
   onSelect,
   label,
 }: {
-  value: string
-  current: string
-  onSelect: (value: string) => void
-  label: string
+  value: string;
+  current: string;
+  onSelect: (value: string) => void;
+  label: string;
 }) {
   return (
     <button
@@ -59,7 +68,7 @@ function ThemeCard({
         {label}
       </span>
     </button>
-  )
+  );
 }
 
 export default function SettingsDialog({
@@ -76,42 +85,51 @@ export default function SettingsDialog({
   onChangeSettings,
   onLogout,
   busy,
-  initialTab = '화면',
+  initialTab = "화면",
   onClose,
 }: {
-  user: { name: string; role: string; employee_no?: string }
-  theme: string
-  onToggleTheme: () => void
-  screenZoom: number
-  onChangeScreenZoom: (zoom: number) => void
-  defaultScreenZoom: number
-  onResetScreenZoom: () => void
-  sidebarCollapsed: boolean
-  onChangeSidebarCollapsed: (collapsed: boolean) => void
-  settings: Settings
-  onChangeSettings: (settings: Settings) => void
-  onLogout: () => void
-  busy: boolean
-  initialTab?: string
-  onClose: () => void
+  user: { name: string; role: string; employee_no?: string };
+  theme: string;
+  onToggleTheme: () => void;
+  screenZoom: number;
+  onChangeScreenZoom: (zoom: number) => void;
+  defaultScreenZoom: number;
+  onResetScreenZoom: () => void;
+  sidebarCollapsed: boolean;
+  onChangeSidebarCollapsed: (collapsed: boolean) => void;
+  settings: Settings;
+  onChangeSettings: (settings: Settings) => void;
+  onLogout: () => void;
+  busy: boolean;
+  initialTab?: string;
+  onClose: () => void;
 }) {
-  const dialog = useRef<HTMLDialogElement>(null)
-  const titleId = useId()
-  const [tab, setTab] = useState(initialTab)
+  const dialog = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  const [tab, setTab] = useState(initialTab);
+  const photoInput = useRef<HTMLInputElement>(null);
+  const [photoError, setPhotoError] = useState("");
+  const profile = useProfilePhoto(user.employee_no ?? "");
+
+  async function choosePhoto(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+    if (file) setPhotoError(await profile.change(file));
+  }
 
   useEffect(() => {
-    const element = dialog.current
-    const previousFocus = window.document.activeElement
-    if (element && !element.open) element.showModal()
+    const element = dialog.current;
+    const previousFocus = window.document.activeElement;
+    if (element && !element.open) element.showModal();
     return () => {
-      if (element?.open) element.close()
-      if (previousFocus instanceof HTMLElement) previousFocus.focus()
-    }
-  }, [])
+      if (element?.open) element.close();
+      if (previousFocus instanceof HTMLElement) previousFocus.focus();
+    };
+  }, []);
 
   const update = (patch: Partial<Settings>) =>
-    onChangeSettings({ ...settings, ...patch })
-  const zoomPosition = ((screenZoom - 80) / 40) * 100
+    onChangeSettings({ ...settings, ...patch });
+  const zoomPosition = ((screenZoom - 80) / 40) * 100;
 
   return (
     <dialog
@@ -119,11 +137,11 @@ export default function SettingsDialog({
       className="settings-dialog"
       aria-labelledby={titleId}
       onCancel={(event) => {
-        event.preventDefault()
-        onClose()
+        event.preventDefault();
+        onClose();
       }}
       onClick={(event) => {
-        if (event.target === event.currentTarget) onClose()
+        if (event.target === event.currentTarget) onClose();
       }}
     >
       <nav className="settings-dialog__nav" aria-label="설정 메뉴">
@@ -167,7 +185,7 @@ export default function SettingsDialog({
           </button>
         </header>
         <div className="settings-dialog__body">
-          {tab === '화면' && (
+          {tab === "화면" && (
             <>
               <h4>테마</h4>
               <p>화면 색상 모드를 선택합니다.</p>
@@ -207,7 +225,7 @@ export default function SettingsDialog({
               <div
                 className="settings-zoom"
                 style={
-                  { '--zoom-position': `${zoomPosition}%` } as CSSProperties
+                  { "--zoom-position": `${zoomPosition}%` } as CSSProperties
                 }
               >
                 <output aria-live="polite">{screenZoom}%</output>
@@ -226,7 +244,7 @@ export default function SettingsDialog({
                   {zoomSteps.map((step) => (
                     <li
                       key={step}
-                      className={step === screenZoom ? 'is-current' : ''}
+                      className={step === screenZoom ? "is-current" : ""}
                     >
                       {step}%
                     </li>
@@ -235,9 +253,27 @@ export default function SettingsDialog({
               </div>
               <h4 className="settings-section">챗봇 표시 방식</h4>
               <p>선택한 방식은 챗봇을 다음에 열 때 적용됩니다.</p>
-              <div className="settings-segment" role="radiogroup" aria-label="챗봇 표시 방식">
-                <button type="button" role="radio" aria-checked={settings.chatDisplay === 'modal'} onClick={() => update({ chatDisplay: 'modal' })}>모달</button>
-                <button type="button" role="radio" aria-checked={settings.chatDisplay === 'drawer'} onClick={() => update({ chatDisplay: 'drawer' })}>서랍</button>
+              <div
+                className="settings-segment"
+                role="radiogroup"
+                aria-label="챗봇 표시 방식"
+              >
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={settings.chatDisplay === "modal"}
+                  onClick={() => update({ chatDisplay: "modal" })}
+                >
+                  모달
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={settings.chatDisplay === "drawer"}
+                  onClick={() => update({ chatDisplay: "drawer" })}
+                >
+                  서랍
+                </button>
               </div>
               <h4 className="settings-section">사이드 메뉴</h4>
               <ul className="settings-list settings-list--single">
@@ -257,7 +293,7 @@ export default function SettingsDialog({
               </ul>
             </>
           )}
-          {tab === '알림' && (
+          {tab === "알림" && (
             <>
               <h4>알림 수신</h4>
               <p>헤더의 주의·경고 배지와 사건 목록에 반영됩니다.</p>
@@ -265,24 +301,24 @@ export default function SettingsDialog({
                 {(
                   [
                     [
-                      'notifyWarning',
-                      '주의 알림',
-                      '주의 단계 사건이 생기면 헤더 배지에 건수를 표시합니다.',
+                      "notifyWarning",
+                      "주의 알림",
+                      "주의 단계 사건이 생기면 헤더 배지에 건수를 표시합니다.",
                     ],
                     [
-                      'notifyError',
-                      '경고 알림',
-                      '경고 단계 사건이 생기면 헤더 배지와 사건 목록으로 알려줍니다.',
+                      "notifyError",
+                      "경고 알림",
+                      "경고 단계 사건이 생기면 헤더 배지와 사건 목록으로 알려줍니다.",
                     ],
                     [
-                      'autoOpenError',
-                      '새 경고 시 팝업 자동 열기',
-                      '새 경고가 들어오면 사건 목록 팝업을 바로 엽니다.',
+                      "autoOpenError",
+                      "새 경고 시 팝업 자동 열기",
+                      "새 경고가 들어오면 사건 목록 팝업을 바로 엽니다.",
                     ],
                   ] as [
                     keyof Pick<
                       Settings,
-                      'notifyWarning' | 'notifyError' | 'autoOpenError'
+                      "notifyWarning" | "notifyError" | "autoOpenError"
                     >,
                     string,
                     string,
@@ -329,29 +365,66 @@ export default function SettingsDialog({
               </p>
             </>
           )}
-          {tab === '계정' && (
+          {tab === "계정" && (
             <>
               <div className="settings-profile">
-                <span aria-hidden="true">{user.name?.slice(0, 1)}</span>
+                <ProfileAvatar
+                  user={{
+                    name: user.name,
+                    employee_no: user.employee_no ?? "",
+                  }}
+                  size={64}
+                />
                 <div>
                   <strong>{user.name}</strong>
                   <small>
                     {user.role}
-                    {user.employee_no ? ` · 사번 ${user.employee_no}` : ''}
+                    {user.employee_no ? ` · 사번 ${user.employee_no}` : ""}
                   </small>
+                  <div className="settings-profile__actions">
+                    <button
+                      type="button"
+                      onClick={() => photoInput.current?.click()}
+                    >
+                      {profile.photo ? "사진 변경" : "사진 등록"}
+                    </button>
+                    {profile.photo && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPhotoError("");
+                          profile.remove();
+                        }}
+                      >
+                        삭제
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    ref={photoInput}
+                    type="file"
+                    hidden
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={choosePhoto}
+                  />
+                  {photoError && (
+                    <p className="settings-profile__error" role="alert">
+                      {photoError}
+                    </p>
+                  )}
                 </div>
               </div>
               <h4>
                 비밀번호 변경 <em>준비 중</em>
               </h4>
               <fieldset disabled className="settings-password">
-                {['현재 비밀번호', '새 비밀번호', '새 비밀번호 확인'].map(
+                {["현재 비밀번호", "새 비밀번호", "새 비밀번호 확인"].map(
                   (label) => (
                     <label key={label}>
                       {label}
                       <input
                         type="password"
-                        placeholder={`${label}${label.endsWith('확인') ? '을' : '를'} 입력해 주세요`}
+                        placeholder={`${label}${label.endsWith("확인") ? "을" : "를"} 입력해 주세요`}
                         autoComplete="off"
                       />
                     </label>
@@ -377,13 +450,13 @@ export default function SettingsDialog({
         </div>
         <footer>
           <span>
-            {tab === '계정'
-              ? '비밀번호 변경은 준비 중입니다.'
-              : '변경 사항은 바로 저장됩니다.'}
+            {tab === "계정"
+              ? "비밀번호 변경은 준비 중입니다."
+              : "변경 사항은 바로 저장됩니다."}
           </span>
           <Button onClick={onClose}>닫기</Button>
         </footer>
       </section>
     </dialog>
-  )
+  );
 }

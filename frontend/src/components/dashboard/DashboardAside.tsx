@@ -1,10 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   getMlPrediction,
-  listDocuments,
-  listIncidentOverview,
   listReports,
-  type IncidentOverview,
   type MlSnapshot,
   type ReportSummary,
 } from "../../api/client";
@@ -14,19 +11,12 @@ import {
   predictionDisplay,
 } from "./predictionDisplay";
 
-type DocumentItem = {
-  doc_id: string;
-  doc_version: string;
-  title?: string;
-  doc_type?: string;
-};
-
-const activeStatuses = ["OPEN", "ACKNOWLEDGED"];
-const statusLabel: Record<string, string> = {
+export const activeStatuses = ["OPEN", "ACKNOWLEDGED"];
+export const statusLabel: Record<string, string> = {
   OPEN: "확인 대기",
   ACKNOWLEDGED: "확인함",
 };
-const severityLabel: Record<string, string> = {
+export const severityLabel: Record<string, string> = {
   Error: "경고",
   Warning: "주의",
 };
@@ -46,18 +36,20 @@ const predictionRefreshMs = 2000;
 const orangeFrom = 0.6;
 const redFrom = 0.8;
 
-function probabilityTone(value: number) {
+export function probabilityTone(value: number) {
   if (value >= redFrom) return "danger";
   if (value >= orangeFrom) return "orange";
   return "normal";
 }
 
-const percent = (value: number) => `${Math.round(value * 1000) / 10}%`;
+export const percent = (value: number) => `${Math.round(value * 1000) / 10}%`;
 
-type PredictionRow = { code: string; probability: number };
+export type PredictionRow = { code: string; probability: number };
 
 // 확률이 높은 순 TOP3. fault_top3가 없으면 probabilities에서 NO_ERROR를 뺀 값으로 대신한다.
-function topPredictions(prediction: MlSnapshot["prediction"]): PredictionRow[] {
+export function topPredictions(
+  prediction: MlSnapshot["prediction"],
+): PredictionRow[] {
   const rows: PredictionRow[] = prediction.fault_top3
     ? prediction.fault_top3.map((item) => ({
         code: item.code,
@@ -72,6 +64,19 @@ function topPredictions(prediction: MlSnapshot["prediction"]): PredictionRow[] {
     .slice(0, 3);
 }
 
+export function predictionNotice(snapshot: MlSnapshot | null, lost: boolean) {
+  if (lost || !snapshot) return "연결이 끊겼습니다.";
+  if (!snapshot.enabled) return "예측 기능이 꺼져 있습니다.";
+  if (!snapshot.producer_connected || snapshot.stale)
+    return "연결이 끊겼습니다.";
+  if (
+    snapshot.prediction.status === "not_ready" ||
+    snapshot.prediction.status === "initializing"
+  )
+    return "데이터를 수집하고 있습니다.";
+  if (!snapshot.prediction_usable) return "지금은 예측을 표시할 수 없습니다.";
+  return "";
+}
 const refreshMs = 10_000;
 
 function isUnauthorized(error: unknown) {
@@ -100,9 +105,7 @@ export default function DashboardAside({
   onNavigate?: (page: string) => void;
   onSessionExpired?: () => void;
 }) {
-  const [incidents, setIncidents] = useState<IncidentOverview[] | null>(null);
   const [reports, setReports] = useState<ReportSummary[] | null>(null);
-  const [documents, setDocuments] = useState<DocumentItem[] | null>(null);
   const [mlState, setMlState] = useState(emptyPredictionState);
 
   useEffect(() => {
@@ -150,14 +153,7 @@ export default function DashboardAside({
       }
     }
     async function refresh() {
-      await Promise.all([
-        load(listIncidentOverview, setIncidents),
-        load(() => listReports("all"), setReports),
-        load(
-          () => listDocuments() as Promise<DocumentItem[]>,
-          (v) => setDocuments(Array.isArray(v) ? v : []),
-        ),
-      ]);
+      await Promise.all([load(() => listReports("all"), setReports)]);
       if (active) timer = setTimeout(refresh, refreshMs);
     }
     refresh();
@@ -167,13 +163,6 @@ export default function DashboardAside({
     };
   }, [onSessionExpired]);
 
-  const activeIncidents = (incidents ?? [])
-    .filter(({ incident }) => activeStatuses.includes(incident.status))
-    .sort((a, b) =>
-      String(b.incident.first_detected_at).localeCompare(
-        String(a.incident.first_detected_at),
-      ),
-    );
   const recentReports = [...(reports ?? [])]
     .sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)))
     .slice(0, listLimit);
@@ -182,7 +171,6 @@ export default function DashboardAside({
   const predictionData = mlDisplay.prediction;
   const predictionRows = predictionData ? topPredictions(predictionData) : [];
   const errorProbability = predictionData?.error_probability;
-  const recentDocuments = (documents ?? []).slice(0, listLimit);
 
   return (
     <aside className="dashboard-aside" aria-label="설비 현황 요약">
@@ -195,8 +183,8 @@ export default function DashboardAside({
         {notice && (
           <p
             className="dashboard-panel__notice"
-            data-lost={mlDisplay.isError}
-            role={mlDisplay.isError ? "alert" : "status"}
+            data-lost={mlDisplay.isError || mlDisplay.found}
+            role={mlDisplay.isError || mlDisplay.found ? "alert" : "status"}
           >
             {notice}
           </p>
@@ -276,70 +264,6 @@ export default function DashboardAside({
                 >
                   {reportLabel[report.report_status] ?? report.report_status}
                 </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="dashboard-panel" aria-labelledby="aside-documents">
-        <h2 id="aside-documents">관련 문서</h2>
-        {documents === null ? (
-          <p className="dashboard-panel__empty">불러오는 중입니다.</p>
-        ) : recentDocuments.length === 0 ? (
-          <p className="dashboard-panel__empty">등록된 문서가 없습니다.</p>
-        ) : (
-          <ul>
-            {recentDocuments.map((doc) => (
-              <li
-                key={`${doc.doc_id}:${doc.doc_version}`}
-                className="dashboard-panel__line"
-              >
-                <button type="button" onClick={() => onNavigate?.("manuals")}>
-                  {doc.title || doc.doc_id}
-                </button>
-                <span className="dashboard-panel__meta">
-                  v{doc.doc_version}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="dashboard-panel" aria-labelledby="aside-incidents">
-        <h2 id="aside-incidents">진행 중인 이상</h2>
-        <p className="dashboard-panel__hint">클릭하면 사건 상세로 이동합니다</p>
-        {incidents === null ? (
-          <p className="dashboard-panel__empty">불러오는 중입니다.</p>
-        ) : activeIncidents.length === 0 ? (
-          <p className="dashboard-panel__empty">진행 중인 이상이 없습니다.</p>
-        ) : (
-          <ul>
-            {activeIncidents.slice(0, listLimit).map(({ incident }) => (
-              <li key={incident.incident_id}>
-                <button
-                  type="button"
-                  className="dashboard-panel__incident"
-                  onClick={() => onNavigate?.("incidents")}
-                >
-                  <span className="dashboard-panel__row">
-                    <strong>{incident.incident_id}</strong>
-                    <span
-                      className="dashboard-badge"
-                      data-tone={
-                        incident.severity === "Error" ? "danger" : "warning"
-                      }
-                    >
-                      {severityLabel[incident.severity] ?? incident.severity}
-                    </span>
-                  </span>
-                  <span>{incident.codes.join(", ") || incident.asset_id}</span>
-                  <small>
-                    발생 {formatTime(incident.first_detected_at)} ·{" "}
-                    {statusLabel[incident.status] ?? incident.status}
-                  </small>
-                </button>
               </li>
             ))}
           </ul>
