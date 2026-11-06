@@ -530,12 +530,7 @@ export default function ReportForm({
   return (
     <article className="report-sheet">
       <header className="report-heading">
-        <p className="report-meta">
-          <span>정비관리 | CONV-MR-S-001 | 양식 v1.2</span>
-          <span>현장 사진(전·후) 포함 / 1쪽 양식</span>
-        </p>
         <h2>컨베이어 설비 이상 정비 보고서</h2>
-        <p>기본 보고서 발생 사실과 AI 제안 및 실제 조치 결과를 구분하여 작성</p>
       </header>
 
       <form onSubmit={handleCheck}>
@@ -821,10 +816,6 @@ export default function ReportForm({
           </Section>
 
           <Section number="06" title="현장 사진 (조치 전·후)">
-            <p className="report-note">
-              사진은 미리보기용입니다. 현재 임시 저장·제출에 사진 파일은
-              포함되지 않습니다.
-            </p>
             <div className="report-photo-grid">
               <PhotoField
                 side="before"
@@ -834,12 +825,6 @@ export default function ReportForm({
               <PhotoField side="after" title="조치 후" onEdit={clearFeedback} />
             </div>
           </Section>
-
-          <p className="report-note">
-            AI 권고를 실제 수행으로 기입하지 않습니다. 정지시간은 알람
-            지속시간과 다르며 상세 센서 로그와 전·후 사진 원본은 연결 사건에
-            보관합니다.
-          </p>
 
           {error && (
             <p className="error" role="alert">
@@ -854,12 +839,6 @@ export default function ReportForm({
         </fieldset>
 
         <footer className="report-footer">
-          <span>
-            {saveOnly
-              ? "저장 후 완료는 초안으로 보관되며, 검토나 제출은 진행하지 않습니다."
-              : "* 제출 시 필수 입력. 임시 저장은 빈 칸을 허용합니다."}{" "}
-            입력 시각은 브라우저의 현지 시간 기준입니다.
-          </span>
           {!readOnly && onSave && !saveOnly && (
             <button
               type="button"
@@ -894,7 +873,6 @@ export default function ReportForm({
       </form>
 
       <div className="report-paper-footer">
-        <span>AI 초안과 실제 확인 결과를 구분하여 기록</span>
         <span>CONV-MR-S-001 | v1.2 | 1 / 1</span>
       </div>
     </article>

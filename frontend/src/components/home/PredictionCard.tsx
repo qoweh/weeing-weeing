@@ -1,5 +1,6 @@
 import type { MlSnapshot } from "../../api/client";
 import type { Slice } from "./useHomeData";
+import Glyph from "../ui/Glyph";
 import HomeCard, { HomeBadge, HomeNotice, type HomeTone } from "./HomeCard";
 import {
   percent,
@@ -136,7 +137,7 @@ export default function PredictionCard({
         </strong>
       </p>
       <button type="button" className="home-link" onClick={onOpenEquipment}>
-        설비 상세 보기 <span aria-hidden="true">›</span>
+        설비 상세 보기 <Glyph name="chevron-right" />
       </button>
     </HomeCard>
   );

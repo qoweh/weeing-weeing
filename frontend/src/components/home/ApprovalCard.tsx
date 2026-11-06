@@ -1,5 +1,6 @@
 import type { ReportSummary } from "../../api/client";
 import type { Slice } from "./useHomeData";
+import Glyph from "../ui/Glyph";
 import HomeCard, { HomeBadge, HomeNotice, type HomeTone } from "./HomeCard";
 import { formatDate } from "./homeData";
 
@@ -130,7 +131,7 @@ export default function ApprovalCard({
         className="home-link"
         onClick={() => onNavigate("maintenance")}
       >
-        정비이력에서 전체 보기 <span aria-hidden="true">›</span>
+        정비이력에서 전체 보기 <Glyph name="chevron-right" />
       </button>
     </HomeCard>
   );

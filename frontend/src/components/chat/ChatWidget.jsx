@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import useChatSession, { defaultConditions } from "./useChatSession.js";
 import ChatResponse from "./ChatResponse.jsx";
 import ChatSourceDialog from "./ChatSourceDialog.jsx";
+import Glyph from "../ui/Glyph.tsx";
 import "./chat.scss";
 
 export default function ChatWidget({
@@ -872,7 +873,7 @@ export default function ChatWidget({
                 {blocked || !text.trim() ? (
                   <img src="/assets/chat/send-disabled.svg" alt="" />
                 ) : (
-                  "→"
+                  <Glyph name="arrow-right" size={18} />
                 )}
               </button>
             </form>

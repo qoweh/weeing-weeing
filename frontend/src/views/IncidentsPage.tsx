@@ -137,10 +137,10 @@ export default function IncidentsPage({
     };
   }, [reload, refreshKey, onSessionExpired]);
   return (
-    <div className="library-page" aria-label="이상 현황">
-      <PageTitle>이상현황</PageTitle>
+    <div className="library-page" aria-label="사건 현황">
+      <PageTitle>사건현황</PageTitle>
       {loading ? (
-        <p role="status">이상 현황을 불러오는 중입니다.</p>
+        <p role="status">사건 현황을 불러오는 중입니다.</p>
       ) : (
         <>
           {error && (

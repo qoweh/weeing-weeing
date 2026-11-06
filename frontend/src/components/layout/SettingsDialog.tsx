@@ -1,6 +1,15 @@
-import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type CSSProperties,
+} from "react";
 import type { Settings } from "./settings";
 import Button from "../ui/Button";
+import ProfileAvatar from "./ProfileAvatar";
+import useProfilePhoto from "./useProfilePhoto";
 import { refreshIntervals } from "./settings";
 import "./SettingsDialog.css";
 
@@ -98,6 +107,15 @@ export default function SettingsDialog({
   const dialog = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const [tab, setTab] = useState(initialTab);
+  const photoInput = useRef<HTMLInputElement>(null);
+  const [photoError, setPhotoError] = useState("");
+  const profile = useProfilePhoto(user.employee_no ?? "");
+
+  async function choosePhoto(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+    if (file) setPhotoError(await profile.change(file));
+  }
 
   useEffect(() => {
     const element = dialog.current;
@@ -350,13 +368,50 @@ export default function SettingsDialog({
           {tab === "계정" && (
             <>
               <div className="settings-profile">
-                <span aria-hidden="true">{user.name?.slice(0, 1)}</span>
+                <ProfileAvatar
+                  user={{
+                    name: user.name,
+                    employee_no: user.employee_no ?? "",
+                  }}
+                  size={64}
+                />
                 <div>
                   <strong>{user.name}</strong>
                   <small>
                     {user.role}
                     {user.employee_no ? ` · 사번 ${user.employee_no}` : ""}
                   </small>
+                  <div className="settings-profile__actions">
+                    <button
+                      type="button"
+                      onClick={() => photoInput.current?.click()}
+                    >
+                      {profile.photo ? "사진 변경" : "사진 등록"}
+                    </button>
+                    {profile.photo && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPhotoError("");
+                          profile.remove();
+                        }}
+                      >
+                        삭제
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    ref={photoInput}
+                    type="file"
+                    hidden
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={choosePhoto}
+                  />
+                  {photoError && (
+                    <p className="settings-profile__error" role="alert">
+                      {photoError}
+                    </p>
+                  )}
                 </div>
               </div>
               <h4>

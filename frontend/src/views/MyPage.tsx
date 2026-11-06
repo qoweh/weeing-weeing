@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { listReports } from "../api/client";
 import PageTitle from "../components/ui/PageTitle";
+import Glyph from "../components/ui/Glyph";
+import ProfileAvatar from "../components/layout/ProfileAvatar";
 import "./MyPage.scss";
 
 type Report = {
@@ -99,9 +101,7 @@ export default function MyPage({
     <div className="mypage">
       <PageTitle>마이페이지</PageTitle>
       <section className="mypage__profile" aria-label="내 정보">
-        <div className="mypage__avatar" aria-hidden="true">
-          {user.name?.slice(0, 1)}
-        </div>
+        <ProfileAvatar user={user} size={64} />
         <div className="mypage__identity">
           <div className="mypage__identity-heading">
             <h2>{user.name}</h2>
@@ -211,7 +211,10 @@ export default function MyPage({
                 type="button"
                 onClick={() => onNavigate("maintenance")}
               >
-                정비이력 전체 보기 <span aria-hidden="true">→</span>
+                정비이력 전체 보기{" "}
+                <span aria-hidden="true">
+                  <Glyph name="arrow-right" />
+                </span>
               </button>
             </section>
           </div>
@@ -227,7 +230,10 @@ export default function MyPage({
             type="button"
             onClick={() => onNavigate("incidents")}
           >
-            이상현황으로 이동 <span aria-hidden="true">→</span>
+            사건현황으로 이동{" "}
+            <span aria-hidden="true">
+              <Glyph name="arrow-right" />
+            </span>
           </button>
         </section>
       )}

@@ -315,6 +315,9 @@
   margin-top: 16px;
 }
 .library-pagination .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: 0;
   min-height: 32px;
@@ -655,7 +658,7 @@
   gap: 20px;
   min-height: 130px;
   padding: 0 28px;
-  border: 2px dashed color-mix(in srgb, var(--primary) 45%, var(--border));
+  border: 2px solid color-mix(in srgb, var(--primary) 45%, var(--border));
   border-radius: 14px;
   background: color-mix(in srgb, var(--primary-soft) 45%, var(--surface));
   font-weight: 400;

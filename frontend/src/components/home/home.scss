@@ -227,15 +227,24 @@ button.home-summary__item:hover {
 .home-status + .home-link {
   margin-top: 10px;
 }
+/* 예측 카드는 설비 상세 링크를 카드 우측 하단에 둔다 */
+.home-card--prediction > .home-status {
+  margin-bottom: 10px;
+}
+.home-card--prediction > .home-link {
+  align-self: flex-end;
+  margin-top: auto;
+}
 .home-link:hover {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 .home-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
   color: var(--muted);
-  font-size: 20px;
   line-height: 1;
-  text-align: right;
 }
 .home-muted {
   margin: 0;
@@ -287,9 +296,6 @@ button.home-summary__item:hover {
   text-align: left;
   cursor: pointer;
   transition: background-color 140ms ease;
-}
-.home-table__row:first-of-type {
-  background: color-mix(in srgb, var(--primary-soft) 55%, var(--surface));
 }
 .home-table__row:hover {
   background: var(--surface-hover);

@@ -1,0 +1,33 @@
+.dashboard-viewer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #e2e0e0;
+  color: #000;
+}
+
+.dashboard-viewer__canvas { position: absolute; inset: 0; }
+.dashboard-viewer__canvas canvas { display: block; }
+.dashboard-viewer__hotspot { position: absolute; width: 0; height: 0; }
+.dashboard-viewer__hotspot[hidden] { display: none; }
+.dashboard-viewer__marker { position: absolute; left: 0; top: 0; width: 36px; height: 36px; padding: 0; border: 4px solid #00e83b; border-radius: 50%; background: rgba(0, 232, 59, .12); transform: translate(-50%, -50%); cursor: pointer; }
+.dashboard-viewer__marker:focus-visible { outline: 3px solid white; outline-offset: 3px; }
+.dashboard-viewer__detail { position: absolute; left: 68px; top: var(--detail-shift, 0px); transform: translateY(-50%); width: min(260px, 55vw); padding: 14px 16px; border: 1px solid rgba(0, 232, 59, .65); border-radius: 12px; background: rgba(18, 30, 32, .94); color: #fff; box-shadow: 0 8px 24px rgba(0, 0, 0, .25); font-size: .85rem; }
+.dashboard-viewer__connector { position: absolute; right: 100%; top: calc(50% - var(--detail-shift, 0px)); width: 50px; height: 2px; background: #00e83b; }
+.dashboard-viewer__hotspot[data-side='left'] .dashboard-viewer__detail { left: auto; right: 68px; }
+.dashboard-viewer__hotspot[data-side='left'] .dashboard-viewer__connector { right: auto; left: 100%; }
+.dashboard-viewer__detail-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 6px; }
+.dashboard-viewer__close { border: 0; padding: 0 4px; background: transparent; color: inherit; font-size: 1.3rem; line-height: 1; cursor: pointer; }
+.dashboard-viewer__detail-note { margin-top: 8px; color: #c2d2cc; font-size: .75rem; }
+.dashboard-viewer__train-data { position: absolute; bottom: 10px; left: 0; transform: translateX(-50%); width: 150px; padding: 10px 12px; border: 1px solid rgba(0, 232, 59, .65); border-radius: 10px; background: rgba(18, 30, 32, .94); color: #fff; box-shadow: 0 8px 24px rgba(0, 0, 0, .25); font-size: .75rem; pointer-events: none; }
+.dashboard-viewer__train-data::after { content: ''; position: absolute; top: 100%; left: 50%; width: 2px; height: 10px; background: #00e83b; }
+.dashboard-viewer__train-data strong { display: flex; justify-content: space-between; margin-bottom: 5px; }
+.dashboard-viewer__train-data strong span { color: #9fc7ad; font-size: .65rem; font-weight: normal; }
+.dashboard-viewer__train-data p { display: flex; justify-content: space-between; color: #c2d2cc; }
+.dashboard-viewer__train-data b { color: #fff; }
+.dashboard-viewer__credit { position: absolute; bottom: 10px; left: 210px; right: 10px; text-align: center; pointer-events: none; }
+.dashboard-viewer__credit a { color: #2983ff; pointer-events: auto; }
+.dashboard-viewer__status { position: absolute; top: 50%; left: 50%; width: 90%; transform: translate(-50%, -50%); text-align: center; }
+
+@media (max-width: 900px) { .dashboard-viewer__credit { left: 65px; } }

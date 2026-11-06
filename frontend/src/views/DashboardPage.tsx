@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import PageTitle from "../components/ui/PageTitle";
+import Glyph from "../components/ui/Glyph";
 import ModelViewer from "../components/dashboard/ModelViewer";
 import ModelViewerModal from "../components/dashboard/ModelViewerModal";
 import DashboardAside from "../components/dashboard/DashboardAside";
@@ -83,7 +84,7 @@ export default function DashboardPage({
               className="home-back"
               onClick={() => onNavigate("home")}
             >
-              <span aria-hidden="true">‹</span> 대시보드로 돌아가기
+              <Glyph name="chevron-left" /> 대시보드로 돌아가기
             </button>
           )}
           <PageTitle>{equipmentName}</PageTitle>

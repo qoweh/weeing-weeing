@@ -19,6 +19,7 @@ type LibraryRow = {
 };
 
 import Button from "./Button";
+import Glyph from "./Glyph";
 import "./library.scss";
 
 function escapeRegExp(text: string) {
@@ -435,7 +436,7 @@ export function LibraryTable<T extends LibraryRow>({
             disabled={current === 1}
             onClick={() => setPage(current - 1)}
           >
-            ‹
+            <Glyph name="chevron-left" />
           </Button>
           <span>
             {current} / {pages}
@@ -445,7 +446,7 @@ export function LibraryTable<T extends LibraryRow>({
             disabled={current === pages}
             onClick={() => setPage(current + 1)}
           >
-            ›
+            <Glyph name="chevron-right" />
           </Button>
         </div>
       )}

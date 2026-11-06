@@ -536,8 +536,56 @@ button.nav-item:disabled,
   box-shadow: 0 8px 24px #0003;
 }
 .header-account__identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   padding: 18px 20px;
   overflow-wrap: anywhere;
+}
+.header-account__identity-text {
+  min-width: 0;
+}
+.profile-avatar {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, transparent);
+  border-radius: 50%;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 700;
+  line-height: 1;
+}
+.profile-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.header-account__photo-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+.header-account__photo-actions button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font: inherit;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  cursor: pointer;
+}
+.header-account__photo-actions button:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.header-account__identity .header-account__photo-error {
+  margin: 6px 0 0;
+  color: var(--danger);
+  font-size: var(--fs-caption);
 }
 .header-account__identity strong {
   display: block;
@@ -1409,10 +1457,7 @@ button.nav-item:disabled {
   }
 }
 
-/* 모바일: 헤더의 프로필 대신 설정 아이콘을 두고, 프로필은 메뉴 맨 위에 보여준다. */
-.header-account__gear {
-  display: none;
-}
+/* 모바일: 헤더에는 프로필 사진(또는 이니셜)만 둔다. */
 @media (max-width: 600px) {
   .header-account__summary-text {
     display: none;
@@ -1423,19 +1468,8 @@ button.nav-item:disabled {
     height: 36px;
     margin: 0;
     padding: 0;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-  }
-  .header-account__gear {
-    display: block;
-    width: 22px;
-    height: 22px;
-    color: var(--muted);
-  }
-  .header-account__identity {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    border: 0;
+    border-radius: 50%;
   }
 }
 
