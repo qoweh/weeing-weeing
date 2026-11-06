@@ -45,14 +45,6 @@ export default function DashboardPage({
   const assetId =
     typeof record?.asset_id === "string" ? record.asset_id : "BLDC-001";
   const equipmentName = reportEquipmentName(assetId) || assetId;
-  // 안내 문구가 실제로 하나라도 보일 때만 감싸는 div를 그린다(빈 div의 여백 방지).
-  const hasConnectionNotice =
-    state?.context_preset === "UNREAL_STATE" ||
-    state?.context_preset === "SIM_RPM" ||
-    (state?.context_preset && state?.run_id) ||
-    (!status.current && record) ||
-    model.sessionChanged ||
-    error;
 
   useEffect(() => {
     if (!settingsOpen) return;
@@ -202,39 +194,6 @@ export default function DashboardPage({
           )}
         </div>
       </div>
-      {hasConnectionNotice && (
-        <div className="sensor-dashboard__connection">
-          {state?.context_preset === "UNREAL_STATE" && (
-            <strong>
-              Unreal 시뮬레이터 상태·트레이 이벤트 연결 · 실제 PLC 확인이
-              아닙니다. M04(1초 격자)·M19(승인 기준)는 미평가입니다.
-            </strong>
-          )}
-          {state?.context_preset === "SIM_RPM" && (
-            <strong>
-              로컬 RPM 시나리오 시험 · 고정 속도를 가정합니다. 실제 PLC 운전
-              확인이 아닙니다.
-            </strong>
-          )}
-          {state?.run_id && (
-            <span className="sensor-dashboard__session">
-              감지 세션 {state.run_id}
-            </span>
-          )}
-          {!status.current && record && (
-            <strong>
-              마지막 수신값입니다. 현재 정상 상태를 뜻하지 않습니다.
-            </strong>
-          )}
-          {model.sessionChanged && (
-            <span>
-              새 감지 세션에서 그래프를 다시 수집합니다. 이전 사건의 회복을
-              뜻하지 않습니다.
-            </span>
-          )}
-          {error && <span role="alert">{error}</span>}
-        </div>
-      )}
       <div className="sensor-dashboard__body">
         <div className="sensor-dashboard__grid" ref={gridRef}>
           {charts

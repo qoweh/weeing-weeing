@@ -1,0 +1,48 @@
+# Local Codex configuration. Contains no API keys.
+# Select this profile in a new trusted-project session, then test the fake canary.
+# Older sandbox_mode settings in other config layers can override this selection.
+# Paths are repo-relative (":workspace_roots"), so any clone location works on
+# macOS and Windows. No machine-specific absolute paths belong in this file.
+default_permissions = "weeing-secret-guard"
+
+[windows]
+# Windows only; macOS and Linux ignore this table.
+# Denied read paths are unsupported by the unelevated backend.
+# Provisioning this backend requires the user's administrator approval.
+sandbox = "elevated"
+
+[permissions.weeing-secret-guard]
+description = "Workspace edits with environment-file reads denied"
+extends = ":workspace"
+
+[permissions.weeing-secret-guard.filesystem]
+# Windows (elevated) and Linux expand deny globs before each sandboxed process
+# starts, up to this depth; files created later are not added to that list.
+# macOS enforces the rules with Seatbelt profiles instead.
+glob_scan_max_depth = 8
+
+[permissions.weeing-secret-guard.filesystem.":workspace_roots"]
+# Relative to each session workspace root (the clone, or a worktree root).
+# Covers .env.example intentionally: it was previously used to hold a key.
+# Also covers the fake .env.canary used to verify the guard.
+# Limitation: parent traversal ("../") is rejected, so a session rooted at
+# .claude/worktrees/<name> does not cover the main clone's .env. Start Codex
+# from the main clone root, or add an absolute deny in your personal config.
+".env" = "deny"
+".env.*" = "deny"
+"**/.env" = "deny"
+"**/.env.*" = "deny"
+
+[permissions.weeing-secret-guard.network]
+enabled = false
+
+[shell_environment_policy]
+inherit = "core"
+ignore_default_excludes = false
+
+[shell_environment_policy.filters]
+"*_KEY" = "exclude"
+"*_TOKEN" = "exclude"
+"*_SECRET" = "exclude"
+"*_PASSWORD" = "exclude"
+"AWS_*" = "exclude"

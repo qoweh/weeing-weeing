@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Edit(./.env)",
+      "Edit(./.env.*)",
+      "Edit(**/.env)",
+      "Edit(**/.env.*)",
+      "Bash(cat *.env*)",
+      "Bash(source *.env*)",
+      "Bash(printenv)",
+      "Bash(printenv *)",
+      "Bash(env)",
+      "Bash(uv run --env-file *)",
+      "Bash(uv run * --env-file *)",
+      "PowerShell(Get-Content *.env*)",
+      "PowerShell(Get-ChildItem Env:*)"
+    ]
+  },
+  "sandbox": {
+    "filesystem": {
+      "denyRead": ["./.env", "./.env.*", "./**/.env", "./**/.env.*"]
+    },
+    "credentials": {
+      "envVars": [
+        { "name": "ANTHROPIC_API_KEY", "mode": "deny" },
+        { "name": "VOYAGE_API_KEY", "mode": "deny" },
+        { "name": "LANGFUSE_PUBLIC_KEY", "mode": "deny" },
+        { "name": "LANGFUSE_SECRET_KEY", "mode": "deny" },
+        { "name": "POSTGRES_PASSWORD", "mode": "deny" },
+        { "name": "WW_TELEMETRY_TOKEN", "mode": "deny" },
+        { "name": "AWS_ACCESS_KEY_ID", "mode": "deny" },
+        { "name": "AWS_SECRET_ACCESS_KEY", "mode": "deny" },
+        { "name": "AWS_SESSION_TOKEN", "mode": "deny" }
+      ]
+    }
+  }
+}

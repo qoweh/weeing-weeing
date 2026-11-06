@@ -306,12 +306,17 @@ class LivePredictionService:
                     deadline_exceeded=time.monotonic() - queued_at > 0.5,
                     current_error_codes=error_codes,
                     evaluation_eligible=not bool(error_codes),
-                    supported_fault_codes=[
-                        "BTT2-M02",
-                        "BTT2-M07",
-                        "BTT2-M10",
-                        "BTT2-M12",
-                    ],
+                    supported_fault_codes=list(
+                        getattr(
+                            predictor,
+                            "supported_fault_codes",
+                            [
+                                c
+                                for c in predictor.metadata.get("classes", [])
+                                if c != "NO_ERROR"
+                            ],
+                        )
+                    ),
                     mode="observation_only",
                 )
                 self._publish(generation, run_id, result, received_clock=queued_at)

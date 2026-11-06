@@ -1,8 +1,8 @@
 # 실시간 미래 Error 예측 관찰
 
-학습한 5클래스 모델을 기존 센서 수신과 병행 실행한다. ML 결과로 Detector 판정,
+학습한 16클래스 모델을 기존 센서 수신과 병행 실행한다. ML 결과로 Detector 판정,
 Agent 실행, DB 사건, PLC 동작을 바꾸지 않는다. 학습·평가 정의는 [ML_FUTURE_ERROR](ML_FUTURE_ERROR.md)와 같다.
-지원 고장은 M02/M07/M10/M12 네 종류다. 나머지 고장은 학습하지 않았으며 NO_ERROR를
+현재 배포 대상 v2는 M02/M03/M05/M06/M07/M08/M10/M11/M12/M13/M14/M15/M16/M17/M18 총 15종 고장과 NO_ERROR를 지원한다. 지원 목록은 로드된 모델의 클래스에서 가져온다. [확장 학습·평가 결과](ML_EXPANDED_TRAINING.md)를 참고한다. 나머지 고장은 학습하지 않았으며 NO_ERROR를
 '설비의 모든 종류 고장이 없다는 보장'으로 해석하면 안 된다.
 
 ## 연결과 결과
@@ -22,7 +22,7 @@ Unreal 송신 전용 토큰으로는 결과를 조회하지 않는다.
 
 조회 API는 인증 필요, 읽기 전용, Cache-Control=no-store다. 조회로 재학습·추론·LLM 호출을 하지 않는다.
 `prediction_usable`이 true인 결과만 현재 미래 예측으로 표시한다.
-`prediction`에는 전체 5클래스 확률, NO_ERROR 확률, Error 합계 확률, 고장 Top 3,
+`prediction`에는 전체 16클래스 확률, NO_ERROR 확률, Error 합계 확률, 고장 Top 3,
 기준 시각, 모델 버전, 입력 품질, 추론 시간, 현재 Detector Error 코드가 있다.
 Top 3는 확률을 재정규화하지 않으며 보정하지 않은 모델 예측 확률이다.
 

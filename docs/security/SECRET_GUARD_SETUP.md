@@ -9,8 +9,10 @@
 `weeing-secret-guard` 권한 프로필을 선택한다.
 기존 `config(1).toml`은 읽거나 덮어쓰거나 이름을 바꾸지 않는다.
 
-- 루트 `.env`와 가짜 `.env.canary`는 정확한 경로로 읽기를 차단한다.
-- 같은 작업 폴더와 하위 폴더의 `.env`·`.env.*`도 차단한다.
+- 경로는 작업 폴더 기준(`:workspace_roots`)이라 저장소를 어디에 받아도 macOS·Windows에서 같이 쓴다.
+- 작업 폴더 루트의 `.env`·`.env.*`(가짜 `.env.canary` 포함)와 하위 폴더의 `.env`·`.env.*`를 차단한다.
+- `.claude/worktrees/<이름>`을 작업 폴더로 열면 본 저장소 루트의 `.env`(3단계 위)는 차단되지 않는다.
+  Codex는 `../` 경로를 받지 않는다. 본 저장소 루트에서 Codex를 열거나, 개인 전역 설정에 자기 절대 경로를 따로 추가한다.
 - 과거 키를 넣었던 `.env.example`도 차단 대상에 포함한다.
 - Codex 명령에 키·토큰 환경변수가 상속되는 것을 줄인다.
 - Codex가 실행하는 셸 명령의 네트워크를 끈다.
@@ -40,6 +42,25 @@
 않거나 Windows에서 셸 읽기를 막지 못하면 관리자 설정 또는 별도 OS 계정·권한 구성이
 필요하다. 이 문제를 피하려고 전체 접근 권한이나 샌드박스 해제를 선택하지 않는다.
 
+## macOS에서 확인
+
+macOS는 Seatbelt로 차단하고 `[windows]` 설정은 무시한다. 관리자 승인 절차는 없다.
+
+1. 저장소 루트에 가짜 `.env.canary`를 만든다. 실제 키를 넣지 않는다.
+2. 사용자 터미널에서 저장소 루트로 이동해 다음을 실행한다.
+
+   ```bash
+   codex sandbox -P weeing-secret-guard -- cat README.md >/dev/null; echo $?
+   codex sandbox -P weeing-secret-guard -- cat .env.canary >/dev/null; echo $?
+   ```
+
+3. 첫 줄은 `0`, 둘째 줄은 `Operation not permitted`와 `1`이 나와야 한다.
+   `default_permissions requires a [permissions] table` 오류가 나오면 프로젝트 설정이
+   로드되지 않은 것이다. 신뢰된 프로젝트인지 확인하고, 차단 성공으로 보지 않는다.
+4. 이어서 위 "쉬운 확인 순서" 4~5단계로 Codex 세션의 파일 읽기 도구도 확인한다.
+
+Claude Code용 같은 설정은 [CLAUDE_SECRET_GUARD_SETUP.md](CLAUDE_SECRET_GUARD_SETUP.md)를 따른다.
+
 ## 실제 API 실행
 
 가짜 파일 검증 후에도 IDE 자동 문맥 끄기, 비밀 파일 탭 닫기, Git 제외,
@@ -56,7 +77,20 @@
 [Windows 보안과 가짜 파일 검증](https://learn.chatgpt.com/docs/enterprise/security-cookbook),
 [Windows 샌드박스 설치](https://learn.chatgpt.com/docs/windows/windows-sandbox).
 
-## 이번 검증 결과
+## macOS 검증 결과 (2026-11-06, codex-cli 0.166.0)
+
+저장소 밖 임시 폴더에 같은 설정과 가짜 파일만 두고 `codex sandbox`로 시험했다.
+실제 `.env`·전역 설정은 열지 않았다.
+
+| 항목 | 결과 |
+|---|---|
+| `README.md` 읽기 | 성공 |
+| 가짜 `.env.canary`·하위 폴더 가짜 `.env.local` 읽기 | `Operation not permitted`. 차단 성공 |
+| 네트워크(`curl`) | 이름 해석 실패. 차단 성공 |
+| `.claude/worktrees/<이름>`을 루트로 열고 상위 가짜 `.env.canary` 읽기 | 읽기 성공. 위 제한 사항 확인 |
+| Windows elevated 환경 재검사 | 미실행. Windows 사용자가 위 순서로 확인 필요 |
+
+## 이번 검증 결과 (2026-11-03, Windows)
 
 | 항목 | 결과 |
 |---|---|

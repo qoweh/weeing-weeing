@@ -249,23 +249,6 @@
   line-height: var(--lh-body);
 }
 
-.sensor-dashboard__connection {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 20px;
-  margin: 16px 0 20px;
-  color: var(--muted);
-  font-size: var(--fs-caption);
-  line-height: 1.6;
-  strong {
-    flex-basis: 100%;
-    color: var(--text);
-    font-weight: 700;
-  }
-}
-.sensor-dashboard__session {
-  overflow-wrap: anywhere;
-}
 .sensor-chart[data-current="false"] .sensor-chart__row {
   display: flex;
   align-items: center;

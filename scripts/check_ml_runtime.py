@@ -16,6 +16,8 @@ def main():
     if hashlib.sha256(path.read_bytes()).hexdigest() != manifest["sha256"]:
         raise ValueError("Model checksum mismatch")
     predictor = FutureErrorPredictor.load(path)
+    if predictor.metadata["model_version"] != manifest["model_version"]:
+        raise ValueError("Model version mismatch")
     start = datetime.now(UTC) - timedelta(seconds=30)
     rows = [
         {
@@ -41,13 +43,15 @@ def main():
         result = predictor.predict(rows)
         elapsed.append((perf_counter() - before) * 1000)
         assert result["status"] == "ready"
-        assert len(result["probabilities"]) == 5
+        assert set(result["probabilities"]) == set(predictor.classes)
         assert abs(sum(result["probabilities"].values()) - 1) < 1e-9
     print(
         json.dumps(
             {
                 "mode": "synthetic_local_inference_smoke",
                 "model_version": predictor.metadata["model_version"],
+                "classes": predictor.classes,
+                "class_count": len(predictor.classes),
                 "repeats": len(elapsed),
                 "mean_ms": mean(elapsed),
                 "p95_ms": quantiles(elapsed, n=100)[94],
