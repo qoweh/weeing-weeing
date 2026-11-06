@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import PageTitle from "../components/ui/PageTitle";
-import Glyph from "../components/ui/Glyph";
 import ModelViewer from "../components/dashboard/ModelViewer";
-import ModelViewerModal from "../components/dashboard/ModelViewerModal";
 import DashboardAside from "../components/dashboard/DashboardAside";
 import useTelemetryDashboard from "./useTelemetryDashboard";
 import useDragScroll from "./useDragScroll";
@@ -13,11 +11,14 @@ import {
   sensorPath,
   sensorStatus,
 } from "./telemetryCharts";
-import { reportEquipmentName } from "../components/report/reportPresentation";
 import "./DashboardPage.scss";
 
 const charts = sensorCharts;
 const noop = () => {};
+
+// Figma 작업프레임(대시보드) 배치와 관련 없는 상단 센서 카드·그래프를 잠시 숨긴다.
+// 다시 보이게 하려면 true로 바꾼다.
+const SHOW_OTHER_BOXES = false;
 
 export default function DashboardPage({
   onSessionExpired = noop,
@@ -28,7 +29,6 @@ export default function DashboardPage({
 }) {
   const [refreshInterval, setRefreshInterval] = useState("1");
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [viewerExpanded, setViewerExpanded] = useState(false);
   const [hiddenCharts, setHiddenCharts] = useState<string[]>([]);
   const settingsRef = useRef<HTMLDivElement>(null);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
@@ -44,7 +44,6 @@ export default function DashboardPage({
   // 센서 스트림은 현재 BLDC-001 한 대뿐이라, 수신 기록에 설비 ID가 없으면 이 설비로 본다.
   const assetId =
     typeof record?.asset_id === "string" ? record.asset_id : "BLDC-001";
-  const equipmentName = reportEquipmentName(assetId) || assetId;
 
   useEffect(() => {
     if (!settingsOpen) return;
@@ -70,16 +69,7 @@ export default function DashboardPage({
     <div className="sensor-dashboard">
       <div className="sensor-dashboard__header">
         <div className="home-heading">
-          {onNavigate && (
-            <button
-              type="button"
-              className="home-back"
-              onClick={() => onNavigate("home")}
-            >
-              <Glyph name="chevron-left" /> 대시보드로 돌아가기
-            </button>
-          )}
-          <PageTitle>{equipmentName}</PageTitle>
+          <PageTitle>대시보드</PageTitle>
         </div>
         <div className="sensor-dashboard__settings" ref={settingsRef}>
           <button
@@ -195,96 +185,91 @@ export default function DashboardPage({
         </div>
       </div>
       <div className="sensor-dashboard__body">
-        <div className="sensor-dashboard__grid" ref={gridRef}>
-          {charts
-            .filter((chart) => !hiddenCharts.includes(chart.title))
-            .map((chart) => {
-              const value = sensorValue(record, chart.field);
-              const path = sensorPath(model.samples, chart.field);
-              return (
-                <section
-                  className="sensor-chart"
-                  key={chart.title}
-                  aria-label={`${chart.title} 센서 그래프`}
-                  data-sensor-field={chart.field}
-                  data-current={status.current}
-                >
-                  <div className="sensor-chart__heading">
-                    <h2>
-                      {chart.title}
-                      {chart.unit && (
-                        <span className="sensor-chart__unit">
+        {SHOW_OTHER_BOXES && (
+          <div className="sensor-dashboard__grid" ref={gridRef}>
+            {charts
+              .filter((chart) => !hiddenCharts.includes(chart.title))
+              .map((chart) => {
+                const value = sensorValue(record, chart.field);
+                const path = sensorPath(model.samples, chart.field);
+                return (
+                  <section
+                    className="sensor-chart"
+                    key={chart.title}
+                    aria-label={`${chart.title} 센서 그래프`}
+                    data-sensor-field={chart.field}
+                    data-current={status.current}
+                  >
+                    <div className="sensor-chart__heading">
+                      <h2>
+                        {chart.title}
+                        {chart.unit && (
+                          <span className="sensor-chart__unit">
+                            {" "}
+                            [{chart.unit}]
+                          </span>
+                        )}
+                        <span className="sensor-chart__code">
                           {" "}
-                          [{chart.unit}]
+                          ({chart.code})
+                        </span>
+                      </h2>
+                    </div>
+                    <div className="sensor-chart__row">
+                      <p className="sensor-chart__value">
+                        {formatSensor(value, chart.digits)}
+                      </p>
+                      <span
+                        className="sensor-chart__badge"
+                        data-state={
+                          value === null
+                            ? "none"
+                            : status.current
+                              ? "live"
+                              : "stale"
+                        }
+                      >
+                        {value === null
+                          ? "미수신"
+                          : status.current
+                            ? "수신 중"
+                            : "마지막 수신값"}
+                      </span>
+                    </div>
+                    <div className="sensor-chart__plot">
+                      <svg
+                        className="sensor-chart__graph"
+                        viewBox="0 0 600 80"
+                        preserveAspectRatio="none"
+                        role="img"
+                        aria-label={`${chart.title}의 최근 수신 추이`}
+                      >
+                        <path
+                          d="M0 16H600 M0 45H600 M0 74H600"
+                          className="sensor-chart__gridline"
+                        />
+                        {path && model.samples.length > 1 ? (
+                          <path d={path} className="sensor-chart__line" />
+                        ) : null}
+                      </svg>
+                      {!(path && model.samples.length > 1) && (
+                        <span className="sensor-chart__placeholder">
+                          {value === null ? "미수신" : "표본 수집 중"}
                         </span>
                       )}
-                      <span className="sensor-chart__code">
-                        {" "}
-                        ({chart.code})
-                      </span>
-                    </h2>
-                  </div>
-                  <div className="sensor-chart__row">
-                    <p className="sensor-chart__value">
-                      {formatSensor(value, chart.digits)}
-                    </p>
-                    <span
-                      className="sensor-chart__badge"
-                      data-state={
-                        value === null
-                          ? "none"
-                          : status.current
-                            ? "live"
-                            : "stale"
-                      }
-                    >
-                      {value === null
-                        ? "미수신"
-                        : status.current
-                          ? "수신 중"
-                          : "마지막 수신값"}
-                    </span>
-                  </div>
-                  <div className="sensor-chart__plot">
-                    <svg
-                      className="sensor-chart__graph"
-                      viewBox="0 0 600 80"
-                      preserveAspectRatio="none"
-                      role="img"
-                      aria-label={`${chart.title}의 최근 수신 추이`}
-                    >
-                      <path
-                        d="M0 16H600 M0 45H600 M0 74H600"
-                        className="sensor-chart__gridline"
-                      />
-                      {path && model.samples.length > 1 ? (
-                        <path d={path} className="sensor-chart__line" />
-                      ) : null}
-                    </svg>
-                    {!(path && model.samples.length > 1) && (
-                      <span className="sensor-chart__placeholder">
-                        {value === null ? "미수신" : "표본 수집 중"}
-                      </span>
-                    )}
-                  </div>
-                  <p className="sensor-chart__footer">최근 60초</p>
-                </section>
-              );
-            })}
-        </div>
-        <div className="sensor-dashboard__lower">
+                    </div>
+                    <p className="sensor-chart__footer">최근 60초</p>
+                  </section>
+                );
+              })}
+          </div>
+        )}
+        <div className="sensor-dashboard__lower sensor-dashboard__lower--stacked">
           <section
             className="sensor-dashboard__placeholder"
             aria-label="3D 모델 뷰어"
           >
-            <ModelViewer
-              paused={viewerExpanded}
-              onExpand={() => setViewerExpanded(true)}
-            />
-            <ModelViewerModal
-              open={viewerExpanded}
-              onClose={() => setViewerExpanded(false)}
-            />
+            <ModelViewer samples={model.samples} errorMessage={error} />
           </section>
           <DashboardAside
             onNavigate={onNavigate}

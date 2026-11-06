@@ -47,7 +47,7 @@
   &__toolbar { display: flex; align-items: end; gap: 12px; margin-bottom: 24px; }
   &__toolbar button { height: 48px; padding-top: 0; padding-bottom: 0; }
   &__search { width: min(480px, 100%); }
-  &__search input { width: 100%; height: 48px; padding: 0 16px; border: 1px solid var(--border); border-radius: 8px; color: var(--text); background: var(--surface); font: inherit; }
+  &__search input { width: 100%; height: 48px; padding: 0 16px 0 44px; background: var(--surface) no-repeat 14px center / 20px 20px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20' fill='none' stroke='%23718194' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='8.5' cy='8.5' r='5.5'/%3E%3Cpath d='m13 13 4 4'/%3E%3C/svg%3E"); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font: inherit; }
   &__sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   &__section { margin-bottom: 28px; }
   button { padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); cursor: pointer; }

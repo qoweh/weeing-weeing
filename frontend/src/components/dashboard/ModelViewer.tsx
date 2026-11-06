@@ -1,20 +1,284 @@
 import "./model-hotspots.scss";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { Sky } from "three/addons/objects/Sky.js";
+import {
+  formatSensor,
+  sensorCharts,
+  sensorPath,
+  sensorValue,
+  type SensorSample,
+} from "../../views/telemetryCharts";
 
 const hotspots = [
   { id: "front", label: "정면 표시 지점", point: [-0.094, 0.12] },
   { id: "right", label: "우측면 표시 지점", point: [0.022, -0.067] },
 ] as const;
 
-type Props = { paused?: boolean; onExpand?: () => void };
+type Props = {
+  paused?: boolean;
+  onExpand?: () => void;
+  samples?: SensorSample[];
+  // 오류가 있으면 말풍선 제목 아래에 설명으로 보여준다(없으면 칸을 비운다).
+  errorMessage?: string | null;
+};
 
-export default function ModelViewer({ paused = false, onExpand }: Props) {
+// 상자별 말풍선 정보. 아직 정해지지 않은 상자는 기본 제목과 기본 그래프를 쓴다.
+const BUBBLE_INFO: Partial<
+  Record<
+    Column,
+    {
+      title: string;
+      note: string;
+      description: string;
+      fields: readonly string[];
+    }
+  >
+> = {
+  1: {
+    title: "반출부 A02-A03",
+    note: "(전원, 전력 상태)",
+    description: "DC 입력 전류, DC 버스 전압",
+    fields: ["dc_input_current_a", "dc_bus_voltage_v"],
+  },
+  2: {
+    title: "이송부 A01-A02",
+    note: "(회전, 구동 상태)",
+    description: "회전속도, 구동측 진동 RMS, 구동측 진동 첨도",
+    fields: ["rpm", "de_vibration_rms_g", "de_kurtosis"],
+  },
+  3: {
+    title: "반출부 A02-A03",
+    note: "(온도, 반구동측 상태)",
+    description: "모터 외함 온도, 반구동측 진동 RMS, 반구동측 진동 첨도",
+    fields: ["motor_housing_temp_c", "nde_vibration_rms_g", "nde_kurtosis"],
+  },
+};
+
+// 경고 기준 범위. 값이 비어 있거나 범위를 벗어나면 그래프 구역 테두리가 빨갛게 바뀐다.
+// 기준값은 아직 정해지지 않아 비워 둔다(설비 담당자 확정 후 채운다). 센서 값이 없으면(미수신) 경고로 본다.
+const WARN_LIMITS: Record<string, { min?: number; max?: number }> = {};
+
+function isWarning(field: string, value: number | null) {
+  if (value === null) return true;
+  const limit = WARN_LIMITS[field];
+  if (!limit) return false;
+  return (
+    (limit.min !== undefined && value < limit.min) ||
+    (limit.max !== undefined && value > limit.max)
+  );
+}
+
+// 1번 상자를 누르면 2·3번 상자 영역에 말풍선 하나로 띄우는 센서 그래프 박스 3개.
+const BUBBLE_FIELDS = [
+  "rpm",
+  "motor_housing_temp_c",
+  "de_vibration_rms_g",
+] as const;
+
+function GraphBox({
+  field,
+  samples,
+}: {
+  field: string;
+  samples: SensorSample[];
+}) {
+  // 그래프 위에 마우스를 올리면 그 시점의 값을 보여준다(x: 0~600 그래프 좌표).
+  const [hoverX, setHoverX] = useState<number | null>(null);
+  const chart = sensorCharts.find((item) => item.field === field);
+  if (!chart) return null;
+  const latest = sensorValue(samples.at(-1)?.record, field);
+  const path = sensorPath(samples, field);
+  const ready = path !== "" && samples.length > 1;
+  const warning = isWarning(field, latest);
+
+  let hover: { value: number; secondsAgo: number } | null = null;
+  if (hoverX !== null && ready) {
+    const end = samples.at(-1)!.time;
+    const time = end - 60_000 + hoverX * 100;
+    let best: SensorSample | null = null;
+    for (const sample of samples) {
+      if (sensorValue(sample.record, field) === null) continue;
+      if (!best || Math.abs(sample.time - time) < Math.abs(best.time - time))
+        best = sample;
+    }
+    const value = best ? sensorValue(best.record, field) : null;
+    if (best && value !== null)
+      hover = { value, secondsAgo: Math.round((end - best.time) / 1000) };
+  }
+  const shown = hover ? hover.value : latest;
+
+  return (
+    <section
+      className={`model-viewer__graph-box${warning ? " model-viewer__graph-box--warning" : ""}`}
+      aria-label={`${chart.title} 센서 그래프${warning ? " (경고)" : ""}`}
+    >
+      <p className="model-viewer__bubble-title">
+        {chart.title}
+        {chart.unit && ` [${chart.unit}]`}
+        <b>{formatSensor(shown, chart.digits)}</b>
+      </p>
+      <div
+        className="model-viewer__bubble-plot"
+        onPointerMove={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          if (rect.width > 0)
+            setHoverX(
+              Math.min(
+                600,
+                Math.max(0, ((event.clientX - rect.left) / rect.width) * 600),
+              ),
+            );
+        }}
+        onPointerLeave={() => setHoverX(null)}
+      >
+        <svg
+          viewBox="0 0 600 80"
+          preserveAspectRatio="none"
+          role="img"
+          aria-label={`${chart.title}의 최근 수신 추이`}
+        >
+          <path d="M0 16H600 M0 45H600 M0 74H600" className="grid" />
+          {ready && <path d={path} className="line" />}
+          {hover && hoverX !== null && (
+            <path d={`M${hoverX} 0V80`} className="cursor" />
+          )}
+        </svg>
+        {hover && (
+          <span className="model-viewer__bubble-hover">
+            {hover.secondsAgo === 0 ? "현재" : `${hover.secondsAgo}초 전`}
+          </span>
+        )}
+        {!ready && (
+          <span className="model-viewer__bubble-empty">
+            {latest === null ? "미수신" : "표본 수집 중"}
+          </span>
+        )}
+      </div>
+    </section>
+  );
+}
+
+type Column = 1 | 2 | 3;
+
+// 눌린 상자를 뺀 나머지 상자 영역에 말풍선을 채운다.
+// 1번·3번이면 붙어 있는 두 상자에 하나, 2번이면 3번 상자 영역에 하나.
+function bubblesFor(active: Column) {
+  const fields = BUBBLE_INFO[active]?.fields ?? BUBBLE_FIELDS;
+  if (active === 1)
+    return [{ from: 2, to: 3, tail: "left", fields, row: false }];
+  if (active === 3)
+    return [{ from: 1, to: 2, tail: "right", fields, row: false }];
+  // 가운데 상자는 오른쪽 상자 영역에 말풍선 하나를 띄운다.
+  return [{ from: 3, to: 3, tail: "left", fields, row: false }];
+}
+
+function GraphBubble({
+  from,
+  to,
+  tail,
+  fields,
+  row,
+  samples,
+  title,
+  note,
+  description,
+  errorMessage,
+  onClose,
+}: {
+  from: Column;
+  to: Column;
+  tail: string;
+  fields: readonly string[];
+  row: boolean;
+  samples: SensorSample[];
+  title: string;
+  note?: string;
+  description?: string;
+  errorMessage?: string | null;
+  onClose: () => void;
+}) {
+  const bubbleRef = useRef<HTMLDivElement>(null);
+
+  // 내용만큼 높이가 늘어나되 창 아래로 넘지 않게 하고, 넘치면 내부 스크롤로 넘긴다.
+  useLayoutEffect(() => {
+    const fit = () => {
+      const el = bubbleRef.current;
+      if (!el) return;
+      const zoom =
+        parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue(
+            "--screen-zoom",
+          ),
+        ) || 1;
+      const top = el.getBoundingClientRect().top;
+      el.style.maxHeight = `${Math.max(120, (window.innerHeight - top - 16) / zoom)}px`;
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [samples.length, fields.length]);
+
+  return (
+    <div
+      ref={bubbleRef}
+      className={`model-viewer__bubble model-viewer__bubble--tail-${tail}`}
+      style={{
+        // 눌린 상자 쪽에서 가까운 변에 붙이고, 너비는 영역 폭을 넘지 않는 선에서 좁게 둔다.
+        ...(tail === "left"
+          ? { left: `calc(${(from - 1) / 3} * 100% + 22px)` }
+          : { right: `calc(${(3 - to) / 3} * 100% + 22px)` }),
+        width: `min(340px, calc(${(to - from + 1) / 3} * 100% - 44px))`,
+      }}
+      role="region"
+      aria-label="센서 그래프"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <button
+        type="button"
+        className="model-viewer__bubble-close"
+        aria-label="말풍선 닫기"
+        onClick={onClose}
+      >
+        ×
+      </button>
+      <div className="model-viewer__bubble-scroll">
+        <header className="model-viewer__bubble-head">
+          <strong>
+            {title}
+            {note && <small>{note}</small>}
+          </strong>
+          {description && <span>{description}</span>}
+          {errorMessage && (
+            <span className="model-viewer__bubble-error" role="alert">
+              {errorMessage}
+            </span>
+          )}
+        </header>
+        <div
+          className={`model-viewer__graph-boxes${row ? "" : " model-viewer__graph-boxes--stack"}`}
+        >
+          {fields.map((field) => (
+            <GraphBox key={field} field={field} samples={samples} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function ModelViewer({
+  paused = false,
+  onExpand,
+  samples = [],
+  errorMessage,
+}: Props) {
+  const [bubbleColumn, setBubbleColumn] = useState<Column | null>(null);
+  const downRef = useRef<{ x: number; y: number } | null>(null);
   const markerRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [openDetail, setOpenDetail] = useState<string | null>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -187,8 +451,29 @@ export default function ModelViewer({ paused = false, onExpand }: Props) {
 
   return (
     <div className="model-viewer">
-      <div className="model-viewer__stage">
+      <div
+        className="model-viewer__stage"
+        onPointerDown={(event) => {
+          downRef.current = { x: event.clientX, y: event.clientY };
+        }}
+        onClick={(event) => {
+          const down = downRef.current;
+          if (!down || (event.target as HTMLElement).closest("button")) return;
+          // 3D를 돌리려고 끈 경우(5px 넘게 움직임)는 클릭으로 보지 않는다.
+          if (Math.hypot(event.clientX - down.x, event.clientY - down.y) > 5)
+            return;
+          const rect = event.currentTarget.getBoundingClientRect();
+          const x = (event.clientX - rect.left) / rect.width;
+          const column: Column = x < 1 / 3 ? 1 : x < 2 / 3 ? 2 : 3;
+          setBubbleColumn((current) => (current === column ? null : column));
+        }}
+      >
         <div className="model-viewer__canvas" ref={hostRef} />
+        <div className="model-viewer__frames" aria-hidden="true">
+          <div className="model-viewer__frame" />
+          <div className="model-viewer__frame" />
+          <div className="model-viewer__frame" />
+        </div>
         {hotspots.map((hotspot) => (
           <div
             key={hotspot.id}
@@ -238,6 +523,23 @@ export default function ModelViewer({ paused = false, onExpand }: Props) {
             )}
           </div>
         ))}
+        {bubbleColumn &&
+          bubblesFor(bubbleColumn).map((bubble) => (
+            <GraphBubble
+              key={`${bubbleColumn}-${bubble.from}`}
+              from={bubble.from as Column}
+              to={bubble.to as Column}
+              tail={bubble.tail}
+              fields={bubble.fields}
+              row={bubble.row}
+              samples={samples}
+              title={BUBBLE_INFO[bubbleColumn]?.title ?? "센서 실시간 추이"}
+              note={BUBBLE_INFO[bubbleColumn]?.note}
+              description={BUBBLE_INFO[bubbleColumn]?.description}
+              errorMessage={errorMessage}
+              onClose={() => setBubbleColumn(null)}
+            />
+          ))}
         {status && <p className="model-viewer__status">{status}</p>}
         {onExpand && (
           <button

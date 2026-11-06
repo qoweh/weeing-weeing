@@ -72,8 +72,8 @@ export function Filters({
         aria-label={report ? "보고서 검색" : "문서 검색"}
         placeholder={
           report
-            ? "⌕  보고서 번호, 사건, 설비 모델 검색"
-            : "⌕  문서명, 설비 모델 검색"
+            ? "보고서 번호, 사건, 설비 모델 검색"
+            : "문서명, 설비 모델 검색"
         }
         value={query}
         onChange={(e) => setQuery(e.target.value)}

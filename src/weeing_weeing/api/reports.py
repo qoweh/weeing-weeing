@@ -198,7 +198,7 @@ def list_reports(
     user: CurrentUser,
     repo: Reports,
     scope: Literal["mine", "review", "all", "approved"] = "mine",
-    limit: int = Query(default=100, ge=1, le=200),
+    limit: int | None = Query(default=None, ge=1),
     offset: int = Query(default=0, ge=0),
 ) -> list[ReportSummary]:
     return _call(

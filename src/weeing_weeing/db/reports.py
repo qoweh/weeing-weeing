@@ -614,7 +614,7 @@ class SqlReports(Repository):
         review: bool = False,
         all_reports: bool = False,
         approved_only: bool = False,
-        limit: int = 100,
+        limit: int | None = None,
         offset: int = 0,
     ) -> list[ReportSummary]:
         if sum((review, all_reports, approved_only)) > 1:
@@ -676,9 +676,11 @@ class SqlReports(Repository):
                     updated_at=utc(v.updated_at if approved_only else r.updated_at),
                 )
                 for r, v in session.execute(
-                    query.order_by(ReportRow.updated_at.desc(), ReportRow.report_id)
-                    .limit(min(max(limit, 1), 200))
-                    .offset(offset)
+                    (
+                        query.order_by(ReportRow.updated_at.desc(), ReportRow.report_id)
+                        .offset(offset)
+                        .limit(max(limit, 1) if limit is not None else None)
+                    )
                 )
             ]
 

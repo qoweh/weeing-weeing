@@ -313,7 +313,7 @@ class ReportRepository(Protocol):
         review: bool = False,
         all_reports: bool = False,
         approved_only: bool = False,
-        limit: int = 100,
+        limit: int | None = None,
         offset: int = 0,
     ) -> list[ReportSummary]: ...
 

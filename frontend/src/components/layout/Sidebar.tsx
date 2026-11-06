@@ -34,15 +34,12 @@ export default function Sidebar({
   collapsed?: boolean;
   onToggleCollapsed: () => void;
 }) {
-  // 설비 상세 대시보드(dashboard)도 메인 대시보드 메뉴 아래에 있는 화면이다.
   const current =
     page === "manual-upload"
       ? "manuals"
       : page === "report-write"
         ? "maintenance"
-        : page === "dashboard"
-          ? "home"
-          : page;
+        : page;
   // 좁은 화면에서는 메뉴를 드롭다운으로 접어 둔다.
   const [menuOpen, setMenuOpen] = useState(false);
   const currentItem = navigation.find((item) => item.id === current);
