@@ -1,6 +1,6 @@
 {
   "data_validation.json": "e13b12784e9ff047d4f86553bc51360ed1d957545507e87b58bfce54db55fd1f",
-  "evaluation.json": "714bdbf6afe5b46c8965b1097ba49cb896f68d84297af2ada73f94c18e707549",
+  "evaluation.json": "77b7356382f584656d19d888b1b577002d6134b12cb12bc7567a34d390aea9d5",
   "metadata.json": "9cd0098ae015086ec841978fbaa7bd24745c89e16d60c059a83e1ba1ef510f44",
   "split_manifest.json": "61a29ccfb4ab2e5cd6a7a499f80ba294149d00bf28788e19855946556953e28d",
   "test_confusion_matrix.csv": "39a7e39724431a1529cb457fdea273aa15599a49501f8b5d2a156c7d97879a12",
@@ -11,6 +11,8 @@
   "model.joblib (external outputs artifact)": "4ab68e5d6d1e1bd4e677c8772ebf96b48294dd10ff71a5ac525a2d6285b8b1df",
   "probability_evaluation.json": "951b2580c1ee721bad77adb3f30620382b15dfe8bf49bf34d765550fb849aa42",
   "probability_per_run.csv": "cf49deccea456bc8ab62a9e9f3c8fbd305f5641613620c23006cfdea57f7516b",
-  "top1_comparison.json": "9817922fdb50271fa681444273cabb4e4c6006b63022e3f6cc1c9efea7497356",
-  "top1_class_comparison.csv": "c42f6a71a3caaeebfdafc7f1c2ad7cdaebdc91cc1c5a7306639f2e23628a9681"
+  "top1_comparison.json": "a6412d9f8d6fa82f84b9b9bfd306b764f1e3767d8b453b25d8b5b268ef3d62b2",
+  "top1_class_comparison.csv": "c42f6a71a3caaeebfdafc7f1c2ad7cdaebdc91cc1c5a7306639f2e23628a9681",
+  "per_run_metrics.csv": "0fec0c785585419a7fcf638a99f25a4a1a0a3c4c28a6e433fc10f6b5bc044741",
+  "top1_per_run_metrics.csv": "7afa8f92dfdd240d742654a700832e22b69af02f6478946892daabdfc38648f1"
 }

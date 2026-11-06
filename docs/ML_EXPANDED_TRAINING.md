@@ -93,7 +93,7 @@ PYTHONPATH=src uv run --no-env-file --no-sync python -m weeing_weeing.ml.experim
 
 시험 NO_ERROR 1,528개 중 고장 예측 90개, 고장 window 897개 중 NO_ERROR 예측 38개였다. 고장을 다른 고장 코드로 예측한 window는 이번 시험에서 0개였다. 다른 데이터에서도 혼동이 없다는 뜻은 아니다.
 
-정확한 혼동행렬은 `test_confusion_matrix.csv`(행=정답, 열=예측), 실행별 평가는 `evaluation.json`의 각 세트 `per_run`에 있다. 실행별 Macro F1도 전체 16개 클래스를 기준으로 하므로 해당 실행에 없는 클래스의 0점이 포함된다. 실행별 비교는 Accuracy·오경고율·해당 고장 Recall을 함께 본다.
+정확한 혼동행렬은 `test_confusion_matrix.csv`(행=정답, 열=예측), 실행별 전체 평가는 원본 출력 `evaluation.json`의 각 세트 `per_run`에 있고, Git 사본은 `per_run_metrics.csv`에 집계했다. 실행별 Macro F1도 전체 16개 클래스를 기준으로 하므로 해당 실행에 없는 클래스의 0점이 포함된다. 실행별 비교는 Accuracy·오경고율·해당 고장 Recall을 함께 본다.
 
 ## 모델 사용과 산출물
 
@@ -192,7 +192,7 @@ PYTHONPATH=src uv run --no-env-file --no-sync python -m weeing_weeing.ml.compare
 | BTT2-M08 | 96.49% | 98.21% | 91.67% | 91.67% |
 | BTT2-M17 | 88.06% | 89.39% | 98.33% | 98.33% |
 
-M10의 Precision 83.33%·Recall 100% 등 나머지 고장 코드의 시험 Precision/Recall은 동일하다. 전체 클래스별 P/R/F1 비교는 `data/eval/ml_future60_v2_15faults/top1_class_comparison.csv`, 혼동행렬·실행별 결과는 `top1_comparison.json`에 있다. 원본 출력은 `outputs/ml/future60-15faults-top1-comparison-20261106.json`이다.
+M10의 Precision 83.33%·Recall 100% 등 나머지 고장 코드의 시험 Precision/Recall은 동일하다. 전체 클래스별 P/R/F1 비교는 `data/eval/ml_future60_v2_15faults/top1_class_comparison.csv`, 혼동행렬은 `top1_comparison.json`, 실행별 집계는 `top1_per_run_metrics.csv`에 있다. 원본 출력에는 실행별 전체 결과도 있다. 원본 출력은 `outputs/ml/future60-15faults-top1-comparison-20261106.json`이다.
 
 Top 1 방식은 시험 Accuracy·Macro F1이 극소폭 높지만 검증에서는 두 지표가 소폭 낮았다. 이번 비교만으로 우수성을 단정하거나 운영 분류 방식을 자동 교체하지 않았다. 이미 관찰한 시험 세트에서의 설명적 비교이며 새로운 독립 시험 결과가 아니다. 모델 확률 자체는 동일하므로 Log Loss·Brier·확률 보정 지표도 변하지 않는다. 서로 겹치는 window와 코드당 시험 3회라는 한계는 동일하다.
 
