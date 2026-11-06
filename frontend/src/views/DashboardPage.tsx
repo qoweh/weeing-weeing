@@ -69,7 +69,7 @@ export default function DashboardPage({
     <div className="sensor-dashboard">
       <div className="sensor-dashboard__header">
         <div className="home-heading">
-          <PageTitle>대시보드</PageTitle>
+          <PageTitle>공정 실시간 모니터링 (BAT-TRANSFER-01)</PageTitle>
         </div>
         <div className="sensor-dashboard__settings" ref={settingsRef}>
           <button

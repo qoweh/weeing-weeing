@@ -193,13 +193,9 @@ export default function DashboardAside({
         )}
         {predictionData && (
           <>
-            {mlDisplay.timestamp && (
+            {mlDisplay.held && (
               <p className="dashboard-panel__hint">
-                {mlDisplay.held && "갱신 대기 · 이전 결과 유지 · "}
-                {mlDisplay.timestampLabel}{" "}
-                {new Date(mlDisplay.timestamp).toLocaleString("ko-KR", {
-                  hour12: false,
-                })}
+                갱신 대기 · 이전 결과 유지
               </p>
             )}
             {typeof errorProbability === "number" && (
@@ -207,10 +203,7 @@ export default function DashboardAside({
                 className="dashboard-prediction__summary"
                 data-tone={probabilityTone(errorProbability)}
               >
-                {mlDisplay.held
-                  ? "마지막 예측 시각 기준 향후 60초 에러 확률"
-                  : "향후 60초 에러 확률"}{" "}
-                <strong>{percent(errorProbability)}</strong>
+                이상 발생 확률 <strong>{percent(errorProbability)}</strong>
               </p>
             )}
             <ul>
