@@ -1,0 +1,41 @@
+.incident-codes,
+.incident-code-label {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  max-width: 100%;
+  gap: 0.2em 0.4em;
+  white-space: normal;
+  text-align: start;
+}
+
+.incident-codes {
+  gap: 0.35em 0.8em;
+}
+
+.incident-code-label {
+  font-size: max(0.9375rem, 1em);
+}
+
+.incident-code-label__name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.incident-code-label__code {
+  font-size: max(0.8125rem, 0.85em);
+  font-weight: 400;
+  color: var(--muted, #526176);
+  white-space: nowrap;
+}
+
+@media print {
+  .incident-code-label {
+    break-inside: avoid;
+    font-size: inherit;
+  }
+  .incident-code-label__code {
+    color: inherit;
+    font-size: 0.85em;
+  }
+}

@@ -1,3 +1,4 @@
+import IncidentCodes from '../../components/ui/IncidentCodeLabel'
 import AnalysisStages from './AnalysisStages.jsx'
 import AnalysisProgress from './AnalysisProgress.jsx'
 import InspectionChecks from './InspectionChecks.jsx'
@@ -22,7 +23,7 @@ export function AnalysisCard({ incident, result, user, onResult, onSessionExpire
   const analysis = result?.analysis
   const state = result?.job?.status
   return <article className="incident-result">
-    <div className="incident-result__heading"><div><strong>{incident.codes.join(', ')}</strong><p>{incident.incident_number || '사건번호는 사건현황에서 확인할 수 있습니다.'}</p></div><span>{jobLabels[state] || (result ? '분석 작업 없음' : '분석 작업 확인 중')}</span></div>
+    <div className="incident-result__heading"><div><IncidentCodes codes={incident.codes} /><p>{incident.incident_number || '사건번호는 사건현황에서 확인할 수 있습니다.'}</p></div><span>{jobLabels[state] || (result ? '분석 작업 없음' : '분석 작업 확인 중')}</span></div>
     <AnalysisProgress result={result} />
     {result?.error && <p className="incident-test__error" role="alert">{result.error}</p>}
     {state === 'FAILED' && <p className="incident-test__error">분석에 실패했습니다. {result.job?.error_code && `오류: ${result.job.error_code}`}</p>}

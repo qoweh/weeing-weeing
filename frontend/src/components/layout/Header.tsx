@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import IncidentCodes from "../ui/IncidentCodeLabel";
 import { listIncidents, watchTelemetry, type Incident } from "../../api/client";
 import Button from "../ui/Button";
 import Glyph from "../ui/Glyph";
@@ -409,10 +410,13 @@ export default function Header({
                                 onIncidentSelect?.(incident);
                               }}
                             >
-                              {incident.codes?.join(", ") || "사건 보고서 열기"}
+                              <IncidentCodes
+                                codes={incident.codes}
+                                emptyLabel="사건 보고서 열기"
+                              />
                             </button>
                           ) : (
-                            <span>{incident.codes?.join(", ") || "—"}</span>
+                            <IncidentCodes codes={incident.codes} />
                           )}
                         </td>
                         <td>{dateLabel(incident.first_detected_at, true)}</td>

@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { IncidentCodeLabel } from "../ui/IncidentCodeLabel";
+import { incidentCodeText } from "../ui/incidentCodes";
 import {
   getMlPrediction,
   listReports,
@@ -219,7 +221,7 @@ export default function DashboardAside({
                   data-tone={probabilityTone(item.probability)}
                 >
                   <span className="dashboard-panel__row">
-                    <strong>{item.code}</strong>
+                    <IncidentCodeLabel code={item.code} prediction />
                     <span className="dashboard-prediction__percent">
                       {percent(item.probability)}
                     </span>
@@ -227,7 +229,7 @@ export default function DashboardAside({
                   <span
                     className="dashboard-prediction__bar"
                     role="img"
-                    aria-label={`${item.code} 예측 확률 ${percent(item.probability)}`}
+                    aria-label={`${incidentCodeText(item.code, true)} ${percent(item.probability)}`}
                   >
                     <span
                       style={{
