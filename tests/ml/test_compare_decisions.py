@@ -1,4 +1,8 @@
 import numpy as np
+import pytest
+
+pytest.importorskip("joblib")
+pytest.importorskip("sklearn")
 
 from weeing_weeing.ml.compare_decisions import decision_pair
 

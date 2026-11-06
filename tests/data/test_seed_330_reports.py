@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from weeing_weeing.contracts import Role, UserAccount
+from weeing_weeing.contracts import IncidentStatus, Role, UserAccount
 from weeing_weeing.db import interface as db
 from weeing_weeing.db.models import Base
 
@@ -25,6 +25,8 @@ def test_cases_and_environment_checks(monkeypatch):
         cases = [case for case, _ in entries if case[0] == code]
         assert len({case[5] for case in cases}) == 5
         assert len({(case[5], case[6], case[7]) for case in cases}) == 15
+    # 사건 ID는 (코드, 순번)으로 만든다. 330건 모두 겹치지 않아야 DB 등록이 서로 덮이지 않는다.
+    assert len({(case[0], sequence) for case, sequence in entries}) == 330
     local = SimpleNamespace(
         database_url="postgresql://user@localhost/db",
         vector_store="qdrant",
@@ -71,17 +73,26 @@ def test_batch_includes_existing_reports_and_indexes(monkeypatch, tmp_path):
             )
         first = seed_22_reports.seed_cases(incidents, reports, users, "I1", "L1", "C1")
         assert len(first) == 22
+        # 330건 구성은 위 테스트가 확인한다. DB 등록 흐름은 코드 2개(30건)로 본다.
+        # M10은 1번 사례의 사건 ID가 따로 정해져 있어(INC-SAMPLE-M10-DUST-001) 포함한다.
+        entries = [
+            (case, sequence)
+            for case, sequence in seed_330_reports.build_entries()
+            if case[0] in {"P01", "M10"}
+        ]
+        assert len(entries) == 30
         batch = seed_22_reports.seed_cases(
-            incidents,
-            reports,
-            users,
-            "I1",
-            "L1",
-            "C1",
-            entries=seed_330_reports.build_entries(),
+            incidents, reports, users, "I1", "L1", "C1", entries=entries
         )
-        assert Counter(row[2] for row in batch) == {"기존": 22, "생성": 308}
-        assert len(reports.approved_reports()) == 330
+        assert Counter(row[2] for row in batch) == {"기존": 2, "생성": 28}
+        assert len(reports.approved_reports()) == 22 + 28
+        saved = incidents.list_incidents(limit=100)
+        assert len(saved) == 22 + 28
+        assert all(item.status == IncidentStatus.RECOVERED for item in saved)
+        assert all(
+            item.recovered_at is not None and item.recovered_at > item.last_detected_at
+            for item in saved
+        )
 
         class FakeIndexer:
             fail_once = True
@@ -92,16 +103,10 @@ def test_batch_includes_existing_reports_and_indexes(monkeypatch, tmp_path):
                     raise RuntimeError("simulated failure")
                 return 1
 
-        assert seed_22_reports.index_cases(reports, batch, FakeIndexer) == (329, 1)
+        assert seed_22_reports.index_cases(reports, batch, FakeIndexer) == (29, 1)
         assert seed_22_reports.index_cases(reports, batch, FakeIndexer) == (1, 0)
         again = seed_22_reports.seed_cases(
-            incidents,
-            reports,
-            users,
-            "I1",
-            "L1",
-            "C1",
-            entries=seed_330_reports.build_entries(),
+            incidents, reports, users, "I1", "L1", "C1", entries=entries
         )
         assert all(row[2] == "기존" for row in again)
         assert seed_22_reports.index_cases(reports, again, FakeIndexer) == (0, 0)

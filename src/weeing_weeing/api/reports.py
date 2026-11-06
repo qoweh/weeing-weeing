@@ -60,18 +60,23 @@ def _call(operation, *args, **kwargs):
 
 @router.get("/incidents")
 def list_incidents(
-    user: CurrentUser, limit: int = Query(default=100, ge=1, le=200)
+    user: CurrentUser,
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
 ) -> list[Incident]:
     """보고서에서 연결할 실제 저장 사건. 입력값으로 사건·AI 스냅샷을 받지 않는다."""
-    return db.get_incidents().list_incidents(limit=limit)
+    return db.get_incidents().list_incidents(limit=limit, offset=offset)
 
 
 @router.get("/incidents/overview")
 def incident_overview(
-    user: CurrentUser, repo: Reports, limit: int = Query(default=100, ge=1, le=200)
+    user: CurrentUser,
+    repo: Reports,
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
 ) -> list[dict]:
     """Error 사건과 보고서 승인 여부를 함께 조회한다."""
-    return _call(repo.incident_overview, user.employee_no, limit=limit)
+    return _call(repo.incident_overview, user.employee_no, limit=limit, offset=offset)
 
 
 @router.get("/incidents/{incident_id}/approved-reports")
@@ -193,7 +198,8 @@ def list_reports(
     user: CurrentUser,
     repo: Reports,
     scope: Literal["mine", "review", "all", "approved"] = "mine",
-    limit: int = Query(default=100, ge=1, le=200),
+    limit: int | None = Query(default=None, ge=1),
+    offset: int = Query(default=0, ge=0),
 ) -> list[ReportSummary]:
     return _call(
         repo.list_reports,
@@ -202,6 +208,7 @@ def list_reports(
         all_reports=scope == "all",
         approved_only=scope == "approved",
         limit=limit,
+        offset=offset,
     )
 
 

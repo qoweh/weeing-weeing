@@ -93,10 +93,16 @@ jobs:
       - run: uv run --no-sync ruff check --output-format=github .
       - run: uv run --no-sync ruff format --check .
 
-  test:
-    name: Test (pytest)
+  # 테스트를 러너 2개에 나눠 동시에 돌린다(PYTEST_SHARD, tests/conftest.py). 러너마다 설치·DB 준비가 따로 들어
+  # Actions 사용 시간은 늘지만 기다리는 시간은 줄어든다. 필수 검사 이름 "Test (pytest)"는 아래 test 작업이 맡는다.
+  test-shard:
+    name: Test shard (${{ matrix.shard }}/2)
     needs: changes
     if: needs.changes.outputs.code == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # DB 테스트(tests/db)를 SQLite와 함께 PostgreSQL에서도 돌린다(TEST_DATABASE_URL).
@@ -114,6 +120,7 @@ jobs:
           --health-interval 1s --health-timeout 3s --health-retries 30
     env:
       TEST_DATABASE_URL: postgresql://weeing:weeing@localhost:5432/weeing_test
+      PYTEST_SHARD: ${{ matrix.shard }}/2
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
@@ -124,6 +131,22 @@ jobs:
       # --durations로 느린 테스트를 로그에 남겨 다음 개선 대상을 본다.
       # auto는 psutil이 있으면 물리 코어 수라 2 vCPU 러너에서 작업자가 1개가 된다. logical로 vCPU 수만큼 띄운다.
       - run: echo "vCPU $(nproc)" && uv run --no-sync pytest -n logical --durations=15
+
+  # 분할 결과를 하나로 모은 필수 검사. 변경 감지가 성공하고 분할이 모두 통과(또는 코드 변경이 없어 생략)해야 통과.
+  # always()라서 변경 감지가 실패해도 이 작업이 실행되어 실패로 남는다(생략=통과로 새지 않게).
+  test:
+    name: Test (pytest)
+    needs: [changes, test-shard]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - env:
+          CHANGES: ${{ needs.changes.result }}
+          SHARDS: ${{ needs.test-shard.result }}
+        run: |
+          echo "changes: $CHANGES, test-shard: $SHARDS"
+          [ "$CHANGES" = success ] && { [ "$SHARDS" = success ] || [ "$SHARDS" = skipped ]; }
 
   make-compat:
     name: Make compatibility (${{ matrix.os }})

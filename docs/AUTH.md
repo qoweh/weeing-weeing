@@ -22,7 +22,7 @@
 | `POST /users` | 관리자 | 계정 생성. 사번 중복 409, 비밀번호 8자 미만 422 |
 | `PATCH /users/{사번}` | 관리자 | 이름·직책·관리자·활성 중 보낸 칸만 변경. 마지막 관리자를 없애면 409 |
 | `PUT /users/{사번}/password` | 관리자 | 비밀번호 재설정. 그 사람 세션 모두 끊김 |
-| `GET /llm-usage?days=1~30` | 관리자 | Langfuse LLM 사용량 요약(토큰·비용·호출 수·모델별·일별). Langfuse 실패는 200 + `status`(`not_configured`·`failed`). 마이페이지 "LLM 사용량" 카드(#207) |
+| `GET /llm-usage?period=1h\|24h\|7d\|30d\|all` | 관리자 또는 관제 담당자 | Langfuse LLM 사용량 요약(토큰·입력/출력 토큰·비용·호출 수, 모델별, 기간 추이 `series`). 누적(`all`)은 2026-01-01부터, 추이 단위는 1h=분·24h=시간·7d/30d=일·all=월. Langfuse 실패는 200 + `status`(`not_configured`·`failed`). 마이페이지 "LLM 사용량" 카드(#207) |
 
 `make api` 후 http://localhost:8000/docs 의 **Authorize** 버튼에 토큰을 넣으면 문서 화면에서 바로 시험할 수 있다. DB가 꺼져 있으면 503.
 

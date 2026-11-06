@@ -267,13 +267,13 @@ LANGFUSE_PUBLIC_KEY=<ec2-weeing-weeing 프로젝트 키>  # 홈서버에서 쓰�
 LANGFUSE_SECRET_KEY=<ec2-weeing-weeing 프로젝트 키>
 LLM_USER=ec2                                        # 로그인 없이 도는 자동 분석의 이름. 챗봇은 로그인 계정 이름
 LANGFUSE_TRACING_ENVIRONMENT=demo
-# 마이페이지 "LLM 사용량"(관리자 전용)의 자세히 보기 링크
+# 마이페이지 "LLM 사용량"(관리자·관제 담당자)의 자세히 보기 링크
 LANGFUSE_DASHBOARD_URL=https://langfuse.<EC2_IP>.sslip.io/project/<ec2-weeing-weeing 프로젝트 ID>
 ```
 
 팀원 PC는 `.env`의 `LANGFUSE_BASE_URL`만 `https://langfuse.<EC2_IP>.sslip.io`로 바꾼다. 키는 그대로다. Langfuse가 꺼져 있으면 기록만 빠지고 분석·챗봇은 그대로 된다.
 
-**마이페이지 LLM 사용량.** 계정 관리자(`is_admin`)에게만 보인다. api가 위 키로 Langfuse Metrics API를 읽어 기간(24시간·7일·30일)별 토큰·비용(USD)·호출 수·모델별 합계를 보여 준다. 키가 속한 프로젝트 하나의 집계다. Langfuse가 응답하지 않으면 "조회 실패"만 표시한다(제한 시간 `LANGFUSE_QUERY_TIMEOUT_S`, 기본 10초).
+**마이페이지 LLM 사용량.** 계정 관리자(`is_admin`)와 관제 담당자에게만 보인다(백엔드 `api/llm_usage.py`의 `can_view_usage`, 프론트 `components/usage/access.ts`가 같은 규칙). api가 위 키로 Langfuse Metrics API를 읽어 기간(1시간·24시간·7일·30일·누적)별 토큰(입력/출력)·비용(USD)·호출 수, 기간 내 추이 막대, 모델별 표(비용 비중 포함)를 보여 준다. 자세히 보기 링크는 카드 헤더 오른쪽에 있다. 키가 속한 프로젝트 하나의 집계다. Langfuse가 응답하지 않으면 "조회 실패"만 표시한다(제한 시간 `LANGFUSE_QUERY_TIMEOUT_S`, 기본 10초).
 
 ### EC2 자체 Langfuse (`deploy/langfuse`)
 

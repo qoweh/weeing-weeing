@@ -5,6 +5,9 @@
   grid-template-rows: 80px 1fr;
 }
 .header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
   grid-column: 1/-1;
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
@@ -1267,7 +1270,16 @@ button.nav-item:disabled {
   }
   .sidebar {
     min-width: 0;
-    overflow: hidden;
+    overflow: visible;
+    position: sticky;
+    top: 80px;
+    align-self: start;
+    height: min(100%, calc(100dvh / var(--screen-zoom, 1) - 80px));
+  }
+  .sidebar nav {
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
   .sidebar__label,
   .nav-item__label,
@@ -1600,11 +1612,10 @@ button.nav-item:disabled {
     display: none;
   }
 }
-/* 사이드바의 overflow:hidden이 말풍선을 잘라내므로 접힌 상태에서는 풀어 준다. */
+/* 접힌 사이드바에서도 손잡이가 잘리지 않도록 한다. */
 @media (min-width: 901px) {
   .sidebar--collapsed {
     overflow: visible;
-    position: relative;
     z-index: 30;
   }
 }

@@ -279,9 +279,11 @@ def seed_cases(incidents, reports, users, author, reviewer, approver, *, entries
             asset_id="BLDC-001",
             codes=[code],
             severity="Error",
+            status="RECOVERED",
             first_detected_at=start,
             confirmed_at=start + timedelta(seconds=60),
             last_detected_at=start + timedelta(seconds=60),
+            recovered_at=start + timedelta(minutes=10),
             evidence=[
                 SensorEvidence(field=field, value=value, unit=unit, threshold=threshold)
             ],

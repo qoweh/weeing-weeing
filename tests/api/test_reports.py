@@ -92,6 +92,29 @@ def add_incident(incident_id):
     )
 
 
+def test_list_offsets_return_distinct_reports_and_incidents(client):
+    create(client)
+    add_incident("INC-2")
+    create(client, incident_id="INC-2")
+    headers = auth(client)
+    for path, key in (
+        ("/incidents", "incident_id"),
+        ("/reports?scope=all", "report_id"),
+    ):
+        separator = "&" if "?" in path else "?"
+        first = client.get(f"{path}{separator}limit=1&offset=0", headers=headers)
+        second = client.get(f"{path}{separator}limit=1&offset=1", headers=headers)
+        assert first.status_code == second.status_code == 200
+        assert first.json()[0][key] != second.json()[0][key]
+        assert (
+            client.get(f"{path}{separator}offset=-1", headers=headers).status_code
+            == 422
+        )
+    first = client.get("/incidents/overview?limit=1&offset=0", headers=headers).json()
+    second = client.get("/incidents/overview?limit=1&offset=1", headers=headers).json()
+    assert first[0]["incident"]["incident_id"] != second[0]["incident"]["incident_id"]
+
+
 def test_login_draft_reload_and_ownership(client):
     assert client.get("/reports").status_code == 401
     doc = create(client, form_data={})

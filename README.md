@@ -70,6 +70,7 @@ ops/           로컬·운영 서버 명령 모음 (local.sh, aws.sh)
 | [DEPLOY](docs/DEPLOY.md) | 운영 서버(EC2) 배포: 구조, Secrets, 첫 배포, 롤백, 백업 (#117) |
 | [AWS_ACCESS](docs/AWS_ACCESS.md) | 운영 서버 접속: 주소, SSH 키 등록, DB·Qdrant 터널, Langfuse |
 | [ops/README](ops/README.md) | 자주 쓰는 명령 모음: 로컬 실행(`ops/local.sh`)·운영 서버 상태·로그·볼륨(`ops/aws.sh`) |
+| [repo-stats 브랜치](https://github.com/qoweh/weeing-weeing/tree/repo-stats) | 커밋·PR·이슈 활동 손그림 차트(발표용). Actions → **Repo stats** → Run workflow로 갱신 |
 | [CHANGE_WORKFLOW](docs/CHANGE_WORKFLOW.md) | 이슈·브랜치·커밋·PR·머지 규칙 |
 | [DECISIONS](docs/DECISIONS.md) | 기술 결정 기록 |
 | [AGENT](docs/AGENT.md) | 에이전트 구조(싱글), 도구·검사, 멀티 에이전트·메모리 확장 계획 |

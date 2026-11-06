@@ -7,7 +7,6 @@ import {
 } from "./api/client";
 import AppShell from "./components/layout/AppShell";
 import DashboardPage from "./views/DashboardPage";
-import HomePage from "./views/HomePage";
 import LoginPage from "./views/LoginPage";
 import { ManualPage, ManualUploadPage } from "./views/ManualPages";
 import IncidentHistoryPage from "./incident-hmi/pages/IncidentHistoryPage";
@@ -37,7 +36,6 @@ const sessionKey = "weeing-report-session";
 const historyKey = "weeing-app-view";
 const pages = new Set([
   "home",
-  "dashboard",
   "manuals",
   "manual-upload",
   "maintenance",
@@ -287,15 +285,7 @@ export default function App() {
           {error}
         </p>
       )}
-      {page === "home" && (
-        <HomePage
-          user={user}
-          onNavigate={navigate}
-          onSessionExpired={forgetSession}
-          onOpenReport={(id) => openReportDraft(null, id)}
-        />
-      )}
-      <div hidden={page !== "dashboard"}>
+      <div hidden={page !== "home"}>
         <DashboardPage onSessionExpired={forgetSession} onNavigate={navigate} />
       </div>
       {page === "mypage" && (

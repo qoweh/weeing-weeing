@@ -3,6 +3,9 @@
 import numpy as np
 import pytest
 
+pytest.importorskip("joblib")
+pytest.importorskip("sklearn")
+
 from weeing_weeing.ml.experiment import evaluate
 from weeing_weeing.ml.probability_metrics import probability_metrics
 
