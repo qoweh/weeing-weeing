@@ -4,6 +4,7 @@ import PageTitle from "../components/ui/PageTitle";
 import Glyph from "../components/ui/Glyph";
 import ProfileAvatar from "../components/layout/ProfileAvatar";
 import LlmUsageCard from "../components/usage/LlmUsageCard";
+import { canViewLlmUsage } from "../components/usage/access";
 import "./MyPage.scss";
 
 type Report = {
@@ -221,7 +222,9 @@ export default function MyPage({
           </div>
         </>
       )}
-      {user.is_admin && <LlmUsageCard onSessionExpired={onSessionExpired} />}
+      {canViewLlmUsage(user) && (
+        <LlmUsageCard onSessionExpired={onSessionExpired} />
+      )}
       {user.role === "현장 점검자" && (
         <section className="mypage__card mypage__action">
           <div>

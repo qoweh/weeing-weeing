@@ -360,9 +360,14 @@
   font-weight: 700;
   cursor: pointer;
 }
-/* 관리자 전용 LLM 사용량(#207) */
+/* LLM 사용량(#207): 계정 관리자·관제 담당자 */
 .mypage__usage {
+  /* 단일 계열 막대 색. 검증 스크립트로 표면 대비·밝기 범위 확인(라이트 #286b9e, 다크 #5b8be8) */
+  --usage-bar: var(--primary);
   margin-top: 20px;
+}
+:root[data-theme="dark"] .mypage__usage {
+  --usage-bar: #5b8be8;
 }
 .mypage__usage-head {
   display: flex;
@@ -371,8 +376,20 @@
   justify-content: space-between;
   gap: 12px;
 }
+.mypage__usage-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 16px;
+  margin-left: auto;
+}
+.mypage__usage-dashboard {
+  white-space: nowrap;
+}
 .mypage__usage-periods {
   display: inline-flex;
+  flex-wrap: wrap;
   gap: 4px;
   padding: 3px;
   border-radius: 10px;
@@ -401,18 +418,129 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-top: 18px;
 }
-.mypage__usage-models li {
+.mypage__usage-sub {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  font-weight: 500;
+}
+.mypage__usage-empty {
+  margin-top: 18px;
+}
+.mypage__usage-trend {
+  margin-top: 24px;
+}
+.mypage__usage-trend-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  min-height: 52px;
-  padding: 8px 0;
+  gap: 8px;
+}
+.mypage__usage-trend-head h3,
+.mypage__usage-table caption {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--fs-emphasis);
+  line-height: var(--lh-emphasis);
+  font-weight: 700;
+  text-align: left;
+}
+.mypage__usage-readout {
+  min-height: var(--lh-caption);
+  margin: 10px 0 6px;
+  color: var(--muted);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
   font-variant-numeric: tabular-nums;
 }
-.mypage__usage-models li > span:first-child {
+.mypage__usage-bars {
+  display: flex;
+  align-items: flex-end;
+  height: 120px;
+  border-bottom: 1px solid var(--border);
+}
+.mypage__usage-bar {
+  display: flex;
+  flex: 1 1 0;
+  align-items: flex-end;
+  height: 100%;
   min-width: 0;
-  overflow-wrap: anywhere;
+  /* 막대 사이 2px 표면 간격 */
+  padding: 0 1px;
+}
+.mypage__usage-bar span {
+  display: block;
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  background: var(--usage-bar);
+}
+.mypage__usage-bar[data-active] {
+  background: var(--surface-hover);
+}
+.mypage__usage-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+  font-variant-numeric: tabular-nums;
+}
+.mypage__usage-table-wrap {
+  margin-top: 24px;
+  overflow-x: auto;
+}
+.mypage__usage-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-variant-numeric: tabular-nums;
+}
+.mypage__usage-table caption {
+  padding-bottom: 8px;
+}
+.mypage__usage-table th,
+.mypage__usage-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+  white-space: nowrap;
+}
+.mypage__usage-table thead th {
+  color: var(--muted);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+}
+.mypage__usage-table th:first-child {
+  padding-left: 0;
+  text-align: left;
+}
+.mypage__usage-table tbody th {
+  color: var(--text);
+  font-weight: 700;
+}
+.mypage__usage-share {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.mypage__usage-share-track {
+  display: inline-block;
+  width: 72px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--background);
+  overflow: hidden;
+}
+.mypage__usage-share-track span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--usage-bar);
 }
 .mypage .workspace-error {
   flex-wrap: wrap;

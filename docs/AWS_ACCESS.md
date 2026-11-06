@@ -98,7 +98,7 @@ psql -h localhost -p 15432 -U <POSTGRES_USER> <POSTGRES_DB>
 - **로그인은 홈서버에서 쓰던 본인 계정·비밀번호 그대로**다. 예전 EC2 공용 관리자 계정(`admin@example.com`)은 이관하면서 없어졌다
 - EC2의 api·챗봇 호출은 `ec2-weeing-weeing`(사용자 `ec2` 또는 로그인 계정 이름, 환경 `demo`), 팀원 PC 호출은 `weeing-weeing`에 남는다
 - 팀원 PC는 `.env`의 `LANGFUSE_BASE_URL`만 `https://langfuse.<EC2_IP>.sslip.io`로 바꾼다. pk/sk는 그대로다([USAGE_TRACKING](USAGE_TRACKING.md))
-- 웹 마이페이지의 "LLM 사용량"은 계정 관리자에게만 보이는 간단한 요약이다. 자세한 내용은 그 카드의 "Langfuse 대시보드에서 자세히 보기" 링크로 연다
+- 웹 마이페이지의 "LLM 사용량"은 계정 관리자와 관제 담당자에게만 보이는 간단한 요약이다. 자세한 내용은 카드 헤더 오른쪽의 "Langfuse 대시보드에서 자세히 보기" 링크로 연다
 - 가입은 막혀 있다(`AUTH_DISABLE_SIGNUP=true`). 새 팀원 계정이 필요하면 관리자가 잠시 가입을 열고(`deploy/langfuse/docker-compose.yml`에서 `false`로 바꾼 뒤 `docker compose up -d langfuse-web`), 팀원이 가입하면 Settings → Members에서 프로젝트에 추가한 뒤 다시 막는다
 - 비밀번호는 Langfuse 화면(Settings)에서 바꾼다. 인터넷에 열린 화면이므로 짧은 비밀번호는 쓰지 않는다
 
