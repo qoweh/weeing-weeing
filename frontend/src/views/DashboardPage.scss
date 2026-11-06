@@ -930,7 +930,7 @@
   gap: 8px;
   align-items: center;
   margin: 0 0 6px;
-  color: var(--bubble-accent);
+  color: var(--bubble-text);
   font-size: var(--fs-caption);
   font-weight: 700;
   line-height: var(--lh-caption);
@@ -941,7 +941,7 @@
   width: 10px;
   height: 10px;
   border-radius: 3px;
-  background: var(--bubble-accent);
+  background: var(--bubble-text);
 }
 .model-viewer__bubble-title b {
   margin-left: auto;
@@ -978,29 +978,56 @@
 }
 .model-viewer__bubble-hover {
   position: absolute;
-  top: 0;
-  right: 0;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--primary-soft);
+  z-index: 3;
+  display: grid;
+  gap: 1px;
+  min-width: 72px;
+  padding: 6px 10px;
+  border: 1px solid var(--bubble-border);
+  border-radius: 10px;
+  background: var(--bubble-bg);
+  box-shadow: 0 4px 12px rgba(23, 32, 51, 0.18);
   color: var(--bubble-text);
-  font-size: var(--fs-caption);
+  line-height: 1.3;
+  text-align: center;
+  white-space: nowrap;
   pointer-events: none;
+}
+.model-viewer__bubble-hover b {
+  font-size: var(--fs-caption);
+  font-variant-numeric: tabular-nums;
+}
+.model-viewer__bubble-hover small {
+  color: var(--bubble-muted);
+  font-size: 11px;
+}
+/* 범위를 벗어난 값이면 박스 테두리와 연한 배경도 주의·경고 색을 따른다(구역과 같은 방식). */
+.model-viewer__bubble-hover--caution {
+  border-color: var(--bubble-caution);
+  background: color-mix(in srgb, var(--bubble-caution) 10%, var(--bubble-bg));
+}
+.model-viewer__bubble-hover--warning {
+  border-color: var(--bubble-danger);
+  background: color-mix(in srgb, var(--bubble-danger) 10%, var(--bubble-bg));
+}
+.model-viewer__bubble-plot .grid--empty {
+  stroke-dasharray: none;
+  stroke-width: 0.75;
 }
 .model-viewer__bubble-plot .line {
   fill: none;
-  stroke: var(--bubble-accent);
-  stroke-width: 2.5;
+  stroke: var(--level, var(--bubble-text));
+  stroke-width: 1.5;
   stroke-linecap: round;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
 }
 .model-viewer__bubble-empty {
   position: absolute;
-  top: 50%;
+  /* 가운데 선의 높이(그래프 좌표 45/80)에 맞춘다. 50%면 선보다 위로 뜬다. */
+  top: 56.25%;
   left: 50%;
   padding: 0 8px;
-  background: var(--bubble-bg);
   color: var(--bubble-muted);
   font-size: var(--fs-caption);
   transform: translate(-50%, -50%);

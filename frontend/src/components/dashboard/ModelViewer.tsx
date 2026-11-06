@@ -14,6 +14,9 @@ import {
   type SensorSample,
 } from "../../views/telemetryCharts";
 
+// 그래프에 마우스를 올렸을 때 커서 아래에 뜨는 값 박스를 잠시 숨긴다. 다시 보이게 하려면 true로 바꾼다.
+const SHOW_HOVER_BOX = false;
+
 const hotspots = [
   { id: "front", label: "정면 표시 지점", point: [-0.094, 0.12] },
   { id: "right", label: "우측면 표시 지점", point: [0.022, -0.067] },
@@ -128,8 +131,15 @@ function GraphBox({
   field: string;
   samples: SensorSample[];
 }) {
-  // 그래프 위에 마우스를 올리면 그 시점의 값을 보여준다(x: 0~600 그래프 좌표).
-  const [hoverX, setHoverX] = useState<number | null>(null);
+  // 그래프 위에 마우스를 올리면 커서 아래 말풍선 박스에 그 시점의 값을 보여준다.
+  // x: 0~600 그래프 좌표, px·py·width: 그래프 영역 안의 커서 위치(px).
+  const [pointer, setPointer] = useState<{
+    x: number;
+    px: number;
+    py: number;
+    width: number;
+  } | null>(null);
+  const hoverX = pointer?.x ?? null;
   const chart = sensorCharts.find((item) => item.field === field);
   if (!chart) return null;
   const latest = sensorValue(samples.at(-1)?.record, field);
@@ -151,7 +161,6 @@ function GraphBox({
     if (best && value !== null)
       hover = { value, secondsAgo: Math.round((end - best.time) / 1000) };
   }
-  const shown = hover ? hover.value : latest;
 
   return (
     <section
@@ -161,21 +170,24 @@ function GraphBox({
       <p className="model-viewer__bubble-title">
         {chart.title}
         {chart.unit && ` [${chart.unit}]`}
-        <b>{formatSensor(shown, chart.digits)}</b>
+        <b>{formatSensor(latest, chart.digits)}</b>
       </p>
       <div
         className="model-viewer__bubble-plot"
         onPointerMove={(event) => {
           const rect = event.currentTarget.getBoundingClientRect();
           if (rect.width > 0)
-            setHoverX(
-              Math.min(
+            setPointer({
+              x: Math.min(
                 600,
                 Math.max(0, ((event.clientX - rect.left) / rect.width) * 600),
               ),
-            );
+              px: event.clientX - rect.left,
+              py: event.clientY - rect.top,
+              width: rect.width,
+            });
         }}
-        onPointerLeave={() => setHoverX(null)}
+        onPointerLeave={() => setPointer(null)}
       >
         <svg
           viewBox="0 0 600 80"
@@ -183,15 +195,38 @@ function GraphBox({
           role="img"
           aria-label={`${chart.title}의 최근 수신 추이`}
         >
-          <path d="M0 16H600 M0 45H600 M0 74H600" className="grid" />
+          {ready ? (
+            <path d="M0 16H600 M0 45H600 M0 74H600" className="grid" />
+          ) : (
+            // 미수신·수집 중에는 얇은 실선으로 그리고, 글자가 놓이는 가운데 구간의 선은 비운다.
+            <path
+              d={`M0 16H600 M0 74H600 M0 45H${latest === null ? 230 : 190} M${latest === null ? 370 : 410} 45H600`}
+              className="grid grid--empty"
+            />
+          )}
           {ready && <path d={path} className="line" />}
           {hover && hoverX !== null && (
             <path d={`M${hoverX} 0V80`} className="cursor" />
           )}
         </svg>
-        {hover && (
-          <span className="model-viewer__bubble-hover">
-            {hover.secondsAgo === 0 ? "현재" : `${hover.secondsAgo}초 전`}
+        {SHOW_HOVER_BOX && hover && pointer && (
+          <span
+            className={`model-viewer__bubble-hover model-viewer__bubble-hover--${sensorLevel(field, hover.value)}`}
+            style={{
+              // 기본은 커서 아래, 그래프 아래쪽에 있으면 위로 뒤집고, 좌우는 영역 안으로 맞춘다.
+              left: Math.min(Math.max(pointer.px, 52), pointer.width - 52),
+              top: pointer.py < 40 ? pointer.py + 18 : pointer.py - 14,
+              transform:
+                pointer.py < 40 ? "translateX(-50%)" : "translate(-50%, -100%)",
+            }}
+          >
+            <b>
+              {formatSensor(hover.value, chart.digits)}
+              {chart.unit && ` ${chart.unit}`}
+            </b>
+            <small>
+              {hover.secondsAgo === 0 ? "현재" : `${hover.secondsAgo}초 전`}
+            </small>
           </span>
         )}
         {!ready && (
