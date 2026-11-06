@@ -6,14 +6,10 @@ import pytest
 from weeing_weeing.config import get_settings
 
 ENV_EXAMPLE = Path(__file__).resolve().parents[1] / ".env.example"
-# docker compose만 읽는 항목, Anthropic SDK가 직접 읽는 비밀 값(Settings에 두지 않음)
+# docker compose만 읽는 항목, SDK가 직접 읽는 비밀 값(Settings에 두지 않음).
+# LANGFUSE_PUBLIC_KEY·SECRET_KEY는 사용량 요약 조회(#207)에 쓰여 Settings에 있다(repr 제외).
 COMPOSE_ONLY = {"POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"}
-SDK_ONLY = {
-    "ANTHROPIC_API_KEY",
-    "VOYAGE_API_KEY",
-    "LANGFUSE_PUBLIC_KEY",
-    "LANGFUSE_SECRET_KEY",
-}
+SDK_ONLY = {"ANTHROPIC_API_KEY", "VOYAGE_API_KEY"}
 # 예시 파일은 실제 코드 기본값과 다른 멀티 분석 시연 설정을 제공한다.
 EXAMPLE_OVERRIDES = {
     "ANALYSIS_MODE",

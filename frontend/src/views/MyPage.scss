@@ -360,6 +360,60 @@
   font-weight: 700;
   cursor: pointer;
 }
+/* 관리자 전용 LLM 사용량(#207) */
+.mypage__usage {
+  margin-top: 20px;
+}
+.mypage__usage-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.mypage__usage-periods {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--background);
+}
+.mypage__usage-periods button {
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  cursor: pointer;
+}
+.mypage__usage-periods button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--text);
+}
+.mypage__usage-periods button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.mypage__usage-summary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 18px;
+}
+.mypage__usage-models li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 8px 0;
+  font-variant-numeric: tabular-nums;
+}
+.mypage__usage-models li > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .mypage .workspace-error {
   flex-wrap: wrap;
   margin: 20px 0 0;
@@ -370,6 +424,9 @@
   }
 }
 @media (max-width: 700px) {
+  .mypage__usage-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .mypage__profile {
     gap: 14px;
     padding: 18px;

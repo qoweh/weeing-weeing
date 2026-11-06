@@ -22,8 +22,8 @@ EC2 ~/weeing-weeing/          (레포 clone 없음)
 
 web(Caddy :80/:443) ─┬─ /api/*  → api(FastAPI :8000)  ─┬─ postgres
                      ├─ /hmi/*  → hmi/web 정적 파일     ├─ qdrant
-                     ├─ 그 외   → frontend(Next.js :3100) └─ 홈서버 Langfuse (기록 전송, 서버 밖)
-                     └─ (멈춤) langfuse.<EC2_IP>.sslip.io → langfuse-web (~/langfuse)
+                     ├─ 그 외   → frontend(Next.js :3100) └─ langfuse-web (기록 전송, 서버 안)
+                     └─ langfuse.<EC2_IP>.sslip.io → langfuse-web (~/langfuse)
 ```
 
 | 서비스 | 이미지 | 데이터(볼륨) |
@@ -256,54 +256,53 @@ df -h / && docker system df           # 디스크 30GB
 - IP 접속은 SNI가 없어서 `default_sni`로 인증서를 고른다(`deploy/Caddyfile`)
 - 문제가 생기면 `SITE_ADDRESS` 줄을 지우고 `docker compose up -d web`으로 되돌린다(:80, HTTP)
 
-**Langfuse (LLM 기록).** 2026-11-05부터 EC2도 팀원 PC처럼 **홈서버 Langfuse**(EC2 전용 프로젝트)에 기록한다. 챗봇은 로그인 계정 이름으로 남는다([USAGE_TRACKING](USAGE_TRACKING.md#운영-서버ec2에서-사람-나누기)). 앱 `~/weeing-weeing/.env`:
+**Langfuse (LLM 기록).** 2026-11-06부터 EC2 자체 Langfuse(`deploy/langfuse`, `https://langfuse.<EC2_IP>.sslip.io`)가 운영 기준이다. 홈서버 Langfuse의 `hanwha-bootcamp` 조직(프로젝트 `weeing-weeing`·`ec2-weeing-weeing`, 사용자, API 키, 기록)을 그대로 옮겨 왔다. **기존 pk/sk를 그대로 쓴다.** 챗봇은 로그인 계정 이름으로 남는다([USAGE_TRACKING](USAGE_TRACKING.md#운영-서버ec2에서-사람-나누기)).
+
+앱 `~/weeing-weeing/.env`에 넣고 `docker compose up -d api web`:
 
 ```
-LANGFUSE_BASE_URL=https://langfuse.<HOME_DOMAIN>   # /api/public은 Cloudflare Access 예외라 서버에서 바로 닿는다
-LANGFUSE_PUBLIC_KEY=<홈서버 EC2 프로젝트 키>
-LANGFUSE_SECRET_KEY=<홈서버 EC2 프로젝트 키>
-LLM_USER=ec2                                       # 로그인 없이 도는 자동 분석의 이름. 챗봇은 로그인 계정 이름
+LANGFUSE_ADDRESS=langfuse.<EC2_IP>.sslip.io  # Caddy가 이 이름으로 대시보드를 연다
+LANGFUSE_BASE_URL=http://langfuse-web:3000         # 서버 안 통신
+LANGFUSE_PUBLIC_KEY=<ec2-weeing-weeing 프로젝트 키>  # 홈서버에서 쓰던 키 그대로
+LANGFUSE_SECRET_KEY=<ec2-weeing-weeing 프로젝트 키>
+LLM_USER=ec2                                        # 로그인 없이 도는 자동 분석의 이름. 챗봇은 로그인 계정 이름
 LANGFUSE_TRACING_ENVIRONMENT=demo
-# LANGFUSE_ADDRESS=                                # 비워 둔다(EC2 자체 Langfuse 대시보드 끔)
+# 마이페이지 "LLM 사용량"(관리자 전용)의 자세히 보기 링크
+LANGFUSE_DASHBOARD_URL=https://langfuse.<EC2_IP>.sslip.io/project/<ec2-weeing-weeing 프로젝트 ID>
 ```
 
-홈서버가 꺼져 있으면 기록만 빠지고 분석·챗봇은 그대로 된다.
+팀원 PC는 `.env`의 `LANGFUSE_BASE_URL`만 `https://langfuse.<EC2_IP>.sslip.io`로 바꾼다. 키는 그대로다. Langfuse가 꺼져 있으면 기록만 빠지고 분석·챗봇은 그대로 된다.
 
-### EC2 자체 Langfuse (`deploy/langfuse`, 지금은 멈춤)
+**마이페이지 LLM 사용량.** 계정 관리자(`is_admin`)에게만 보인다. api가 위 키로 Langfuse Metrics API를 읽어 기간(24시간·7일·30일)별 토큰·비용(USD)·호출 수·모델별 합계를 보여 준다. 키가 속한 프로젝트 하나의 집계다. Langfuse가 응답하지 않으면 "조회 실패"만 표시한다(제한 시간 `LANGFUSE_QUERY_TIMEOUT_S`, 기본 10초).
 
-홈서버를 쓸 수 없는 곳에 **레포만으로 배포할 때** 쓰는 구성이다. EC2에서는 홈서버로 옮기면서 컨테이너만 멈춰 두었다(데이터 볼륨은 남아 있음). 지우지 않는다.
+### EC2 자체 Langfuse (`deploy/langfuse`)
 
 ```
+cd ~/langfuse && docker compose ps       # 상태
 cd ~/langfuse && docker compose stop     # 멈춤. down -v는 기록까지 지우므로 쓰지 않는다
-cd ~/langfuse && docker compose start    # 다시 켜기. 아래 앱 .env 값으로 되돌린 뒤 docker compose up -d api web
+cd ~/langfuse && docker compose start    # 다시 켜기
 ```
 
 - 공식 이미지가 하위 경로를 지원하지 않아 `langfuse.<EC2_IP>.sslip.io`(IP를 가리키는 무료 이름)로 연다
-- 앱과 따로 `~/langfuse/`에서 띄운다(`deploy/langfuse/`). 앱 배포 때 재시작되지 않는다. 앱을 먼저 한 번 띄워 네트워크 `weeing-weeing_default`가 있어야 한다
-- 가입은 막혀 있다. 관리자 계정·API 키는 `~/langfuse/.env`의 `LANGFUSE_INIT_*` 값으로 **처음 한 번만** 만들어진다. 나중에 `.env`의 비밀번호를 바꿔도 반영되지 않는다([AWS_ACCESS](AWS_ACCESS.md#5-langfuse-ec2-서버의-llm-기록))
+- 앱과 따로 `~/langfuse/`에서 띄운다(`deploy/langfuse/`). 앱 배포 때 재시작되지 않는다. 앱을 먼저 한 번 띄워 네트워크 `weeing-weeing_default`가 있어야 한다. 배포 워크플로는 `~/langfuse`를 건드리지 않으므로 레포의 `deploy/langfuse/docker-compose.yml`을 바꾸면 서버에 직접 복사한다
+- 이미지는 옮겨 온 데이터를 만든 버전(Langfuse 4.71.0, ClickHouse 25.12.11.4)으로 고정했다. 더 낮은 버전으로 띄우지 않는다
+- 가입은 막혀 있다. 계정은 홈서버에서 옮겨 온 팀원 계정이다([AWS_ACCESS](AWS_ACCESS.md#5-langfuse-llm-기록))
+- `.env`의 `SALT`·`ENCRYPTION_KEY`는 홈서버 값과 같아야 한다. `SALT`가 다르면 기존 sk 인증이 실패한다
+
+빈 서버에 새로 설치할 때:
 
 ```
 mkdir -p ~/langfuse && cd ~/langfuse
 # deploy/langfuse/docker-compose.yml을 docker-compose.yml로, .env.example을 .env로 복사해 값을 채운다
+# 이때만 LANGFUSE_INIT_* 주석을 풀어 첫 조직·프로젝트·API 키·관리자 계정을 만든다(처음 한 번만 반영)
 chmod 600 .env && docker compose up -d
-```
-
-자체 Langfuse를 쓸 때 앱 `~/weeing-weeing/.env`에 넣고 `docker compose up -d api web`:
-
-```
-LANGFUSE_ADDRESS=langfuse.<EC2_IP>.sslip.io
-LANGFUSE_BASE_URL=http://langfuse-web:3000      # 서버 안 통신
-LANGFUSE_PUBLIC_KEY=<~/langfuse/.env의 INIT_PROJECT_PUBLIC_KEY>
-LANGFUSE_SECRET_KEY=<~/langfuse/.env의 INIT_PROJECT_SECRET_KEY>
-LLM_USER=ec2
-LANGFUSE_TRACING_ENVIRONMENT=demo
 ```
 
 다른 서버에 배포할 때 확인할 것:
 - `NEXTAUTH_URL`(`deploy/langfuse/.env.example`)과 `LANGFUSE_ADDRESS`를 그 서버 주소로 바꾼다. 지금 값은 EC2 IP(`<EC2_IP>`)가 들어간 sslip.io 이름이다
 - `deploy/langfuse/docker-compose.yml`은 앱 네트워크 `weeing-weeing_default`에 붙는다. 앱 폴더 이름이 다르면 네트워크 이름도 바뀐다
 - 관리자 계정·API 키는 `LANGFUSE_INIT_*`로 처음 한 번만 만들어진다
-- 사람별 비용은 Langfuse 기록만 남는다. 홈서버의 Slack 사용량 알림은 이 서버를 조회하지 않는다
+- 홈서버의 Slack 사용량 알림은 홈서버 Langfuse를 조회한다. 이 서버 기록으로 알리려면 알림 설정을 따로 옮긴다
 
 **DB·Qdrant.** 서버 안(`127.0.0.1`)에만 열려 있다. 팀원은 SSH 터널로 접속한다([AWS_ACCESS](AWS_ACCESS.md#4-ssh-터널로-dbqdrant-접속)).
 

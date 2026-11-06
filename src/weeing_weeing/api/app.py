@@ -11,6 +11,7 @@ from weeing_weeing.api.analysis import router as analysis_router
 from weeing_weeing.api.auth import router as auth_router
 from weeing_weeing.api.chat import router as chat_router
 from weeing_weeing.api.documents import router as documents_router
+from weeing_weeing.api.llm_usage import router as llm_usage_router
 from weeing_weeing.api.ml import router as ml_router
 from weeing_weeing.api.reports import router as reports_router
 from weeing_weeing.api.telemetry import router as telemetry_router
@@ -59,6 +60,7 @@ app.include_router(analysis_router)
 app.include_router(auth_router)
 app.include_router(chat_router)
 app.include_router(documents_router)
+app.include_router(llm_usage_router)
 app.include_router(telemetry_router)
 app.include_router(telemetry_live_router)
 app.include_router(ml_router)

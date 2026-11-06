@@ -11,7 +11,7 @@
 | 보내는 곳 | 언제 | 보내는 내용 | 설정 |
 |---|---|---|---|
 | Anthropic Claude API | 사건 분석, 챗봇 질문 | 사건 정보(룰 코드·센서 값·시각), 검색된 문서 조각, 챗봇 질문·대화 일부 | `ANTHROPIC_API_KEY`. 사번·결재 정보는 보내지 않는다(`agent/analyst.py`) |
-| Langfuse(팀 홈서버, 자체 호스팅) | LLM 호출마다 | 기본으로 프롬프트·응답 본문까지 | `LANGFUSE_CAPTURE_CONTENT=false`면 토큰·모델·시간만 |
+| Langfuse(팀 EC2 서버, 자체 호스팅) | LLM 호출마다 | 기본으로 프롬프트·응답 본문까지 | `LANGFUSE_CAPTURE_CONTENT=false`면 토큰·모델·시간만 |
 | Voyage AI(MongoDB) | **켰을 때만**. 기본은 꺼짐 | 문서 등록 때 **문서 본문 전체**, 검색 때 질의문, 리랭크 때 후보 조각 | `EMBEDDING_PROVIDER=voyage`, `RERANKER_MODEL` |
 | (외부로 안 나감) | 기본 임베딩·키워드 검색 | 해시 임베딩·Kiwi BM25는 서버 안에서 계산 | `EMBEDDING_PROVIDER=hashing` |
 

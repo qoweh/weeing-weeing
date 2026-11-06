@@ -104,7 +104,7 @@ Windows는 `ops/aws.sh`를 `.\ops\aws.ps1`로 바꾸면 된다.
 |---|---|
 | `~/weeing-weeing/docker-compose.yml` | 앱 구성. 배포 워크플로가 `deploy/docker-compose.prod.yml`로 덮어쓴다 |
 | `~/weeing-weeing/.env` | 앱 비밀 값. **통째로 `.env.example`로 덮어쓰지 않는다**(빠진 줄만 추가) |
-| `~/langfuse/` | 자체 Langfuse 구성(`deploy/langfuse/`)과 비밀 값. 지금은 멈춤(기록은 홈서버, [DEPLOY](../docs/DEPLOY.md#ec2-자체-langfuse-deploylangfuse-지금은-멈춤)) |
+| `~/langfuse/` | Langfuse 구성(`deploy/langfuse/`)과 비밀 값. 앱 배포와 따로 움직인다([DEPLOY](../docs/DEPLOY.md#ec2-자체-langfuse-deploylangfuse)) |
 | Docker 볼륨 `weeing-weeing_*` | `postgres_data`(DB), `qdrant_data`(벡터), `storage`(업로드 원본), `outputs`(사건 기록), `caddy_data`·`caddy_config`(인증서). 실제 경로는 `volumes` |
 
 - 배포는 `main`에 병합되면 GitHub Actions가 한다([DEPLOY](../docs/DEPLOY.md)). `pull-up`은 워크플로가 실패했을 때만 쓴다
