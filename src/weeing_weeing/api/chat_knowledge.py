@@ -58,6 +58,38 @@ class _Budget:
             raise LlmTimeoutError("검색 시간 초과")
 
 
+def _history_source(query, reports):
+    snapshot = hashlib.sha256(
+        json.dumps(
+            [
+                [
+                    r.report_id,
+                    r.report_version,
+                    r.asset_id,
+                    r.incident.codes,
+                    r.data_origin,
+                    r.maintenance.model_dump(mode="json"),
+                ]
+                for r in reports
+            ],
+            ensure_ascii=False,
+            sort_keys=True,
+        ).encode()
+    ).hexdigest()
+    selection = query.model_dump_json()
+    source_id = "history:" + hashlib.sha256((selection + snapshot).encode()).hexdigest()
+    source = ChatHistorySource(
+        source_id=source_id,
+        title="최신 승인 정비 보고서 DB 조회",
+        conditions=query.conditions,
+        code=query.code,
+        total=len(reports),
+        synthetic_total=sum(r.data_origin == "SYNTHETIC" for r in reports),
+        snapshot=snapshot,
+    )
+    return source
+
+
 class DatabaseChatKnowledge:
     """직책 ACL 없이 현재 문서·최신 승인 보고서만 검색한다.
 
@@ -281,44 +313,22 @@ class DatabaseChatKnowledge:
         budget.check()
         return results
 
+    def count_history(
+        self, query: ChatHistoryQuery, *, timeout_s: float
+    ) -> ChatHistorySource:
+        """집계 출처만 반환한다. 보고서 본문을 검색 hit로 가공하지 않는다."""
+        budget = _Budget(timeout_s)
+        source = _history_source(query, self._matching_reports(query))
+        budget.check()
+        return source
+
     def query_history(
         self, query: ChatHistoryQuery, *, timeout_s: float
     ) -> ChatHistoryResult:
-        """유사도 없이 DB 전체 대상에서 정확한 보고서 수와 제한된 목록을 반환한다."""
+        """같은 승인 집계 범위와 제한된 보고서 목록을 반환한다."""
         budget = _Budget(timeout_s)
         reports = self._matching_reports(query)
-        # 전체 승인 판·사람 작성 내용을 해시한다. AI/결재/사번은 출처 본문에 노출하지 않는다.
-        snapshot = hashlib.sha256(
-            json.dumps(
-                [
-                    [
-                        r.report_id,
-                        r.report_version,
-                        r.asset_id,
-                        r.incident.codes,
-                        r.data_origin,
-                        r.maintenance.model_dump(mode="json"),
-                    ]
-                    for r in reports
-                ],
-                ensure_ascii=False,
-                sort_keys=True,
-            ).encode()
-        ).hexdigest()
-        selection = query.model_dump_json()
-        source_id = (
-            "history:" + hashlib.sha256((selection + snapshot).encode()).hexdigest()
-        )
-        source = ChatHistorySource(
-            source_id=source_id,
-            title="최신 승인 정비 보고서 DB 조회",
-            conditions=query.conditions,
-            code=query.code,
-            total=len(reports),
-            synthetic_total=sum(r.data_origin == "SYNTHETIC" for r in reports),
-            snapshot=snapshot,
-        )
-        # total은 전체 보고서 수, limit은 화면·LLM에 전달할 목록 길이에만 적용한다.
+        source = _history_source(query, reports)
         items = [report_search_hit(r) for r in reports[: query.conditions.limit]]
         budget.check()
         return ChatHistoryResult(
@@ -376,11 +386,11 @@ class DatabaseChatKnowledge:
             )
         elif isinstance(source, ChatHistorySource):
             # 0건이 1건이 되는 경우도 잡기 위해 집계 대상 전체의 스냅샷을 다시 비교한다.
-            current = self.query_history(
+            current = self.count_history(
                 ChatHistoryQuery(conditions=source.conditions, code=source.code),
                 timeout_s=max(budget.end - time.monotonic(), 0),
             )
-            result = current.source == source
+            result = current == source
         elif isinstance(source, ChatDocumentSource):
             # 판 번호가 같아도 파일이 바뀌면 이전 본문을 인용하지 못하도록 해시도 대조한다.
             result = any(

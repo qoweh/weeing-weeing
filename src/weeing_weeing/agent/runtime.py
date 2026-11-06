@@ -55,6 +55,8 @@ class RunMemory:
     sensor_windows: dict[str, dict[str, Any]] = field(default_factory=dict)
     tool_calls: list[ToolCall] = field(default_factory=list)
     usage: LlmUsage = field(default_factory=lambda: LlmUsage(0, 0, 0.0))
+    current_tool_count: int = 0
+    final_result: Any = None
     turns: int = 0
     usage_missing_calls: int = (
         0  # 공급자가 사용량을 주지 않은 호출은 0으로 확정하지 않는다.
@@ -160,6 +162,7 @@ def _loop(
     api_tools = [tool.to_api() for tool in spec.tools] + [spec.finish.to_api()]
     memory.messages.append({"role": "user", "content": task})
     nudged = False
+    memory.final_result = None
 
     while memory.turns < spec.max_turns:
         memory.turns += 1
@@ -181,6 +184,7 @@ def _loop(
         memory.messages.append({"role": "assistant", "content": response.content})
 
         uses = [b for b in response.content if b.type == "tool_use"]
+        memory.current_tool_count = len(uses)
         if not uses:
             # 도구 선택을 강제할 수 없는 모델이라(tool_choice auto) 한 번은 다시 요청한다
             if nudged:
@@ -205,7 +209,9 @@ def _loop(
                     output=content if isinstance(content, str) else None,
                     level="WARNING" if is_error else None,
                 )
-            if block.name == spec.finish.name and not is_error:
+            if memory.final_result is not None and not is_error:
+                output, finished = memory.final_result, True
+            elif block.name == spec.finish.name and not is_error:
                 output, finished = content, True
                 content = "제출을 받았다."
             results.append(
@@ -240,6 +246,7 @@ def _run_tool(
         else:
             raise ToolInputError(f"없는 도구: {block.name}")
     except (ToolInputError, ValueError) as exc:
+        memory.final_result = None
         # pydantic ValidationError도 ValueError다
         memory.tool_calls.append(ToolCall(block.name, data, False, str(exc)[:300]))
         return f"오류: {exc}", True

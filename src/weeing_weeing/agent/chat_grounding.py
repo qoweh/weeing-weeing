@@ -8,6 +8,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import Field, model_validator
 
+from weeing_weeing.agent.chat_efficiency import evidence_reference_system
 from weeing_weeing.agent.runtime import AgentError
 from weeing_weeing.agent.tracing import generation_label
 from weeing_weeing.contracts.chat import ChatModel
@@ -165,10 +166,13 @@ def verify_grounding(
         f"grounding-review.{mode.lower()}", purpose="grounding_review", mode=mode
     ):
         raw = client.generate_json(
-            {
-                "CLARIFICATION": CLARIFICATION_SYSTEM,
-                "INSUFFICIENCY": INSUFFICIENCY_SYSTEM,
-            }.get(payload.get("mode"), SYSTEM),
+            evidence_reference_system(
+                {
+                    "CLARIFICATION": CLARIFICATION_SYSTEM,
+                    "INSUFFICIENCY": INSUFFICIENCY_SYSTEM,
+                }.get(payload.get("mode"), SYSTEM),
+                payload,
+            ),
             json.dumps(payload, ensure_ascii=False),
             schema=GroundingVerdict.model_json_schema(),
             timeout_s=timeout_s,
