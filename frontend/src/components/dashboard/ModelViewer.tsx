@@ -17,10 +17,36 @@ import {
 // 그래프에 마우스를 올렸을 때 커서 아래에 뜨는 값 박스를 잠시 숨긴다. 다시 보이게 하려면 true로 바꾼다.
 const SHOW_HOVER_BOX = false;
 
-const hotspots = [
+// 컨베이어 벨트 회전. GLB에는 Blender의 텍스처 스크롤 애니메이션이 담기지 않으므로 코드에서 텍스처를 흘린다.
+// BELT_DIRECTION: 1이면 벨트 윗면이 기계에서 멀어지는 쪽으로, -1이면 기계 쪽으로 움직인다(모델 기준, 좌우 반전과 무관).
+const MODEL_SCALE = 1.5;
+// 화면 가로 가운데에 맞출 점: 바닥(GLB의 Floor 3장, X -1.23~10.12)의 앞쪽 가장자리 중심. MODEL_SCALE·MODEL_MIRROR를 곱한 월드 좌표다.
+const FLOOR_FRONT_CENTER = [4.4424, 0, 2.5358] as const;
+// 모델 좌우 반전. -1이면 X를 뒤집어 기계가 오른쪽, 컨베이어가 왼쪽에 놓인다(1이면 원래대로). 카메라·상자 위치도 이 값을 따른다.
+const MODEL_MIRROR = -1;
+// 벨트 위 상자(GLB의 Box_01, Box_02 ...). 벨트 윗면과 같은 속도·방향(BELT_DIRECTION)으로 흘러간다.
+// BELT_TRAVEL_PER_LOOP: 텍스처가 한 바퀴 돌 때 벨트 윗면이 움직이는 거리, BOX_X_RANGE: 상자가 지나가는 X 구간(둘 다 MODEL_SCALE 곱하기 전 값).
+const BOX_NAME = /^Box_\d+$/;
+const BELT_TRAVEL_PER_LOOP = 8.02;
+const BOX_X_RANGE = [0.8, 9.86] as const;
+const BELT_MATERIAL = "Belt_Exterior";
+// 벨트 텍스처가 한 바퀴 도는 시간(초). 상자 속도도 이 값을 따라 벨트 윗면과 항상 같다.
+// 줄무늬 간격이 0.057이라 너무 빠르면 프레임이 낮을 때(약 40fps 이하) 줄무늬가 멈추거나 거꾸로 가는 것처럼 보여
+// 상자만 빨라 보인다. 20초면 24fps 이상에서 정상 방향으로 보인다(속도 약 0.6/초). 값을 키우면 더 느려진다.
+const BELT_LOOP_SECONDS = 20;
+// 지금은 1: 기계(화면 오른쪽)에서 상자가 나와 왼쪽으로 흘러간다.
+const BELT_DIRECTION = 1;
+
+// 모델 위의 녹색 선택 버튼(표시 지점)을 숨긴다. 다시 보이게 하려면 true로 바꾼다.
+const SHOW_HOTSPOTS = false;
+
+const HOTSPOTS = [
   { id: "front", label: "정면 표시 지점", point: [-0.094, 0.12] },
   { id: "right", label: "우측면 표시 지점", point: [0.022, -0.067] },
 ] as const;
+const hotspots: readonly (typeof HOTSPOTS)[number][] = SHOW_HOTSPOTS
+  ? HOTSPOTS
+  : [];
 
 type Props = {
   paused?: boolean;
@@ -374,7 +400,17 @@ export default function ModelViewer({
     }
     let disposed = false;
     let model: THREE.Group | undefined;
+    let background: THREE.Group | undefined;
     let mixer: THREE.AnimationMixer | undefined;
+    let beltPhase = 0;
+    let boxPhase = 0;
+    const boxes: {
+      object: THREE.Object3D;
+      y: number;
+      z: number;
+      offset: number;
+    }[] = [];
+    const beltTextures: { texture: THREE.Texture; base: number }[] = [];
     const anchors: { anchor: THREE.Object3D; id: string }[] = [];
     const raycaster = new THREE.Raycaster();
     const world = new THREE.Vector3();
@@ -394,14 +430,39 @@ export default function ModelViewer({
     const environment = pmrem.fromScene(scene);
     scene.environment = environment.texture;
     const camera = new THREE.PerspectiveCamera(40, 1, 1, 100);
-    camera.position.set(5, 2, 8);
+    // 모델(MODEL_SCALE 배)을 정면에서 30도로 내려다보는 위치.
+    camera.position.set(MODEL_MIRROR * 4.05, 6.5, 9.53);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.target.set(0, 0.7, 0);
+    // 카메라 고정: 마우스로 회전·확대·이동하지 못하게 한다. 다시 움직이게 하려면 true로 바꾼다.
+    controls.enableRotate = false;
+    controls.enableZoom = false;
+    controls.enablePan = false;
+    controls.target.set(MODEL_MIRROR * 4.05, 1, 0);
     controls.update();
+    // 처음 카메라 자세. 화면을 얼마나 밀지 계산할 때만 쓴다(사용자가 돌려 본 뒤에도 같은 값을 쓴다).
+    const baseCamera = camera.clone();
+    const floorCenter = new THREE.Vector3(
+      MODEL_MIRROR * FLOOR_FRONT_CENTER[0] * MODEL_SCALE,
+      FLOOR_FRONT_CENTER[1],
+      FLOOR_FRONT_CENTER[2] * MODEL_SCALE,
+    );
     const resize = () => {
       if (!host.clientWidth || !host.clientHeight) return;
       camera.aspect = host.clientWidth / host.clientHeight;
+      // 카메라 각도는 그대로 두고, 바닥 앞쪽 가장자리의 중심이 화면 가로 가운데에 오도록 화면 전체를 민다.
+      baseCamera.aspect = camera.aspect;
+      baseCamera.filmOffset = 0;
+      baseCamera.updateProjectionMatrix();
+      baseCamera.updateMatrixWorld();
+      const shift = -floorCenter.clone().project(baseCamera).x / 2;
+      const filmWidth = camera.filmGauge * Math.min(camera.aspect, 1);
+      camera.filmOffset =
+        -shift *
+        filmWidth *
+        2 *
+        Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) *
+        camera.aspect;
       camera.updateProjectionMatrix();
       renderer.setSize(host.clientWidth, host.clientHeight);
     };
@@ -425,21 +486,84 @@ export default function ModelViewer({
         });
       });
     };
+    // 공장 배경(벽·기둥·지붕 트러스·설비). Blender의 웹용 배경을 재질별로 합쳐 내보냈고, 모델과 같은 배율·좌우 반전을 적용한다.
+    new GLTFLoader()
+      .setDRACOLoader(draco)
+      .load("/models/FactoryBackground.glb", (gltf) => {
+        if (disposed) {
+          disposeModel(gltf.scene);
+          return;
+        }
+        background = gltf.scene;
+        background.scale.set(
+          MODEL_MIRROR * MODEL_SCALE,
+          MODEL_SCALE,
+          MODEL_SCALE,
+        );
+        scene.add(background);
+      });
     new GLTFLoader().setDRACOLoader(draco).load(
-      "/models/LittlestTokyo.glb",
+      "/models/MachineConveyorBelt.glb",
       (gltf) => {
         if (disposed) {
           disposeModel(gltf.scene);
           return;
         }
+        // 모델은 Blender에서 0.01 배로 줄여 내보냈다. 화면에서 더 크게 보이도록 MODEL_SCALE만큼 키운다.
         model = gltf.scene;
-        model.position.set(1, 1, 0);
-        model.scale.setScalar(0.01);
+        model.scale.set(MODEL_MIRROR * MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
+        model.traverse((child) => {
+          if (!(child instanceof THREE.Mesh)) return;
+          const materials = Array.isArray(child.material)
+            ? child.material
+            : [child.material];
+          materials.forEach((material) => {
+            if (
+              !(material instanceof THREE.MeshStandardMaterial) ||
+              material.name !== BELT_MATERIAL
+            )
+              return;
+            [
+              material.map,
+              material.normalMap,
+              material.metalnessMap,
+              material.roughnessMap,
+            ].forEach((texture) => {
+              if (
+                !texture ||
+                beltTextures.some((item) => item.texture === texture)
+              )
+                return;
+              texture.wrapS = THREE.RepeatWrapping;
+              beltTextures.push({ texture, base: texture.offset.x });
+            });
+          });
+        });
         scene.add(model);
         mixer = new THREE.AnimationMixer(model);
         if (gltf.animations[0]) mixer.clipAction(gltf.animations[0]).play();
         mixer.update(0);
         model.updateMatrixWorld(true);
+        const boxObjects: THREE.Object3D[] = [];
+        model.traverse((child) => {
+          if (BOX_NAME.test(child.name)) boxObjects.push(child);
+        });
+        boxObjects.sort((a, b) => a.name.localeCompare(b.name));
+        boxObjects.forEach((object, index) => {
+          const world = object.getWorldPosition(new THREE.Vector3());
+          boxes.push({
+            object,
+            y: world.y,
+            z: world.z,
+            offset: index / boxObjects.length,
+          });
+        });
+        // 지나가는 상자에 마커가 붙지 않도록 상자는 마커 위치 찾기에서 뺀다.
+        const isBox = (object: THREE.Object3D | null) => {
+          for (; object; object = object.parent)
+            if (BOX_NAME.test(object.name)) return true;
+          return false;
+        };
         hotspots.forEach((hotspot) => {
           const referenceCamera = camera.clone();
           referenceCamera.aspect = 1512 / 834;
@@ -455,7 +579,9 @@ export default function ModelViewer({
             new THREE.Vector2(...hotspot.point),
             referenceCamera,
           );
-          const hit = raycaster.intersectObject(model!, true)[0];
+          const hit = raycaster
+            .intersectObject(model!, true)
+            .find((item) => !isBox(item.object));
           if (hit) {
             const anchor = new THREE.Object3D();
             anchor.position.copy(hit.object.worldToLocal(hit.point.clone()));
@@ -475,6 +601,33 @@ export default function ModelViewer({
       const delta = clock.getDelta();
       if (pausedRef.current) return;
       mixer?.update(delta);
+      beltPhase = (beltPhase + delta / BELT_LOOP_SECONDS) % 1;
+      beltTextures.forEach(({ texture, base }) => {
+        texture.offset.x = base + BELT_DIRECTION * beltPhase;
+      });
+      if (boxes.length > 0) {
+        const [start, end] = BOX_X_RANGE;
+        // 벨트 윗면이 움직이는 속도와 같게 맞춘다(한 번 지나가는 데 걸리는 시간 = 구간 길이 / 속도).
+        boxPhase =
+          (boxPhase +
+            (delta * BELT_TRAVEL_PER_LOOP) /
+              ((end - start) * BELT_LOOP_SECONDS)) %
+          1;
+        boxes.forEach(({ object, y, z, offset }) => {
+          const t = (boxPhase + offset) % 1;
+          const x =
+            (BELT_DIRECTION > 0
+              ? start + t * (end - start)
+              : end - t * (end - start)) *
+            MODEL_SCALE *
+            MODEL_MIRROR;
+          object.parent?.updateWorldMatrix(true, false);
+          object.position.copy(
+            object.parent?.worldToLocal(new THREE.Vector3(x, y, z)) ??
+              new THREE.Vector3(x, y, z),
+          );
+        });
+      }
       controls.update();
       model?.updateMatrixWorld(true);
       camera.updateMatrixWorld();
@@ -514,6 +667,7 @@ export default function ModelViewer({
       renderer.setAnimationLoop(null);
       mixer?.stopAllAction();
       if (model) disposeModel(model);
+      if (background) disposeModel(background);
       draco.dispose();
       controls.dispose();
       environment.dispose();
