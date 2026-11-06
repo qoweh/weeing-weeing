@@ -31,5 +31,7 @@
 |---|---|---|
 | `eval/ml_future60_v1/` | 원본 검증, 고정 실행 분리, window 집계, 검증 후보, 메타데이터, 평가 및 시험 혼동행렬. 원본 센서 행은 포함하지 않음 | 사용자 제공 Unreal 합성 `conveyor_dataset.csv`, SHA-256 `26ed78c3…3086a1`; [실험 설명](../docs/ML_FUTURE_ERROR.md) |
 
+15종 고장 통합 재학습의 검증·실행 분리·평가·혼동행렬은 `eval/ml_future60_v2_15faults/`에 있다. 두 사용자 제공 Unreal CSV(총 138,194행)의 집계이며 원본 센서 행은 포함하지 않는다. [확장 학습 안내](../docs/ML_EXPANDED_TRAINING.md)를 참고한다.
+
 원본 CSV는 저장소 밖 실제 경로에서 읽으며 수정·Git 추가하지 않는다.
 모델 joblib과 행별 예측은 Git 제외 `outputs/ml/`에 저장한다.

@@ -4,7 +4,26 @@ from datetime import datetime, timezone
 
 import numpy as np
 
+from weeing_weeing.contracts.codes import CODES as REGISTERED_CODES
+
+# v1 호환 기본값. 실제 학습/추론 클래스는 데이터와 모델 메타데이터에서 결정한다.
 CLASSES = ["NO_ERROR", "BTT2-M02", "BTT2-M07", "BTT2-M10", "BTT2-M12"]
+
+
+def classes_for_codes(codes):
+    codes = list(codes)
+    if (
+        not codes
+        or len(codes) != len(set(codes))
+        or any(
+            c not in REGISTERED_CODES or not c.startswith(("BTT2-M", "BTT2-P"))
+            for c in codes
+        )
+    ):
+        raise ValueError("Unknown or duplicate fault classes")
+    return ["NO_ERROR", *sorted(codes)]
+
+
 BOOL_SENSORS = ["infeed_present", "outfeed_present"]
 CONTINUOUS = [
     "rpm",

@@ -1,0 +1,4091 @@
+{
+  "model_version": "rf-future60-v2-6ae992008f6f",
+  "model_sha256": "4ab68e5d6d1e1bd4e677c8772ebf96b48294dd10ff71a5ac525a2d6285b8b1df",
+  "manifest_sha256": "61a29ccfb4ab2e5cd6a7a499f80ba294149d00bf28788e19855946556953e28d",
+  "dataset_sha256": "bf2e2b65e61fd8cff7a79b27cc94a831bcfcf2d32f0a8bdb733177ea59aa2b08",
+  "probability_calibration": "none; existing fixed model, no fitting or selection",
+  "sets": {
+    "train": {
+      "support": 7247,
+      "classes": [
+        "BTT2-M02",
+        "BTT2-M03",
+        "BTT2-M05",
+        "BTT2-M06",
+        "BTT2-M07",
+        "BTT2-M08",
+        "BTT2-M10",
+        "BTT2-M11",
+        "BTT2-M12",
+        "BTT2-M13",
+        "BTT2-M14",
+        "BTT2-M15",
+        "BTT2-M16",
+        "BTT2-M17",
+        "BTT2-M18",
+        "NO_ERROR"
+      ],
+      "log_loss": 0.06386163167226135,
+      "multiclass_brier_score": 0.02832807333986578,
+      "any_error": {
+        "support": 7247,
+        "positive_support": 2692,
+        "brier_score": 0.014264918543551164,
+        "ece_equal_width": 0.03499035176129244,
+        "reliability_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "count": 3886,
+            "mean_probability": 0.016525326480450075,
+            "observed_frequency": 0.0
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "count": 310,
+            "mean_probability": 0.13891676685637785,
+            "observed_frequency": 0.0
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "count": 121,
+            "mean_probability": 0.24064298935683237,
+            "observed_frequency": 0.0
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "count": 92,
+            "mean_probability": 0.34099434155820024,
+            "observed_frequency": 0.043478260869565216
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "count": 76,
+            "mean_probability": 0.45447903995514294,
+            "observed_frequency": 0.17105263157894737
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "count": 55,
+            "mean_probability": 0.5518746924792379,
+            "observed_frequency": 0.43636363636363634
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "count": 62,
+            "mean_probability": 0.647442102687003,
+            "observed_frequency": 0.5967741935483871
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "count": 80,
+            "mean_probability": 0.7624057987151737,
+            "observed_frequency": 0.8125
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "count": 152,
+            "mean_probability": 0.853181278334239,
+            "observed_frequency": 0.9013157894736842
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "count": 2413,
+            "mean_probability": 0.9799232182492648,
+            "observed_frequency": 0.9995855781185247
+          }
+        ]
+      },
+      "per_class": {
+        "BTT2-M02": {
+          "support": 7247,
+          "positive_support": 180,
+          "brier_score": 0.0010907322731314377,
+          "ece_equal_width": 0.0034523372959622445,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 7019,
+              "mean_probability": 0.0011802672482256469,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 25,
+              "mean_probability": 0.1429501948051948,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 7,
+              "mean_probability": 0.24852540713255,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 4,
+              "mean_probability": 0.3508175955988457,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 10,
+              "mean_probability": 0.45028268398268406,
+              "observed_frequency": 0.2
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 2,
+              "mean_probability": 0.5427410714285714,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 5,
+              "mean_probability": 0.653877777777778,
+              "observed_frequency": 0.8
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 11,
+              "mean_probability": 0.7631588941361668,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 11,
+              "mean_probability": 0.8618447461629279,
+              "observed_frequency": 0.8181818181818182
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 153,
+              "mean_probability": 0.9763815359477124,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M03": {
+          "support": 7247,
+          "positive_support": 179,
+          "brier_score": 0.0012301658310427067,
+          "ece_equal_width": 0.0033437604474240335,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 7024,
+              "mean_probability": 0.0012106770550855115,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 17,
+              "mean_probability": 0.14107389016212543,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 10,
+              "mean_probability": 0.24376946248196255,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 5,
+              "mean_probability": 0.32967860750360745,
+              "observed_frequency": 0.2
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 4,
+              "mean_probability": 0.4528940295815295,
+              "observed_frequency": 0.25
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 10,
+              "mean_probability": 0.5471482142857143,
+              "observed_frequency": 0.3
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 5,
+              "mean_probability": 0.6586280663780663,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 4,
+              "mean_probability": 0.7719708243145744,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 8,
+              "mean_probability": 0.8603626443001444,
+              "observed_frequency": 0.875
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 160,
+              "mean_probability": 0.9746925471230158,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M05": {
+          "support": 7247,
+          "positive_support": 179,
+          "brier_score": 0.0009304584000932454,
+          "ece_equal_width": 0.00223179529828833,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 7040,
+              "mean_probability": 0.0004467601645513577,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 9,
+              "mean_probability": 0.14679970338303672,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 7,
+              "mean_probability": 0.25035479797979804,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 2,
+              "mean_probability": 0.31243713924963934,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 4,
+              "mean_probability": 0.4403845147907648,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 2,
+              "mean_probability": 0.5293533549783549,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 5,
+              "mean_probability": 0.6747843073593072,
+              "observed_frequency": 0.2
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 4,
+              "mean_probability": 0.7635254329004328,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 6,
+              "mean_probability": 0.8596672378547378,
+              "observed_frequency": 0.8333333333333334
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 168,
+              "mean_probability": 0.9804109268707483,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M06": {
+          "support": 7247,
+          "positive_support": 180,
+          "brier_score": 0.0009714638121255391,
+          "ece_equal_width": 0.0028648798459409734,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 7019,
+              "mean_probability": 0.0004972866549480027,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 20,
+              "mean_probability": 0.15103519744144744,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 12,
+              "mean_probability": 0.24252929593554587,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 7,
+              "mean_probability": 0.3355917594310451,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 3,
+              "mean_probability": 0.47428409090909085,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 4,
+              "mean_probability": 0.5413004148629149,
+              "observed_frequency": 0.75
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 4,
+              "mean_probability": 0.6556102092352092,
+              "observed_frequency": 0.25
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 5,
+              "mean_probability": 0.7436065295815297,
+              "observed_frequency": 0.8
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 15,
+              "mean_probability": 0.8491017556517556,
+              "observed_frequency": 0.9333333333333333
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 158,
+              "mean_probability": 0.9774329181718423,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M07": {
+          "support": 7247,
+          "positive_support": 180,
+          "brier_score": 0.0007954518007817421,
+          "ece_equal_width": 0.003255160591903387,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 7025,
+              "mean_probability": 0.0009981216332106012,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 21,
+              "mean_probability": 0.13219433278361853,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 7,
+              "mean_probability": 0.23959325396825396,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 8,
+              "mean_probability": 0.32987664592352095,
+              "observed_frequency": 0.125
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 3,
+              "mean_probability": 0.4562156084656084,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 4,
+              "mean_probability": 0.5328139880952382,
+              "observed_frequency": 0.25
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 4,
+              "mean_probability": 0.6323758567821068,
+              "observed_frequency": 0.75
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 9,
+              "mean_probability": 0.7740649350649349,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 11,
+              "mean_probability": 0.8381533680965499,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 155,
+              "mean_probability": 0.97611632569939,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M08": {
+          "support": 7247,
+          "positive_support": 179,
+          "brier_score": 0.0008055311505069146,
+          "ece_equal_width": 0.0020126593409503547,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 7032,
+              "mean_probability": 0.0007610823003314472,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 22,
+              "mean_probability": 0.12837749245703792,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 4,
+              "mean_probability": 0.27993105158730164,
+              "observed_frequency": 0.25
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 4,
+              "mean_probability": 0.3387142406204906,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 4,
+              "mean_probability": 0.4342558621933622,
+              "observed_frequency": 0.25
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 2,
+              "mean_probability": 0.5466839826839826,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 2,
+              "mean_probability": 0.6501299603174604,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 7,
+              "mean_probability": 0.7610188105545248,
+              "observed_frequency": 0.7142857142857143
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 8,
+              "mean_probability": 0.8474201388888889,
+              "observed_frequency": 0.875
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 162,
+              "mean_probability": 0.9823640527853492,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M10": {
+          "support": 7247,
+          "positive_support": 180,
+          "brier_score": 0.0007979894454454685,
+          "ece_equal_width": 0.002959061527451893,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 7020,
+              "mean_probability": 0.00053239867128756,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 18,
+              "mean_probability": 0.15760655471072138,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 14,
+              "mean_probability": 0.23846340068661495,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 9,
+              "mean_probability": 0.3589044134877468,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 4,
+              "mean_probability": 0.4615896117771118,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 4,
+              "mean_probability": 0.5240719696969698,
+              "observed_frequency": 0.75
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 2,
+              "mean_probability": 0.6411342893217895,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 4,
+              "mean_probability": 0.7750041937229435,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 6,
+              "mean_probability": 0.8472526455026457,
+              "observed_frequency": 0.8333333333333334
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 166,
+              "mean_probability": 0.976807025220429,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M11": {
+          "support": 7247,
+          "positive_support": 178,
+          "brier_score": 0.0009008638132308955,
+          "ece_equal_width": 0.0026822421212168673,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 7045,
+              "mean_probability": 0.0012952343492797715,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 7,
+              "mean_probability": 0.15556703217417506,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 5,
+              "mean_probability": 0.2534294511044511,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 5,
+              "mean_probability": 0.3378562909312909,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 3,
+              "mean_probability": 0.4350167563917564,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 5,
+              "mean_probability": 0.5605617493617494,
+              "observed_frequency": 0.4
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 3,
+              "mean_probability": 0.6410299654049654,
+              "observed_frequency": 0.3333333333333333
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 4,
+              "mean_probability": 0.7700794101731603,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 11,
+              "mean_probability": 0.8584400826446281,
+              "observed_frequency": 0.9090909090909091
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 159,
+              "mean_probability": 0.9850931138218875,
+              "observed_frequency": 0.9937106918238994
+            }
+          ]
+        },
+        "BTT2-M12": {
+          "support": 7247,
+          "positive_support": 180,
+          "brier_score": 0.0012980985075662114,
+          "ece_equal_width": 0.0027409217049757994,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 7022,
+              "mean_probability": 0.0007777835316997948,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 13,
+              "mean_probability": 0.13498353035853033,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 8,
+              "mean_probability": 0.24594043109668112,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 9,
+              "mean_probability": 0.3474279902196569,
+              "observed_frequency": 0.1111111111111111
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 11,
+              "mean_probability": 0.4377924865538501,
+              "observed_frequency": 0.18181818181818182
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 3,
+              "mean_probability": 0.5688174603174604,
+              "observed_frequency": 0.3333333333333333
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 4,
+              "mean_probability": 0.6441924603174602,
+              "observed_frequency": 0.75
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 3,
+              "mean_probability": 0.7410796657046657,
+              "observed_frequency": 0.6666666666666666
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 14,
+              "mean_probability": 0.847070707070707,
+              "observed_frequency": 0.7857142857142857
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 160,
+              "mean_probability": 0.9779682900432899,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M13": {
+          "support": 7247,
+          "positive_support": 179,
+          "brier_score": 0.0008213279531279516,
+          "ece_equal_width": 0.0027337528163387127,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 7028,
+              "mean_probability": 0.0007557564013170161,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 15,
+              "mean_probability": 0.13911980519480519,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 10,
+              "mean_probability": 0.2197321428571429,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 6,
+              "mean_probability": 0.33908164058164064,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 4,
+              "mean_probability": 0.46666309038184045,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 5,
+              "mean_probability": 0.5448124347874348,
+              "observed_frequency": 0.6
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 7,
+              "mean_probability": 0.6449951477094334,
+              "observed_frequency": 0.5714285714285714
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 6,
+              "mean_probability": 0.7659053631553631,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 9,
+              "mean_probability": 0.8608644118227452,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 157,
+              "mean_probability": 0.9817382293926881,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M14": {
+          "support": 7247,
+          "positive_support": 180,
+          "brier_score": 0.0008764763499477991,
+          "ece_equal_width": 0.0017659695436189069,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 7042,
+              "mean_probability": 0.0005855333761823396,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 7,
+              "mean_probability": 0.13636893067250214,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 2,
+              "mean_probability": 0.26353510378510386,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 5,
+              "mean_probability": 0.32520792540792554,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 5,
+              "mean_probability": 0.4342112637362637,
+              "observed_frequency": 0.2
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 3,
+              "mean_probability": 0.5676702602952602,
+              "observed_frequency": 0.6666666666666666
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 3,
+              "mean_probability": 0.6341505207755207,
+              "observed_frequency": 0.3333333333333333
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 8,
+              "mean_probability": 0.7551410169691419,
+              "observed_frequency": 0.625
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 6,
+              "mean_probability": 0.8733359187109188,
+              "observed_frequency": 0.8333333333333334
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 166,
+              "mean_probability": 0.9884619147586019,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M15": {
+          "support": 7247,
+          "positive_support": 180,
+          "brier_score": 0.0006729740828121818,
+          "ece_equal_width": 0.0020402984087957185,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 7047,
+              "mean_probability": 0.000895245175098304,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 8,
+              "mean_probability": 0.13438129058441556,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 2,
+              "mean_probability": 0.24843749999999992,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 5,
+              "mean_probability": 0.3607820346320346,
+              "observed_frequency": 0.2
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 3,
+              "mean_probability": 0.4559872534872536,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 4,
+              "mean_probability": 0.5514345238095237,
+              "observed_frequency": 0.75
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 4,
+              "mean_probability": 0.6474751984126985,
+              "observed_frequency": 0.75
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 4,
+              "mean_probability": 0.7797279491341991,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 5,
+              "mean_probability": 0.8505511904761907,
+              "observed_frequency": 0.8
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 165,
+              "mean_probability": 0.985483349731077,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M16": {
+          "support": 7247,
+          "positive_support": 179,
+          "brier_score": 0.000696172606690598,
+          "ece_equal_width": 0.0027519654599835867,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 7034,
+              "mean_probability": 0.0006948683181236409,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 18,
+              "mean_probability": 0.1490614960565941,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 3,
+              "mean_probability": 0.25390355940355935,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 2,
+              "mean_probability": 0.36112003968253975,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 6,
+              "mean_probability": 0.454014182440653,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 4,
+              "mean_probability": 0.5510495788933288,
+              "observed_frequency": 0.25
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 4,
+              "mean_probability": 0.6549458525543085,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 3,
+              "mean_probability": 0.7741118603618603,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 13,
+              "mean_probability": 0.8644973274588659,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 160,
+              "mean_probability": 0.975615835813492,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M17": {
+          "support": 7247,
+          "positive_support": 179,
+          "brier_score": 0.0009444088006322907,
+          "ece_equal_width": 0.0027004548163303485,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 7027,
+              "mean_probability": 0.0009114140705680482,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 13,
+              "mean_probability": 0.1363040293040293,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 11,
+              "mean_probability": 0.23869471942199222,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 9,
+              "mean_probability": 0.3373603464436798,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 4,
+              "mean_probability": 0.4729466089466089,
+              "observed_frequency": 0.25
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 4,
+              "mean_probability": 0.5381186833999333,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 3,
+              "mean_probability": 0.6247922077922078,
+              "observed_frequency": 0.6666666666666666
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 5,
+              "mean_probability": 0.7632321428571428,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 14,
+              "mean_probability": 0.8648756699649555,
+              "observed_frequency": 0.8571428571428571
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 157,
+              "mean_probability": 0.9791728104697851,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M18": {
+          "support": 7247,
+          "positive_support": 180,
+          "brier_score": 0.0012310399691796354,
+          "ece_equal_width": 0.002823041593964047,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 7020,
+              "mean_probability": 0.0005406961608350497,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 16,
+              "mean_probability": 0.1329671378968254,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 8,
+              "mean_probability": 0.2429381538600289,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 7,
+              "mean_probability": 0.3232711811997526,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 6,
+              "mean_probability": 0.439094215969216,
+              "observed_frequency": 0.16666666666666666
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 6,
+              "mean_probability": 0.559345628908129,
+              "observed_frequency": 0.3333333333333333
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 4,
+              "mean_probability": 0.6285043290043291,
+              "observed_frequency": 0.25
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 12,
+              "mean_probability": 0.7515315656565655,
+              "observed_frequency": 0.6666666666666666
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 10,
+              "mean_probability": 0.8588385642135641,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 158,
+              "mean_probability": 0.978516657305423,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "NO_ERROR": {
+          "support": 7247,
+          "positive_support": 4555,
+          "brier_score": 0.014264918543551162,
+          "ece_equal_width": 0.034990351761292504,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2413,
+              "mean_probability": 0.020076781750735337,
+              "observed_frequency": 0.0004144218814753419
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 152,
+              "mean_probability": 0.14681872166576113,
+              "observed_frequency": 0.09868421052631579
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 80,
+              "mean_probability": 0.2375942012848263,
+              "observed_frequency": 0.1875
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 62,
+              "mean_probability": 0.35255789731299686,
+              "observed_frequency": 0.4032258064516129
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 55,
+              "mean_probability": 0.448125307520762,
+              "observed_frequency": 0.5636363636363636
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 76,
+              "mean_probability": 0.5455209600448571,
+              "observed_frequency": 0.8289473684210527
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 92,
+              "mean_probability": 0.6590056584417997,
+              "observed_frequency": 0.9565217391304348
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 121,
+              "mean_probability": 0.7593570106431676,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 310,
+              "mean_probability": 0.8610832331436221,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 3886,
+              "mean_probability": 0.9834746735195499,
+              "observed_frequency": 1.0
+            }
+          ]
+        }
+      },
+      "definitions": {
+        "log_loss": "natural log, true-class probabilities clipped at float64 epsilon",
+        "multiclass_brier_score": "mean(sum_k((p_k-y_k)^2)), range [0,2]",
+        "binary_brier_score": "mean((p-y)^2), range [0,1]",
+        "ece_equal_width": "sum_bin(n_bin/N * abs(mean_p-positive_frequency))",
+        "bins": 10,
+        "bin_intervals": "[lower,upper), last interval includes 1",
+        "weighting": "equal weight per window; overlapping windows are correlated"
+      }
+    },
+    "validation": {
+      "support": 2430,
+      "classes": [
+        "BTT2-M02",
+        "BTT2-M03",
+        "BTT2-M05",
+        "BTT2-M06",
+        "BTT2-M07",
+        "BTT2-M08",
+        "BTT2-M10",
+        "BTT2-M11",
+        "BTT2-M12",
+        "BTT2-M13",
+        "BTT2-M14",
+        "BTT2-M15",
+        "BTT2-M16",
+        "BTT2-M17",
+        "BTT2-M18",
+        "NO_ERROR"
+      ],
+      "log_loss": 0.20823920496717402,
+      "multiclass_brier_score": 0.1052304876662103,
+      "any_error": {
+        "support": 2430,
+        "positive_support": 892,
+        "brier_score": 0.053300754696459625,
+        "ece_equal_width": 0.029655514425930205,
+        "reliability_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "count": 1173,
+            "mean_probability": 0.020077622647315746,
+            "observed_frequency": 0.01278772378516624
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "count": 141,
+            "mean_probability": 0.14529984730422787,
+            "observed_frequency": 0.07801418439716312
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "count": 87,
+            "mean_probability": 0.24393048743758688,
+            "observed_frequency": 0.08045977011494253
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "count": 51,
+            "mean_probability": 0.34552281161104687,
+            "observed_frequency": 0.19607843137254902
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "count": 36,
+            "mean_probability": 0.45228980317521983,
+            "observed_frequency": 0.3055555555555556
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "count": 33,
+            "mean_probability": 0.5481578556124009,
+            "observed_frequency": 0.696969696969697
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "count": 49,
+            "mean_probability": 0.649405805362438,
+            "observed_frequency": 0.5306122448979592
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "count": 68,
+            "mean_probability": 0.7500762505468388,
+            "observed_frequency": 0.6029411764705882
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "count": 169,
+            "mean_probability": 0.8618611032294464,
+            "observed_frequency": 0.8579881656804734
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "count": 623,
+            "mean_probability": 0.9590575685461319,
+            "observed_frequency": 0.9678972712680578
+          }
+        ]
+      },
+      "per_class": {
+        "BTT2-M02": {
+          "support": 2430,
+          "positive_support": 60,
+          "brier_score": 0.002807282475335655,
+          "ece_equal_width": 0.007815776444634468,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2326,
+              "mean_probability": 0.0015739639826591676,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 35,
+              "mean_probability": 0.13744853123067408,
+              "observed_frequency": 0.05714285714285714
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 4,
+              "mean_probability": 0.23916666666666667,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 5,
+              "mean_probability": 0.3533386002886003,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 3,
+              "mean_probability": 0.4726813973063973,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 4,
+              "mean_probability": 0.5528662968975468,
+              "observed_frequency": 0.75
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 4,
+              "mean_probability": 0.6662839556277056,
+              "observed_frequency": 0.75
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 8,
+              "mean_probability": 0.7547147366522367,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 33,
+              "mean_probability": 0.8565543967816697,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 8,
+              "mean_probability": 0.9505129419191919,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M03": {
+          "support": 2430,
+          "positive_support": 60,
+          "brier_score": 0.0049178858941076225,
+          "ece_equal_width": 0.008048898226830328,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2342,
+              "mean_probability": 0.001928314420895548,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 5,
+              "mean_probability": 0.12867420634920634,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 4,
+              "mean_probability": 0.2363784722222222,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 0,
+              "mean_probability": null,
+              "observed_frequency": null
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 0,
+              "mean_probability": null,
+              "observed_frequency": null
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 2,
+              "mean_probability": 0.5505813492063492,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 3,
+              "mean_probability": 0.626005291005291,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 7,
+              "mean_probability": 0.7420068027210884,
+              "observed_frequency": 0.14285714285714285
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 34,
+              "mean_probability": 0.8682721755368814,
+              "observed_frequency": 0.7647058823529411
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 33,
+              "mean_probability": 0.9163834776334775,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M05": {
+          "support": 2430,
+          "positive_support": 59,
+          "brier_score": 0.001010395979554474,
+          "ece_equal_width": 0.004023113112310645,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2354,
+              "mean_probability": 0.000704287611519982,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 8,
+              "mean_probability": 0.1451285624098124,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 2,
+              "mean_probability": 0.21218840187590188,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 3,
+              "mean_probability": 0.3470595238095238,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 3,
+              "mean_probability": 0.45099819624819615,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 1,
+              "mean_probability": 0.5753470418470417,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 0,
+              "mean_probability": null,
+              "observed_frequency": null
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 3,
+              "mean_probability": 0.774280242905243,
+              "observed_frequency": 0.6666666666666666
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 11,
+              "mean_probability": 0.8755626721763083,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 45,
+              "mean_probability": 0.9550580206830206,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M06": {
+          "support": 2430,
+          "positive_support": 60,
+          "brier_score": 0.0021759003614739143,
+          "ece_equal_width": 0.004214228781049771,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2340,
+              "mean_probability": 0.0006965354090354091,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 14,
+              "mean_probability": 0.13934424603174603,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 4,
+              "mean_probability": 0.24897578463203462,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 3,
+              "mean_probability": 0.33612962962962967,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 9,
+              "mean_probability": 0.45532188953022307,
+              "observed_frequency": 0.3333333333333333
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 1,
+              "mean_probability": 0.5270319264069265,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 5,
+              "mean_probability": 0.6729376984126983,
+              "observed_frequency": 0.6
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 3,
+              "mean_probability": 0.7711103294853294,
+              "observed_frequency": 0.6666666666666666
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 3,
+              "mean_probability": 0.8915300024050022,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 48,
+              "mean_probability": 0.9566400613275613,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M07": {
+          "support": 2430,
+          "positive_support": 60,
+          "brier_score": 0.0028947283564077354,
+          "ece_equal_width": 0.00521759199876484,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2351,
+              "mean_probability": 0.001335828050204911,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 12,
+              "mean_probability": 0.14883829365079362,
+              "observed_frequency": 0.25
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 11,
+              "mean_probability": 0.24079566771612224,
+              "observed_frequency": 0.18181818181818182
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 4,
+              "mean_probability": 0.33993998015873017,
+              "observed_frequency": 0.75
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 1,
+              "mean_probability": 0.4424166666666667,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 3,
+              "mean_probability": 0.5658861832611831,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 3,
+              "mean_probability": 0.6644522005772006,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 3,
+              "mean_probability": 0.7615574795574794,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 4,
+              "mean_probability": 0.8411086309523809,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 38,
+              "mean_probability": 0.9521625607579555,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M08": {
+          "support": 2430,
+          "positive_support": 59,
+          "brier_score": 0.0025377864343422737,
+          "ece_equal_width": 0.0044694521642052515,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2349,
+              "mean_probability": 0.0016206916516622776,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 7,
+              "mean_probability": 0.14024178004535146,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 4,
+              "mean_probability": 0.24122420634920633,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 4,
+              "mean_probability": 0.3515282738095238,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 2,
+              "mean_probability": 0.4112400793650794,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 3,
+              "mean_probability": 0.5897628667628668,
+              "observed_frequency": 0.6666666666666666
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 1,
+              "mean_probability": 0.6880286796536798,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 4,
+              "mean_probability": 0.7333199404761905,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 6,
+              "mean_probability": 0.8493531746031745,
+              "observed_frequency": 0.8333333333333334
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 50,
+              "mean_probability": 0.9634611904761905,
+              "observed_frequency": 0.94
+            }
+          ]
+        },
+        "BTT2-M10": {
+          "support": 2430,
+          "positive_support": 60,
+          "brier_score": 0.0028117165546571554,
+          "ece_equal_width": 0.005168917696386831,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2343,
+              "mean_probability": 0.0005806418708147262,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 10,
+              "mean_probability": 0.13054481074481075,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 4,
+              "mean_probability": 0.23622073412698413,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 2,
+              "mean_probability": 0.33757936507936503,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 1,
+              "mean_probability": 0.49792658730158734,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 0,
+              "mean_probability": null,
+              "observed_frequency": null
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 5,
+              "mean_probability": 0.6543702380952382,
+              "observed_frequency": 0.2
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 4,
+              "mean_probability": 0.7462504960317461,
+              "observed_frequency": 0.25
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 7,
+              "mean_probability": 0.8508121164549737,
+              "observed_frequency": 0.5714285714285714
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 54,
+              "mean_probability": 0.9710357083759862,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M11": {
+          "support": 2430,
+          "positive_support": 60,
+          "brier_score": 0.00512455307224272,
+          "ece_equal_width": 0.004153875725326342,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2376,
+              "mean_probability": 0.002248635699551104,
+              "observed_frequency": 0.003787878787878788
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 2,
+              "mean_probability": 0.16674125180375177,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 2,
+              "mean_probability": 0.2321600552225552,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 4,
+              "mean_probability": 0.349247943029193,
+              "observed_frequency": 0.75
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 1,
+              "mean_probability": 0.4550423326673325,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 1,
+              "mean_probability": 0.5754070512820512,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 4,
+              "mean_probability": 0.6407521506271505,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 1,
+              "mean_probability": 0.7154464285714287,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 2,
+              "mean_probability": 0.8527301587301589,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 37,
+              "mean_probability": 0.9825449850449851,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M12": {
+          "support": 2430,
+          "positive_support": 60,
+          "brier_score": 0.00441166855821242,
+          "ece_equal_width": 0.004695404441237774,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2346,
+              "mean_probability": 0.001075374759038442,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 4,
+              "mean_probability": 0.15144088203463205,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 2,
+              "mean_probability": 0.2687097763347764,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 4,
+              "mean_probability": 0.36041964285714295,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 4,
+              "mean_probability": 0.44426821789321796,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 3,
+              "mean_probability": 0.5619497955747955,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 4,
+              "mean_probability": 0.6343152056277056,
+              "observed_frequency": 0.25
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 8,
+              "mean_probability": 0.7611210542929292,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 13,
+              "mean_probability": 0.8561500860250862,
+              "observed_frequency": 0.9230769230769231
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 42,
+              "mean_probability": 0.9471534391534393,
+              "observed_frequency": 0.9285714285714286
+            }
+          ]
+        },
+        "BTT2-M13": {
+          "support": 2430,
+          "positive_support": 59,
+          "brier_score": 0.003082442107991081,
+          "ece_equal_width": 0.003935084457152358,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2350,
+              "mean_probability": 0.0010098423444168127,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 9,
+              "mean_probability": 0.1291712962962963,
+              "observed_frequency": 0.1111111111111111
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 6,
+              "mean_probability": 0.26684920634920634,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 2,
+              "mean_probability": 0.3419993686868687,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 3,
+              "mean_probability": 0.45425462962962965,
+              "observed_frequency": 0.3333333333333333
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 0,
+              "mean_probability": null,
+              "observed_frequency": null
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 2,
+              "mean_probability": 0.6413184523809525,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 3,
+              "mean_probability": 0.7496924603174605,
+              "observed_frequency": 0.3333333333333333
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 1,
+              "mean_probability": 0.8622142857142857,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 54,
+              "mean_probability": 0.9595002204585539,
+              "observed_frequency": 0.9814814814814815
+            }
+          ]
+        },
+        "BTT2-M14": {
+          "support": 2430,
+          "positive_support": 59,
+          "brier_score": 0.004377286110943886,
+          "ece_equal_width": 0.002638323610545832,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2360,
+              "mean_probability": 0.0014691869041974976,
+              "observed_frequency": 0.001694915254237288
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 5,
+              "mean_probability": 0.11168088023088023,
+              "observed_frequency": 0.2
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 1,
+              "mean_probability": 0.2791904761904762,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 2,
+              "mean_probability": 0.3415013944388945,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 2,
+              "mean_probability": 0.44520115995115994,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 0,
+              "mean_probability": null,
+              "observed_frequency": null
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 2,
+              "mean_probability": 0.6190434704184702,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 3,
+              "mean_probability": 0.7098115079365078,
+              "observed_frequency": 0.3333333333333333
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 2,
+              "mean_probability": 0.8546190476190476,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 53,
+              "mean_probability": 0.9787445717280623,
+              "observed_frequency": 0.9433962264150944
+            }
+          ]
+        },
+        "BTT2-M15": {
+          "support": 2430,
+          "positive_support": 59,
+          "brier_score": 0.005800078268522686,
+          "ece_equal_width": 0.006601805013687728,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2342,
+              "mean_probability": 0.0013314102042752767,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 9,
+              "mean_probability": 0.15488852813852813,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 4,
+              "mean_probability": 0.2314078282828283,
+              "observed_frequency": 0.25
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 2,
+              "mean_probability": 0.3270535714285715,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 2,
+              "mean_probability": 0.47213284632034636,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 1,
+              "mean_probability": 0.5413975468975469,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 1,
+              "mean_probability": 0.6048876262626262,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 2,
+              "mean_probability": 0.7112582972582973,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 20,
+              "mean_probability": 0.8652075396825396,
+              "observed_frequency": 0.9
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 47,
+              "mean_probability": 0.9694502279635258,
+              "observed_frequency": 0.7872340425531915
+            }
+          ]
+        },
+        "BTT2-M16": {
+          "support": 2430,
+          "positive_support": 60,
+          "brier_score": 0.004836886676416134,
+          "ece_equal_width": 0.004309268162309194,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2365,
+              "mean_probability": 0.000949062049062049,
+              "observed_frequency": 0.0016913319238900633
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 6,
+              "mean_probability": 0.15954889051580232,
+              "observed_frequency": 0.3333333333333333
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 1,
+              "mean_probability": 0.24003152321534674,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 0,
+              "mean_probability": null,
+              "observed_frequency": null
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 4,
+              "mean_probability": 0.4634371843434343,
+              "observed_frequency": 0.75
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 5,
+              "mean_probability": 0.5323849206349205,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 7,
+              "mean_probability": 0.6572726757369614,
+              "observed_frequency": 0.8571428571428571
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 6,
+              "mean_probability": 0.7483439153439154,
+              "observed_frequency": 0.8333333333333334
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 18,
+              "mean_probability": 0.8552451499118165,
+              "observed_frequency": 0.8888888888888888
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 18,
+              "mean_probability": 0.9491979717813052,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M17": {
+          "support": 2430,
+          "positive_support": 58,
+          "brier_score": 0.002083201664254181,
+          "ece_equal_width": 0.004010620215404163,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2357,
+              "mean_probability": 0.001278183449746878,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 3,
+              "mean_probability": 0.1321547619047619,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 3,
+              "mean_probability": 0.2508885836385837,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 0,
+              "mean_probability": null,
+              "observed_frequency": null
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 3,
+              "mean_probability": 0.46791004828504823,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 2,
+              "mean_probability": 0.5624785353535353,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 7,
+              "mean_probability": 0.6484411917447632,
+              "observed_frequency": 0.5714285714285714
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 6,
+              "mean_probability": 0.7440948426573427,
+              "observed_frequency": 0.6666666666666666
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 5,
+              "mean_probability": 0.8795033189033189,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 44,
+              "mean_probability": 0.9443370300785076,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M18": {
+          "support": 2430,
+          "positive_support": 59,
+          "brier_score": 0.003057920455288757,
+          "ece_equal_width": 0.005239182982084221,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2350,
+              "mean_probability": 0.0010436511774277733,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 2,
+              "mean_probability": 0.13310912698412697,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 5,
+              "mean_probability": 0.2599123376623376,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 4,
+              "mean_probability": 0.3632500450937951,
+              "observed_frequency": 0.25
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 1,
+              "mean_probability": 0.43898611111111124,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 3,
+              "mean_probability": 0.5623296055796057,
+              "observed_frequency": 0.3333333333333333
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 1,
+              "mean_probability": 0.6672541486291484,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 7,
+              "mean_probability": 0.7510508142651,
+              "observed_frequency": 0.2857142857142857
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 17,
+              "mean_probability": 0.8479473092267209,
+              "observed_frequency": 0.8823529411764706
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 40,
+              "mean_probability": 0.9343906565656563,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "NO_ERROR": {
+          "support": 2430,
+          "positive_support": 1538,
+          "brier_score": 0.053300754696459625,
+          "ece_equal_width": 0.02965551442593022,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 623,
+              "mean_probability": 0.04094243145386805,
+              "observed_frequency": 0.03210272873194221
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 169,
+              "mean_probability": 0.13813889677055358,
+              "observed_frequency": 0.14201183431952663
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 68,
+              "mean_probability": 0.24992374945316118,
+              "observed_frequency": 0.39705882352941174
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 49,
+              "mean_probability": 0.3505941946375619,
+              "observed_frequency": 0.46938775510204084
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 33,
+              "mean_probability": 0.45184214438759884,
+              "observed_frequency": 0.30303030303030304
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 36,
+              "mean_probability": 0.5477101968247802,
+              "observed_frequency": 0.6944444444444444
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 51,
+              "mean_probability": 0.6544771883889531,
+              "observed_frequency": 0.803921568627451
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 87,
+              "mean_probability": 0.7560695125624134,
+              "observed_frequency": 0.9195402298850575
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 141,
+              "mean_probability": 0.8547001526957723,
+              "observed_frequency": 0.9219858156028369
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 1173,
+              "mean_probability": 0.9799223773526842,
+              "observed_frequency": 0.9872122762148338
+            }
+          ]
+        }
+      },
+      "definitions": {
+        "log_loss": "natural log, true-class probabilities clipped at float64 epsilon",
+        "multiclass_brier_score": "mean(sum_k((p_k-y_k)^2)), range [0,2]",
+        "binary_brier_score": "mean((p-y)^2), range [0,1]",
+        "ece_equal_width": "sum_bin(n_bin/N * abs(mean_p-positive_frequency))",
+        "bins": 10,
+        "bin_intervals": "[lower,upper), last interval includes 1",
+        "weighting": "equal weight per window; overlapping windows are correlated"
+      }
+    },
+    "test": {
+      "support": 2425,
+      "classes": [
+        "BTT2-M02",
+        "BTT2-M03",
+        "BTT2-M05",
+        "BTT2-M06",
+        "BTT2-M07",
+        "BTT2-M08",
+        "BTT2-M10",
+        "BTT2-M11",
+        "BTT2-M12",
+        "BTT2-M13",
+        "BTT2-M14",
+        "BTT2-M15",
+        "BTT2-M16",
+        "BTT2-M17",
+        "BTT2-M18",
+        "NO_ERROR"
+      ],
+      "log_loss": 0.15916323073915345,
+      "multiclass_brier_score": 0.08361528707237267,
+      "any_error": {
+        "support": 2425,
+        "positive_support": 897,
+        "brier_score": 0.04257518359626179,
+        "ece_equal_width": 0.042495041526427225,
+        "reliability_bins": [
+          {
+            "lower": 0.0,
+            "upper": 0.1,
+            "count": 1113,
+            "mean_probability": 0.01678111946131607,
+            "observed_frequency": 0.0026954177897574125
+          },
+          {
+            "lower": 0.1,
+            "upper": 0.2,
+            "count": 180,
+            "mean_probability": 0.143028398290163,
+            "observed_frequency": 0.022222222222222223
+          },
+          {
+            "lower": 0.2,
+            "upper": 0.3,
+            "count": 79,
+            "mean_probability": 0.24340991286160676,
+            "observed_frequency": 0.11392405063291139
+          },
+          {
+            "lower": 0.3,
+            "upper": 0.4,
+            "count": 48,
+            "mean_probability": 0.3606285190503941,
+            "observed_frequency": 0.16666666666666666
+          },
+          {
+            "lower": 0.4,
+            "upper": 0.5,
+            "count": 56,
+            "mean_probability": 0.446840429411858,
+            "observed_frequency": 0.25
+          },
+          {
+            "lower": 0.5,
+            "upper": 0.6,
+            "count": 33,
+            "mean_probability": 0.5494604843809389,
+            "observed_frequency": 0.3939393939393939
+          },
+          {
+            "lower": 0.6,
+            "upper": 0.7,
+            "count": 30,
+            "mean_probability": 0.6422934926184924,
+            "observed_frequency": 0.5
+          },
+          {
+            "lower": 0.7,
+            "upper": 0.8,
+            "count": 62,
+            "mean_probability": 0.7593299039670005,
+            "observed_frequency": 0.6612903225806451
+          },
+          {
+            "lower": 0.8,
+            "upper": 0.9,
+            "count": 185,
+            "mean_probability": 0.8597249646749646,
+            "observed_frequency": 0.8918918918918919
+          },
+          {
+            "lower": 0.9,
+            "upper": 1.0,
+            "count": 639,
+            "mean_probability": 0.95675269854906,
+            "observed_frequency": 0.9780907668231612
+          }
+        ]
+      },
+      "per_class": {
+        "BTT2-M02": {
+          "support": 2425,
+          "positive_support": 60,
+          "brier_score": 0.0037580178242947225,
+          "ece_equal_width": 0.007395258327010907,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2321,
+              "mean_probability": 0.0017588827587750463,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 15,
+              "mean_probability": 0.13330242905242906,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 7,
+              "mean_probability": 0.2523538703360132,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 5,
+              "mean_probability": 0.35751818181818185,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 7,
+              "mean_probability": 0.41300883838383834,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 2,
+              "mean_probability": 0.5503592171717171,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 3,
+              "mean_probability": 0.6519097522847523,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 4,
+              "mean_probability": 0.7490730519480521,
+              "observed_frequency": 0.25
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 12,
+              "mean_probability": 0.8759333363395861,
+              "observed_frequency": 0.9166666666666666
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 49,
+              "mean_probability": 0.9415320736519714,
+              "observed_frequency": 0.9591836734693877
+            }
+          ]
+        },
+        "BTT2-M03": {
+          "support": 2425,
+          "positive_support": 60,
+          "brier_score": 0.002658640683900153,
+          "ece_equal_width": 0.005049254474048286,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2348,
+              "mean_probability": 0.0017612404158400751,
+              "observed_frequency": 0.00042589437819420784
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 9,
+              "mean_probability": 0.13413646384479716,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 4,
+              "mean_probability": 0.24729017857142854,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 4,
+              "mean_probability": 0.33015773809523813,
+              "observed_frequency": 0.75
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 0,
+              "mean_probability": null,
+              "observed_frequency": null
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 1,
+              "mean_probability": 0.5846567460317459,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 2,
+              "mean_probability": 0.6563333333333332,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 17,
+              "mean_probability": 0.7656021241830067,
+              "observed_frequency": 0.8235294117647058
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 14,
+              "mean_probability": 0.8540904195011338,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 26,
+              "mean_probability": 0.9431621642246643,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M05": {
+          "support": 2425,
+          "positive_support": 60,
+          "brier_score": 0.0025585030260027617,
+          "ece_equal_width": 0.0042863769506553025,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2341,
+              "mean_probability": 0.0005348124868628927,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 9,
+              "mean_probability": 0.13318987493987494,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 3,
+              "mean_probability": 0.2632708633958634,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 3,
+              "mean_probability": 0.348357683982684,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 2,
+              "mean_probability": 0.44421419552669544,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 1,
+              "mean_probability": 0.5883896103896106,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 1,
+              "mean_probability": 0.6671825396825396,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 2,
+              "mean_probability": 0.7854861111111111,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 16,
+              "mean_probability": 0.8621050347222221,
+              "observed_frequency": 0.75
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 47,
+              "mean_probability": 0.9416560705842619,
+              "observed_frequency": 0.9787234042553191
+            }
+          ]
+        },
+        "BTT2-M06": {
+          "support": 2425,
+          "positive_support": 60,
+          "brier_score": 0.0019811709920601215,
+          "ece_equal_width": 0.004053187042053021,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2344,
+              "mean_probability": 0.001229843843111761,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 8,
+              "mean_probability": 0.12117216810966809,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 0,
+              "mean_probability": null,
+              "observed_frequency": null
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 7,
+              "mean_probability": 0.3580932381110952,
+              "observed_frequency": 0.14285714285714285
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 10,
+              "mean_probability": 0.428533467920968,
+              "observed_frequency": 0.4
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 3,
+              "mean_probability": 0.5645390026640027,
+              "observed_frequency": 0.6666666666666666
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 1,
+              "mean_probability": 0.632633116883117,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 1,
+              "mean_probability": 0.7841948051948051,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 10,
+              "mean_probability": 0.8750948593073595,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 41,
+              "mean_probability": 0.9500913794877209,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M07": {
+          "support": 2425,
+          "positive_support": 60,
+          "brier_score": 0.0038289305587283482,
+          "ece_equal_width": 0.005873265720533762,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2323,
+              "mean_probability": 0.0010655198283803535,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 19,
+              "mean_probability": 0.1366829573934837,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 1,
+              "mean_probability": 0.2654761904761904,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 6,
+              "mean_probability": 0.3516812169312169,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 8,
+              "mean_probability": 0.45046155753968264,
+              "observed_frequency": 0.125
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 3,
+              "mean_probability": 0.5656527777777777,
+              "observed_frequency": 0.6666666666666666
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 3,
+              "mean_probability": 0.6451521164021163,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 6,
+              "mean_probability": 0.7739536135161135,
+              "observed_frequency": 0.8333333333333334
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 10,
+              "mean_probability": 0.8498277777777778,
+              "observed_frequency": 0.8
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 46,
+              "mean_probability": 0.9326482487922706,
+              "observed_frequency": 0.9565217391304348
+            }
+          ]
+        },
+        "BTT2-M08": {
+          "support": 2425,
+          "positive_support": 60,
+          "brier_score": 0.0019132247923801735,
+          "ece_equal_width": 0.004914988768390829,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2346,
+              "mean_probability": 0.0010591573695793645,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 16,
+              "mean_probability": 0.13982759514790763,
+              "observed_frequency": 0.0625
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 2,
+              "mean_probability": 0.2545148809523809,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 1,
+              "mean_probability": 0.39555194805194815,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 5,
+              "mean_probability": 0.45483802308802324,
+              "observed_frequency": 0.8
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 2,
+              "mean_probability": 0.5644617604617606,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 1,
+              "mean_probability": 0.6789123376623377,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 5,
+              "mean_probability": 0.7601227272727273,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 6,
+              "mean_probability": 0.8488326118326118,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 41,
+              "mean_probability": 0.9529728909302081,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M10": {
+          "support": 2425,
+          "positive_support": 60,
+          "brier_score": 0.003586576944152669,
+          "ece_equal_width": 0.006958352134692341,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2334,
+              "mean_probability": 0.000732136829180531,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 9,
+              "mean_probability": 0.1449414181497515,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 0,
+              "mean_probability": null,
+              "observed_frequency": null
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 5,
+              "mean_probability": 0.34825046897546896,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 6,
+              "mean_probability": 0.4457605218855219,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 1,
+              "mean_probability": 0.5659166666666666,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 2,
+              "mean_probability": 0.6982491883116884,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 7,
+              "mean_probability": 0.7637831117295403,
+              "observed_frequency": 0.14285714285714285
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 10,
+              "mean_probability": 0.8467971916971917,
+              "observed_frequency": 0.8
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 51,
+              "mean_probability": 0.9476854983252042,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M11": {
+          "support": 2425,
+          "positive_support": 60,
+          "brier_score": 0.0030494605384340655,
+          "ece_equal_width": 0.0050806910557941514,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2332,
+              "mean_probability": 0.0021075009776767924,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 21,
+              "mean_probability": 0.15532608396894107,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 4,
+              "mean_probability": 0.23160028860028858,
+              "observed_frequency": 0.25
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 3,
+              "mean_probability": 0.35252545602545604,
+              "observed_frequency": 0.3333333333333333
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 2,
+              "mean_probability": 0.46690723165723164,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 1,
+              "mean_probability": 0.5732367771117771,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 0,
+              "mean_probability": null,
+              "observed_frequency": null
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 1,
+              "mean_probability": 0.7196488095238095,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 4,
+              "mean_probability": 0.8702522997835498,
+              "observed_frequency": 0.75
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 57,
+              "mean_probability": 0.9756522429811905,
+              "observed_frequency": 0.9298245614035088
+            }
+          ]
+        },
+        "BTT2-M12": {
+          "support": 2425,
+          "positive_support": 59,
+          "brier_score": 0.002835003637390662,
+          "ece_equal_width": 0.004981737180345425,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2354,
+              "mean_probability": 0.0011069144381060268,
+              "observed_frequency": 0.0008496176720475786
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 4,
+              "mean_probability": 0.1582136994949495,
+              "observed_frequency": 0.25
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 2,
+              "mean_probability": 0.2489840367965368,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 2,
+              "mean_probability": 0.3339335317460317,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 2,
+              "mean_probability": 0.47602480158730165,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 7,
+              "mean_probability": 0.5678169191919193,
+              "observed_frequency": 0.14285714285714285
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 2,
+              "mean_probability": 0.6545794552669553,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 6,
+              "mean_probability": 0.7622026515151514,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 23,
+              "mean_probability": 0.855877768366899,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 23,
+              "mean_probability": 0.9600615079365081,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M13": {
+          "support": 2425,
+          "positive_support": 59,
+          "brier_score": 0.0026786336578505507,
+          "ece_equal_width": 0.00470353590281425,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2352,
+              "mean_probability": 0.0012102052626606198,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 1,
+              "mean_probability": 0.18703769841269843,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 5,
+              "mean_probability": 0.25610981240981245,
+              "observed_frequency": 0.4
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 2,
+              "mean_probability": 0.3608122294372294,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 1,
+              "mean_probability": 0.4626984126984128,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 3,
+              "mean_probability": 0.5681985144485145,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 3,
+              "mean_probability": 0.6359582547082548,
+              "observed_frequency": 0.3333333333333333
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 2,
+              "mean_probability": 0.7748670634920635,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 9,
+              "mean_probability": 0.8407164394247728,
+              "observed_frequency": 0.6666666666666666
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 47,
+              "mean_probability": 0.9514271263606372,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M14": {
+          "support": 2425,
+          "positive_support": 59,
+          "brier_score": 0.0029627233569595067,
+          "ece_equal_width": 0.004252548579713526,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2342,
+              "mean_probability": 0.0008573213068836467,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 13,
+              "mean_probability": 0.13986127334204257,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 2,
+              "mean_probability": 0.25550516150516156,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 2,
+              "mean_probability": 0.35148056110556103,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 0,
+              "mean_probability": null,
+              "observed_frequency": null
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 2,
+              "mean_probability": 0.5277616758241757,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 0,
+              "mean_probability": null,
+              "observed_frequency": null
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 2,
+              "mean_probability": 0.7569267884892883,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 2,
+              "mean_probability": 0.8790238095238094,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 60,
+              "mean_probability": 0.9827835317460317,
+              "observed_frequency": 0.9333333333333333
+            }
+          ]
+        },
+        "BTT2-M15": {
+          "support": 2425,
+          "positive_support": 60,
+          "brier_score": 0.0015231264216043195,
+          "ece_equal_width": 0.002609815905743746,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2362,
+              "mean_probability": 0.0014342778364264393,
+              "observed_frequency": 0.000846740050804403
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 3,
+              "mean_probability": 0.1196904761904762,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 2,
+              "mean_probability": 0.23666765873015871,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 1,
+              "mean_probability": 0.34554761904761905,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 0,
+              "mean_probability": null,
+              "observed_frequency": null
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 2,
+              "mean_probability": 0.5199871031746034,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 0,
+              "mean_probability": null,
+              "observed_frequency": null
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 2,
+              "mean_probability": 0.7085505952380953,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 7,
+              "mean_probability": 0.8558475572047,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 46,
+              "mean_probability": 0.974831219806763,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M16": {
+          "support": 2425,
+          "positive_support": 60,
+          "brier_score": 0.0028765546106889204,
+          "ece_equal_width": 0.003981574174763985,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2349,
+              "mean_probability": 0.00085061600655846,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 4,
+              "mean_probability": 0.1183077439309057,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 2,
+              "mean_probability": 0.2463342139886257,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 2,
+              "mean_probability": 0.3769055250305251,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 3,
+              "mean_probability": 0.44135527898027904,
+              "observed_frequency": 0.6666666666666666
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 2,
+              "mean_probability": 0.5498164682539682,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 2,
+              "mean_probability": 0.638366251803752,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 5,
+              "mean_probability": 0.7496507936507936,
+              "observed_frequency": 0.6
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 10,
+              "mean_probability": 0.8704573412698412,
+              "observed_frequency": 0.7
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 46,
+              "mean_probability": 0.9427902432712216,
+              "observed_frequency": 0.9782608695652174
+            }
+          ]
+        },
+        "BTT2-M17": {
+          "support": 2425,
+          "positive_support": 60,
+          "brier_score": 0.002665552193814399,
+          "ece_equal_width": 0.005516647848142693,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2339,
+              "mean_probability": 0.0014614662628236804,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 10,
+              "mean_probability": 0.14471120129870127,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 4,
+              "mean_probability": 0.21815670093795098,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 2,
+              "mean_probability": 0.35201244588744585,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 4,
+              "mean_probability": 0.44977976190476177,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 2,
+              "mean_probability": 0.5695390512265512,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 4,
+              "mean_probability": 0.6525172258297258,
+              "observed_frequency": 0.25
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 2,
+              "mean_probability": 0.7490995670995673,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 33,
+              "mean_probability": 0.8696912906117452,
+              "observed_frequency": 0.9393939393939394
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 25,
+              "mean_probability": 0.9601146031746032,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "BTT2-M18": {
+          "support": 2425,
+          "positive_support": 60,
+          "brier_score": 0.002163984237849511,
+          "ece_equal_width": 0.005246683179363593,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 2358,
+              "mean_probability": 0.0010293985535715815,
+              "observed_frequency": 0.0
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 3,
+              "mean_probability": 0.14224627224627226,
+              "observed_frequency": 0.3333333333333333
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 5,
+              "mean_probability": 0.24927189754689758,
+              "observed_frequency": 0.4
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 4,
+              "mean_probability": 0.35556056096681105,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 2,
+              "mean_probability": 0.4534301046176047,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 1,
+              "mean_probability": 0.5255569985569987,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 4,
+              "mean_probability": 0.6511196789321789,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 4,
+              "mean_probability": 0.7673242243867243,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 22,
+              "mean_probability": 0.8561976174078446,
+              "observed_frequency": 1.0
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 22,
+              "mean_probability": 0.9393742784992785,
+              "observed_frequency": 1.0
+            }
+          ]
+        },
+        "NO_ERROR": {
+          "support": 2425,
+          "positive_support": 1528,
+          "brier_score": 0.04257518359626179,
+          "ece_equal_width": 0.042495041526427205,
+          "reliability_bins": [
+            {
+              "lower": 0.0,
+              "upper": 0.1,
+              "count": 639,
+              "mean_probability": 0.043247301450939954,
+              "observed_frequency": 0.02190923317683881
+            },
+            {
+              "lower": 0.1,
+              "upper": 0.2,
+              "count": 185,
+              "mean_probability": 0.14027503532503532,
+              "observed_frequency": 0.10810810810810811
+            },
+            {
+              "lower": 0.2,
+              "upper": 0.3,
+              "count": 62,
+              "mean_probability": 0.24067009603299924,
+              "observed_frequency": 0.3387096774193548
+            },
+            {
+              "lower": 0.3,
+              "upper": 0.4,
+              "count": 30,
+              "mean_probability": 0.3577065073815074,
+              "observed_frequency": 0.5
+            },
+            {
+              "lower": 0.4,
+              "upper": 0.5,
+              "count": 33,
+              "mean_probability": 0.450539515619061,
+              "observed_frequency": 0.6060606060606061
+            },
+            {
+              "lower": 0.5,
+              "upper": 0.6,
+              "count": 56,
+              "mean_probability": 0.553159570588142,
+              "observed_frequency": 0.75
+            },
+            {
+              "lower": 0.6,
+              "upper": 0.7,
+              "count": 48,
+              "mean_probability": 0.6393714809496059,
+              "observed_frequency": 0.8333333333333334
+            },
+            {
+              "lower": 0.7,
+              "upper": 0.8,
+              "count": 79,
+              "mean_probability": 0.7565900871383932,
+              "observed_frequency": 0.8860759493670886
+            },
+            {
+              "lower": 0.8,
+              "upper": 0.9,
+              "count": 180,
+              "mean_probability": 0.8569716017098371,
+              "observed_frequency": 0.9777777777777777
+            },
+            {
+              "lower": 0.9,
+              "upper": 1.0,
+              "count": 1113,
+              "mean_probability": 0.9832188805386839,
+              "observed_frequency": 0.9973045822102425
+            }
+          ]
+        }
+      },
+      "definitions": {
+        "log_loss": "natural log, true-class probabilities clipped at float64 epsilon",
+        "multiclass_brier_score": "mean(sum_k((p_k-y_k)^2)), range [0,2]",
+        "binary_brier_score": "mean((p-y)^2), range [0,1]",
+        "ece_equal_width": "sum_bin(n_bin/N * abs(mean_p-positive_frequency))",
+        "bins": 10,
+        "bin_intervals": "[lower,upper), last interval includes 1",
+        "weighting": "equal weight per window; overlapping windows are correlated"
+      }
+    }
+  },
+  "full_report_path": "outputs/ml/future60-15faults-probabilities-20261106.json",
+  "note": "Summary copy: per-run aggregates in probability_per_run.csv; full per-run bins in external outputs report."
+}
