@@ -69,8 +69,11 @@ export function predictionNotice(snapshot: MlSnapshot | null, lost: boolean) {
   if (!snapshot.enabled) return "예측 기능이 꺼져 있습니다.";
   if (!snapshot.producer_connected || snapshot.stale)
     return "연결이 끊겼습니다.";
-  if (snapshot.prediction.status === "not_ready")
-    return "예측을 준비하고 있습니다.";
+  if (
+    snapshot.prediction.status === "not_ready" ||
+    snapshot.prediction.status === "initializing"
+  )
+    return "데이터를 수집하고 있습니다.";
   if (!snapshot.prediction_usable) return "지금은 예측을 표시할 수 없습니다.";
   return "";
 }
@@ -180,8 +183,8 @@ export default function DashboardAside({
         {notice && (
           <p
             className="dashboard-panel__notice"
-            data-lost={mlDisplay.isError}
-            role={mlDisplay.isError ? "alert" : "status"}
+            data-lost={mlDisplay.isError || mlDisplay.found}
+            role={mlDisplay.isError || mlDisplay.found ? "alert" : "status"}
           >
             {notice}
           </p>

@@ -71,10 +71,7 @@ export default function HomePage({
           overview={overview}
           onOpenEquipment={() => onNavigate("dashboard")}
         />
-        <PredictionCard
-          ml={ml}
-          onOpenEquipment={() => onNavigate("dashboard")}
-        />
+        <PredictionCard ml={ml} />
       </div>
       {showApprovals && (
         <div className="home-grid home-grid--bottom">

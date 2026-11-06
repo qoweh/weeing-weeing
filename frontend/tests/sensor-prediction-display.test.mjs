@@ -289,3 +289,26 @@ test("leaving the dashboard cancels its pending prediction query", async () => {
     globalThis.fetch = original;
   }
 });
+
+test("warmup shows the collecting message and 100% shows the error-found message", () => {
+  const warmup = predictionDisplay(
+    receivePrediction(
+      emptyPredictionState(),
+      snapshot({ prediction_usable: false }, { status: "not_ready" }),
+      at,
+    ),
+  );
+  assert.equal(warmup.message, "데이터를 수집하고 있습니다.");
+  assert.equal(warmup.found, false);
+
+  const full = predictionDisplay(
+    receivePrediction(
+      emptyPredictionState(),
+      snapshot({}, { error_probability: 1 }),
+      at,
+    ),
+  );
+  assert.equal(full.message, "에러가 발견 되었습니다");
+  assert.equal(full.found, true);
+  assert.equal(predictionDisplay(initial()).found, false);
+});

@@ -33,13 +33,7 @@ const tones: Record<string, { tone: HomeTone; label: string }> = {
   normal: { tone: "success", label: "정상 범위" },
 };
 
-export default function PredictionCard({
-  ml,
-  onOpenEquipment,
-}: {
-  ml: Slice<MlSnapshot>;
-  onOpenEquipment: () => void;
-}) {
+export default function PredictionCard({ ml }: { ml: Slice<MlSnapshot> }) {
   const { notice, prediction, probability, threshold } = predictionView(ml);
   const rows = prediction ? topPredictions(prediction) : [];
   const level = probability === null ? null : probabilityTone(probability);
@@ -88,9 +82,11 @@ export default function PredictionCard({
               <span>100%</span>
             </div>
             <p>
-              {probability >= threshold
-                ? `경고 기준 ${percent(threshold)}를 초과했습니다.`
-                : `경고 기준 ${percent(threshold)} 미만입니다.`}
+              {probability >= 1
+                ? "에러가 발견 되었습니다"
+                : probability >= threshold
+                  ? `경고 기준 ${percent(threshold)}를 초과했습니다.`
+                  : `경고 기준 ${percent(threshold)} 미만입니다.`}
             </p>
           </div>
           <div className="home-prediction__panel home-prediction__panel--plain">
@@ -136,9 +132,6 @@ export default function PredictionCard({
                 : "예측 정상 수신 중"}
         </strong>
       </p>
-      <button type="button" className="home-link" onClick={onOpenEquipment}>
-        설비 상세 보기 <Glyph name="chevron-right" />
-      </button>
     </HomeCard>
   );
 }

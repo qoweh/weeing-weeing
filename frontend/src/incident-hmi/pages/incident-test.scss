@@ -43,8 +43,9 @@
 }
 .incident-history {
   .library-status--danger { background: var(--danger-bg, #fff0f0); color: var(--danger, #b83246); }
-  &__title { margin: 0 0 28px; font-size: 24px; }
+  &__title { margin: 0 0 24px; color: var(--text); font-size: 24px; font-weight: 700; line-height: 1.3; }
   &__toolbar { display: flex; align-items: end; gap: 12px; margin-bottom: 24px; }
+  &__toolbar button { height: 48px; padding-top: 0; padding-bottom: 0; }
   &__search { width: min(480px, 100%); }
   &__search input { width: 100%; height: 48px; padding: 0 16px; border: 1px solid var(--border); border-radius: 8px; color: var(--text); background: var(--surface); font: inherit; }
   &__sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

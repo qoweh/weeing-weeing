@@ -128,7 +128,7 @@ export default function ApprovalCard({
       )}
       <button
         type="button"
-        className="home-link"
+        className="home-link home-link--end"
         onClick={() => onNavigate("maintenance")}
       >
         정비이력에서 전체 보기 <Glyph name="chevron-right" />
