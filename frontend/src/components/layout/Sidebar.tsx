@@ -27,12 +27,14 @@ export default function Sidebar({
   busy,
   collapsed = false,
   onToggleCollapsed,
+  maintenanceAttention = false,
 }: {
   page: string;
   onNavigate: (page: string) => void;
   busy: boolean;
   collapsed?: boolean;
   onToggleCollapsed: () => void;
+  maintenanceAttention?: boolean;
 }) {
   const current =
     page === "manual-upload"
@@ -108,7 +110,11 @@ export default function Sidebar({
             type="button"
             className={`nav-item ${current === id ? "nav-item--active" : ""}`}
             aria-current={current === id ? "page" : undefined}
-            aria-label={label}
+            aria-label={
+              id === "maintenance" && maintenanceAttention
+                ? `${label}, 처리할 보고서 있음`
+                : label
+            }
             disabled={busy || pending}
             data-tooltip={collapsed ? label : undefined}
             title={pending ? "설비 모니터링 준비 중" : label}
@@ -122,6 +128,14 @@ export default function Sidebar({
               alt=""
             />
             <span className="nav-item__label">{label}</span>
+            {id === "maintenance" && maintenanceAttention && (
+              <span className="nav-item__attention" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
+                  <path d="M10.25 4.4a2 2 0 0 1 3.5 0l8.1 14.6a2 2 0 0 1-1.75 3H3.9a2 2 0 0 1-1.75-3l8.1-14.6Z" fill="currentColor" />
+                  <path d="M12 9v5m0 3h.01" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </span>
+            )}
           </button>
         ))}
       </nav>

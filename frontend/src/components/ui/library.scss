@@ -25,6 +25,23 @@
   background: #17263f;
   color: #fff;
 }
+.library-review-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #c73f52;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
 .manual-upload-page {
   position: relative;
 }
@@ -194,6 +211,9 @@
 .library-table th:nth-child(6) {
   width: 11.1%;
 }
+.library-table--report th:nth-child(2) {
+  width: 20%;
+}
 .library-table--manual th:nth-child(1) {
   width: 6%;
 }
@@ -297,6 +317,10 @@
 .library-status--warning {
   background: var(--warning-bg);
   color: var(--warning);
+}
+.library-status--danger {
+  background: var(--danger, #bc4161);
+  color: #fff;
 }
 .library-section:has(.library-status) td {
   height: 48px;

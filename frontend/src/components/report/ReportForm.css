@@ -543,6 +543,12 @@ ul.report-analysis-list {
   font-size: var(--fs-caption);
   line-height: var(--lh-caption);
 }
+.report-footer button:not(:disabled) {
+  cursor: pointer;
+}
+.report-footer button:disabled {
+  cursor: not-allowed;
+}
 
 /* 문서 등록 버튼(.library-upload)과 같은 토큰을 써서 라이트·다크 모드를 따른다. */
 .report-sheet .report-check-button,
@@ -746,6 +752,14 @@ ul.report-analysis-list {
   grid-template-columns: minmax(130px, 26%) minmax(0, 1fr);
   gap: 1px;
   background: var(--report-line);
+}
+.report-required-mark {
+  color: var(--danger, #bc4161);
+  font-weight: 700;
+}
+.report-sheet .report-fields:not(:disabled) .report-field--bare.is-empty:has(:required) {
+  box-shadow: inset 3px 0 var(--danger, #bc4161);
+  background: var(--danger-bg, #fff0f3);
 }
 .report-subtable > * {
   min-width: 0;

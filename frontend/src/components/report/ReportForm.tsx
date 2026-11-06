@@ -242,7 +242,7 @@ function SubRows({ rows }: { rows: [string, ReactNode, boolean?][] }) {
         <Fragment key={label}>
           <span className="report-sub-label">
             {label}
-            {required && " *"}
+            {required && <span className="report-required-mark"> *</span>}
           </span>
           <div>{field}</div>
         </Fragment>
@@ -573,26 +573,8 @@ export default function ReportForm({
                 </span>
               </div>
               <div className="report-cell">
-                <strong>작성자 부서</strong>
-                <div>
-                  {renderField("department", "작성자 부서", {
-                    bare: true,
-                    placeholder: "입력",
-                  })}
-                </div>
-              </div>
-              <div className="report-cell">
                 <strong>문서 상태</strong>
                 <span>{statusLabel}</span>
-              </div>
-              <div className="report-cell">
-                <strong>공정 영향</strong>
-                <div>
-                  {renderField("processImpact", "공정 영향", {
-                    bare: true,
-                    options: ["미확인", "정지", "감속", "영향 없음"],
-                  })}
-                </div>
               </div>
             </div>
           </Section>
@@ -601,21 +583,15 @@ export default function ReportForm({
             <div className="report-table report-table--observations">
               <div className="report-cell report-cell--wide">
                 <strong>알람명·코드</strong>
-                <IncidentCodes
-                  codes={incident?.codes}
-                  emptyLabel="알람 미확인"
-                />
+                <IncidentCodes codes={incident?.codes} emptyLabel="알람 미확인" />
               </div>
               <div className="report-cell report-cell--wide">
                 <strong>관측 현상</strong>
                 <span style={{ whiteSpace: "pre-line" }}>
-                  <IncidentCodes
-                    codes={incident?.codes}
-                    emptyLabel="알람 미확인"
-                  />
+
                   {observedIncident?.evidence?.length
-                    ? `\n${observedIncident.evidence.map(measurementSummary).join("\n")}`
-                    : ""}
+                    ? observedIncident.evidence.map(measurementSummary).join("\n")
+                    : "관측 정보 없음"}
                 </span>
               </div>
               <div className="report-cell">
@@ -877,9 +853,6 @@ export default function ReportForm({
         </footer>
       </form>
 
-      <div className="report-paper-footer">
-        <span>CONV-MR-S-001 | v1.2 | 1 / 1</span>
-      </div>
     </article>
   );
 }

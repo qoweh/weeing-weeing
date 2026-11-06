@@ -123,6 +123,7 @@
 }
 
 .report-draft-dialog__close {
+  margin-left: auto;
   display: grid;
   flex: 0 0 36px;
   width: 36px;
@@ -175,6 +176,20 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+.report-draft-dialog__review-actions {
+  justify-content: flex-end;
+}
+.report-draft-dialog__review-actions
+  button.report-draft-dialog__approve:not(:disabled) {
+  background: var(--library-button, #dceafa);
+  border-color: transparent;
+}
+.report-draft-dialog__review-actions
+  button.report-draft-dialog__reject:not(:disabled) {
+  background: var(--danger, #bc4161);
+  border-color: var(--danger, #bc4161);
+  color: #fff;
+}
 .report-draft-dialog__actions button {
   padding: 8px 12px;
   border: 1px solid var(--border, #d7e0eb);
@@ -186,6 +201,12 @@
 .report-draft-dialog__actions button[aria-pressed="true"] {
   border-color: var(--primary, #2255cc);
   color: var(--primary, #2255cc);
+  font-weight: 700;
+}
+.report-draft-dialog__actions
+  button.report-draft-dialog__revise:not(:disabled) {
+  background: var(--library-button, #dceafa);
+  border-color: transparent;
   font-weight: 700;
 }
 .report-draft-dialog__actions button:disabled {
@@ -205,8 +226,25 @@
   border-radius: 8px;
   font-size: 14px;
 }
-.report-draft-dialog__approvals li.is-rejected {
-  border-color: var(--danger, #bd3b4f);
+.report-draft-dialog__approval-badge {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  color: var(--primary, #286b9e);
+  background: var(--primary-soft, #e4f2fb);
+  font-size: 12px;
+}
+.report-draft-dialog__approvals
+  .is-approved
+  .report-draft-dialog__approval-badge {
+  color: var(--success, #16875a);
+  background: var(--success-bg, #e8f8ef);
+}
+.report-draft-dialog__approvals
+  .is-rejected
+  .report-draft-dialog__approval-badge {
+  color: var(--danger, #bd3b4f);
   background: var(--danger-bg, #fff0f0);
 }
 .report-draft-dialog__approvals time {
@@ -311,4 +349,84 @@
     align-items: stretch;
     flex-direction: column;
   }
+}
+.report-decision-message {
+  position: fixed;
+  top: 96px;
+  right: 24px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 14px 18px;
+  border: 1px solid var(--border, #d7e0eb);
+  border-radius: 10px;
+  background: var(--surface, #fff);
+  color: var(--text, #172033);
+  box-shadow: 0 8px 24px #0002;
+}
+.report-decision-message button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.report-draft-dialog__actions
+  button.report-draft-dialog__delete:not(:disabled) {
+  background: var(--danger, #bc4161);
+  border-color: var(--danger, #bc4161);
+  color: #fff;
+}
+
+.report-draft-dialog__section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 24px 12px;
+  font-size: 17px;
+  font-weight: 700;
+}
+.report-draft-dialog__section-title > span {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 13px;
+}
+.report-draft-dialog__section-title + .report-draft-dialog__history {
+  margin-top: 0;
+}
+.report-draft-dialog__index-badge {
+  color: var(--success, #16875a);
+  background: var(--success-bg, #e8f8ef);
+}
+.report-draft-dialog__delete-actions {
+  justify-content: flex-end;
+  margin: 0 24px 24px;
+}
+
+.report-draft-dialog__download {
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--border, #d7e0eb);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  color: var(--text, #172033);
+  cursor: pointer;
+}
+.report-draft-dialog__download:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.report-draft-dialog__download + .report-draft-dialog__close {
+  margin-left: 0;
 }

@@ -685,7 +685,7 @@ class SqlReports(Repository):
             ]
 
     def review_history(
-        self, actor_id: str, *, limit: int = 100
+        self, actor_id: str, *, limit: int = 100, offset: int = 0
     ) -> list[ReportReviewHistory]:
         with self._transaction() as session:
             user = _actor(session, actor_id)
@@ -723,6 +723,7 @@ class SqlReports(Repository):
                 )
                 .order_by(ApprovalRow.at.desc(), ApprovalRow.id.desc())
                 .limit(min(max(limit, 1), 200))
+                .offset(offset)
             )
             return [
                 ReportReviewHistory(

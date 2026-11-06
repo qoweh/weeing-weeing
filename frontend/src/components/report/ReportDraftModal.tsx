@@ -60,6 +60,7 @@ export default function ReportDraftModal({
   user,
   onClose,
   onSaved,
+  onDecisionComplete,
   onSessionExpired,
 }: {
   incident?: DraftIncident | null;
@@ -69,6 +70,7 @@ export default function ReportDraftModal({
   user: { role: string; employee_no: string; name: string };
   onClose: () => void;
   onSaved: (saved: unknown) => void;
+  onDecisionComplete: (message: string) => void;
   onSessionExpired: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -91,6 +93,7 @@ export default function ReportDraftModal({
   );
   const [comment, setComment] = useState("");
   const [message, setMessage] = useState("");
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     const element = dialog.current;
@@ -312,9 +315,10 @@ export default function ReportDraftModal({
         onSaved(saved);
       }
       setResolvedReportId(saved.report_id);
-      setMessage(
+      onDecisionComplete(
         submit ? "보고서를 제출했습니다." : "보고서를 임시 저장했습니다.",
       );
+      onClose();
     } catch (failure) {
       setError(
         failure instanceof Error
@@ -352,6 +356,16 @@ export default function ReportDraftModal({
           : "결재 결과를 저장했습니다.",
       );
       onSaved(changed);
+      if (["review", "approve", "reject"].includes(action)) {
+        onDecisionComplete(
+          action === "reject"
+            ? "보고서를 반려했습니다."
+            : action === "review"
+              ? "검토 승인이 완료되었습니다."
+              : "최종 승인이 완료되었습니다.",
+        );
+        onClose();
+      }
     } catch (failure) {
       setError(
         failure instanceof Error
@@ -410,6 +424,91 @@ export default function ReportDraftModal({
     }
   }
 
+  async function downloadPdf() {
+    if (!document || downloading || !dialog.current) return;
+    setDownloading(true);
+    setError("");
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ]);
+      const parts = dialog.current.querySelectorAll<HTMLElement>(
+        ".report-sheet, .report-draft-dialog__section-title, .report-draft-dialog__history",
+      );
+      if (!parts.length) throw new Error("보고서 내용을 찾을 수 없습니다.");
+      await window.document.fonts.ready;
+      const pdf = new jsPDF({ unit: "mm", format: "a4" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const width = pageWidth - margin * 2;
+      let y = margin;
+      for (const part of parts) {
+        const canvas = await html2canvas(part, {
+          scale: 2,
+          backgroundColor: "#ffffff",
+          useCORS: true,
+          windowWidth: Math.max(part.scrollWidth, 1000),
+        });
+        let top = 0;
+        while (top < canvas.height) {
+          let available = pageHeight - margin - y;
+          if (available < 15) {
+            pdf.addPage();
+            y = margin;
+            available = pageHeight - margin * 2;
+          }
+          const height = Math.min(
+            canvas.height - top,
+            Math.floor((available * canvas.width) / width),
+          );
+          const slice = window.document.createElement("canvas");
+          slice.width = canvas.width;
+          slice.height = height;
+          const context = slice.getContext("2d");
+          if (!context) throw new Error("PDF 이미지를 만들 수 없습니다.");
+          context.drawImage(
+            canvas,
+            0,
+            top,
+            canvas.width,
+            height,
+            0,
+            0,
+            canvas.width,
+            height,
+          );
+          const renderedHeight = (height * width) / canvas.width;
+          pdf.addImage(
+            slice.toDataURL("image/png"),
+            "PNG",
+            margin,
+            y,
+            width,
+            renderedHeight,
+          );
+          top += height;
+          y += renderedHeight;
+          if (top < canvas.height) {
+            pdf.addPage();
+            y = margin;
+          }
+        }
+        y += 3;
+      }
+      pdf.save(`${document.report_id}.pdf`);
+    } catch (failure) {
+      setError(
+        failure instanceof Error
+          ? `PDF 다운로드 실패: ${failure.message}`
+          : "PDF 다운로드에 실패했습니다.",
+      );
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   const permissionNotice = !loading && !loadError && !canEdit && !document;
 
   return (
@@ -427,21 +526,37 @@ export default function ReportDraftModal({
     >
       {!permissionNotice && (
         <header className="report-draft-dialog__header">
-          <div className="report-draft-dialog__title">
-            <h2 id="report-draft-title">
-              {previewOnly
-                ? "새 정비 보고서"
-                : document?.report_id ||
-                  incident?.incident_number ||
-                  incident?.incident_id ||
-                  "사건 보고서"}
-            </h2>
-            <p>
-              {previewOnly
-                ? "정비 이력 · 보고서 디자인 미리보기"
-                : "정비 이력 · 보고서 초안"}
-            </p>
-          </div>
+          <h2 id="report-draft-title" className="report-sr-only">
+            {previewOnly ? "새 정비 보고서" : "보고서 초안"}
+          </h2>
+          {document?.report_status === "APPROVED" && !loading && !loadError && (
+            <button
+              type="button"
+              className="report-draft-dialog__download"
+              onClick={() => void downloadPdf()}
+              disabled={downloading}
+              aria-label="보고서 PDF 다운로드"
+              title="PDF 다운로드"
+            >
+              {downloading ? (
+                "생성 중"
+              ) : (
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M12 3v12m-4-4 4 4 4-4M4 17v3h16v-3" />
+                </svg>
+              )}
+            </button>
+          )}
           <button
             type="button"
             className="report-draft-dialog__close"
@@ -488,138 +603,182 @@ export default function ReportDraftModal({
               {message}
             </p>
           )}
+          {document?.report_status === "APPROVED" && reportForm}
           {document && (
-            <section
-              className="report-draft-dialog__history"
-              aria-label="보고서 버전 및 결재 이력"
-            >
-              <h3>
-                {document.report_id} · v{document.report_version} ·{" "}
-                {statusLabels[document.report_status] || document.report_status}
-              </h3>
-              {!current && (
-                <p>
-                  이전 버전입니다. 현재 버전은 v{document.current_version}이며
-                  조회만 할 수 있습니다.
-                </p>
+            <>
+              {document.report_status === "APPROVED" && (
+                <h3 className="report-draft-dialog__section-title">
+                  <span>07</span>결재 이력
+                </h3>
               )}
-              <div
-                className="report-draft-dialog__actions"
-                aria-label="보고서 버전 선택"
+              <section
+                className="report-draft-dialog__history"
+                aria-label="보고서 버전 및 결재 이력"
               >
-                {Array.from(
-                  { length: document.current_version },
-                  (_, index) => index + 1,
-                ).map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    disabled={busy}
-                    aria-pressed={document.report_version === item}
-                    onClick={() => {
-                      setMessage("");
-                      setSelectedVersion(item);
-                    }}
-                  >
-                    v{item} 보기
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => {
-                    setMessage("");
-                    setSelectedVersion(undefined);
-                  }}
+                {document.report_status !== "APPROVED" && (
+                  <h3>
+                    {document.report_id} · v{document.report_version} ·{" "}
+                    {statusLabels[document.report_status] ||
+                      document.report_status}
+                  </h3>
+                )}
+                {!current && (
+                  <p>
+                    이전 버전입니다. 현재 버전은 v{document.current_version}이며
+                    조회만 할 수 있습니다.
+                  </p>
+                )}
+                <div
+                  className="report-draft-dialog__actions"
+                  aria-label="보고서 버전 선택"
                 >
-                  최신 내용 보기
-                </button>
-                {own &&
-                  current &&
-                  writers.includes(user.role) &&
-                  document.report_status === "REJECTED" && (
+                  {document.report_status !== "APPROVED" &&
+                    Array.from(
+                      { length: document.current_version },
+                      (_, index) => index + 1,
+                    ).map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        disabled={busy}
+                        aria-pressed={document.report_version === item}
+                        onClick={() => {
+                          setMessage("");
+                          setSelectedVersion(item);
+                        }}
+                      >
+                        v{item} 보기
+                      </button>
+                    ))}
+                  {document.report_status !== "APPROVED" && (
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => void decide("revise")}
+                      onClick={() => {
+                        setMessage("");
+                        setSelectedVersion(undefined);
+                      }}
                     >
-                      보고서 수정하기
+                      최신 내용 보기
                     </button>
                   )}
-                {own &&
-                  current &&
-                  writers.includes(user.role) &&
-                  document.report_status === "DRAFT" && (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void removeReport(true)}
-                    >
-                      {document.report_version > 1
-                        ? "수정 취소"
-                        : "임시 저장 삭제"}
-                    </button>
+                  {own &&
+                    current &&
+                    writers.includes(user.role) &&
+                    document.report_status === "REJECTED" && (
+                      <button
+                        className="report-draft-dialog__revise"
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void decide("revise")}
+                      >
+                        보고서 수정하기
+                      </button>
+                    )}
+                  {own &&
+                    current &&
+                    writers.includes(user.role) &&
+                    document.report_status === "DRAFT" && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void removeReport(true)}
+                      >
+                        {document.report_version > 1
+                          ? "수정 취소"
+                          : "임시 저장 삭제"}
+                      </button>
+                    )}
+                </div>
+                {document.report_status !== "APPROVED" && <h4>결재 이력</h4>}
+                {document.approval?.length ? (
+                  <ol className="report-draft-dialog__approvals">
+                    {document.approval.map((item, index) => (
+                      <li
+                        key={`${item.step}-${index}`}
+                        className={
+                          item.decision === "반려"
+                            ? "is-rejected"
+                            : item.decision === "승인"
+                              ? "is-approved"
+                              : "is-submitted"
+                        }
+                      >
+                        <div>
+                          <strong className="report-draft-dialog__approval-badge">
+                            {item.decision === "승인" &&
+                            item.role === "관제 담당자"
+                              ? "최종 승인"
+                              : item.decision}
+                          </strong>{" "}
+                          <strong>{item.role}</strong> · {item.user}{" "}
+                          <time dateTime={item.at}>
+                            {Number.isNaN(new Date(item.at).getTime())
+                              ? item.at
+                              : new Date(item.at).toLocaleString("ko-KR")}
+                          </time>
+                        </div>
+                        {item.comment && (
+                          <p>
+                            <b>
+                              {item.decision === "반려"
+                                ? "반려 사유"
+                                : "결재 의견"}
+                              :{" "}
+                            </b>
+                            {item.comment}
+                          </p>
+                        )}
+                      </li>
+                    ))}
+                    {document.index_status === "indexed" && (
+                      <li>
+                        <strong className="report-draft-dialog__approval-badge report-draft-dialog__index-badge">
+                          검색 자료 등록 완료
+                        </strong>
+                      </li>
+                    )}
+                  </ol>
+                ) : (
+                  <p>결재 이력이 없습니다.</p>
+                )}
+                {document.index_status === "pending" && (
+                  <p>검색 자료 등록 대기 중입니다.</p>
+                )}
+                {document.index_status === "indexed" &&
+                  !document.approval?.length && (
+                    <ol className="report-draft-dialog__approvals">
+                      <li>
+                        <strong className="report-draft-dialog__approval-badge report-draft-dialog__index-badge">
+                          검색 자료 등록 완료
+                        </strong>
+                      </li>
+                    </ol>
                   )}
-                {current &&
-                  user.role === "관제 담당자" &&
-                  document.report_status === "APPROVED" && (
+                {document.index_status === "failed" && (
+                  <p>
+                    검색 자료 등록에 실패했습니다. 관리자에게 재처리를
+                    요청하세요.
+                  </p>
+                )}
+              </section>
+              {current &&
+                user.role === "관제 담당자" &&
+                document.report_status === "APPROVED" && (
+                  <div className="report-draft-dialog__actions report-draft-dialog__delete-actions">
                     <button
+                      className="report-draft-dialog__delete"
                       type="button"
                       disabled={busy}
                       onClick={() => void removeReport(false)}
                     >
                       보고서 삭제
                     </button>
-                  )}
-              </div>
-              <h4>결재 이력</h4>
-              {document.approval?.length ? (
-                <ol className="report-draft-dialog__approvals">
-                  {document.approval.map((item, index) => (
-                    <li
-                      key={`${item.step}-${index}`}
-                      className={item.decision === "반려" ? "is-rejected" : ""}
-                    >
-                      <div>
-                        <strong>{item.decision}</strong> · {item.role} ·{" "}
-                        {item.user}{" "}
-                        <time dateTime={item.at}>
-                          {Number.isNaN(new Date(item.at).getTime())
-                            ? item.at
-                            : new Date(item.at).toLocaleString("ko-KR")}
-                        </time>
-                      </div>
-                      {item.comment && (
-                        <p>
-                          <b>
-                            {item.decision === "반려"
-                              ? "반려 사유"
-                              : "결재 의견"}
-                            :{" "}
-                          </b>
-                          {item.comment}
-                        </p>
-                      )}
-                    </li>
-                  ))}
-                </ol>
-              ) : (
-                <p>결재 이력이 없습니다.</p>
-              )}
-              {document.index_status === "pending" && (
-                <p>검색 자료 등록 대기 중입니다.</p>
-              )}
-              {document.index_status === "indexed" && (
-                <p>검색 자료 등록이 완료됐습니다.</p>
-              )}
-              {document.index_status === "failed" && (
-                <p>
-                  검색 자료 등록에 실패했습니다. 관리자에게 재처리를 요청하세요.
-                </p>
-              )}
-            </section>
+                  </div>
+                )}
+            </>
           )}
-          {reportForm}
+          {document?.report_status !== "APPROVED" && reportForm}
           {reviewable && (
             <section className="report-draft-dialog__history">
               <h3>보고서 결재</h3>
@@ -632,8 +791,17 @@ export default function ReportDraftModal({
                   disabled={busy}
                 />
               </label>
-              <div className="report-draft-dialog__actions">
+              <div className="report-draft-dialog__actions report-draft-dialog__review-actions">
                 <button
+                  className="report-draft-dialog__reject"
+                  type="button"
+                  disabled={busy || !comment.trim()}
+                  onClick={() => void decide("reject")}
+                >
+                  반려
+                </button>
+                <button
+                  className="report-draft-dialog__approve"
                   type="button"
                   disabled={busy}
                   onClick={() =>
@@ -643,13 +811,6 @@ export default function ReportDraftModal({
                   }
                 >
                   {user.role === "보전 팀장" ? "검토 승인" : "최종 승인"}
-                </button>
-                <button
-                  type="button"
-                  disabled={busy || !comment.trim()}
-                  onClick={() => void decide("reject")}
-                >
-                  반려
                 </button>
               </div>
             </section>

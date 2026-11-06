@@ -214,9 +214,12 @@ def list_reports(
 
 @router.get("/reports/review-history")
 def review_history(
-    user: CurrentUser, repo: Reports, limit: int = Query(default=100, ge=1, le=200)
+    user: CurrentUser,
+    repo: Reports,
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
 ) -> list[db.ReportReviewHistory]:
-    return _call(repo.review_history, user.employee_no, limit=limit)
+    return _call(repo.review_history, user.employee_no, limit=limit, offset=offset)
 
 
 @router.get("/reports/{report_id}")
