@@ -33,7 +33,7 @@ export default function PreparingPage({
             조금만 기다려 주세요.
           </p>
           <Button variant="primary" onClick={() => onNavigate?.("incidents")}>
-            이상 현황으로 이동
+            사건 현황으로 이동
           </Button>
         </section>
       </div>

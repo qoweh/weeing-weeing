@@ -427,12 +427,7 @@ export default function ReportDraftModal({
     >
       {!permissionNotice && (
         <header className="report-draft-dialog__header">
-          <div>
-            <p>
-              {previewOnly
-                ? "정비 이력 · 보고서 디자인 미리보기"
-                : "정비 이력 · 보고서 초안"}
-            </p>
+          <div className="report-draft-dialog__title">
             <h2 id="report-draft-title">
               {previewOnly
                 ? "새 정비 보고서"
@@ -441,6 +436,11 @@ export default function ReportDraftModal({
                   incident?.incident_id ||
                   "사건 보고서"}
             </h2>
+            <p>
+              {previewOnly
+                ? "정비 이력 · 보고서 디자인 미리보기"
+                : "정비 이력 · 보고서 초안"}
+            </p>
           </div>
           <button
             type="button"

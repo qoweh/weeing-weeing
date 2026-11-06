@@ -1,7 +1,14 @@
 .home-page {
   width: 100%;
   min-width: 0;
+  /* 사건현황·정비이력·문서내역(.library-page)과 같은 좌우 여백 */
+  padding: 0 24px;
   color: var(--text);
+}
+@media (max-width: 1200px) {
+  .home-page {
+    padding: 0;
+  }
 }
 .home-page__header .page-title {
   margin-bottom: 16px;
@@ -111,6 +118,12 @@ button.home-summary__item:hover {
   justify-content: space-between;
   gap: 12px;
   margin: 0 4px 14px;
+}
+/* 결재 내역은 탭 버튼을 제목 바로 오른쪽에 둔다 */
+.home-card--approvals .home-card__head {
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16px;
 }
 .home-card__head h2 {
   margin: 0;
@@ -227,15 +240,19 @@ button.home-summary__item:hover {
 .home-status + .home-link {
   margin-top: 10px;
 }
+.home-link.home-link--end {
+  align-self: flex-end;
+}
 .home-link:hover {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 .home-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
   color: var(--muted);
-  font-size: 20px;
   line-height: 1;
-  text-align: right;
 }
 .home-muted {
   margin: 0;
@@ -287,9 +304,6 @@ button.home-summary__item:hover {
   text-align: left;
   cursor: pointer;
   transition: background-color 140ms ease;
-}
-.home-table__row:first-of-type {
-  background: color-mix(in srgb, var(--primary-soft) 55%, var(--surface));
 }
 .home-table__row:hover {
   background: var(--surface-hover);
@@ -398,7 +412,7 @@ button.home-summary__item:hover {
   gap: 6px;
 }
 .home-tabs button {
-  min-height: 30px;
+  height: 32px;
   padding: 0 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -622,14 +636,16 @@ button.home-summary__item:hover {
 }
 .home-heading .page-title {
   margin: 0;
+  /* 옆의 돌아가기 버튼(32px)과 제목 텍스트 높이를 같게 맞춘다 */
+  line-height: 32px;
 }
 .home-back {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 32px;
+  height: 32px;
   margin: 0;
-  padding: 4px 12px 4px 8px;
+  padding: 0 12px 0 8px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);

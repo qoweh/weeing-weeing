@@ -1,7 +1,32 @@
 import type { Slice } from "./useHomeData";
 import type { IncidentOverview } from "../../api/client";
+import Glyph from "../ui/Glyph";
 import HomeCard, { HomeBadge, HomeNotice } from "./HomeCard";
-import { buildEquipmentRows, formatDateTime } from "./homeData";
+import {
+  buildEquipmentRows,
+  formatDateTime,
+  type EquipmentRow,
+} from "./homeData";
+
+// 화면 확인용 더미 설비. 실제 설비 목록 API가 생기면 지운다.
+const dummyRows: EquipmentRow[] = [
+  {
+    id: "BLDC-002",
+    name: "모터 구동 롤러 컨베이어",
+    label: "주의",
+    tone: "warning",
+    openCount: 1,
+    latest: "2026-11-05T17:42:00+09:00",
+  },
+  {
+    id: "BLDC-003",
+    name: "포장 라인 벨트 컨베이어",
+    label: "정상",
+    tone: "success",
+    openCount: 0,
+    latest: "2026-10-29T13:05:00+09:00",
+  },
+];
 
 export default function EquipmentListCard({
   overview,
@@ -10,7 +35,14 @@ export default function EquipmentListCard({
   overview: Slice<IncidentOverview[]>;
   onOpenEquipment: (assetId: string) => void;
 }) {
-  const rows = buildEquipmentRows(overview.data ?? []);
+  const realRows = buildEquipmentRows(overview.data ?? []);
+  const rows = [
+    ...realRows,
+    ...dummyRows.filter(
+      (dummy) => !realRows.some((row) => row.id === dummy.id),
+    ),
+  ];
+  const isDummy = (id: string) => dummyRows.some((row) => row.id === id);
   // 사건 조회가 실패해도 확정된 설비는 보이되, 상태를 믿을 수 없으니 안내한다.
   const unreliable = overview.data === null && !!overview.error;
   return (
@@ -61,7 +93,9 @@ export default function EquipmentListCard({
                   type="button"
                   role="row"
                   className="home-table__row"
-                  onClick={() => onOpenEquipment(row.id)}
+                  onClick={() => {
+                    if (!isDummy(row.id)) onOpenEquipment(row.id);
+                  }}
                   aria-label={`${row.name} ${row.id} 상세 보기`}
                 >
                   <span role="cell" className="home-table__name">
@@ -85,7 +119,7 @@ export default function EquipmentListCard({
                     {formatDateTime(row.latest)}
                   </span>
                   <span role="cell" aria-hidden="true" className="home-chevron">
-                    ›
+                    <Glyph name="chevron-right" size={18} />
                   </span>
                 </button>
               ))}

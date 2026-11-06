@@ -100,11 +100,18 @@ export function predictionDisplay(state: PredictionState) {
   } else if (!snapshot.producer_connected || snapshot.stale)
     notice = "센서 수신 지연으로 예측 갱신을 기다리고 있습니다.";
   else if (p?.status === "not_ready" || p?.status === "initializing")
-    notice = "예측을 준비하고 있습니다.";
+    notice = "데이터를 수집하고 있습니다.";
   else if (p?.evaluation_eligible === false)
     notice = "현재 감지된 오류가 있어 미래 예측 갱신을 기다리고 있습니다.";
   else if (p?.deadline_exceeded) error = "예측 처리 시간 초과";
   else if (!usable(snapshot)) error = "예측 응답";
+
+  // 수신된 예측의 에러 확률이 100%에 도달하면 에러가 발견된 것으로 알린다.
+  const found =
+    !error &&
+    !notice &&
+    (state.lastGood?.snapshot.prediction.error_probability ?? 0) >= 1;
+  if (found) notice = "에러가 발견 되었습니다";
 
   const held = Boolean(state.lastGood && (error || notice));
   const reference = state.lastGood?.snapshot.prediction.reference_time;
@@ -112,6 +119,7 @@ export function predictionDisplay(state: PredictionState) {
     prediction: state.lastGood?.snapshot.prediction ?? null,
     held,
     isError: Boolean(error),
+    found,
     message: error
       ? `${error} 에러가 발생했습니다. 확인이 필요합니다.`
       : notice,

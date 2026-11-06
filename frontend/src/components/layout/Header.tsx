@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { listIncidents, watchTelemetry, type Incident } from "../../api/client";
 import Button from "../ui/Button";
+import Glyph from "../ui/Glyph";
+import ProfileAvatar from "./ProfileAvatar";
 import { dateLabel } from "../ui/library";
 import SettingsDialog from "./SettingsDialog";
 import type { Settings } from "./settings";
@@ -256,26 +258,7 @@ export default function Header({
           {user && (
             <details className="header-account" ref={accountMenu}>
               <summary aria-label="내 계정" title={user.name}>
-                <svg
-                  className="header-account__gear"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M10.3 2.8h3.4l.5 2.2c.5.2 1 .4 1.4.6l1.9-1.2 2.4 2.4-1.2 1.9c.2.4.4.9.6 1.4l2.2.5v3.4l-2.2.5c-.2.5-.4 1-.6 1.4l1.2 1.9-2.4 2.4-1.9-1.2c-.4.2-.9.4-1.4.6l-.5 2.2h-3.4l-.5-2.2c-.5-.2-1-.4-1.4-.6l-1.9 1.2-2.4-2.4 1.2-1.9c-.2-.4-.4-.9-.6-1.4l-2.2-.5v-3.4l2.2-.5c.2-.5.4-1 .6-1.4L4.1 6.8l2.4-2.4 1.9 1.2c.4-.2.9-.4 1.4-.6l.5-2.2Z"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinejoin="round"
-                  />
-                  <circle
-                    cx="12"
-                    cy="12"
-                    r="3"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                  />
-                </svg>
+                <ProfileAvatar user={user} size={36} />
                 <span className="header-account__summary-text">
                   <strong>{user.name}</strong>
                   <small>{user.role}</small>
@@ -283,7 +266,8 @@ export default function Header({
               </summary>
               <div className="header-account__menu">
                 <div className="header-account__identity">
-                  <div>
+                  <ProfileAvatar user={user} size={48} />
+                  <div className="header-account__identity-text">
                     <strong>{user.name}</strong>
                     <p>{user.role}</p>
                   </div>
@@ -320,7 +304,7 @@ export default function Header({
                       className="header-account__item-note"
                       aria-hidden="true"
                     >
-                      ›
+                      <Glyph name="chevron-right" />
                     </span>
                   </button>
                 </div>

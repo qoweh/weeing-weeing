@@ -8,6 +8,8 @@
   max-height: calc(100dvh / var(--screen-zoom, 1) - 48px);
   padding: 0;
   overflow: auto;
+  /* 고정 헤더(76px)에 가려지지 않도록 필수 입력 검증 시 스크롤 여백 확보 */
+  scroll-padding-top: 140px;
   border: 1px solid var(--border, #d7e0eb);
   border-radius: 14px;
   background: var(--surface, #fff);
@@ -102,8 +104,14 @@
   margin: 0;
 }
 
+.report-draft-dialog__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 16px;
+}
+
 .report-draft-dialog__header p {
-  margin-bottom: 4px;
   color: var(--muted, #6d7d96);
   font-size: var(--fs-caption);
   line-height: var(--lh-caption);

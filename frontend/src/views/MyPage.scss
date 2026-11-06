@@ -2,7 +2,14 @@
   --mypage-card-radius: 16px;
   width: 100%;
   min-width: 0;
+  /* 사건현황·정비이력·문서내역(.library-page)과 같은 좌우 여백 */
+  padding: 0 24px;
   color: var(--text);
+}
+@media (max-width: 1200px) {
+  .mypage {
+    padding: 0;
+  }
 }
 .mypage__profile,
 .mypage__card,
