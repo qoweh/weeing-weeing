@@ -1,4 +1,6 @@
 import { useState, type ReactNode } from "react";
+import IncidentCodes from "./IncidentCodeLabel";
+import { incidentCodeMatches } from "./incidentCodes";
 
 type FiltersState = { period: string; docType: string };
 type Excerpt = { before: string; match: string; after: string };
@@ -7,6 +9,7 @@ type LibraryRow = {
   name: string;
   asset?: string;
   issue?: string;
+  issueCodes?: readonly string[];
   author?: string;
   date?: string;
   doc_type?: string;
@@ -126,6 +129,7 @@ export function filterRows<T extends LibraryRow>(
   return rows.filter(
     (r) =>
       (!query.trim() ||
+        (r.issueCodes?.length && incidentCodeMatches(r.issueCodes, query)) ||
         [r.name, r.asset, r.issue, r.author].some((v) =>
           String(v ?? "")
             .toLowerCase()
@@ -380,10 +384,16 @@ export function LibraryTable<T extends LibraryRow>({
                         onClick={() => onOpen(r)}
                         aria-label={`${r.issue || "사건"} 보고서 초안 열기`}
                       >
-                        {r.issue || "—"}
+                        {r.issueCodes?.length ? (
+                          <IncidentCodes codes={r.issueCodes} />
+                        ) : (
+                          r.issue || "—"
+                        )}
                       </button>
                     ) : key === "date" ? (
                       dateLabel(r.date, report)
+                    ) : key === "issue" && r.issueCodes?.length ? (
+                      <IncidentCodes codes={r.issueCodes} />
                     ) : key === "status" && report && r.incidentId ? (
                       <button
                         onClick={() => onOpen(r)}

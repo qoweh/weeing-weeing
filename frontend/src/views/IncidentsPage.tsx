@@ -7,6 +7,7 @@ import {
 } from "../api/client";
 import Button from "../components/ui/Button";
 import PageTitle from "../components/ui/PageTitle";
+import { incidentCodesText } from "../components/ui/incidentCodes";
 import { LibraryTable } from "../components/ui/library";
 const labels: Record<string, string> = {
   DRAFT: "임시 저장",
@@ -34,7 +35,8 @@ function toRow(incident: Incident, reports: ReportSummary[]) {
     reportId: report?.report_id,
     incidentId: incident.incident_id,
     name: report?.report_id || "보고서 작성",
-    issue: incident.codes.join(", "),
+    issue: incidentCodesText(incident.codes),
+    issueCodes: incident.codes,
     asset: incident.asset_id,
     date: incident.first_detected_at,
     author: report?.author_name || "—",

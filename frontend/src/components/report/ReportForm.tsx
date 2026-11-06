@@ -1,3 +1,4 @@
+import IncidentCodes from "../ui/IncidentCodeLabel";
 import {
   Fragment,
   useEffect,
@@ -67,7 +68,6 @@ type Change = ChangeEvent<
 >;
 
 import {
-  alarmDescriptions,
   measurementSummary,
   reportEquipmentLabel,
   formatReportMeasurement,
@@ -600,14 +600,19 @@ export default function ReportForm({
           <Section number="02" title="발생 현상 및 주요 측정값">
             <div className="report-table report-table--observations">
               <div className="report-cell report-cell--wide">
-                <strong>알람 코드</strong>
-                <span>{incident?.codes?.join(", ") || "알람 미확인"}</span>
+                <strong>알람명·코드</strong>
+                <IncidentCodes
+                  codes={incident?.codes}
+                  emptyLabel="알람 미확인"
+                />
               </div>
               <div className="report-cell report-cell--wide">
                 <strong>관측 현상</strong>
                 <span style={{ whiteSpace: "pre-line" }}>
-                  {alarmDescriptions(incident, linkedAnalysis).join("\n") ||
-                    "알람 미확인"}
+                  <IncidentCodes
+                    codes={incident?.codes}
+                    emptyLabel="알람 미확인"
+                  />
                   {observedIncident?.evidence?.length
                     ? `\n${observedIncident.evidence.map(measurementSummary).join("\n")}`
                     : ""}

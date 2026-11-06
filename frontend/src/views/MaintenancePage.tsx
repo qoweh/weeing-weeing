@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { listAllReports, listAllIncidents, type Incident } from "../api/client";
 import Button from "../components/ui/Button";
 import PageTitle from "../components/ui/PageTitle";
+import { incidentCodesText } from "../components/ui/incidentCodes";
 import { Filters, filterRows, LibraryTable } from "../components/ui/library";
 type Row = {
   id: string;
@@ -9,6 +10,7 @@ type Row = {
   incidentId: string | null;
   name: string;
   issue: string;
+  issueCodes?: string[];
   asset: string;
   date: string;
   author: string;
@@ -59,7 +61,10 @@ export default function MaintenancePage({
             incidentId: r.incident_id,
             name: r.report_id,
             issue:
-              incident?.codes?.join(", ") || r.incident_id || "사건 미연결",
+              incidentCodesText(incident?.codes) ||
+              r.incident_id ||
+              "사건 미연결",
+            issueCodes: incident?.codes,
             asset: r.asset_id,
             date: incident?.first_detected_at || r.updated_at,
             author: r.author_name,

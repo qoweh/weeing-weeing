@@ -1,3 +1,5 @@
+import { incidentCodeText } from "../ui/incidentCodes";
+
 const fieldLabels: Record<string, string> = {
   infeed_present: "입구 감지",
   outfeed_present: "출구 감지",
@@ -60,22 +62,10 @@ export function reportEquipmentLabel(assetId?: string, suppliedName = "") {
 
 export function alarmDescriptions(
   incident: { codes?: string[] } | null,
-  analysis: { observed_facts?: string } | null,
+  _analysis: { observed_facts?: string } | null,
 ) {
-  // describe()가 기록한 코드 표시명만 읽고 자유 서술·통계 본문은 표시하지 않는다.
-  const codeLine =
-    analysis?.observed_facts
-      ?.split(/\r?\n/)
-      .find((line) => line.startsWith("코드: ")) ?? "";
-  const descriptions = new Map(
-    [...codeLine.matchAll(/(BTT2-[PMD]\d{2})\(([^)\r\n]+)\)/g)].map((match) => [
-      match[1],
-      match[2],
-    ]),
-  );
-  return (incident?.codes ?? []).map(
-    (code) => `${code} — ${descriptions.get(code) || "설명 연결 대기"}`,
-  );
+  // The display name is available before AI analysis and is not extracted from its prose.
+  return (incident?.codes ?? []).map((code) => incidentCodeText(code));
 }
 
 export function measurementSummary(evidence: {

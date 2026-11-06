@@ -3,6 +3,8 @@ import { deleteIncident, getIncidentAnalysis, listIncidentApprovedReports, listI
 import { AnalysisCard } from '../components/AnalysisCard'
 import { pollAnalysis } from '../components/pollAnalysis'
 import Glyph from '../../components/ui/Glyph'
+import IncidentCodes from '../../components/ui/IncidentCodeLabel'
+import { incidentCodeMatches, incidentCodeText } from '../../components/ui/incidentCodes'
 import '../../components/ui/library.scss'
 import './incident-test.scss'
 
@@ -31,7 +33,7 @@ function IncidentDeleteDialog({ incident, busy, error, onCancel, onConfirm }) {
   }, [])
   return <dialog ref={dialog} className="incident-history-dialog incident-delete-dialog" aria-labelledby="incident-delete-title" aria-describedby="incident-delete-description" onCancel={(event) => { event.preventDefault(); if (!busy) onCancel() }}>
     <h2 id="incident-delete-title">이 사건을 삭제할까요?</h2>
-    <p className="incident-delete-dialog__identity">{incident.codes.join(', ')} · {incident.incident_number || incident.incident_id}</p>
+    <p className="incident-delete-dialog__identity"><IncidentCodes codes={incident.codes} /> · {incident.incident_number || incident.incident_id}</p>
     <p id="incident-delete-description">연결된 모든 보고서와 결재 이력, AI 분석 결과와 보고서 검색 자료가 함께 삭제됩니다. 센서 원본 기록은 유지됩니다.</p>
     {incident.has_approved_report && <p className="incident-delete-dialog__warning">최종 승인된 보고서가 연결된 사건입니다.</p>}
     {error && <p className="incident-test__error" role="alert">{error}</p>}
@@ -68,7 +70,7 @@ function IncidentTable({ title, items, onSelect, active = false }) {
   const sorted = [...items].sort((a, b) => {
     if (sort.key === 'number') return (String(b.first_detected_at).localeCompare(String(a.first_detected_at))) * sort.direction * -1
     if (sort.key === 'incident_number') return String(a.incident_number || a.incident_id).localeCompare(String(b.incident_number || b.incident_id), 'ko', { numeric: true }) * sort.direction
-    return String(a[sort.key] ?? '').localeCompare(String(b[sort.key] ?? ''), 'ko', { numeric: true }) * sort.direction
+    return String(sort.key === 'codes' ? a.codes.map((code) => incidentCodeText(code)).join(', ') : a[sort.key] ?? '').localeCompare(String(sort.key === 'codes' ? b.codes.map((code) => incidentCodeText(code)).join(', ') : b[sort.key] ?? ''), 'ko', { numeric: true }) * sort.direction
   })
   const pageSize = 10
   const pages = Math.max(1, Math.ceil(sorted.length / pageSize))
@@ -78,7 +80,7 @@ function IncidentTable({ title, items, onSelect, active = false }) {
     <div className="library-summary"><h2>{title} <span>{items.length}건</span></h2><p>열 제목을 클릭하여 오름차순 / 내림차순 정렬</p></div>
     <div className="library-table-scroll" role="region" aria-label={`${title} 표`} tabIndex={0}>
       <table className="library-table incident-history__library-table"><thead><tr>{columns.map(([key, label]) => <th key={key} aria-sort={sort.key === key ? (sort.direction === 1 ? 'ascending' : 'descending') : 'none'}><button type="button" onClick={() => { setSort({ key, direction: sort.key === key ? -sort.direction : 1 }); setPage(1) }}>{label}{sort.key === key && <span aria-hidden="true"> {sort.direction === 1 ? '↑' : '↓'}</span>}</button></th>)}</tr></thead>
-        <tbody>{rows.map((item, index) => <tr key={item.incident_id}><td>{String((current - 1) * pageSize + index + 1).padStart(2, '0')}</td><td><button type="button" className="library-link" onClick={() => onSelect(item)}>{item.codes.join(', ')}</button></td><td>{item.asset_id}</td><td>{new Date(item.first_detected_at).toLocaleString('ko-KR')}</td><td>{item.equipment}</td><td><span className={`library-status library-status--${item.report_status === 'REJECTED' ? 'danger' : active ? 'warning' : 'success'}`}>{item.processing}</span></td><td className="incident-history__number" title={item.incident_number || item.incident_id}>{item.incident_number || item.incident_id}</td></tr>)}
+        <tbody>{rows.map((item, index) => <tr key={item.incident_id}><td>{String((current - 1) * pageSize + index + 1).padStart(2, '0')}</td><td><button type="button" className="library-link" onClick={() => onSelect(item)}><IncidentCodes codes={item.codes} /></button></td><td>{item.asset_id}</td><td>{new Date(item.first_detected_at).toLocaleString('ko-KR')}</td><td>{item.equipment}</td><td><span className={`library-status library-status--${item.report_status === 'REJECTED' ? 'danger' : active ? 'warning' : 'success'}`}>{item.processing}</span></td><td className="incident-history__number" title={item.incident_number || item.incident_id}>{item.incident_number || item.incident_id}</td></tr>)}
           {!rows.length && <tr><td className="library-empty" colSpan={columns.length}>표시할 사건이 없습니다.</td></tr>}</tbody></table>
     </div>
     {<div className="library-pagination"><button type="button" aria-label={`${title} 이전 페이지`} disabled={current === 1} onClick={() => setPage(current - 1)}><Glyph name="chevron-left" /></button><span>{current} / {pages}</span><button type="button" aria-label={`${title} 다음 페이지`} disabled={current === pages} onClick={() => setPage(current + 1)}><Glyph name="chevron-right" /></button></div>}
@@ -184,11 +186,11 @@ export default function IncidentHistoryPage({ focus, onFocusHandled, onSessionEx
   // React가 선택 변경을 감지하지 못해 결과만 지워질 수 있다.
   function select(item) { setResult(null); setReports(null); setSelected({ ...item }) }
   const term = query.trim().toLowerCase()
-  const visible = incidents.filter((item) => [item.incident_number, item.incident_id, item.asset_id, ...item.codes].some((value) => value?.toLowerCase().includes(term)))
+  const visible = incidents.filter((item) => incidentCodeMatches(item.codes, term) || [item.incident_number, item.incident_id, item.asset_id].some((value) => value?.toLowerCase().includes(term)))
 
   return <div className="library-page incident-history" aria-label="사건 현황">
     <h1 className="incident-history__title">사건현황</h1>
-    <div className="incident-history__toolbar"><label className="incident-history__search"><span className="incident-history__sr-only">사건 검색</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="에러 코드, 설비 ID, 사건 번호 검색" /></label><button type="button" onClick={refresh} disabled={loading}>목록 새로고침</button></div>
+    <div className="incident-history__toolbar"><label className="incident-history__search"><span className="incident-history__sr-only">사건 검색</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="알람명, 에러 코드, 설비 ID, 사건 번호 검색" /></label><button type="button" onClick={refresh} disabled={loading}>목록 새로고침</button></div>
     {notice && <p role="status">{notice}</p>}
     {loading ? <p role="status">사건을 불러오는 중입니다.</p> : error ? <p className="incident-test__error" role="alert">{error} <button type="button" onClick={refresh}>다시 시도</button></p> : <>
       <IncidentTable title="처리 중인 사건" items={visible.filter((item) => !item.has_approved_report)} onSelect={select} active />

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import IncidentCodes from "../ui/IncidentCodeLabel";
 import { getChatDocumentFile } from "../../api/chat.js";
 import { getReport } from "../../api/client.js";
 import "./chat.scss";
@@ -96,7 +97,7 @@ export default function ChatSourceDialog({
         <div className="chat-source-dialog__report">
           <p>
             보고서 상태: {data.report_status} · 설비: {data.incident?.asset_id}{" "}
-            · 코드: {data.incident?.codes?.join(", ")}
+            · 알람: <IncidentCodes codes={data.incident?.codes} />
           </p>
           <dl>
             {Object.entries(formLabels).map(([key, label]) => (
