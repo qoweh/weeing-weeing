@@ -2,6 +2,10 @@
 
 ## 전체 흐름
 
+그림 원본(Excalidraw): [상세 구조](diagrams/architecture-detailed.excalidraw) ·
+[발표용 요약](diagrams/architecture-presentation.excalidraw). Orca의 Excalidraw 편집기나
+excalidraw.com에서 열고 고친다. 모듈 경계가 바뀌면 이 문서와 그림을 같은 PR에서 고친다.
+
 ```mermaid
 flowchart LR
   U["simulator<br>Unreal 가상 공정"] --> I["ingest<br>수집·검증"]
