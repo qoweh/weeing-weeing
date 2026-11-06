@@ -35,7 +35,7 @@ web(Caddy :80/:443) ─┬─ /api/*  → api(FastAPI :8000)  ─┬─ postgres
 | qdrant | `qdrant/qdrant:v1.20.0` (digest 고정) | `qdrant_data` |
 
 - 서버는 빌드하지 않는다. 8GB에서 Next.js 빌드·의존성 설치를 피하고, 이미지 태그로 롤백하기 위해서다
-- 베이스·서비스 이미지는 `태그@sha256:digest`로 고정한다. 같은 태그라도 내용이 바뀌어 재현성이 깨지거나 공급망 위험이 생기는 것을 막는다. 갱신은 Dependabot(`.github/dependabot.yml`)이 주 1회 PR로 올린다(github-actions·uv·npm·docker·docker-compose, 새 버전 7일 뒤)
+- 베이스·서비스 이미지는 `태그@sha256:digest`로 고정한다. 같은 태그라도 내용이 바뀌어 재현성이 깨지거나 공급망 위험이 생기는 것을 막는다. 자동 갱신 PR(Dependabot)은 쓰지 않는다(D-34). 올릴 때는 사람이 digest를 바꿔 PR로 올린다
 - 빌드한 이미지는 커밋 SHA 태그로만 올리고 **Trivy 취약점 검사**를 한다. HIGH·CRITICAL은 실행 요약(Summary)에 표로 남기고, **수정판이 나온 CRITICAL이 있으면 배포를 멈춘다**. 통과한 이미지에만 `latest`를 붙인다
 - API 이미지에는 torch·로컬 AI 모델이 없다(D-31). 임베딩은 해시 방식 또는 외부 API다
 - 모든 서비스가 `restart: unless-stopped`라 서버를 껐다 켜면 2~3분 뒤 저절로 다시 뜬다
