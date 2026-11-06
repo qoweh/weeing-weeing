@@ -1,19 +1,21 @@
 # LLM 사용량 기록 (Langfuse)
 
-Claude API는 토큰만큼 과금되는데 팀원 6명이 각자 호출하고, 키를 우리가 발급하지 않아 콘솔 사용량 화면도 볼 수 없다. 그래서 **모든 LLM 호출을 홈서버의 Langfuse에 기록**해 사람별·기능별·모델별 토큰과 비용을 본다. 이슈 #113, 결정 D-27.
+Claude API는 토큰만큼 과금되는데 팀원 6명이 각자 호출하고, 키를 우리가 발급하지 않아 콘솔 사용량 화면도 볼 수 없다. 그래서 **모든 LLM 호출을 팀 Langfuse에 기록**해 사람별·기능별·모델별 토큰과 비용을 본다. 이슈 #113, 결정 D-27.
+
+> 2026-11-06부터 Langfuse는 EC2 서버(`https://langfuse.<EC2_IP>.sslip.io`, `deploy/langfuse`)에서 돈다. 홈서버의 `hanwha-bootcamp` 조직(프로젝트·사용자·API 키·기록)을 그대로 옮겼다. **팀원은 `.env`의 `LANGFUSE_BASE_URL`만 바꾸고 키는 그대로 쓴다.** 아래의 Cloudflare·홈서버 설명은 이관 전 구조다.
 
 ## 구조
 
 ```mermaid
 flowchart LR
   pc["팀원 PC<br/>ClaudeClient"] -- "LLM 호출" --> anth["Anthropic API"]
-  pc -- "사용량 기록(HTTPS, 백그라운드)" --> cf["Cloudflare<br/>(Tunnel·Access)"]
-  web["팀원 브라우저"] -- "대시보드(이메일 인증)" --> cf
-  cf --> lf["홈서버 Langfuse"]
+  pc -- "사용량 기록(HTTPS, 백그라운드)" --> lf["EC2 Langfuse<br/>(langfuse.<EC2_IP>.sslip.io)"]
+  web["팀원 브라우저"] -- "대시보드(Langfuse 로그인)" --> lf
+  api["EC2 api·챗봇"] -- "서버 안 통신" --> lf
 ```
 
-- LLM 호출은 지금처럼 각자 PC에서 Anthropic으로 바로 간다. 홈서버는 기록만 받는다.
-- **홈서버가 꺼져 있어도 분석·챗봇은 그대로 된다.** 기록만 빠지고, 스크립트가 끝날 때 몇 초 기다린 뒤 경고를 남긴다.
+- LLM 호출은 지금처럼 각자 PC에서 Anthropic으로 바로 간다. Langfuse는 기록만 받는다.
+- **Langfuse가 꺼져 있어도 분석·챗봇은 그대로 된다.** 기록만 빠지고, 스크립트가 끝날 때 몇 초 기다린 뒤 경고를 남긴다.
 - 서버 운영(구축·키 발급·단가 등록)은 김민우 담당.
 
 ## 무엇을 남기나
@@ -41,11 +43,11 @@ flowchart LR
 3. `.env`에 넣는다(커밋 금지, 화면 공유·로그에 노출 금지)
    ```bash
    LLM_USER=<본인 GitHub 핸들>
-   LANGFUSE_BASE_URL=https://langfuse.<HOME_DOMAIN>
+   LANGFUSE_BASE_URL=https://langfuse.<EC2_IP>.sslip.io
    LANGFUSE_PUBLIC_KEY=pk-lf-...
    LANGFUSE_SECRET_KEY=sk-lf-...
    ```
-4. 대시보드: 서버 주소에 접속 → Cloudflare 이메일 코드 인증 → Langfuse 가입(처음 한 번) → 김민우가 프로젝트에 초대
+4. 대시보드: 서버 주소에 접속 → 본인 Langfuse 계정으로 로그인(홈서버에서 옮겨 온 계정 그대로. 가입은 막혀 있어 새 계정은 김민우가 초대)
 5. 확인: `make analyze`를 한 번 실행하고 1분 안에 Langfuse Traces에 본인 `user_id`로 기록이 보이면 끝
 
 기록이 안 보이면 다음을 차례로 확인한다.
@@ -58,7 +60,7 @@ flowchart LR
 
 ## 운영 서버(EC2)에서 사람 나누기
 
-EC2 기록도 홈서버 Langfuse로 간다(EC2 전용 프로젝트, 2026-11-05부터. 서버 설정은 [DEPLOY](DEPLOY.md)). EC2는 서버 하나를 팀원 모두가 웹으로 쓴다. `LLM_USER`는 서버에 하나뿐이라, 이 값만 쓰면 모든 호출이 같은 사람으로 남는다.
+EC2 기록은 같은 서버의 Langfuse `ec2-weeing-weeing` 프로젝트로 간다(서버 설정은 [DEPLOY](DEPLOY.md)). EC2는 서버 하나를 팀원 모두가 웹으로 쓴다. `LLM_USER`는 서버에 하나뿐이라, 이 값만 쓰면 모든 호출이 같은 사람으로 남는다.
 그래서 **챗봇 질문(`/messages`, `/messages/stream`)은 로그인한 계정의 이름(`name`)을 `user_id`로 쓴다**(`agent.tracing.trace_user`).
 
 - 계정 이름에는 본인 GitHub 핸들을 넣는다. 그러면 직책별 계정(관리자·관제·보전·현장 책임자·점검자) 5개를 써도 PC에서 쓴 기록과 같은 사람으로 묶인다. 실명은 넣지 않는다(Langfuse·Slack에 그대로 보인다)
@@ -74,6 +76,8 @@ EC2 기록도 홈서버 Langfuse로 간다(EC2 전용 프로젝트, 2026-11-05�
 ## Slack 사용량 알림
 
 홈서버가 Langfuse 기록을 직접 조회해 팀 Slack 채널로 보낸다. 레포 코드나 팀원 설정은 필요 없다.
+
+> 이 알림은 아직 홈서버 Langfuse를 조회한다. 이관 뒤(2026-11-06~) 기록으로 알리려면 알림의 조회 주소를 EC2 Langfuse로 바꿔야 한다(김민우).
 
 | 종류 | 언제 | 내용 |
 |---|---|---|
@@ -102,7 +106,7 @@ EC2 기록도 홈서버 Langfuse로 간다(EC2 전용 프로젝트, 2026-11-05�
 
 prompt caching(#218): 도구 루프는 도구 정의·SYSTEM과 앞 턴 대화를, 단발 호출(근거 검토·`llm-check`)은 SYSTEM까지를 캐시한다. 캐시는 Anthropic 서버에 5분 보관되며 매 요청이 갱신한다. 챗봇 질문 1건이면 `turn-1`은 `cache_creation_input_tokens`(쓰기, 입력 단가 1.25배), `turn-2`부터는 `cache_read_input_tokens`(읽기, 0.1배)가 보여야 한다. 둘 다 0이면 SYSTEM·도구 정의에 매번 바뀌는 값이 섞였는지 확인한다.
 
-홈서버 Langfuse(4.71.0)의 기본 모델 목록에 아래 세 모델이 위 키 이름 그대로 들어 있어 따로 등록하지 않았다. 2026-10-30에 [공식 가격표](https://platform.claude.com/docs/en/about-claude/pricing)와 대조했다(100만 토큰당 USD).
+Langfuse(4.71.0)의 기본 모델 목록에 아래 세 모델이 위 키 이름 그대로 들어 있어 따로 등록하지 않았다. 2026-10-30에 [공식 가격표](https://platform.claude.com/docs/en/about-claude/pricing)와 대조했다(100만 토큰당 USD).
 
 | 모델 | `input` | `output` | `cache_read_input_tokens` | `cache_creation_input_tokens` (5분) |
 |---|---|---|---|---|
@@ -203,7 +207,7 @@ make langfuse-smoke ARGS='--real-knowledge'                # 프로젝트 DB·�
 
 - 기본 environment는 `test`라 dev·demo 기록과 섞이지 않는다(`--environment`로 변경).
 - `--real-knowledge`는 비용이 없도록 `EMBEDDING_PROVIDER=hashing`이고 `RERANKER_MODEL`이 비어 있을 때만 실행한다.
-- Langfuse 설정이 없으면 기록 없이 결과만 출력한다. 홈서버 대신 `deploy/langfuse`의 로컬 Langfuse에 보내려면 `LANGFUSE_BASE_URL`과 그 서버에서 만든 키를 쓴다.
+- Langfuse 설정이 없으면 기록 없이 결과만 출력한다. 다른 Langfuse(예: 로컬에서 띄운 `deploy/langfuse`)에 보내려면 `LANGFUSE_BASE_URL`과 그 서버에서 만든 키를 쓴다.
 - 자동 테스트(`tests/scripts/test_langfuse_smoke.py`)는 가짜 Langfuse 클라이언트로 같은 흐름을 검증한다.
 
 ## 챗봇 호출 통계 (#89)

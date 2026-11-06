@@ -13,7 +13,7 @@
 | 웹(프론트) | `https://<EC2_IP>/` | 없음 |
 | HMI | `https://<EC2_IP>/hmi/` | 없음 |
 | API 문서 | `https://<EC2_IP>/api/docs` | 없음 |
-| Langfuse(LLM 기록) | 홈서버 `https://langfuse.<HOME_DOMAIN>` | 김민우가 프로젝트에 초대. EC2 자체 Langfuse(`langfuse.<EC2_IP>.sslip.io`)는 멈춤 |
+| Langfuse(LLM 기록) | `https://langfuse.<EC2_IP>.sslip.io` | 홈서버에서 옮겨 온 본인 계정. 새 계정은 김민우가 초대 |
 | PostgreSQL | SSH 터널 후 `localhost:15432` | 서버에 등록한 SSH 키 |
 | Qdrant 대시보드 | SSH 터널 후 `http://localhost:16333/dashboard` | 서버에 등록한 SSH 키 |
 
@@ -91,34 +91,18 @@ psql -h localhost -p 15432 -U <POSTGRES_USER> <POSTGRES_DB>
 
 브라우저에서 `http://localhost:16333/dashboard`를 연다. API는 `http://localhost:16333`.
 
-## 5. Langfuse (EC2 서버의 LLM 기록)
+## 5. Langfuse (LLM 기록)
 
-> **지금은 멈춤(2026-11-05).** EC2 기록도 홈서버 Langfuse(EC2 전용 프로젝트)로 보낸다. 이 절은 자체 Langfuse를 다시 켜거나 레포만으로 다른 곳에 배포할 때를 위해 남겨 둔다. 켜고 끄는 방법은 [DEPLOY](DEPLOY.md#ec2-자체-langfuse-deploylangfuse-지금은-멈춤)
+`https://langfuse.<EC2_IP>.sslip.io`. 2026-11-06에 홈서버 Langfuse의 `hanwha-bootcamp` 조직(프로젝트 `weeing-weeing`·`ec2-weeing-weeing`)을 사용자·API 키·기록째 옮겨 왔다.
 
-- 켜져 있을 때는 EC2의 api·챗봇 호출이 여기에 기록됐다(사용자 `ec2`, 환경 `demo`). 팀원 PC의 기록은 그때도 홈서버 Langfuse에 갔다([USAGE_TRACKING](USAGE_TRACKING.md))
-- 가입은 막혀 있다(`AUTH_DISABLE_SIGNUP=true`). 팀원 계정이 필요하면 관리자가 잠시 가입을 열고(`deploy/langfuse/docker-compose.yml`에서 `false`로 바꾼 뒤 `docker compose up -d langfuse-web`), 팀원이 가입하면 Settings → Members에서 프로젝트에 추가한 뒤 다시 막는다
-- 관리자 계정(팀 공용). 서버 `~/langfuse/.env`의 `LANGFUSE_INIT_USER_*`와 같다
+- **로그인은 홈서버에서 쓰던 본인 계정·비밀번호 그대로**다. 예전 EC2 공용 관리자 계정(`admin@example.com`)은 이관하면서 없어졌다
+- EC2의 api·챗봇 호출은 `ec2-weeing-weeing`(사용자 `ec2` 또는 로그인 계정 이름, 환경 `demo`), 팀원 PC 호출은 `weeing-weeing`에 남는다
+- 팀원 PC는 `.env`의 `LANGFUSE_BASE_URL`만 `https://langfuse.<EC2_IP>.sslip.io`로 바꾼다. pk/sk는 그대로다([USAGE_TRACKING](USAGE_TRACKING.md))
+- 웹 마이페이지의 "LLM 사용량"은 계정 관리자에게만 보이는 간단한 요약이다. 자세한 내용은 그 카드의 "Langfuse 대시보드에서 자세히 보기" 링크로 연다
+- 가입은 막혀 있다(`AUTH_DISABLE_SIGNUP=true`). 새 팀원 계정이 필요하면 관리자가 잠시 가입을 열고(`deploy/langfuse/docker-compose.yml`에서 `false`로 바꾼 뒤 `docker compose up -d langfuse-web`), 팀원이 가입하면 Settings → Members에서 프로젝트에 추가한 뒤 다시 막는다
+- 비밀번호는 Langfuse 화면(Settings)에서 바꾼다. 인터넷에 열린 화면이므로 짧은 비밀번호는 쓰지 않는다
 
-  | 항목 | 값 |
-  |---|---|
-  | 이메일 | `admin@example.com` |
-  | 비밀번호 | `12345678` |
-
-  private 레포라 팀 결정으로 적어 둔다(2026-11-03). 인터넷에 열린 화면이므로 레포 밖으로 옮기지 않고, 바꾸면 이 표도 고친다
-
-**관리자 비밀번호를 바꿀 때 주의:** `LANGFUSE_INIT_USER_PASSWORD`는 계정을 **처음 만들 때 한 번만** 쓰인다. `.env`만 바꾸면 로그인되지 않는다. Langfuse 화면(Settings)에서 바꾸거나, 서버에서 `.env` 값을 DB에 다시 반영한다.
-
-```
-cd ~/langfuse
-pw=$(grep '^LANGFUSE_INIT_USER_PASSWORD=' .env | cut -d= -f2-)
-email=$(grep '^LANGFUSE_INIT_USER_EMAIL=' .env | cut -d= -f2-)
-hash=$(docker exec weeing-weeing-web-1 caddy hash-password --plaintext "$pw")
-docker compose exec -T langfuse-postgres psql -U postgres -v h="$hash" -v e="$email" <<'EOF'
-update users set password = :'h' where email = :'e';
-EOF
-```
-
-인터넷에 열린 화면이므로 짧은 비밀번호(예: 숫자 8자리)는 시연 직후 바꾼다.
+켜고 끄는 방법은 [DEPLOY](DEPLOY.md#ec2-자체-langfuse-deploylangfuse).
 
 ## 6. 서버 안 파일 위치
 
@@ -126,7 +110,7 @@ EOF
 |---|---|
 | `~/weeing-weeing/docker-compose.yml` | 앱 구성. 배포 워크플로가 `deploy/docker-compose.prod.yml`로 덮어쓴다 |
 | `~/weeing-weeing/.env` | 앱 비밀 값. `SITE_ADDRESS`(HTTPS), `LANGFUSE_*` 포함 |
-| `~/langfuse/docker-compose.yml` · `.env` | 자체 Langfuse 구성과 비밀 값(`deploy/langfuse/`). 지금은 멈춤. 앱 배포와 따로 움직인다 |
+| `~/langfuse/docker-compose.yml` · `.env` | Langfuse 구성과 비밀 값(`deploy/langfuse/`). 앱 배포와 따로 움직인다 |
 
 자주 쓰는 확인 명령(서버에서):
 

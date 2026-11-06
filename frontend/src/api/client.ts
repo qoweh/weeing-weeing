@@ -320,6 +320,20 @@ export function getIncidentReportContext(id: string, reportId?: string) {
   const query = reportId ? `?report_id=${encodeURIComponent(reportId)}` : "";
   return request(`/incidents/${encodeURIComponent(id)}/report-context${query}`);
 }
+export type LlmUsageSummary = {
+  status: "ok" | "not_configured" | "failed";
+  message: string;
+  days: number;
+  total_tokens: number;
+  total_cost_usd: number;
+  calls: number;
+  models: { model: string; tokens: number; cost_usd: number; calls: number }[];
+  dashboard_url: string;
+};
+// 관리자 전용(#207). Langfuse 실패도 200 + status로 온다.
+export function getLlmUsage(days: number): Promise<LlmUsageSummary> {
+  return request(`/llm-usage?days=${days}`, { timeoutMs: 20_000 });
+}
 export function listReports(scope = "mine"): Promise<ReportSummary[]> {
   return request(`/reports?scope=${encodeURIComponent(scope)}`);
 }

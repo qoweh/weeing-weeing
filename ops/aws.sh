@@ -46,7 +46,7 @@ case "$cmd" in
 웹(프론트)  https://<EC2_IP>/
 HMI        https://<EC2_IP>/hmi/
 API 문서    https://<EC2_IP>/api/docs
-Langfuse   https://langfuse.<HOME_DOMAIN> (홈서버. EC2 자체 langfuse.<EC2_IP>.sslip.io는 멈춤)
+Langfuse   https://langfuse.<EC2_IP>.sslip.io (홈서버에서 이관, 2026-11-06)
 DB·Qdrant  ops/aws.sh tunnel 후 localhost:15432 / http://localhost:16333/dashboard
 EOF
     ;;

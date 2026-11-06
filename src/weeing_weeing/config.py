@@ -1,7 +1,7 @@
 """환경변수 설정. 항목과 기본값은 .env.example과 같게 유지한다."""
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 # 상대 경로 설정(UPLOAD_DIR 등)은 실행 위치가 아니라 레포 루트 기준으로 푼다.
@@ -50,6 +50,11 @@ class Settings:
     langfuse_base_url: str = ""  # 비어 있으면 기록하지 않는다
     langfuse_tracing_environment: str = "dev"  # dev | demo | ci
     langfuse_capture_content: bool = True  # 프롬프트·응답 본문까지 보낼지
+    # 사용량 요약 조회(#207). 기록과 같은 키로 Langfuse Metrics API를 읽는다. 로그에 남지 않게 repr에서 뺀다
+    langfuse_public_key: str = field(default="", repr=False)
+    langfuse_secret_key: str = field(default="", repr=False)
+    langfuse_dashboard_url: str = ""  # 비어 있으면 화면에 "자세히 보기" 링크를 숨긴다
+    langfuse_query_timeout_s: float = 10
     # 챗봇 전용 LLM 설정(#216·#217). 비우면 LLM_MODEL·LLM_EFFORT를 그대로 쓴다
     chat_llm_effort: str = ""  # 챗봇 도구 루프 effort
     chat_review_model: str = ""  # 근거 검토 호출 모델(예: claude-haiku-5-5)
@@ -111,6 +116,10 @@ def get_settings() -> Settings:
         llm_user=env("LLM_USER", ""),
         langfuse_base_url=env("LANGFUSE_BASE_URL", ""),
         langfuse_tracing_environment=env("LANGFUSE_TRACING_ENVIRONMENT", "dev"),
+        langfuse_public_key=env("LANGFUSE_PUBLIC_KEY", "").strip(),
+        langfuse_secret_key=env("LANGFUSE_SECRET_KEY", "").strip(),
+        langfuse_dashboard_url=env("LANGFUSE_DASHBOARD_URL", "").strip(),
+        langfuse_query_timeout_s=float(env("LANGFUSE_QUERY_TIMEOUT_S", "10")),
         chat_llm_effort=env("CHAT_LLM_EFFORT", "").strip().lower(),
         chat_review_model=env("CHAT_REVIEW_MODEL", "").strip(),
         chat_review_effort=env("CHAT_REVIEW_EFFORT", "").strip().lower(),
