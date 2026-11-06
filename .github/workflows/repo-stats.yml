@@ -1,0 +1,60 @@
+name: Repo stats
+
+# 커밋·PR·이슈 활동을 손그림 차트(chart.xkcd)로 만들어 repo-stats 브랜치에 올린다(발표용).
+# Actions 탭 → Repo stats → Run workflow로만 실행한다. dev·main에는 아무것도 push하지 않는다.
+# 결과: https://github.com/<owner>/<repo>/tree/repo-stats (README.md + SVG). 매번 새로 만들어 덮어쓴다.
+# 액션은 태그 대신 커밋 SHA로 고정한다(ci.yml과 같은 이유).
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write # repo-stats 브랜치 push
+  pull-requests: read
+  issues: read
+
+concurrency:
+  group: repo-stats
+  cancel-in-progress: false
+
+jobs:
+  stats:
+    name: Build repo stats charts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0 # 커밋 전체 이력이 필요하다
+      # 표준 라이브러리만 쓰는 스크립트라 의존성 설치 없이 러너의 python3(3.12)와 google-chrome을 쓴다.
+      - name: 차트 만들기
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 scripts/repo_stats.py --repo "$REPO" --branch HEAD \
+            --out "$RUNNER_TEMP/repo-stats" --chrome google-chrome --run-url "$RUN_URL"
+      # force push 없이 기존 repo-stats 위에 커밋을 쌓는다. 처음이면 빈(orphan) 브랜치로 시작한다.
+      # 생성물만 담는 폴더라 전부 지우고 새 결과로 채운다.
+      - name: repo-stats 브랜치에 올리기
+        run: |
+          if git fetch -q origin repo-stats; then
+            git worktree add -B repo-stats-publish "$RUNNER_TEMP/publish" FETCH_HEAD
+            git -C "$RUNNER_TEMP/publish" rm -rq --ignore-unmatch .
+          else
+            git worktree add --orphan -b repo-stats-publish "$RUNNER_TEMP/publish"
+          fi
+          cp -R "$RUNNER_TEMP/repo-stats/." "$RUNNER_TEMP/publish/"
+          cd "$RUNNER_TEMP/publish"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "차트 변경 없음"
+          else
+            git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "chore: 레포 활동 차트 갱신 (${GITHUB_SHA::7})"
+            git push origin HEAD:refs/heads/repo-stats
+          fi
+          echo "### 레포 활동 차트 갱신 완료" >> "$GITHUB_STEP_SUMMARY"
+          echo "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/tree/repo-stats" >> "$GITHUB_STEP_SUMMARY"
