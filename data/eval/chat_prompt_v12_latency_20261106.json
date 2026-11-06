@@ -1,0 +1,109 @@
+{
+  "scope": "User supplied six local requests, v10/v12, one repetition. Not v13 deployment performance or human-reviewed quality. No answer bodies or source IDs.",
+  "results": [
+    {
+      "case": "single_rpm",
+      "variant": "baseline",
+      "prompt_version": "chat-tools-v10",
+      "status": "OK",
+      "elapsed_s": 29.34666929091327,
+      "llm_calls": 5,
+      "tool_turns": 3,
+      "review_calls": 2,
+      "http_attempts": 5,
+      "multi_query_turns": 0,
+      "llm_elapsed_s": [
+        2.1643260000273585,
+        7.915923292050138,
+        6.944705832982436,
+        7.193965208018199,
+        3.4204756249673665
+      ]
+    },
+    {
+      "case": "single_rpm",
+      "variant": "candidate",
+      "prompt_version": "chat-tools-v12",
+      "status": "OK",
+      "elapsed_s": 13.958722832845524,
+      "llm_calls": 3,
+      "tool_turns": 2,
+      "review_calls": 1,
+      "http_attempts": 3,
+      "multi_query_turns": 0,
+      "llm_elapsed_s": [
+        1.6596258750651032,
+        7.460298374993727,
+        4.032034875126556
+      ]
+    },
+    {
+      "case": "combined_temp",
+      "variant": "candidate",
+      "prompt_version": "chat-tools-v12",
+      "status": "OK",
+      "elapsed_s": 20.83722574985586,
+      "llm_calls": 3,
+      "tool_turns": 2,
+      "review_calls": 1,
+      "http_attempts": 3,
+      "multi_query_turns": 1,
+      "llm_elapsed_s": [
+        2.960511290933937,
+        10.097356790909544,
+        6.3869095840491354
+      ]
+    },
+    {
+      "case": "combined_temp",
+      "variant": "baseline",
+      "prompt_version": "chat-tools-v10",
+      "status": "OK",
+      "elapsed_s": 19.90874099987559,
+      "llm_calls": 3,
+      "tool_turns": 2,
+      "review_calls": 1,
+      "http_attempts": 3,
+      "multi_query_turns": 1,
+      "llm_elapsed_s": [
+        2.8347541249822825,
+        11.141543000005186,
+        4.576506125042215
+      ]
+    },
+    {
+      "case": "count_action",
+      "variant": "baseline",
+      "prompt_version": "chat-tools-v10",
+      "status": "OK",
+      "elapsed_s": 10.642629709094763,
+      "llm_calls": 3,
+      "tool_turns": 2,
+      "review_calls": 1,
+      "http_attempts": 3,
+      "multi_query_turns": 0,
+      "llm_elapsed_s": [
+        1.6360040830913931,
+        5.529400584055111,
+        3.4624354999978095
+      ]
+    },
+    {
+      "case": "count_action",
+      "variant": "candidate",
+      "prompt_version": "chat-tools-v12",
+      "status": "OK",
+      "elapsed_s": 13.708879499929026,
+      "llm_calls": 3,
+      "tool_turns": 2,
+      "review_calls": 1,
+      "http_attempts": 3,
+      "multi_query_turns": 0,
+      "llm_elapsed_s": [
+        3.17810112494044,
+        6.282547000097111,
+        4.23856749990955
+      ]
+    }
+  ]
+}

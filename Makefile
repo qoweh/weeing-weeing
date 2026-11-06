@@ -103,3 +103,7 @@ chat-baseline: ## 챗봇 지연 기준선(#215). 기본은 계획만, ARGS=--rep
 .PHONY: chat-private
 chat-private: ## .env 자동 로딩 없이 Claude 키를 숨김 입력해 직접 대화 (API 비용 발생)
 	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) --no-env-file python scripts/chat.py --interactive --ask-key
+
+.PHONY: chat-prompt-eval
+chat-prompt-eval: ## 프롬프트 A/B 5문항·10요청 계획 (실행: ARGS='--execute --ask-key --ask-voyage-key')
+	$(RUN) --no-env-file python scripts/run_make.py $(RUN_MAKE_OPTIONS) --no-env-file python scripts/run_chat_prompt_eval.py

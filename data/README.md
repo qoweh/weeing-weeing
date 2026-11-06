@@ -38,4 +38,6 @@
 
 ## 챗봇 프롬프트 v11 비교 설계
 
-`eval/chat_prompt_v11_baseline.json`은 dev 7632d8d의 기존 프롬프트 4개이며, `eval/chat_prompt_v11_cases.json`은 직접 작성한 16개 대화/20개 질문의 평가 계획이다. 실제 사용자 대화·운영 보고서 본문·비밀 값은 포함하지 않는다. [실험 설계](../docs/CHAT_PROMPT_V11_EVALUATION.md)를 참고한다. 실제 LLM 평가는 아직 실행하지 않았다.
+`eval/chat_prompt_v11_baseline.json`은 dev 7632d8d의 기존 프롬프트 4개이며, `eval/chat_prompt_v11_cases.json`은 직접 작성한 5개 독립 질문·A/B 총10개 요청의 평가 계획이다. 실제 사용자 대화·운영 보고서 본문·비밀 값은 포함하지 않는다. [실험 설계](../docs/CHAT_PROMPT_V11_EVALUATION.md)를 참고한다. 실제 LLM 평가는 아직 실행하지 않았다.
+
+`eval/chat_prompt_v12_latency_20261106.json`은 사용자가 제공한 로컬 v10/v12 비교 로그 6건의 수치만 추린 기록이다. 답변 본문·식별자는 제외했다. v13 재측정이나 사람 품질 평가 결과가 아니다.

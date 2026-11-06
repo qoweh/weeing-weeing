@@ -219,7 +219,9 @@ class ProgressChatService(ChatService, Protocol):
 
 
 class ChatKnowledge(Protocol):
-    """직책에 따른 문서 ACL 없이 사용하는 공통 검색 경계(#88·#91).
+    """선택적 count_history(query, timeout_s)는 본문 없이 ChatHistorySource 집계를 반환한다.
+
+    직책에 따른 문서 ACL 없이 사용하는 공통 검색 경계(#88·#91).
 
     원시 Retriever를 직접 주입하지 않는다. 사용자 ID/권한은 도구 입력에 포함하지 않는다.
     구현체는 DB 공개 인터페이스로 검색 대상의 최신 판·승인 상태를 확인한다.
