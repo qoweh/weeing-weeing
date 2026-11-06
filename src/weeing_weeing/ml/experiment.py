@@ -25,6 +25,7 @@ from sklearn.metrics import (
 from .data import SEED, build_windows, load_dataset, split_runs, validate_manifest
 from .features import CLASSES, FEATURE_NAMES, WINDOW_RULES, extract_features
 from .interface import FutureErrorPredictor
+from .probability_metrics import probability_metrics
 
 
 def write_json(path, data):
@@ -50,18 +51,19 @@ def decisions(model, x, threshold):
     )
 
 
-def metrics(y, predicted):
+def metrics(y, predicted, classes=None):
+    classes = CLASSES if classes is None else classes
     normal = y == "NO_ERROR"
     return {
         "accuracy": float(accuracy_score(y, predicted)),
         "macro_f1": float(
-            f1_score(y, predicted, labels=CLASSES, average="macro", zero_division=0)
+            f1_score(y, predicted, labels=classes, average="macro", zero_division=0)
         ),
         "classification_report": classification_report(
-            y, predicted, labels=CLASSES, output_dict=True, zero_division=0
+            y, predicted, labels=classes, output_dict=True, zero_division=0
         ),
-        "confusion_matrix": confusion_matrix(y, predicted, labels=CLASSES).tolist(),
-        "confusion_matrix_labels": CLASSES,
+        "confusion_matrix": confusion_matrix(y, predicted, labels=classes).tolist(),
+        "confusion_matrix_labels": classes,
         "no_error_false_alarm_rate": float(np.mean(predicted[normal] != "NO_ERROR"))
         if normal.any()
         else None,
@@ -69,13 +71,16 @@ def metrics(y, predicted):
     }
 
 
-def evaluate(model, records, threshold):
+def evaluate(model, records, threshold, classes=None):
     x, y = matrix(records)
     predicted = decisions(model, x, threshold)
-    report = metrics(y, predicted)
+    report = metrics(y, predicted, classes)
+    report["probability_metrics"] = probability_metrics(
+        y, model.predict_proba(x), model.classes_
+    )
     run_ids = np.array([r["run_id"] for r in records])
     report["per_run"] = {
-        run: metrics(y[run_ids == run], predicted[run_ids == run])
+        run: metrics(y[run_ids == run], predicted[run_ids == run], classes)
         for run in sorted(set(run_ids))
     }
     return report, predicted
@@ -139,16 +144,24 @@ def benchmark(predictor, groups, records, repeats=200):
     }
 
 
-def train(csv_path, output, manifest_path=None):
+def train(csv_path, output, manifest_path=None, *, extend_manifest_path=None):
     output = Path(output)
     # 기존 모델·시험 결과를 덮어쓰지 않는다. 재실행은 새 출력 폴더를 지정한다.
     output.mkdir(parents=True, exist_ok=False)
     groups, audit = load_dataset(csv_path)
+    classes = audit["classes"]
     write_json(output / "data_validation.json", audit)
     manifest = (
         json.loads(Path(manifest_path).read_text())
         if manifest_path
-        else split_runs(groups, audit["sha256"])
+        else split_runs(
+            groups,
+            audit["sha256"],
+            previous_manifest=json.loads(Path(extend_manifest_path).read_text())
+            if extend_manifest_path
+            else None,
+            source_digests=[s["sha256"] for s in audit["sources"]],
+        )
     )
     validate_manifest(manifest, groups, audit["sha256"])
     write_json(output / "split_manifest.json", manifest)
@@ -158,7 +171,7 @@ def train(csv_path, output, manifest_path=None):
             groups, runs, audit["timestamp_order_issues"]
         )
         by_code = {}
-        for code in CLASSES[1:]:
+        for code in classes[1:]:
             selected = [r for r in by_run.values() if r["code"] == code]
             reasons = Counter()
             for r in selected:
@@ -181,20 +194,24 @@ def train(csv_path, output, manifest_path=None):
     write_json(output / "window_summary.json", summaries)
     x_train, y_train = matrix(datasets["train"])
     x_val, y_val = matrix(datasets["validation"])
-    if set(y_train) != set(CLASSES):
-        raise ValueError("All five training classes required")
+    if set(y_train) != set(classes):
+        raise ValueError("All declared training classes required")
+    if set(y_val) != set(classes):
+        raise ValueError("All declared validation classes required")
     candidates = []
     best = None
     # 사전 고정한 네 가지 모델 + 세 경고 임계값. 시험 지표는 선택에 사용하지 않는다.
     for balanced in (False, True):
         indices = balanced_indices(y_train) if balanced else np.arange(len(y_train))
+        if set(y_train[indices]) != set(classes):
+            raise ValueError("Training sampling removed a class")
         for leaf in (1, 3):
             model = RandomForestClassifier(
                 n_estimators=200, min_samples_leaf=leaf, random_state=SEED, n_jobs=1
             )
             model.fit(x_train[indices], y_train[indices])
             for threshold in (0.3, 0.5, 0.7):
-                result = metrics(y_val, decisions(model, x_val, threshold))
+                result = metrics(y_val, decisions(model, x_val, threshold), classes)
                 config = {
                     "balanced_normal_fault": balanced,
                     "min_samples_leaf": leaf,
@@ -224,11 +241,16 @@ def train(csv_path, output, manifest_path=None):
             sort_keys=True,
         ).encode()
     ).hexdigest()[:12]
-    version = "rf-future60-v1-" + fingerprint
+    version = "rf-future60-v2-" + fingerprint
     metadata = {
         "model_version": version,
         "created_utc": datetime.now(timezone.utc).isoformat(),
         "dataset_sha256": audit["sha256"],
+        "source_datasets": [
+            {k: s[k] for k in ("source_path", "sha256", "rows", "runs")}
+            for s in audit["sources"]
+        ],
+        "label_schema": classes,
         "seed": SEED,
         "source_sha256": source_hashes,
         "target": "first Error code in (t, t+60s], existing endpoint label, no shift",
@@ -257,7 +279,9 @@ def train(csv_path, output, manifest_path=None):
     predictor = FutureErrorPredictor.load(output / "model.joblib")
     results = {}
     for name in ("train", "validation", "test"):
-        results[name], predicted = evaluate(model, datasets[name], chosen["threshold"])
+        results[name], predicted = evaluate(
+            model, datasets[name], chosen["threshold"], classes
+        )
         with (output / f"{name}_predictions.csv").open("w", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(["run_id", "reference_time", "target", "prediction"])
@@ -267,9 +291,9 @@ def train(csv_path, output, manifest_path=None):
             )
         with (output / f"{name}_confusion_matrix.csv").open("w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(["actual/predicted", *CLASSES])
+            writer.writerow(["actual/predicted", *classes])
             for label, values in zip(
-                CLASSES, results[name]["confusion_matrix"], strict=True
+                classes, results[name]["confusion_matrix"], strict=True
             ):
                 writer.writerow([label, *values])
     results["benchmark"] = benchmark(predictor, groups, datasets["test"])
@@ -278,7 +302,7 @@ def train(csv_path, output, manifest_path=None):
         "Synthetic Unreal scenarios only, not demonstrated real factory performance.",
         "No dedicated Warning-then-recovery-only runs.",
         "Exact Error timestamps absent; Detector event logs required for exact lead-time evaluation.",
-        "Blank endpoint cannot identify Error onset; 6697/7212 blank reasons are supplied collection records only.",
+        "Blank endpoint cannot identify Error onset; no independent reason labels in either CSV.",
         "Uncalibrated model probabilities; threshold selected for validation Macro F1, not safety certification.",
     ]
     write_json(output / "evaluation.json", results)
@@ -304,10 +328,24 @@ def train(csv_path, output, manifest_path=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["validate", "train", "benchmark"])
-    parser.add_argument("--csv", required=True, type=Path)
+    parser.add_argument(
+        "command", choices=["validate", "train", "benchmark", "evaluate-probabilities"]
+    )
+    parser.add_argument(
+        "--csv",
+        required=True,
+        action="append",
+        type=Path,
+        help="원본 CSV. 여러 파일은 --csv를 반복해서 지정",
+    )
     parser.add_argument("--output", required=True, type=Path)
-    parser.add_argument("--manifest", type=Path)
+    split_options = parser.add_mutually_exclusive_group()
+    split_options.add_argument("--manifest", type=Path)
+    split_options.add_argument(
+        "--extend-manifest",
+        type=Path,
+        help="기존 실행 배정을 보존하고 새 시나리오만 분리",
+    )
     parser.add_argument("--model", type=Path)
     args = parser.parse_args()
     if args.command == "validate":
@@ -315,6 +353,54 @@ def main():
         args.output.parent.mkdir(parents=True, exist_ok=True)
         write_json(args.output, audit)
         print(json.dumps(audit, indent=2, ensure_ascii=False))
+    elif args.command == "evaluate-probabilities":
+        if args.model is None or args.manifest is None:
+            parser.error("evaluate-probabilities requires --model and --manifest")
+        if args.output.exists():
+            parser.error("output exists; choose a new report path")
+        groups, audit = load_dataset(args.csv)
+        manifest = json.loads(args.manifest.read_text())
+        validate_manifest(manifest, groups, audit["sha256"])
+        predictor = FutureErrorPredictor.load(args.model)
+        if predictor.metadata["dataset_sha256"] != audit["sha256"]:
+            parser.error("model dataset hash mismatch")
+        result = {
+            "model_version": predictor.metadata["model_version"],
+            "model_sha256": hashlib.sha256(args.model.read_bytes()).hexdigest(),
+            "manifest_sha256": hashlib.sha256(args.manifest.read_bytes()).hexdigest(),
+            "dataset_sha256": audit["sha256"],
+            "probability_calibration": "none; existing fixed model, no fitting or selection",
+            "sets": {},
+        }
+        for name, runs in manifest["splits"].items():
+            records, _ = build_windows(groups, runs, audit["timestamp_order_issues"])
+            x, y = matrix(records)
+            probabilities = predictor.model.predict_proba(x)
+            summary = probability_metrics(y, probabilities, predictor.model.classes_)
+            run_ids = np.array([r["run_id"] for r in records])
+            summary["per_run"] = {
+                run: probability_metrics(
+                    y[run_ids == run],
+                    probabilities[run_ids == run],
+                    predictor.model.classes_,
+                )
+                for run in sorted(set(run_ids))
+            }
+            result["sets"][name] = summary
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        write_json(args.output, result)
+        print(
+            json.dumps(
+                {
+                    name: {
+                        k: s[k]
+                        for k in ("support", "log_loss", "multiclass_brier_score")
+                    }
+                    for name, s in result["sets"].items()
+                },
+                indent=2,
+            )
+        )
     elif args.command == "benchmark":
         if args.model is None or args.manifest is None:
             parser.error("benchmark requires --model and --manifest")
@@ -330,7 +416,12 @@ def main():
         write_json(args.output, result)
         print(json.dumps(result, indent=2, ensure_ascii=False))
     else:
-        train(args.csv, args.output, args.manifest)
+        train(
+            args.csv,
+            args.output,
+            args.manifest,
+            extend_manifest_path=args.extend_manifest,
+        )
 
 
 if __name__ == "__main__":

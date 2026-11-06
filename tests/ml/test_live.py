@@ -103,6 +103,18 @@ def test_warmup_features_no_training_reconnect_and_staleness(service):
     eventually(lambda: bool(list(service.output_dir.glob("*.jsonl"))))
 
 
+def test_supported_codes_follow_loaded_predictor_even_during_warmup(
+    service, monkeypatch
+):
+    expected = ["BTT2-M03", "BTT2-M18"]
+    monkeypatch.setattr(Predictor, "supported_fault_codes", expected, raising=False)
+    service.begin("expanded")
+    submit_wait(service, "expanded", row(0))
+    result = service.snapshot()["prediction"]
+    assert result["status"] == "not_ready"
+    assert result["supported_fault_codes"] == expected
+
+
 def test_missing_gap_order_and_none_not_fabricated_normal(service):
     service.begin("one")
     for i in range(62):

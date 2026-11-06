@@ -2,13 +2,29 @@
 
 import numpy as np
 
-from .features import CLASSES, FEATURE_NAMES, InvalidWindowError, extract_features
+from .features import (
+    CLASSES,
+    FEATURE_NAMES,
+    InvalidWindowError,
+    classes_for_codes,
+    extract_features,
+)
+
+
+def model_classes(model):
+    labels = list(model.classes_)
+    if (
+        "NO_ERROR" not in labels
+        or len(labels) != len(set(labels))
+        or set(labels) != set(classes_for_codes([c for c in labels if c != "NO_ERROR"]))
+    ):
+        raise ValueError("Model classes invalid")
+    return labels
 
 
 def probability_map(model, features):
     """확률 순서는 반드시 학습 모델의 classes_에서 읽는다."""
-    if set(model.classes_) != set(CLASSES):
-        raise ValueError("Model must contain all five classes")
+    labels = model_classes(model)
     values = model.predict_proba(np.asarray(features).reshape(1, -1))[0]
     if (
         not np.isfinite(values).all()
@@ -16,15 +32,21 @@ def probability_map(model, features):
         or not np.isclose(sum(values), 1)
     ):
         raise ValueError("Invalid model probabilities")
-    return {str(c): float(p) for c, p in zip(model.classes_, values, strict=True)}
+    return {str(c): float(p) for c, p in zip(labels, values, strict=True)}
 
 
 class FutureErrorPredictor:
     def __init__(self, model, metadata):
         if metadata["feature_names"] != FEATURE_NAMES:
             raise ValueError("Feature schema mismatch")
-        if set(model.classes_) != set(CLASSES):
+        labels = model_classes(model)
+        expected = metadata.get("classes", CLASSES)
+        if set(labels) != set(expected) or (
+            "classes" in metadata and labels != expected
+        ):
             raise ValueError("Model classes mismatch")
+        self.classes = labels
+        self.supported_fault_codes = [str(c) for c in labels if c != "NO_ERROR"]
         self.model = model
         self.metadata = metadata
 
@@ -47,6 +69,7 @@ class FutureErrorPredictor:
             "input_valid": False,
             "reference_time": None,
             "probabilities": None,
+            "supported_fault_codes": self.supported_fault_codes,
         }
         try:
             features, quality = extract_features(rows, as_of)
