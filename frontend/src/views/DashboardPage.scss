@@ -1,10 +1,6 @@
-/* 대시보드는 한 화면 고정. 측정 결과 본문 높이를 100dvh - 190px로 추측해서
-   헤더·여백·제목 줄(실측 236px)과 어긋나 46px이 넘쳤다. 높이를 추측하지 않고
-   셸을 화면 높이로 묶은 뒤 남는 공간을 본문이 채우게 한다. */
+/* 화면을 채우되 내용이 길어지면 문서가 늘어나 스크롤할 수 있게 한다. */
 .shell:has(.sensor-dashboard) {
-  height: calc(100dvh / var(--screen-zoom, 1));
-  min-height: 0;
-  overflow: hidden;
+  min-height: calc(100dvh / var(--screen-zoom, 1));
 }
 .shell__content:has(.sensor-dashboard) {
   padding-top: 20px;
@@ -12,7 +8,6 @@
   flex-direction: column;
   box-sizing: border-box;
   min-height: 0;
-  overflow: hidden;
 
   /* main과 .sensor-dashboard 사이의 클래스 없는 래퍼 */
   > div:has(> .sensor-dashboard) {

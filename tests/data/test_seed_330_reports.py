@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from weeing_weeing.contracts import Role, UserAccount
+from weeing_weeing.contracts import IncidentStatus, Role, UserAccount
 from weeing_weeing.db import interface as db
 from weeing_weeing.db.models import Base
 
@@ -82,6 +82,13 @@ def test_batch_includes_existing_reports_and_indexes(monkeypatch, tmp_path):
         )
         assert Counter(row[2] for row in batch) == {"기존": 22, "생성": 308}
         assert len(reports.approved_reports()) == 330
+        saved = incidents.list_incidents(limit=330)
+        assert len(saved) == 330
+        assert all(item.status == IncidentStatus.RECOVERED for item in saved)
+        assert all(
+            item.recovered_at is not None and item.recovered_at > item.last_detected_at
+            for item in saved
+        )
 
         class FakeIndexer:
             fail_once = True

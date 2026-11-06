@@ -59,6 +59,27 @@ export function listIncidentOverview(): Promise<IncidentOverview[]> {
   return request("/incidents/overview?limit=200");
 }
 
+async function listAllPages<T>(path: string): Promise<T[]> {
+  const items: T[] = [];
+  const size = 200;
+  for (;;) {
+    const separator = path.includes("?") ? "&" : "?";
+    const page: T[] = await request(`${path}${separator}limit=${size}&offset=${items.length}`);
+    items.push(...page);
+    if (page.length < size) return items;
+  }
+}
+
+export function listAllIncidentOverview(): Promise<IncidentOverview[]> {
+  return listAllPages("/incidents/overview");
+}
+export function listAllIncidents(): Promise<Incident[]> {
+  return listAllPages("/incidents");
+}
+export function listAllReports(scope: string): Promise<ReportSummary[]> {
+  return listAllPages(`/reports?scope=${encodeURIComponent(scope)}`);
+}
+
 class ApiError extends Error {
   status?: number;
   detail?: unknown;

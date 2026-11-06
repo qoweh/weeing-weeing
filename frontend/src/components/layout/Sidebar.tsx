@@ -114,9 +114,7 @@ export default function Sidebar({
             aria-label={label}
             disabled={busy || pending}
             data-tooltip={collapsed ? label : undefined}
-            title={
-              collapsed ? undefined : pending ? "설비 모니터링 준비 중" : label
-            }
+            title={pending ? "설비 모니터링 준비 중" : label}
             onClick={() => {
               setMenuOpen(false);
               onNavigate(id);

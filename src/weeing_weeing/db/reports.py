@@ -344,7 +344,9 @@ class SqlReports(Repository):
                 for row, version in rows
             ]
 
-    def incident_overview(self, actor_id: str, *, limit: int = 100) -> list[dict]:
+    def incident_overview(
+        self, actor_id: str, *, limit: int = 100, offset: int = 0
+    ) -> list[dict]:
         """센서 사건과 별도로 연결 보고서의 처리 상태를 계산한다."""
         approved = exists(
             select(ReportRow.report_id)
@@ -381,6 +383,7 @@ class SqlReports(Repository):
                 .where(or_(IncidentRow.severity == Severity.ERROR, ever_error))
                 .order_by(IncidentRow.first_detected_at.desc(), IncidentRow.incident_id)
                 .limit(min(max(limit, 1), 200))
+                .offset(offset)
             )
             return [
                 {
@@ -612,6 +615,7 @@ class SqlReports(Repository):
         all_reports: bool = False,
         approved_only: bool = False,
         limit: int = 100,
+        offset: int = 0,
     ) -> list[ReportSummary]:
         if sum((review, all_reports, approved_only)) > 1:
             raise ValueError("보고서 조회 범위는 하나만 선택할 수 있습니다.")
@@ -672,9 +676,9 @@ class SqlReports(Repository):
                     updated_at=utc(v.updated_at if approved_only else r.updated_at),
                 )
                 for r, v in session.execute(
-                    query.order_by(
-                        ReportRow.updated_at.desc(), ReportRow.report_id
-                    ).limit(min(max(limit, 1), 200))
+                    query.order_by(ReportRow.updated_at.desc(), ReportRow.report_id)
+                    .limit(min(max(limit, 1), 200))
+                    .offset(offset)
                 )
             ]
 

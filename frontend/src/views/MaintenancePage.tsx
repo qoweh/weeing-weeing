@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { listReports, listIncidents, type Incident } from "../api/client";
+import { listAllReports, listAllIncidents, type Incident } from "../api/client";
 import Button from "../components/ui/Button";
 import PageTitle from "../components/ui/PageTitle";
 import { Filters, filterRows, LibraryTable } from "../components/ui/library";
@@ -46,7 +46,7 @@ export default function MaintenancePage({
     let active = true;
     setLoading(true);
     setError("");
-    Promise.all([listReports(scope), listIncidents()])
+    Promise.all([listAllReports(scope), listAllIncidents()])
       .then(([reports, incidents]) => {
         if (!active) return;
         const mapped = reports.map((r) => {

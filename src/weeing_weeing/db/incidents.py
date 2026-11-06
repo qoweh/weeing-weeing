@@ -112,6 +112,7 @@ class SqlIncidents(Repository):
         statuses: list[IncidentStatus] | None = None,
         since: datetime | None = None,
         limit: int = 100,
+        offset: int = 0,
     ) -> list[Incident]:
         """최근 발생순. since는 first_detected_at 기준(포함)."""
         query = select(IncidentRow.data).order_by(
@@ -126,7 +127,7 @@ class SqlIncidents(Repository):
         with self._transaction() as session:
             return [
                 Incident.model_validate(data)
-                for data in session.scalars(query.limit(limit))
+                for data in session.scalars(query.limit(limit).offset(offset))
             ]
 
     def query_incidents(self, query: ChatIncidentQuery) -> ChatIncidentResult:

@@ -171,6 +171,7 @@ class IncidentRepository(Protocol):
         statuses: list[IncidentStatus] | None = None,
         since: datetime | None = None,
         limit: int = 100,
+        offset: int = 0,
     ) -> list[Incident]:
         """최근 발생순."""
         ...
@@ -276,7 +277,9 @@ class ReportRepository(Protocol):
         self, actor_id: str, incident_id: str
     ) -> ReportDocument | None: ...
 
-    def incident_overview(self, actor_id: str, *, limit: int = 100) -> list[dict]: ...
+    def incident_overview(
+        self, actor_id: str, *, limit: int = 100, offset: int = 0
+    ) -> list[dict]: ...
 
     def incident_approved_reports(
         self, actor_id: str, incident_id: str
@@ -311,6 +314,7 @@ class ReportRepository(Protocol):
         all_reports: bool = False,
         approved_only: bool = False,
         limit: int = 100,
+        offset: int = 0,
     ) -> list[ReportSummary]: ...
 
     def review_history(
