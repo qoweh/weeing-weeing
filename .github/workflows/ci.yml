@@ -96,7 +96,9 @@ jobs:
   # 테스트를 러너 2개에 나눠 동시에 돌린다(PYTEST_SHARD, tests/conftest.py). 러너마다 설치·DB 준비가 따로 들어
   # Actions 사용 시간은 늘지만 기다리는 시간은 줄어든다. 필수 검사 이름 "Test (pytest)"는 아래 test 작업이 맡는다.
   test-shard:
-    name: Test shard (${{ matrix.shard }}/2)
+    # 이름에 ${{ matrix.* }}를 넣으면 잡이 생략될 때 펼쳐지지 않은 식이 그대로 보인다.
+    # 이름에서 빼면 GitHub이 "Test shard (1)"처럼 matrix 값을 뒤에 붙이고, 생략 때는 "Test shard"만 보인다.
+    name: Test shard
     needs: changes
     if: needs.changes.outputs.code == 'true'
     strategy:
@@ -149,7 +151,7 @@ jobs:
           [ "$CHANGES" = success ] && { [ "$SHARDS" = success ] || [ "$SHARDS" = skipped ]; }
 
   make-compat:
-    name: Make compatibility (${{ matrix.os }})
+    name: Make compatibility
     needs: changes
     if: needs.changes.outputs.make == 'true'
     strategy:

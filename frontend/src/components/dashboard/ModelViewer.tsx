@@ -14,6 +14,9 @@ import {
   type SensorSample,
 } from "../../views/telemetryCharts";
 
+// 그래프에 마우스를 올렸을 때 커서 아래에 뜨는 값 박스를 잠시 숨긴다. 다시 보이게 하려면 true로 바꾼다.
+const SHOW_HOVER_BOX = false;
+
 const hotspots = [
   { id: "front", label: "정면 표시 지점", point: [-0.094, 0.12] },
   { id: "right", label: "우측면 표시 지점", point: [0.022, -0.067] },
@@ -59,19 +62,60 @@ const BUBBLE_INFO: Partial<
   },
 };
 
-// 경고 기준 범위. 값이 비어 있거나 범위를 벗어나면 그래프 구역 테두리가 빨갛게 바뀐다.
-// 기준값은 아직 정해지지 않아 비워 둔다(설비 담당자 확정 후 채운다). 센서 값이 없으면(미수신) 경고로 본다.
-const WARN_LIMITS: Record<string, { min?: number; max?: number }> = {};
+// 센서별 판정 범위. 백엔드 detector(BTT-RULE v2.0, builtin_rules.py NUMERIC_RULES)와 같은 값이다.
+// low~high 안이면 정상, 벗어나면 주의, errorLow 이하·errorHigh 이상이면 경고. 백엔드 값을 바꾸면 여기도 고친다.
+// 백엔드는 RUN·기동 3초 같은 운전 조건과 지속 시간도 보지만, 여기서는 최신 값만 본다.
+const SENSOR_RANGES: Record<
+  string,
+  { low: number; high: number; errorLow: number; errorHigh: number }
+> = {
+  rpm: { low: 1000, high: 1030, errorLow: 990, errorHigh: 1040 },
+  dc_input_current_a: {
+    low: 0.089963,
+    high: 0.093786,
+    errorLow: 0.080967,
+    errorHigh: 0.103165,
+  },
+  dc_bus_voltage_v: { low: 20, high: 25, errorLow: 18, errorHigh: 27 },
+  motor_housing_temp_c: { low: 45, high: 85, errorLow: 40, errorHigh: 90 },
+  de_vibration_rms_g: {
+    low: 0.040396,
+    high: 0.080601,
+    errorLow: 0.036356,
+    errorHigh: 0.088661,
+  },
+  de_kurtosis: {
+    low: 3.5511,
+    high: 7.0661,
+    errorLow: 2.8836,
+    errorHigh: 7.7727,
+  },
+  nde_vibration_rms_g: {
+    low: 0.049179,
+    high: 0.062322,
+    errorLow: 0.044261,
+    errorHigh: 0.068554,
+  },
+  nde_kurtosis: {
+    low: 3.3565,
+    high: 5.477,
+    errorLow: 2.7413,
+    errorHigh: 6.0248,
+  },
+};
 
-function isWarning(field: string, value: number | null) {
-  if (value === null) return true;
-  const limit = WARN_LIMITS[field];
-  if (!limit) return false;
-  return (
-    (limit.min !== undefined && value < limit.min) ||
-    (limit.max !== undefined && value > limit.max)
-  );
+type SensorLevel = "normal" | "caution" | "warning";
+
+// 값이 없으면(미수신) 범위를 벗어난 것이 아니므로 정상 색을 유지한다.
+function sensorLevel(field: string, value: number | null): SensorLevel {
+  const range = SENSOR_RANGES[field];
+  if (value === null || !range) return "normal";
+  if (value <= range.errorLow || value >= range.errorHigh) return "warning";
+  if (value < range.low || value > range.high) return "caution";
+  return "normal";
 }
+
+const LEVEL_LABEL = { normal: "", caution: " (주의)", warning: " (경고)" };
 
 // 1번 상자를 누르면 2·3번 상자 영역에 말풍선 하나로 띄우는 센서 그래프 박스 3개.
 const BUBBLE_FIELDS = [
@@ -87,14 +131,21 @@ function GraphBox({
   field: string;
   samples: SensorSample[];
 }) {
-  // 그래프 위에 마우스를 올리면 그 시점의 값을 보여준다(x: 0~600 그래프 좌표).
-  const [hoverX, setHoverX] = useState<number | null>(null);
+  // 그래프 위에 마우스를 올리면 커서 아래 말풍선 박스에 그 시점의 값을 보여준다.
+  // x: 0~600 그래프 좌표, px·py·width: 그래프 영역 안의 커서 위치(px).
+  const [pointer, setPointer] = useState<{
+    x: number;
+    px: number;
+    py: number;
+    width: number;
+  } | null>(null);
+  const hoverX = pointer?.x ?? null;
   const chart = sensorCharts.find((item) => item.field === field);
   if (!chart) return null;
   const latest = sensorValue(samples.at(-1)?.record, field);
   const path = sensorPath(samples, field);
   const ready = path !== "" && samples.length > 1;
-  const warning = isWarning(field, latest);
+  const level = sensorLevel(field, latest);
 
   let hover: { value: number; secondsAgo: number } | null = null;
   if (hoverX !== null && ready) {
@@ -110,31 +161,33 @@ function GraphBox({
     if (best && value !== null)
       hover = { value, secondsAgo: Math.round((end - best.time) / 1000) };
   }
-  const shown = hover ? hover.value : latest;
 
   return (
     <section
-      className={`model-viewer__graph-box${warning ? " model-viewer__graph-box--warning" : ""}`}
-      aria-label={`${chart.title} 센서 그래프${warning ? " (경고)" : ""}`}
+      className={`model-viewer__graph-box${level === "normal" ? "" : ` model-viewer__graph-box--${level}`}`}
+      aria-label={`${chart.title} 센서 그래프${LEVEL_LABEL[level]}`}
     >
       <p className="model-viewer__bubble-title">
         {chart.title}
         {chart.unit && ` [${chart.unit}]`}
-        <b>{formatSensor(shown, chart.digits)}</b>
+        <b>{formatSensor(latest, chart.digits)}</b>
       </p>
       <div
         className="model-viewer__bubble-plot"
         onPointerMove={(event) => {
           const rect = event.currentTarget.getBoundingClientRect();
           if (rect.width > 0)
-            setHoverX(
-              Math.min(
+            setPointer({
+              x: Math.min(
                 600,
                 Math.max(0, ((event.clientX - rect.left) / rect.width) * 600),
               ),
-            );
+              px: event.clientX - rect.left,
+              py: event.clientY - rect.top,
+              width: rect.width,
+            });
         }}
-        onPointerLeave={() => setHoverX(null)}
+        onPointerLeave={() => setPointer(null)}
       >
         <svg
           viewBox="0 0 600 80"
@@ -142,15 +195,38 @@ function GraphBox({
           role="img"
           aria-label={`${chart.title}의 최근 수신 추이`}
         >
-          <path d="M0 16H600 M0 45H600 M0 74H600" className="grid" />
+          {ready ? (
+            <path d="M0 16H600 M0 45H600 M0 74H600" className="grid" />
+          ) : (
+            // 미수신·수집 중에는 얇은 실선으로 그리고, 글자가 놓이는 가운데 구간의 선은 비운다.
+            <path
+              d={`M0 16H600 M0 74H600 M0 45H${latest === null ? 230 : 190} M${latest === null ? 370 : 410} 45H600`}
+              className="grid grid--empty"
+            />
+          )}
           {ready && <path d={path} className="line" />}
           {hover && hoverX !== null && (
             <path d={`M${hoverX} 0V80`} className="cursor" />
           )}
         </svg>
-        {hover && (
-          <span className="model-viewer__bubble-hover">
-            {hover.secondsAgo === 0 ? "현재" : `${hover.secondsAgo}초 전`}
+        {SHOW_HOVER_BOX && hover && pointer && (
+          <span
+            className={`model-viewer__bubble-hover model-viewer__bubble-hover--${sensorLevel(field, hover.value)}`}
+            style={{
+              // 기본은 커서 아래, 그래프 아래쪽에 있으면 위로 뒤집고, 좌우는 영역 안으로 맞춘다.
+              left: Math.min(Math.max(pointer.px, 52), pointer.width - 52),
+              top: pointer.py < 40 ? pointer.py + 18 : pointer.py - 14,
+              transform:
+                pointer.py < 40 ? "translateX(-50%)" : "translate(-50%, -100%)",
+            }}
+          >
+            <b>
+              {formatSensor(hover.value, chart.digits)}
+              {chart.unit && ` ${chart.unit}`}
+            </b>
+            <small>
+              {hover.secondsAgo === 0 ? "현재" : `${hover.secondsAgo}초 전`}
+            </small>
           </span>
         )}
         {!ready && (

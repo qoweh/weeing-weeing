@@ -90,6 +90,7 @@ jobs:
       - name: 취약점 검사 (Trivy, 수정판이 있는 CRITICAL이면 배포 중단)
         env:
           IMAGE: ${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ github.sha }}
+          NAME: ${{ matrix.image }}
           TRIVY_VERSION: "0.76.1"
           TRIVY_SHA256: "c7cbe3137fb8a48a17574bede3dd6beb16742d1e9772929940fc90082c39d9c0"
         run: |
@@ -98,8 +99,19 @@ jobs:
           echo "${TRIVY_SHA256}  /tmp/trivy.tgz" | sha256sum -c -
           tar -xzf /tmp/trivy.tgz -C /tmp trivy
           # HIGH까지는 기록만 남기고, 수정판이 나온 CRITICAL만 배포를 멈춘다.
+          # --table-mode detailed: 취약점 0건인 파일까지 수백 줄 나열하는 요약표는 빼고, 발견된 것만 표로 남긴다.
           /tmp/trivy image --quiet --scanners vuln --ignore-unfixed --severity HIGH,CRITICAL \
-            --format table --exit-code 0 "$IMAGE" | tee -a "$GITHUB_STEP_SUMMARY"
+            --format table --table-mode detailed --exit-code 0 --output /tmp/trivy.txt "$IMAGE"
+          cat /tmp/trivy.txt
+          # Job summary는 Markdown이라 표를 그대로 넣으면 줄이 합쳐져 선 문자가 뒤엉킨다. 코드 블록으로 감싼다.
+          {
+            echo "### 취약점 검사: ${NAME} (HIGH·CRITICAL, 수정판이 있는 것만)"
+            if [ -s /tmp/trivy.txt ]; then
+              echo '```text'; cat /tmp/trivy.txt; echo '```'
+            else
+              echo "발견된 취약점 없음"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
           /tmp/trivy image --quiet --scanners vuln --ignore-unfixed --severity CRITICAL \
             --exit-code 1 "$IMAGE"
       - name: latest 태그 붙이기
