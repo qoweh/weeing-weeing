@@ -734,6 +734,17 @@ button.nav-item:disabled {
   flex: 0 0 22px;
   object-fit: contain;
 }
+button.nav-item:has(.nav-item__attention) { position: relative; }
+.nav-item__attention {
+  display: grid;
+  place-items: center;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  margin-left: auto;
+  color: var(--danger, #bc4161);
+}
+.sidebar--collapsed .nav-item__attention { position: absolute; top: 5px; right: 5px; }
 .sidebar__bottom {
   padding: 40px 28px 0;
 }

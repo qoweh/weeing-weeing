@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { listAllReports, listAllIncidents, type Incident } from "../api/client";
+import {
+  listAllReports,
+  listAllReviewHistory,
+  listAllIncidents,
+  type Incident,
+} from "../api/client";
 import Button from "../components/ui/Button";
 import PageTitle from "../components/ui/PageTitle";
 import { incidentCodesText } from "../components/ui/incidentCodes";
@@ -43,12 +48,77 @@ export default function MaintenancePage({
   const [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
     [reload, setReload] = useState(0);
-  const [scope, setScope] = useState<"all" | "mine" | "review">("all");
+  const [scope, setScope] = useState<"all" | "mine" | "review" | "history">(
+    "all",
+  );
+  const [reviewCount, setReviewCount] = useState<number | null>(null);
+  const [rejectedCount, setRejectedCount] = useState<number | null>(null);
+  useEffect(() => {
+    let active = true;
+    let sequence = 0;
+    async function refreshCount() {
+      const current = ++sequence;
+      try {
+        const reports = await listAllReports("mine");
+        if (active && current === sequence)
+          setRejectedCount(
+            reports.filter((report) => report.report_status === "REJECTED")
+              .length,
+          );
+      } catch (error) {
+        if (active && current === sequence) setRejectedCount(null);
+        if (active && (error as { status?: number }).status === 401)
+          onSessionExpired();
+      }
+    }
+    void refreshCount();
+    const timer = window.setInterval(refreshCount, 30000);
+    window.addEventListener("focus", refreshCount);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshCount);
+    };
+  }, [user.role, refreshKey, reload, onSessionExpired]);
+  useEffect(() => {
+    let active = true;
+    let sequence = 0;
+    if (!["보전 팀장", "관제 담당자"].includes(user.role)) {
+      setReviewCount(null);
+      return;
+    }
+    async function refreshCount() {
+      const current = ++sequence;
+      try {
+        const reports = await listAllReports("review");
+        if (active && current === sequence) setReviewCount(reports.length);
+      } catch (error) {
+        if (active && current === sequence) setReviewCount(null);
+        if (active && (error as { status?: number }).status === 401)
+          onSessionExpired();
+      }
+    }
+    void refreshCount();
+    const timer = window.setInterval(refreshCount, 30000);
+    window.addEventListener("focus", refreshCount);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshCount);
+    };
+  }, [user.role, refreshKey, reload, onSessionExpired]);
   useEffect(() => {
     let active = true;
     setLoading(true);
     setError("");
-    Promise.all([listAllReports(scope), listAllIncidents()])
+    Promise.all([
+      scope === "history"
+        ? listAllReviewHistory().then((items) =>
+            items.map((item) => item.report),
+          )
+        : listAllReports(scope === "all" ? "approved" : scope),
+      listAllIncidents(),
+    ])
       .then(([reports, incidents]) => {
         if (!active) return;
         const mapped = reports.map((r) => {
@@ -73,9 +143,11 @@ export default function MaintenancePage({
             tone:
               r.report_status === "APPROVED"
                 ? "success"
-                : ["SUBMITTED", "REVIEWED"].includes(r.report_status)
-                  ? "warning"
-                  : "neutral",
+                : r.report_status === "REJECTED"
+                  ? "danger"
+                  : ["SUBMITTED", "REVIEWED"].includes(r.report_status)
+                    ? "warning"
+                    : "neutral",
           };
         });
         setRows(mapped);
@@ -106,18 +178,44 @@ export default function MaintenancePage({
         <Button aria-pressed={scope === "all"} onClick={() => setScope("all")}>
           전체 보고서
         </Button>
-        <Button
-          aria-pressed={scope === "mine"}
-          onClick={() => setScope("mine")}
-        >
-          내 보고서
-        </Button>
+        {user.role !== "관제 담당자" && (
+          <Button
+            aria-pressed={scope === "mine"}
+            onClick={() => setScope("mine")}
+          >
+            내 보고서{" "}
+            {rejectedCount !== null && rejectedCount > 0 && (
+              <span
+                className="library-review-count"
+                aria-label={`반려된 보고서 ${rejectedCount}건`}
+              >
+                {rejectedCount}
+              </span>
+            )}
+          </Button>
+        )}
+        {["보전 팀장", "관제 담당자"].includes(user.role) && (
+          <Button
+            aria-pressed={scope === "history"}
+            onClick={() => setScope("history")}
+          >
+            내 결재 이력
+          </Button>
+        )}
         {["보전 팀장", "관제 담당자"].includes(user.role) && (
           <Button
             aria-pressed={scope === "review"}
             onClick={() => setScope("review")}
           >
-            결재 대기
+            결재 대기{" "}
+            {reviewCount !== null && reviewCount > 0 && (
+              <span
+                className="library-review-count"
+                aria-label={`결재 대기 ${reviewCount}건`}
+              >
+                {reviewCount}
+              </span>
+            )}
           </Button>
         )}
       </div>
@@ -147,9 +245,12 @@ export default function MaintenancePage({
             emptyHint={undefined}
             totalCount={undefined}
             title={
-              { all: "정비 이력", mine: "내 보고서", review: "결재 대기" }[
-                scope
-              ]
+              {
+                all: "정비 이력",
+                mine: "내 보고서",
+                review: "결재 대기",
+                history: "내 결재 이력",
+              }[scope]
             }
             rows={filterRows(rows, query, filters)}
             onOpen={(r: Row) => onOpen(r.reportId || r.id, r.incidentId, r)}

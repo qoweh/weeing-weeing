@@ -365,12 +365,8 @@ export function LibraryTable<T extends LibraryRow>({
                         r.name
                       ) : (
                         <button
-                          className={
-                            report
-                              ? "library-link"
-                              : "library-link library-link--ellipsis"
-                          }
-                          title={report ? undefined : r.name}
+                          className="library-link library-link--ellipsis"
+                          title={r.name}
                           onClick={() => onOpen(r)}
                         >
                           {highlightText(r.name, highlight)}

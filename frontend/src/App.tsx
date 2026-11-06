@@ -87,6 +87,7 @@ export default function App() {
     key: number;
   } | null>(null);
   const [maintenanceRefreshKey, setMaintenanceRefreshKey] = useState(0);
+  const [decisionMessage, setDecisionMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -240,6 +241,7 @@ export default function App() {
 
   function handleReportSaved() {
     setMaintenanceRefreshKey((key) => key + 1);
+    window.dispatchEvent(new Event("weeing-reports-changed"));
     window.dispatchEvent(new Event("weeing-incidents-changed"));
   }
 
@@ -280,6 +282,7 @@ export default function App() {
         setTheme((current) => (current === "light" ? "dark" : "light"))
       }
     >
+      {decisionMessage && <div className="report-decision-message" role="status">{decisionMessage}<button type="button" aria-label="완료 메시지 닫기" onClick={() => setDecisionMessage("")}>×</button></div>}
       {error && (
         <p className="workspace-error" role="alert">
           {error}
@@ -352,6 +355,7 @@ export default function App() {
           user={user}
           onClose={closeReportDraft}
           onSaved={handleReportSaved}
+          onDecisionComplete={setDecisionMessage}
           onSessionExpired={forgetSession}
         />
       )}

@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import ChatWidget from "../chat/ChatWidget.jsx";
-import type { Incident } from "../../api/client";
+import { listAllReports, type Incident } from "../../api/client";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import "./layout.scss";
@@ -30,6 +30,40 @@ export default function AppShell({
   children: ReactNode;
 }) {
   const [settings, setSettings] = useState(readSettings);
+  const [maintenanceAttention, setMaintenanceAttention] = useState(false);
+  useEffect(() => {
+    let active = true;
+    let sequence = 0;
+    async function refresh() {
+      const current = ++sequence;
+      try {
+        const canReview = ["보전 팀장", "관제 담당자"].includes(user.role);
+        const canWrite = ["현장 점검자", "보전 팀장"].includes(user.role);
+        const [mine, review] = await Promise.all([
+          canWrite ? listAllReports("mine") : Promise.resolve([]),
+          canReview ? listAllReports("review") : Promise.resolve([]),
+        ]);
+        if (active && current === sequence)
+          setMaintenanceAttention(
+            mine.some((report) => report.report_status === "REJECTED") ||
+              review.length > 0,
+          );
+      } catch {
+        // 일시적인 조회 실패 시 마지막으로 확인한 상태를 유지한다.
+      }
+    }
+    setMaintenanceAttention(false);
+    void refresh();
+    const timer = window.setInterval(refresh, 30000);
+    window.addEventListener("weeing-reports-changed", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener("weeing-reports-changed", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [user.employee_no, user.role]);
   function changeSettings(next: Settings) {
     setSettings(next);
     saveSettings(next);
@@ -139,6 +173,7 @@ export default function AppShell({
         onChangeSettings={changeSettings}
       />
       <Sidebar
+        maintenanceAttention={maintenanceAttention}
         page={page}
         onNavigate={onNavigate}
         busy={busy}

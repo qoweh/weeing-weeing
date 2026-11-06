@@ -318,7 +318,7 @@ class ReportRepository(Protocol):
     ) -> list[ReportSummary]: ...
 
     def review_history(
-        self, actor_id: str, *, limit: int = 100
+        self, actor_id: str, *, limit: int = 100, offset: int = 0
     ) -> list[ReportReviewHistory]: ...
 
     def transition(
