@@ -49,8 +49,7 @@ export default function AnalysisStages({ stages = [], incident = null }) {
   if (!stages.length) return null
   const runs = stages.filter((run) => run.role === active).sort((a, b) => a.attempt - b.attempt)
   return <details className="analysis-stages" aria-label="단계별 분석 근거">
-    <summary className="analysis-stages__toggle"><strong>분석 과정 및 근거 보기</strong><span>문서·정비이력 조사와 검증 기록</span></summary>
-    <div className="analysis-stages__heading"><h3>단계별 근거 확인</h3><p>검색한 원문과 출처, 통합 분석 초안, 검증 지적을 비교할 수 있습니다.</p></div>
+    <summary className="analysis-stages__toggle"><strong>분석 과정 및 근거 보기</strong></summary>
     <div className="analysis-stages__tabs" role="tablist" aria-label="분석 단계">{roles.map(([role, label]) => {
       const latest = stages.filter((run) => run.role === role).at(-1)
       return <button type="button" role="tab" key={role} id={`${id}-stage-${role}`} aria-controls={`${id}-panel`} aria-selected={active === role} onClick={() => setActive(role)}>{label}<small>{statuses[latest?.status] || '대기'}</small></button>
@@ -62,22 +61,21 @@ export default function AnalysisStages({ stages = [], incident = null }) {
         {!run.verification && <AnalysisText text={run.summary || (run.status === 'RUNNING' ? '처리 중입니다.' : '실행을 기다리고 있습니다.')} />}
         {run.reused_from_job_id && <p className="analysis-stages__note">이전 실행의 완료 결과를 재사용했습니다. 이 단계의 추가 모델 호출은 없습니다.</p>}
         {run.error_code && <p role="alert" className="analysis-stages__error">오류: {run.error_code}</p>}
-        {run.research && <><h5>조사 결과</h5>{run.research.findings.length ? <ul>{run.research.findings.map((finding, index) => <li key={index}><AnalysisText text={finding.statement} /><EvidenceReferences ids={finding.evidence_ids} evidence={run.evidence} /></li>)}</ul> : !run.research.reference_cases?.length && <p>관련 근거를 찾지 못했습니다.</p>}{run.research.limitations.map((text, index) => <AnalysisText key={index} text={text} className="analysis-stages__note" />)}</>}
-        {run.research && <MaintenanceReferences cases={run.research.reference_cases} evidence={run.evidence} />}
+        {run.research && <><h5>조사 결과</h5>{run.research.findings.length ? <ul>{run.research.findings.map((finding, index) => <li key={index}><AnalysisText text={finding.statement} /></li>)}</ul> : !run.research.reference_cases?.length && <p>관련 근거를 찾지 못했습니다.</p>}{run.research.limitations.map((text, index) => <AnalysisText key={index} text={text} className="analysis-stages__note" />)}</>}
+        {run.research && <MaintenanceReferences cases={run.research.reference_cases} evidence={run.evidence} showSources={false} />}
         {run.analysis && <div className="analysis-stages__draft"><h5>통합 분석 초안</h5><p className="analysis-stages__note">검증 전 또는 수정 단계의 결과입니다. 최종 상태는 상단 분석 결과에서 확인하세요.</p>
           {run.analysis.observed_facts && <><h5>공통 사건·센서 정보</h5><AnalysisText text={displayIncidentFacts(run.analysis.observed_facts, incident)} /></>}
-          {run.analysis.suspected_causes.length > 0 && <><h5>원인·점검 후보</h5><CauseCandidates analysis={run.analysis} incident={incident} /></>}
-          <h5>점검 순서</h5><InspectionChecks analysis={run.analysis} />
-          {run.analysis.recommended_actions?.length > 0 && <><h5>권고 조치</h5><AnalysisActions analysis={run.analysis} /></>}
-          {run.analysis.actions_requiring_approval?.length > 0 && <><h5>승인이 필요한 조치</h5><AnalysisActions analysis={run.analysis} approval /></>}
+          {run.analysis.suspected_causes.length > 0 && <><h5>원인·점검 후보</h5><CauseCandidates analysis={run.analysis} incident={incident} showSources={false} /></>}
+          <h5>점검 순서</h5><InspectionChecks analysis={run.analysis} showSources={false} />
+          {run.analysis.recommended_actions?.length > 0 && <><h5>권고 조치</h5><AnalysisActions analysis={run.analysis} showSources={false} /></>}
+          {run.analysis.actions_requiring_approval?.length > 0 && <><h5>승인이 필요한 조치</h5><AnalysisActions analysis={run.analysis} approval showSources={false} /></>}
           {run.analysis.additional_checks?.length > 0 && <><h5>추가 확인 사항</h5><ul>{run.analysis.additional_checks.map((text, index) => <li key={index}><AnalysisText text={text} /></li>)}</ul></>}
-          <MaintenanceReferences cases={run.analysis.reference_cases} evidence={run.evidence} />
+          <MaintenanceReferences cases={run.analysis.reference_cases} evidence={run.evidence} showSources={false} />
           {run.analysis.limitations && <AnalysisText text={run.analysis.limitations} className="analysis-stages__note" />}
         </div>}
         {run.verification && <div className="analysis-stages__verification"><h5>{verdicts[run.verification.verdict]}</h5><AnalysisText text={run.verification.summary} />{run.verification.issues.map((issue, index) => <article key={index}><strong>지적 {index + 1}</strong><dl><dt>검토한 주장</dt><dd><AnalysisText text={issue.claim} /></dd><dt>문제와 근거</dt><dd><AnalysisText text={issue.reason} /></dd><dt>수정 요청</dt><dd><AnalysisText text={issue.correction} /></dd></dl>{issue.evidence_ids.length > 0 && <EvidenceReferences ids={issue.evidence_ids} evidence={run.evidence} />}</article>)}</div>}
         <SensorWindows windows={run.sensor_windows} />
         {run.status !== 'SKIPPED' && <Sources run={run} />}
-        {(run.started_at || run.model) && <p className="analysis-stages__metrics">{run.reused_from_job_id && '이전 실행 통계 · '}{run.model && `모델 ${run.model} · `}소요 {run.elapsed_ms == null ? '진행 중' : `${(run.elapsed_ms / 1000).toFixed(1)}초`} · 호출 {run.calls}회 · 입력 토큰 {run.input_tokens ?? '미측정'} / 출력 토큰 {run.output_tokens ?? '미측정'}</p>}
       </section>)}
     </div>
   </details>
