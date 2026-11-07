@@ -50,8 +50,8 @@ function IncidentDetailDialog({ user, onResult, onSessionExpired, incident, resu
   }, [])
 
   return <dialog ref={dialog} className="incident-history-dialog" aria-labelledby="incident-detail-title" onCancel={(event) => { event.preventDefault(); onClose() }}>
-    <div className="incident-history__detail"><div><p className="incident-history-dialog__eyebrow">INCIDENT ANALYSIS</p><h2 id="incident-detail-title">사건 분석 결과</h2></div><button ref={closeButton} type="button" className="incident-history-dialog__close" onClick={onClose} aria-label="사건 분석 결과 닫기">×</button></div>
-    <AnalysisCard key={incident.incident_id} incident={incident} result={result} user={user} onResult={onResult} onSessionExpired={onSessionExpired} onOpenReport={onOpenReport} busy={busy} />
+    <div className="incident-history__detail"><div><p className="incident-history-dialog__eyebrow">INCIDENT ANALYSIS</p><h2 id="incident-detail-title">AI 사건 분석 결과</h2></div><button ref={closeButton} type="button" className="incident-history-dialog__close" onClick={onClose} aria-label="AI 사건 분석 결과 닫기">×</button></div>
+    <AnalysisCard hideIncidentNumber key={incident.incident_id} incident={incident} result={result} user={user} onResult={onResult} onSessionExpired={onSessionExpired} onOpenReport={onOpenReport} busy={busy} />
     {incident.has_approved_report && <section className="incident-history-dialog__reports" aria-label="최종 승인 보고서"><h3>최종 승인 보고서</h3>
       {!reports ? <p role="status">보고서를 불러오는 중입니다.</p> : reports.error ? <p className="incident-test__error" role="alert">{reports.error}</p> : reports.items.length === 0 ? <p>승인된 보고서를 찾을 수 없습니다. 목록을 새로고침해 주세요.</p> : <ul>{reports.items.map((report) => <li key={report.report_id}><button type="button" disabled={busy} onClick={() => onOpenReport(report.report_id, incident.incident_id, report.report_version)}><span><strong>{report.report_id}</strong><small>v{report.report_version} · {report.author_name}</small></span><span aria-hidden="true">→</span></button></li>)}</ul>}
     </section>}
