@@ -104,6 +104,7 @@
 }
 
 .settings-dialog__content > footer {
+  justify-content: flex-end;
   height: 72px;
   border-top: 1px solid var(--border);
   color: var(--muted);
@@ -388,10 +389,6 @@
   font-weight: 700;
 }
 
-.settings-dialog__body .settings-hint {
-  margin-top: 16px;
-}
-
 .settings-profile {
   display: flex;
   align-items: center;
@@ -441,41 +438,6 @@
   margin: 8px 0 0;
   color: var(--danger);
   font-size: var(--fs-caption);
-}
-
-.settings-profile + h4 {
-  margin-top: 26px;
-}
-
-.settings-password {
-  display: grid;
-  gap: 14px;
-  margin: 14px 0 0;
-  padding: 0;
-  border: 0;
-}
-
-.settings-password label {
-  display: grid;
-  gap: 6px;
-  color: var(--sidebar-text);
-  font-size: var(--fs-body);
-  line-height: var(--lh-body);
-  font-weight: 700;
-}
-
-.settings-password input {
-  height: 42px;
-  padding: 0 14px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface-hover);
-  color: var(--text);
-  font: inherit;
-}
-
-.settings-password .button {
-  justify-self: end;
 }
 
 .settings-session {

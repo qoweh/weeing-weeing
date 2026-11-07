@@ -755,7 +755,7 @@
   overflow: hidden;
   border-radius: 15px;
 }
-/* Figma 작업프레임의 상자 3개: 가로 1:1:1, 높이는 3D 영역 전체. 3px 회색(#a1a1a1) 실선. */
+/* 3D 영역을 가로 1:1:1로 나누는 구역. 바깥 테두리는 없고 구역 사이에 1px 구분선만 둔다. */
 .model-viewer__frames {
   position: absolute;
   inset: 0;
@@ -767,18 +767,31 @@
   flex: 1 1 0;
   min-width: 0;
   box-sizing: border-box;
-  border: 3px solid #a1a1a1;
 }
-/* 맞닿는 테두리가 겹쳐 두꺼워 보이지 않게 3px(테두리 두께)만큼 겹친다. */
 .model-viewer__frame + .model-viewer__frame {
-  margin-left: -3px;
+  border-left: 1px solid #a1a1a1;
 }
-/* 바깥 네 모서리는 3D 영역 카드(둥근 모서리 16px, 테두리 1px 안쪽 15px)에 맞춘다. */
-.model-viewer__frame:first-child {
-  border-radius: 15px 0 0 15px;
+/* 주의·경고 센서가 들어오면 그 구역이 반투명 색으로 두 번 깜빡인다. */
+.model-viewer__frame--caution,
+.model-viewer__frame--warning {
+  animation: model-viewer-zone-flash 1.4s ease-in-out 1;
 }
-.model-viewer__frame:last-child {
-  border-radius: 0 15px 15px 0;
+.model-viewer__frame--caution {
+  --zone-flash: rgba(255, 160, 0, 0.35);
+}
+.model-viewer__frame--warning {
+  --zone-flash: rgba(255, 20, 20, 0.38);
+}
+@keyframes model-viewer-zone-flash {
+  0%,
+  50%,
+  100% {
+    background: transparent;
+  }
+  20%,
+  70% {
+    background: var(--zone-flash);
+  }
 }
 /* 1번 상자를 누르면 2·3번 상자 영역을 채우는 말풍선 하나(왼쪽 꼬리). 안에 센서 그래프 박스 3개. */
 .model-viewer__bubble {
