@@ -4,8 +4,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { applySurface, type SurfaceKind } from "./surfaceMaterials";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
-import { Sky } from "three/addons/objects/Sky.js";
 import {
   formatSensor,
   sensorCharts,
@@ -24,6 +24,75 @@ const MODEL_SCALE = 1.5;
 const FLOOR_FRONT_CENTER = [4.4424, 0, 2.5358] as const;
 // 모델 좌우 반전. -1이면 X를 뒤집어 기계가 오른쪽, 컨베이어가 왼쪽에 놓인다(1이면 원래대로). 카메라·상자 위치도 이 값을 따른다.
 const MODEL_MIRROR = -1;
+// 천장 램프 위치(Blender 좌표, 좌우 반전 전)와 점광원 세기
+// 원본 텍스처가 없어 절차적 표면(골판지 골, 도장, 알갱이)을 입힐 재질
+const SURFACE_BY_MATERIAL: Record<string, SurfaceKind | undefined> = {
+  Box_Cardboard: "hull",
+  FW_FB_Cabinet: "hull",
+  FW_FB_SteelBlue: "hull",
+  FW_FB_SteelGray: "hull",
+  FW_FB_Cladding: "hull",
+  FW_FB_RollerDoor: "hull",
+  FW_FB_DrumRed: "hull",
+  FW_FQ_Duct: "hull",
+  FW_FB_BlackPlastic: "plastic",
+};
+// 벨트 위 상자는 GLB에 갈색 골판지로 들어 있어, 테란 보급 상자(붉은 금속 + 주황 띠) 색으로 코드에서 바꾼다.
+const RECOLOR_BY_MATERIAL: Record<string, string | undefined> = {
+  Box_Cardboard: "#612e27",
+  Box_Tape: "#c98f1a",
+};
+// 텍스처는 두고 색만 곱해 어둡게 하는 재질(바닥). Blender의 Floor 재질과 같은 값이다.
+const TINT_BY_MATERIAL: Record<string, string | undefined> = {
+  Floor: "#4d535b",
+};
+// 신호등 발광 세기. 너무 크면 ACES 톤매핑에서 색이 하얗게 날아간다.
+const SIGNAL_INTENSITY = 2.8;
+// 레일 신호등(FactoryBackground.glb의 FW_Signal_Lamp_N). 번호 -> 말풍선 칸(화면 왼쪽부터 1~3)과 같은 구간.
+// 첫 번째 섹션(화면 왼쪽 끝) 바닥에 놓인 2단 상자 더미를 치운다.
+// 배경 GLB의 골판지·테이프 메쉬는 상자 전부가 한 메쉬라, 더미가 있는 구간(원본 X 860 이상)의 삼각형만 뺀다.
+const PILE_MIN_X = 860;
+function removeFirstSectionPile(root: THREE.Object3D) {
+  root.traverse((child) => {
+    if (
+      !(child instanceof THREE.Mesh) ||
+      !/^FW_Box_(Cardboard|Tape)$/.test(child.name)
+    )
+      return;
+    const geometry = child.geometry as THREE.BufferGeometry;
+    const index = geometry.index;
+    if (!index) return;
+    const position = geometry.attributes.position;
+    const kept: number[] = [];
+    for (let i = 0; i < index.count; i += 3) {
+      const x =
+        (position.getX(index.getX(i)) +
+          position.getX(index.getX(i + 1)) +
+          position.getX(index.getX(i + 2))) /
+        3;
+      if (x < PILE_MIN_X)
+        kept.push(index.getX(i), index.getX(i + 1), index.getX(i + 2));
+    }
+    geometry.setIndex(kept);
+  });
+}
+
+// 신호등 후광 크기(램프 크기의 배수)와 불투명도.
+const HALO_SCALE = 5;
+const HALO_OPACITY = 0.85;
+const SIGNAL_COLUMN: Record<number, Column> = { 1: 3, 2: 2, 3: 1 };
+const SIGNAL_COLOR = {
+  normal: "#18ff48",
+  caution: "#ffa000",
+  warning: "#ff1414",
+} as const;
+// 카메라 세로 화각(도). 작을수록 원근감이 약하다. 같은 화면 크기를 유지하도록 카메라 거리는 화각에 맞춰 늘린다.
+const CAMERA_FOV = 26;
+// 1보다 작으면 그만큼 가까이 다가가 바닥·벽 가장자리 밖의 빈 배경이 안 보이게 한다.
+const CAMERA_DISTANCE_TRIM = 0.85;
+const LAMP_COLUMNS = [-10, 217, 444, 671, 898];
+const LAMP_ROWS = [-150, 0, 150];
+const LAMP_INTENSITY = 12;
 // 벨트 위 상자(GLB의 Box_01, Box_02 ...). 벨트 윗면과 같은 속도·방향(BELT_DIRECTION)으로 흘러간다.
 // BELT_TRAVEL_PER_LOOP: 텍스처가 한 바퀴 돌 때 벨트 윗면이 움직이는 거리, BOX_X_RANGE: 상자가 지나가는 X 구간(둘 다 MODEL_SCALE 곱하기 전 값).
 const BOX_NAME = /^Box_\d+$/;
@@ -87,6 +156,19 @@ const BUBBLE_INFO: Partial<
     fields: ["motor_housing_temp_c", "nde_vibration_rms_g", "nde_kurtosis"],
   },
 };
+
+// 구역(상자)의 판정: 그 구역 센서 중 가장 나쁜 단계(경고 > 주의 > 정상).
+function zoneLevel(column: Column, record: unknown): SensorLevel {
+  const fields = BUBBLE_INFO[column]?.fields ?? [];
+  const levels = fields.map((field) =>
+    sensorLevel(field, sensorValue(record as never, field)),
+  );
+  return levels.includes("warning")
+    ? "warning"
+    : levels.includes("caution")
+      ? "caution"
+      : "normal";
+}
 
 // 센서별 판정 범위. 백엔드 detector(BTT-RULE v2.0, builtin_rules.py NUMERIC_RULES)와 같은 값이다.
 // low~high 안이면 정상, 벗어나면 주의, errorLow 이하·errorHigh 이상이면 경고. 백엔드 값을 바꾸면 여기도 고친다.
@@ -385,6 +467,8 @@ export default function ModelViewer({
   const [openDetail, setOpenDetail] = useState<string | null>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const pausedRef = useRef(paused);
+  const samplesRef = useRef(samples);
+  samplesRef.current = samples;
   const [status, setStatus] = useState("모델을 불러오는 중입니다.");
   pausedRef.current = paused;
 
@@ -410,6 +494,25 @@ export default function ModelViewer({
       z: number;
       offset: number;
     }[] = [];
+    const signals: {
+      material: THREE.MeshStandardMaterial;
+      column: Column;
+      halo: THREE.Sprite;
+    }[] = [];
+    // 신호등 둘레 후광: 중심이 밝고 가장자리로 번지는 원형 그라데이션(흰색, 색은 스프라이트 색으로 입힌다).
+    const haloCanvas = document.createElement("canvas");
+    haloCanvas.width = haloCanvas.height = 64;
+    const haloContext = haloCanvas.getContext("2d");
+    if (haloContext) {
+      const gradient = haloContext.createRadialGradient(32, 32, 0, 32, 32, 32);
+      gradient.addColorStop(0, "rgba(255,255,255,1)");
+      gradient.addColorStop(0.25, "rgba(255,255,255,0.5)");
+      gradient.addColorStop(1, "rgba(255,255,255,0)");
+      haloContext.fillStyle = gradient;
+      haloContext.fillRect(0, 0, 64, 64);
+    }
+    const haloTexture = new THREE.CanvasTexture(haloCanvas);
+    let signalKey: unknown = null;
     const beltTextures: { texture: THREE.Texture; base: number }[] = [];
     const anchors: { anchor: THREE.Object3D; id: string }[] = [];
     const raycaster = new THREE.Raycaster();
@@ -419,19 +522,36 @@ export default function ModelViewer({
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     host.appendChild(renderer.domElement);
     const scene = new THREE.Scene();
-    const sky = new Sky();
-    sky.scale.setScalar(10000);
-    sky.material.uniforms.turbidity.value = 0;
-    sky.material.uniforms.rayleigh.value = 3;
-    sky.material.uniforms.mieDirectionalG.value = 0.7;
-    sky.material.uniforms.sunPosition.value.set(-0.8, 0.19, 0.56);
-    scene.add(sky);
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    const environment = pmrem.fromScene(scene);
-    scene.environment = environment.texture;
-    const camera = new THREE.PerspectiveCamera(40, 1, 1, 100);
-    // 모델(MODEL_SCALE 배)을 정면에서 30도로 내려다보는 위치.
-    camera.position.set(MODEL_MIRROR * 4.05, 6.5, 9.53);
+    // 하늘 HDRI 환경광은 너무 밝아 쓰지 않는다. 밝기는 아래 조명 세기로 조절한다.
+    scene.background = new THREE.Color(0xdde3ea);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x8d939c, 0.7));
+    const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+    sun.position.set(-3, 8, 6);
+    scene.add(sun);
+    // 공장 천장 조명: Blender 램프 위치(5열 x 3줄)에 은은한 점광원을 둔다. 밝기는 intensity로 조절한다.
+    const unit = MODEL_SCALE * 0.01;
+    LAMP_COLUMNS.forEach((lampX) =>
+      LAMP_ROWS.forEach((lampY) => {
+        const lamp = new THREE.PointLight(0xfff0d8, LAMP_INTENSITY, 16, 2);
+        lamp.position.set(
+          MODEL_MIRROR * unit * lampX,
+          unit * 400,
+          -unit * lampY,
+        );
+        scene.add(lamp);
+      }),
+    );
+    const camera = new THREE.PerspectiveCamera(CAMERA_FOV, 1, 1, 100);
+    // 모델을 정면에서 30도로 내려다본다. 기준 화각 40도에서 목표점까지 거리 10(높이 5, 앞 8.66)이었고,
+    // 화각을 줄인 만큼 같은 비율로 멀리 가서 화면에 보이는 범위는 그대로 둔다.
+    const distanceScale =
+      (CAMERA_DISTANCE_TRIM * Math.tan(THREE.MathUtils.degToRad(20))) /
+      Math.tan(THREE.MathUtils.degToRad(CAMERA_FOV / 2));
+    camera.position.set(
+      MODEL_MIRROR * 4.05,
+      1 + 5 * distanceScale,
+      8.66 * distanceScale,
+    );
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     // 카메라 고정: 마우스로 회전·확대·이동하지 못하게 한다. 다시 움직이게 하려면 true로 바꾼다.
@@ -471,6 +591,82 @@ export default function ModelViewer({
     resize();
     const draco = new DRACOLoader();
     draco.setDecoderPath("/draco/");
+    // 환경광이 없으면 금속 재질이 까맣게 보이므로 금속성을 낮춘다.
+    // 바닥 벽돌 재질에는 노말맵이 없어 평평해 보인다. 색 텍스처의 밝기로 요철(노말맵)을 만들어 입힌다.
+    const addNormalFromAlbedo = (material: THREE.MeshStandardMaterial) => {
+      const map = material.map;
+      const source = map?.image as CanvasImageSource | undefined;
+      if (!map || !source || material.normalMap) return;
+      const size = 512;
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = size;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      if (!context) return;
+      context.drawImage(source, 0, 0, size, size);
+      const pixels = context.getImageData(0, 0, size, size);
+      const height = new Float32Array(size * size);
+      for (let i = 0; i < height.length; i++) {
+        const p = i * 4;
+        height[i] =
+          (pixels.data[p] * 0.3 +
+            pixels.data[p + 1] * 0.59 +
+            pixels.data[p + 2] * 0.11) /
+          255;
+      }
+      const at = (x: number, y: number) =>
+        height[((y + size) % size) * size + ((x + size) % size)];
+      const strength = 4;
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          const dx = (at(x + 1, y) - at(x - 1, y)) * strength;
+          const dy = (at(x, y + 1) - at(x, y - 1)) * strength;
+          const length = Math.hypot(dx, dy, 1);
+          const p = (y * size + x) * 4;
+          pixels.data[p] = ((-dx / length) * 0.5 + 0.5) * 255;
+          pixels.data[p + 1] = ((dy / length) * 0.5 + 0.5) * 255;
+          pixels.data[p + 2] = ((1 / length) * 0.5 + 0.5) * 255;
+          pixels.data[p + 3] = 255;
+        }
+      }
+      context.putImageData(pixels, 0, 0);
+      // clone()은 이미지를 공유해 색 맵까지 바뀌므로 새 텍스처를 만들고 배치 값만 복사한다.
+      const normalMap = new THREE.CanvasTexture(canvas);
+      normalMap.colorSpace = THREE.NoColorSpace;
+      normalMap.flipY = map.flipY;
+      normalMap.wrapS = map.wrapS;
+      normalMap.wrapT = map.wrapT;
+      normalMap.repeat.copy(map.repeat);
+      normalMap.offset.copy(map.offset);
+      normalMap.center.copy(map.center);
+      normalMap.rotation = map.rotation;
+      normalMap.channel = map.channel;
+      material.normalMap = normalMap;
+      material.normalScale.set(1, 1);
+      material.needsUpdate = true;
+    };
+    const softenMetal = (object: THREE.Object3D) => {
+      object.traverse((child) => {
+        if (!(child instanceof THREE.Mesh)) return;
+        const materials = Array.isArray(child.material)
+          ? child.material
+          : [child.material];
+        materials.forEach((material) => {
+          if (!(material instanceof THREE.MeshStandardMaterial)) return;
+          material.metalness = Math.min(material.metalness, 0.3);
+          const tint = TINT_BY_MATERIAL[material.name];
+          if (tint) material.color.set(tint);
+          const recolor = RECOLOR_BY_MATERIAL[material.name];
+          if (recolor) {
+            material.map = null;
+            material.color.set(recolor);
+            material.roughness = 0.5;
+          }
+          if (material.name === "Floor") addNormalFromAlbedo(material);
+          const surface = SURFACE_BY_MATERIAL[material.name];
+          if (surface) applySurface(material, surface);
+        });
+      });
+    };
     const disposeModel = (object: THREE.Object3D) => {
       object.traverse((child) => {
         if (!(child instanceof THREE.Mesh)) return;
@@ -500,6 +696,41 @@ export default function ModelViewer({
           MODEL_SCALE,
           MODEL_SCALE,
         );
+        softenMetal(background);
+        removeFirstSectionPile(background);
+        background.traverse((child) => {
+          const match = /^FW_Signal_Lamp_(\d)$/.exec(child.name);
+          if (!match || !(child instanceof THREE.Mesh)) return;
+          // 램프마다 색이 달라야 하므로 재질을 따로 복제한다.
+          const material = (
+            child.material as THREE.MeshStandardMaterial
+          ).clone();
+          child.material = material;
+          // 조명이 약해도 멀리서 보이도록 램프 중심에 색 후광(조명·톤매핑 영향 없음)을 겹친다.
+          gltf.scene.updateMatrixWorld(true);
+          const box = new THREE.Box3().setFromObject(child);
+          const halo = new THREE.Sprite(
+            new THREE.SpriteMaterial({
+              map: haloTexture,
+              color: SIGNAL_COLOR.normal,
+              transparent: true,
+              depthWrite: false,
+              blending: THREE.AdditiveBlending,
+              toneMapped: false,
+            }),
+          );
+          halo.position.copy(box.getCenter(new THREE.Vector3()));
+          halo.scale.setScalar(
+            Math.max(...box.getSize(new THREE.Vector3()).toArray()) *
+              HALO_SCALE,
+          );
+          scene.add(halo);
+          signals.push({
+            material,
+            column: SIGNAL_COLUMN[Number(match[1])],
+            halo,
+          });
+        });
         scene.add(background);
       });
     new GLTFLoader().setDRACOLoader(draco).load(
@@ -539,6 +770,7 @@ export default function ModelViewer({
             });
           });
         });
+        softenMetal(model);
         scene.add(model);
         mixer = new THREE.AnimationMixer(model);
         if (gltf.animations[0]) mixer.clipAction(gltf.animations[0]).play();
@@ -601,6 +833,38 @@ export default function ModelViewer({
       const delta = clock.getDelta();
       if (pausedRef.current) return;
       mixer?.update(delta);
+      // 신호등: 칸마다 센서 중 가장 나쁜 판정(정상/주의/경고)의 색으로 켠다. 경고는 깜빡인다.
+      const latest = samplesRef.current.at(-1);
+      if (signals.length > 0) {
+        if (latest !== signalKey) {
+          signalKey = latest;
+          signals.forEach((signal) => {
+            const fields = BUBBLE_INFO[signal.column]?.fields ?? [];
+            const levels = fields.map((field) =>
+              sensorLevel(field, sensorValue(latest?.record, field)),
+            );
+            const level: SensorLevel = levels.includes("warning")
+              ? "warning"
+              : levels.includes("caution")
+                ? "caution"
+                : "normal";
+            // 겉면 색을 어둡게 해야 조명에 하얗게 씻기지 않고 발광색이 살아 있다.
+            signal.material.color.set(SIGNAL_COLOR[level]).multiplyScalar(0.3);
+            signal.material.emissive.set(SIGNAL_COLOR[level]);
+            signal.material.userData.level = level;
+            signal.halo.material.color.set(SIGNAL_COLOR[level]);
+          });
+        }
+        // 주의·경고는 깜빡인다(주의는 느리게, 경고는 빠르게). 정상은 항상 켜져 있다.
+        signals.forEach(({ material, halo }) => {
+          const level = material.userData.level as SensorLevel;
+          const speed = level === "warning" ? 9 : 4;
+          const blink = 0.55 + 0.45 * Math.sin(clock.elapsedTime * speed);
+          const factor = level === "normal" ? 1 : blink;
+          material.emissiveIntensity = SIGNAL_INTENSITY * factor;
+          halo.material.opacity = HALO_OPACITY * factor;
+        });
+      }
       beltPhase = (beltPhase + delta / BELT_LOOP_SECONDS) % 1;
       beltTextures.forEach(({ texture, base }) => {
         texture.offset.x = base + BELT_DIRECTION * beltPhase;
@@ -670,10 +934,6 @@ export default function ModelViewer({
       if (background) disposeModel(background);
       draco.dispose();
       controls.dispose();
-      environment.dispose();
-      pmrem.dispose();
-      sky.geometry.dispose();
-      sky.material.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     };
@@ -700,9 +960,15 @@ export default function ModelViewer({
       >
         <div className="model-viewer__canvas" ref={hostRef} />
         <div className="model-viewer__frames" aria-hidden="true">
-          <div className="model-viewer__frame" />
-          <div className="model-viewer__frame" />
-          <div className="model-viewer__frame" />
+          {([1, 2, 3] as const).map((column) => {
+            const level = zoneLevel(column, samples.at(-1)?.record);
+            return (
+              <div
+                key={`${column}-${level}`}
+                className={`model-viewer__frame${level === "normal" ? "" : ` model-viewer__frame--${level}`}`}
+              />
+            );
+          })}
         </div>
         {hotspots.map((hotspot) => (
           <div

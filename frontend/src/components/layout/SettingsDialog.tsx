@@ -10,7 +10,6 @@ import type { Settings } from "./settings";
 import Button from "../ui/Button";
 import ProfileAvatar from "./ProfileAvatar";
 import useProfilePhoto from "./useProfilePhoto";
-import { refreshIntervals } from "./settings";
 import "./SettingsDialog.css";
 
 const tabs = ["화면", "알림", "계정"];
@@ -337,32 +336,6 @@ export default function SettingsDialog({
                   </li>
                 ))}
               </ul>
-              <h4>갱신 주기</h4>
-              <p>
-                실시간 사건 변경이 들어올 때 알림 목록을 갱신하는 최소
-                간격입니다.
-              </p>
-              <div
-                className="settings-segment"
-                role="radiogroup"
-                aria-label="갱신 주기"
-              >
-                {refreshIntervals.map((item) => (
-                  <button
-                    key={item.value}
-                    type="button"
-                    role="radio"
-                    aria-checked={settings.refreshInterval === item.value}
-                    onClick={() => update({ refreshInterval: item.value })}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-              <p className="settings-hint">
-                기본값은 1초입니다. 사건 변경이 없으면 목록을 반복 조회하지
-                않습니다.
-              </p>
             </>
           )}
           {tab === "계정" && (
@@ -414,24 +387,6 @@ export default function SettingsDialog({
                   )}
                 </div>
               </div>
-              <h4>
-                비밀번호 변경 <em>준비 중</em>
-              </h4>
-              <fieldset disabled className="settings-password">
-                {["현재 비밀번호", "새 비밀번호", "새 비밀번호 확인"].map(
-                  (label) => (
-                    <label key={label}>
-                      {label}
-                      <input
-                        type="password"
-                        placeholder={`${label}${label.endsWith("확인") ? "을" : "를"} 입력해 주세요`}
-                        autoComplete="off"
-                      />
-                    </label>
-                  ),
-                )}
-                <Button disabled>비밀번호 변경</Button>
-              </fieldset>
               <div className="settings-session">
                 <div>
                   <h4>로그인 세션</h4>
@@ -449,11 +404,6 @@ export default function SettingsDialog({
           )}
         </div>
         <footer>
-          <span>
-            {tab === "계정"
-              ? "비밀번호 변경은 준비 중입니다."
-              : "변경 사항은 바로 저장됩니다."}
-          </span>
           <Button onClick={onClose}>닫기</Button>
         </footer>
       </section>
