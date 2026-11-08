@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 
 type NavigationItem = {
   icon: string;
@@ -83,9 +83,14 @@ export default function Sidebar({
         onClick={() => setMenuOpen((open) => !open)}
       >
         {currentItem && (
-          <img
-            src={`/assets/ICONS/${currentItem.activeIcon ?? currentItem.icon}.svg`}
-            alt=""
+          <span
+            className="nav-icon"
+            aria-hidden="true"
+            style={
+              {
+                "--icon": `url(/assets/ICONS/${currentItem.activeIcon ?? currentItem.icon}.svg)`,
+              } as CSSProperties
+            }
           />
         )}
         <span>{currentItem?.label ?? "메뉴"}</span>
@@ -123,16 +128,29 @@ export default function Sidebar({
               onNavigate(id);
             }}
           >
-            <img
-              src={`/assets/ICONS/${current === id && activeIcon ? activeIcon : icon}.svg`}
-              alt=""
+            <span
+              className="nav-icon"
+              aria-hidden="true"
+              style={
+                {
+                  "--icon": `url(/assets/ICONS/${current === id && activeIcon ? activeIcon : icon}.svg)`,
+                } as CSSProperties
+              }
             />
             <span className="nav-item__label">{label}</span>
             {id === "maintenance" && maintenanceAttention && (
               <span className="nav-item__attention" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
-                  <path d="M10.25 4.4a2 2 0 0 1 3.5 0l8.1 14.6a2 2 0 0 1-1.75 3H3.9a2 2 0 0 1-1.75-3l8.1-14.6Z" fill="currentColor" />
-                  <path d="M12 9v5m0 3h.01" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                  <path
+                    d="M10.25 4.4a2 2 0 0 1 3.5 0l8.1 14.6a2 2 0 0 1-1.75 3H3.9a2 2 0 0 1-1.75-3l8.1-14.6Z"
+                    fill="currentColor"
+                  />
+                  <path
+                    d="M12 9v5m0 3h.01"
+                    stroke="white"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
                 </svg>
               </span>
             )}

@@ -196,13 +196,13 @@
   background: #fff;
 }
 .settings-theme--dark .settings-theme__preview {
-  background: #101c2b;
+  background: #121212;
 }
 .settings-theme--dark .settings-theme__preview i {
-  background: #16263a;
+  background: #181818;
 }
 .settings-theme--dark .settings-theme__preview b {
-  background: #1d2f45;
+  background: #2a2a2a;
 }
 
 .settings-theme__label {

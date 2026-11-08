@@ -68,13 +68,14 @@
   .library-status--danger { background: var(--danger-bg, #fff0f0); color: var(--danger, #b83246); }
   &__title { margin: 0 0 24px; color: var(--text); font-size: 24px; font-weight: 700; line-height: 1.3; }
   &__toolbar { display: flex; align-items: end; gap: 12px; margin-bottom: 24px; }
-  &__toolbar button { height: 48px; padding-top: 0; padding-bottom: 0; }
-  &__search { width: min(480px, 100%); }
-  &__search input { width: 100%; height: 48px; padding: 0 16px 0 44px; background: var(--surface) no-repeat 14px center / 20px 20px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20' fill='none' stroke='%23718194' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='8.5' cy='8.5' r='5.5'/%3E%3Cpath d='m13 13 4 4'/%3E%3C/svg%3E"); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font: inherit; }
+  &__toolbar button { flex: 0 0 auto; height: 48px; padding-top: 0; padding-bottom: 0; margin-left: auto; white-space: nowrap; }
+  &__search { flex: 0 1 auto; min-width: 0; max-width: 100%; }
+  &__search input { field-sizing: content; width: auto; min-width: 480px; max-width: 100%; height: 48px; padding: 0 16px 0 44px; background: var(--surface) no-repeat 14px center / 20px 20px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20' fill='none' stroke='%23718194' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='8.5' cy='8.5' r='5.5'/%3E%3Cpath d='m13 13 4 4'/%3E%3C/svg%3E"); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font: inherit; }
   &__sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   &__section { margin-bottom: 28px; }
   button { padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); cursor: pointer; }
-  &__library-table th button, &__library-table .library-link { padding: 0; border: 0; background: none; color: inherit; }
+  &__library-table th button { border: 0; background: none; color: inherit; }
+  &__library-table .library-link { padding: 0; border: 0; background: none; color: inherit; }
   &__library-table .library-link { color: var(--primary); }
   /* 열 너비: 설비 모델은 좁게, 발생 시각은 한 줄로 */
   &__library-table.library-table th:nth-child(1) { width: 6%; }
@@ -91,7 +92,7 @@
   .library-pagination button { border: 0; background: transparent; }
   &__detail { display: flex; justify-content: space-between; align-items: center; }
   &__detail button { padding: 8px 12px; }
-  @media (max-width: 550px) { &__toolbar { flex-direction: column; align-items: stretch; } &__search { width: 100%; } }
+  @media (max-width: 550px) { &__toolbar { flex-direction: column; align-items: stretch; } &__toolbar button { margin-left: 0; } &__search { width: 100%; } &__search input { min-width: 0; width: 100%; field-sizing: fixed; } }
 }
 .incident-history-dialog {
   width: min(1200px, calc(100% - 32px));

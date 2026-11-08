@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import ChatWidget from "../chat/ChatWidget.jsx";
 import { listAllReports, type Incident } from "../../api/client";
 import Header from "./Header";
@@ -136,28 +136,56 @@ export default function AppShell({
     };
   }, [screenZoom]);
 
+  // Ctrl/Cmd + +/- 및 Ctrl/Cmd + 휠을 브라우저 확대 대신 화면 비율(80~120%, 10% 단위)로 처리한다.
+  // 설정의 화면 비율 막대도 같은 상태를 쓰므로 함께 바뀐다.
+  const screenZoomRef = useRef(screenZoom);
+  screenZoomRef.current = screenZoom;
   useEffect(() => {
-    function preventZoomShortcut(event: KeyboardEvent) {
-      if (
-        (event.ctrlKey || event.metaKey) &&
-        (["+", "-", "=", "_"].includes(event.key) ||
-          ["NumpadAdd", "NumpadSubtract"].includes(event.code))
-      ) {
-        event.preventDefault();
+    let lastWheel = 0;
+    function stepZoom(direction: 1 | -1) {
+      const next = Math.min(
+        120,
+        Math.max(80, screenZoomRef.current + direction * 10),
+      );
+      if (next !== screenZoomRef.current) {
+        screenZoomRef.current = next;
+        changeScreenZoom(next);
       }
     }
-    function preventZoomWheel(event: WheelEvent) {
-      if (event.ctrlKey || event.metaKey) event.preventDefault();
+    function onZoomShortcut(event: KeyboardEvent) {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      if (
+        ["+", "=", "_", "-"].includes(event.key) ||
+        ["NumpadAdd", "NumpadSubtract"].includes(event.code)
+      ) {
+        event.preventDefault();
+        stepZoom(
+          event.key === "-" ||
+            event.key === "_" ||
+            event.code === "NumpadSubtract"
+            ? -1
+            : 1,
+        );
+      }
     }
-    window.addEventListener("keydown", preventZoomShortcut, true);
-    window.addEventListener("wheel", preventZoomWheel, {
+    function onZoomWheel(event: WheelEvent) {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      event.preventDefault();
+      const now = Date.now();
+      if (now - lastWheel < 120 || event.deltaY === 0) return;
+      lastWheel = now;
+      stepZoom(event.deltaY < 0 ? 1 : -1);
+    }
+    window.addEventListener("keydown", onZoomShortcut, true);
+    window.addEventListener("wheel", onZoomWheel, {
       passive: false,
       capture: true,
     });
     return () => {
-      window.removeEventListener("keydown", preventZoomShortcut, true);
-      window.removeEventListener("wheel", preventZoomWheel, true);
+      window.removeEventListener("keydown", onZoomShortcut, true);
+      window.removeEventListener("wheel", onZoomWheel, true);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

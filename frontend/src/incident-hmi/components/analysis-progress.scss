@@ -1,28 +1,128 @@
 .analysis-progress {
-  margin-top: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--background);
-  &__headline { display: flex; gap: 10px; align-items: flex-start; line-height: 1.5; }
-  &__headline strong { font-size: 15px; }
-  &__headline p { margin: 3px 0 0; color: var(--muted); font-size: 13px; }
-  &--running &__headline strong { color: var(--primary); }
-  &--failed &__headline strong { color: var(--danger); }
-  &--warning &__headline strong { color: var(--warning); }
-  &__spinner { width: 16px; height: 16px; margin-top: 3px; flex: 0 0 auto; border: 2px solid #9ab9dc; border-top-color: var(--primary); border-radius: 50%; animation: analysis-spin .8s linear infinite; }
-  &__steps { display: flex; flex-direction: column; list-style: none; margin: 14px 0 0; padding: 0; }
-  &__steps li { display: flex; gap: 7px; min-width: 0; padding: 9px; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; }
-  &__steps li[data-status='RUNNING'] { border-color: var(--primary); }
-  &__steps li[data-status='FAILED'] { border-color: var(--danger); }
-  &__steps li[data-status='PENDING'], &__steps li[data-status='SKIPPED'] { color: var(--muted); }
-  &__steps small { display: block; margin-top: 3px; color: var(--muted); }
-  &__marker { color: var(--primary); font-weight: 700; }
-  &__steps li[data-status='FAILED'] &__marker { color: var(--danger); }
-  &__steps li[data-verdict='REVISE'] &__marker, &__steps li[data-verdict='INSUFFICIENT_EVIDENCE'] &__marker { color: var(--warning); }
-  &__arrow { display: flex; justify-content: center; padding: 4px 0; color: var(--muted); }
-  &__arrow svg { display: block; transition: color .3s; }
-  &__arrow[data-state='done'] { color: var(--primary); }
-  &__arrow[data-state='warning'] { color: var(--warning); }
-  &__arrow[data-state='active'] { color: var(--primary); }
-  &__arrow[data-state='active'] svg { animation: analysis-arrow-flow 1s ease-in-out infinite; }
-  @media (prefers-reduced-motion: reduce) { &__spinner, &__arrow svg { animation: none !important; } }
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--background);
+  &__headline {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    line-height: 1.5;
+  }
+  &__headline strong {
+    font-size: 15px;
+  }
+  &__headline p {
+    margin: 3px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  &--running &__headline strong {
+    color: var(--primary);
+  }
+  &--failed &__headline strong {
+    color: var(--danger);
+  }
+  &--warning &__headline strong {
+    color: var(--warning);
+  }
+  &__spinner {
+    width: 16px;
+    height: 16px;
+    margin-top: 3px;
+    flex: 0 0 auto;
+    border: 2px solid #9ab9dc;
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: analysis-spin 0.8s linear infinite;
+  }
+  &__steps {
+    display: flex;
+    flex-direction: column;
+    list-style: none;
+    margin: 14px 0 0;
+    padding: 0;
+  }
+  &__steps li:not(&__arrow) {
+    display: flex;
+    gap: 7px;
+    min-width: 0;
+    padding: 9px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 12px;
+  }
+  &__steps li[data-status="RUNNING"] {
+    border-color: var(--primary);
+  }
+  &__steps li[data-status="FAILED"] {
+    border-color: var(--danger);
+  }
+  &__steps li[data-status="PENDING"],
+  &__steps li[data-status="SKIPPED"] {
+    color: var(--muted);
+  }
+  &__steps small {
+    display: block;
+    margin-top: 3px;
+    color: var(--muted);
+  }
+  &__marker {
+    color: var(--primary);
+    font-weight: 700;
+  }
+  &__steps li[data-status="FAILED"] &__marker {
+    color: var(--danger);
+  }
+  &__steps li[data-verdict="REVISE"] &__marker,
+  &__steps li[data-verdict="INSUFFICIENT_EVIDENCE"] &__marker {
+    color: var(--warning);
+  }
+  &__steps &__arrow {
+    display: flex;
+    justify-content: center;
+    padding: 4px 0;
+    border: 0;
+    border-radius: 0;
+    color: var(--muted);
+  }
+  &__arrow svg {
+    display: block;
+    transition: color 0.3s;
+  }
+  &__arrow[data-state="done"] {
+    color: var(--primary);
+  }
+  &__arrow[data-state="warning"] {
+    color: var(--warning);
+  }
+  &__arrow[data-state="active"] {
+    color: var(--primary);
+  }
+  &__arrow[data-state="active"] svg {
+    animation: analysis-arrow-flow 1s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &__spinner,
+    &__arrow svg {
+      animation: none !important;
+    }
+  }
 }
-@keyframes analysis-spin { to { transform: rotate(360deg); } }
-@keyframes analysis-arrow-flow { 0%, 100% { transform: translateY(-3px); opacity: .4; } 50% { transform: translateY(3px); opacity: 1; } }
+@keyframes analysis-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes analysis-arrow-flow {
+  0%,
+  100% {
+    transform: translateY(-3px);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translateY(3px);
+    opacity: 1;
+  }
+}

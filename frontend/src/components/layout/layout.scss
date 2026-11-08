@@ -727,6 +727,23 @@ button.nav-item:disabled {
   cursor: default;
   opacity: 0.7;
 }
+/* 아이콘 SVG의 고정 색 대신 글자색(currentColor)을 따르게 해 테마 색상이 적용되도록 한다. */
+.nav-icon {
+  display: block;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  background-color: currentColor;
+  -webkit-mask: var(--icon) center / contain no-repeat;
+  mask: var(--icon) center / contain no-repeat;
+}
+.nav-item--active .nav-icon {
+  color: var(--sidebar-active-text);
+}
+.sidebar__mobile-toggle .nav-icon {
+  width: 22px;
+  height: 22px;
+}
 .nav-item img {
   display: block;
   width: 22px;
@@ -762,6 +779,10 @@ button.nav-item:has(.nav-item__attention) { position: relative; }
   right: 36px;
   bottom: 36px;
   z-index: 20;
+}
+/* 서랍형 챗봇은 비모달이라 최상위 레이어에 오르지 않으므로, 열려 있는 동안 GNB(헤더)보다 위에 둔다. */
+.chat-widget:has(.chat-dialog--drawer[open]) {
+  z-index: 45;
 }
 .chat-launcher {
   display: block;
