@@ -1,9 +1,12 @@
+import { createContext } from "react";
+
 export type Settings = {
   notifyWarning: boolean;
   notifyError: boolean;
   autoOpenError: boolean;
   refreshInterval: number;
   chatDisplay: "modal" | "drawer";
+  pauseModelAnimation: boolean;
 };
 
 const storageKey = "weeing-settings";
@@ -23,7 +26,14 @@ export const defaultSettings: Settings = {
   autoOpenError: false,
   refreshInterval: 1000,
   chatDisplay: "modal",
+  pauseModelAnimation: false,
 };
+
+export const SettingsContext = createContext<Settings>(defaultSettings);
+// 화면 안의 패널(예: 그래프 설정)에서 설정을 바꿀 때 쓴다.
+export const SettingsUpdateContext = createContext<
+  (patch: Partial<Settings>) => void
+>(() => {});
 
 // 설정은 이 브라우저에만 저장한다. 저장소를 쓸 수 없으면 기본값으로 동작한다.
 export function readSettings(): Settings {
@@ -40,6 +50,7 @@ export function readSettings(): Settings {
       autoOpenError: saved.autoOpenError ?? defaultSettings.autoOpenError,
       refreshInterval: interval,
       chatDisplay: saved.chatDisplay === "drawer" ? "drawer" : "modal",
+      pauseModelAnimation: saved.pauseModelAnimation === true,
     };
   } catch {
     return defaultSettings;

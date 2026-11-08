@@ -1,4 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
+import {
+  SettingsContext,
+  SettingsUpdateContext,
+} from "../components/layout/settings";
 import PageTitle from "../components/ui/PageTitle";
 import ModelViewer from "../components/dashboard/ModelViewer";
 import DashboardAside from "../components/dashboard/DashboardAside";
@@ -27,6 +31,8 @@ export default function DashboardPage({
   onSessionExpired?: () => void;
   onNavigate?: (page: string) => void;
 }) {
+  const { pauseModelAnimation } = useContext(SettingsContext);
+  const updateSettings = useContext(SettingsUpdateContext);
   const [refreshInterval, setRefreshInterval] = useState("1");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [hiddenCharts, setHiddenCharts] = useState<string[]>([]);
@@ -135,6 +141,23 @@ export default function DashboardPage({
                 ))}
               </div>
               <p>수신 표본은 유지하고 화면 갱신 주기에 적용합니다.</p>
+              <div className="sensor-settings-panel__chart sensor-settings-panel__motion">
+                <span>3D 움직임 멈추기</span>
+                <button
+                  type="button"
+                  className="sensor-settings-panel__toggle"
+                  role="switch"
+                  aria-label="3D 움직임 멈추기"
+                  aria-checked={pauseModelAnimation}
+                  onClick={() =>
+                    updateSettings({
+                      pauseModelAnimation: !pauseModelAnimation,
+                    })
+                  }
+                >
+                  <span />
+                </button>
+              </div>
               <div className="sensor-settings-panel__charts">
                 <div className="sensor-settings-panel__charts-heading">
                   <h3>그래프 표시</h3>
@@ -269,7 +292,11 @@ export default function DashboardPage({
             className="sensor-dashboard__placeholder"
             aria-label="3D 모델 뷰어"
           >
-            <ModelViewer samples={model.samples} errorMessage={error} />
+            <ModelViewer
+              paused={pauseModelAnimation}
+              samples={model.samples}
+              errorMessage={error}
+            />
           </section>
           <DashboardAside
             onNavigate={onNavigate}

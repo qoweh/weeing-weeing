@@ -136,6 +136,8 @@ export default function SettingsDialog({
       className="settings-dialog"
       aria-labelledby={titleId}
       onCancel={(event) => {
+        // 파일 선택창 취소(input의 cancel 이벤트)가 버블링되어 설정창이 닫히지 않게 한다.
+        if (event.target !== event.currentTarget) return;
         event.preventDefault();
         onClose();
       }}
@@ -341,27 +343,32 @@ export default function SettingsDialog({
           {tab === "계정" && (
             <>
               <div className="settings-profile">
-                <ProfileAvatar
-                  user={{
-                    name: user.name,
-                    employee_no: user.employee_no ?? "",
-                  }}
-                  size={64}
-                />
+                <div className="settings-profile__photo">
+                  <ProfileAvatar
+                    user={{
+                      name: user.name,
+                      employee_no: user.employee_no ?? "",
+                    }}
+                    size={64}
+                  />
+                  <button
+                    type="button"
+                    className="settings-profile__add"
+                    aria-label={profile.photo ? "사진 변경" : "사진 등록"}
+                    title={profile.photo ? "사진 변경" : "사진 등록"}
+                    onClick={() => photoInput.current?.click()}
+                  >
+                    +
+                  </button>
+                </div>
                 <div>
                   <strong>{user.name}</strong>
                   <small>
                     {user.role}
                     {user.employee_no ? ` · 사번 ${user.employee_no}` : ""}
                   </small>
-                  <div className="settings-profile__actions">
-                    <button
-                      type="button"
-                      onClick={() => photoInput.current?.click()}
-                    >
-                      {profile.photo ? "사진 변경" : "사진 등록"}
-                    </button>
-                    {profile.photo && (
+                  {profile.photo && (
+                    <div className="settings-profile__actions">
                       <button
                         type="button"
                         onClick={() => {
@@ -369,10 +376,10 @@ export default function SettingsDialog({
                           profile.remove();
                         }}
                       >
-                        삭제
+                        사진 삭제
                       </button>
-                    )}
-                  </div>
+                    </div>
+                  )}
                   <input
                     ref={photoInput}
                     type="file"

@@ -766,3 +766,28 @@
   background-position: 14px center;
   background-size: 20px 20px;
 }
+
+/* 사건 열: 이름은 한 줄 말줄임, (코드)는 항상 둘째 줄 */
+.library-table .incident-codes,
+.library-table .incident-code-label {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 0;
+  min-width: 0;
+  max-width: 100%;
+}
+.library-table .incident-code-label__name {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+.library-table .library-link:has(.incident-codes) {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+}

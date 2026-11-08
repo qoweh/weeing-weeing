@@ -23,10 +23,13 @@ export function AnalysisCard({ incident, result, user, onResult, onSessionExpire
   const analysis = result?.analysis
   const state = result?.job?.status
   return <article className="incident-result">
+    <aside className="incident-result__summary" aria-label="분석 요약">
     <div className="incident-result__heading"><div><IncidentCodes codes={incident.codes} />{!hideIncidentNumber && <p>{incident.incident_number || '사건번호는 사건현황에서 확인할 수 있습니다.'}</p>}</div><span>{jobLabels[state] || (result ? '분석 작업 없음' : '분석 작업 확인 중')}</span></div>
     <AnalysisProgress result={result} />
     {result?.error && <p className="incident-test__error" role="alert">{result.error}</p>}
     {state === 'FAILED' && <p className="incident-test__error">분석에 실패했습니다. {result.job?.error_code && `오류: ${result.job.error_code}`}</p>}
+    </aside>
+    <div className="incident-result__detail">
     {state === 'COMPLETED' && analysis && <>
       {analysis.status !== 'OK' && <p className="incident-result__status">{analysis.status === 'VERIFICATION_FAILED' ? '검증 미통과 · 분석 초안 — 담당자 확인 필요' : analysis.status === 'INSUFFICIENT_EVIDENCE' ? '관련 근거가 부족해 추가 자료가 필요합니다' : 'AI 분석에 실패했습니다'}</p>}
       {analysis.suspected_causes?.length > 0 && <div className="incident-result__group incident-result__group--candidates"><h4>원인·점검 후보</h4><CauseCandidates analysis={analysis} incident={incident} compact showSources={false} /></div>}
@@ -41,5 +44,6 @@ export function AnalysisCard({ incident, result, user, onResult, onSessionExpire
     </>}
     {!incident.has_approved_report && <AnalysisRetry incidentId={incident.incident_id} result={result} user={user} onResult={onResult} onSessionExpired={onSessionExpired} />}
     <AnalysisStages stages={result?.stages} incident={incident} />
+    </div>
   </article>
 }
