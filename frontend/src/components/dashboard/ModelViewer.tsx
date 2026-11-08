@@ -549,9 +549,15 @@ export default function ModelViewer({
   const samplesRef = useRef(samples);
   samplesRef.current = samples;
   const [status, setStatus] = useState("모델을 불러오는 중입니다.");
+  const [showCctv, setShowCctv] = useState(false);
   pausedRef.current = paused;
 
   useEffect(() => {
+    setShowCctv(new URLSearchParams(window.location.search).get("cctv") === "1");
+  }, []);
+
+  useEffect(() => {
+    if (showCctv) return;
     const host = hostRef.current;
     if (!host) return;
     let renderer: THREE.WebGLRenderer;
@@ -1084,7 +1090,7 @@ export default function ModelViewer({
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, []);
+  }, [showCctv]);
 
   return (
     <div className="model-viewer">
@@ -1105,7 +1111,16 @@ export default function ModelViewer({
           setBubbleColumn((current) => (current === column ? null : column));
         }}
       >
-        <div className="model-viewer__canvas" ref={hostRef} />
+        <div className="model-viewer__canvas" ref={hostRef}>
+          {showCctv && (
+            <iframe
+              title="실시간 CCTV"
+              src="http://127.0.0.1:18080/viewer.html"
+              allow="autoplay"
+              className="model-viewer__cctv"
+            />
+          )}
+        </div>
         <div className="model-viewer__frames" aria-hidden="true">
           {([1, 2, 3] as const).map((column) => {
             const level = zoneLevel(column, samples.at(-1)?.record);
@@ -1184,7 +1199,7 @@ export default function ModelViewer({
               onClose={() => setBubbleColumn(null)}
             />
           ))}
-        {status && <p className="model-viewer__status">{status}</p>}
+        {!showCctv && status && <p className="model-viewer__status">{status}</p>}
         {onExpand && (
           <button
             type="button"
