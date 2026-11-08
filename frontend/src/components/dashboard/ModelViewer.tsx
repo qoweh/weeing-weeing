@@ -88,8 +88,16 @@ const SIGNAL_COLOR = {
 } as const;
 // 카메라 세로 화각(도). 작을수록 원근감이 약하다. 같은 화면 크기를 유지하도록 카메라 거리는 화각에 맞춰 늘린다.
 const CAMERA_FOV = 26;
+// CAMERA_FOV를 기준으로 맞춘 화면 가로/세로 비율(3D 영역 2000x490). 이 비율에서 화각이 CAMERA_FOV다.
+const REFERENCE_ASPECT = 2000 / 490;
+// 세로로 긴 화면에서 카메라를 뒤로 물리는 최대 배율.
+const CAMERA_MAX_DOLLY = 1.3;
+// 카메라를 물렸을 때 화면을 위로 미는 비율(화면 높이 기준).
+const VIEW_RISE = 0.3;
+// 세로로 긴 화면에서 카메라가 추가로 다가가는 배율(1보다 작을수록 확대).
+const MOBILE_ZOOM = 0.85;
 // 1보다 작으면 그만큼 가까이 다가가 바닥·벽 가장자리 밖의 빈 배경이 안 보이게 한다.
-const CAMERA_DISTANCE_TRIM = 0.85;
+const CAMERA_DISTANCE_TRIM = 0.78;
 const LAMP_COLUMNS = [-10, 217, 444, 671, 898];
 const LAMP_ROWS = [-150, 0, 150];
 const LAMP_INTENSITY = 12;
@@ -347,6 +355,73 @@ function GraphBox({
   );
 }
 
+// 말풍선 왼쪽: 같은 줄 센서 그래프의 상태. 주의·경고이면 어떤 기준을 벗어났는지 보여준다.
+function ErrorCell({
+  field,
+  record,
+}: {
+  field: string;
+  record: SensorSample["record"] | undefined;
+}) {
+  const value = sensorValue(record, field);
+  const level = sensorLevel(field, value);
+  const chart = sensorCharts.find((item) => item.field === field);
+  const range = SENSOR_RANGES[field];
+  if (!chart || !range) return null;
+  const unit = chart.unit && ` ${chart.unit}`;
+  if (value === null)
+    return (
+      <div className="model-viewer__error model-viewer__error--empty">
+        <b>{chart.title}</b>
+        <p>미수신</p>
+      </div>
+    );
+  if (level === "normal")
+    return (
+      <div className="model-viewer__error model-viewer__error--normal">
+        <b>
+          {chart.title}
+          <em>정상</em>
+        </b>
+        <p>정상 범위 안입니다.</p>
+      </div>
+    );
+  const high = value > range.high;
+  const bound =
+    level === "warning"
+      ? high
+        ? range.errorHigh
+        : range.errorLow
+      : high
+        ? range.high
+        : range.low;
+  return (
+    <div className={`model-viewer__error model-viewer__error--${level}`}>
+      <b>
+        {chart.title}
+        <em>{level === "warning" ? "경고" : "주의"}</em>
+      </b>
+      <dl>
+        <dt>현재</dt>
+        <dd>
+          {formatSensor(value, chart.digits)}
+          {unit}
+        </dd>
+        <dt>{high ? "상한" : "하한"} 기준</dt>
+        <dd>
+          {formatSensor(bound, chart.digits)}
+          {unit} {level === "warning" ? (high ? "이상" : "이하") : high ? "초과" : "미만"}
+        </dd>
+        <dt>정상 범위</dt>
+        <dd>
+          {formatSensor(range.low, chart.digits)} ~{" "}
+          {formatSensor(range.high, chart.digits)}
+        </dd>
+      </dl>
+    </div>
+  );
+}
+
 type Column = 1 | 2 | 3;
 
 // 눌린 상자를 뺀 나머지 상자 영역에 말풍선을 채운다.
@@ -354,11 +429,12 @@ type Column = 1 | 2 | 3;
 function bubblesFor(active: Column) {
   const fields = BUBBLE_INFO[active]?.fields ?? BUBBLE_FIELDS;
   if (active === 1)
-    return [{ from: 2, to: 3, tail: "left", fields, row: false }];
+    return [{ from: 2, to: 3, tail: "left", fields, row: false, inset: 110 }];
   if (active === 3)
-    return [{ from: 1, to: 2, tail: "right", fields, row: false }];
+    return [{ from: 1, to: 2, tail: "right", fields, row: false, inset: 110 }];
   // 가운데 상자는 오른쪽 상자 영역에 말풍선 하나를 띄운다.
-  return [{ from: 3, to: 3, tail: "left", fields, row: false }];
+  // 3번 영역 바깥쪽에 붙지 않게 왼쪽(2번 영역 쪽)으로 inset(px)만큼 들여 넓힌다. 꼬리는 여전히 왼쪽의 2번 상자를 가리킨다.
+  return [{ from: 3, to: 3, tail: "left", fields, row: false, inset: 240 }];
 }
 
 function GraphBubble({
@@ -367,6 +443,7 @@ function GraphBubble({
   tail,
   fields,
   row,
+  inset = 0,
   samples,
   title,
   note,
@@ -379,6 +456,7 @@ function GraphBubble({
   tail: string;
   fields: readonly string[];
   row: boolean;
+  inset?: number;
   samples: SensorSample[];
   title: string;
   note?: string;
@@ -414,9 +492,9 @@ function GraphBubble({
       style={{
         // 눌린 상자 쪽에서 가까운 변에 붙이고, 너비는 영역 폭을 넘지 않는 선에서 좁게 둔다.
         ...(tail === "left"
-          ? { left: `calc(${(from - 1) / 3} * 100% + 22px)` }
-          : { right: `calc(${(3 - to) / 3} * 100% + 22px)` }),
-        width: `min(340px, calc(${(to - from + 1) / 3} * 100% - 44px))`,
+          ? { left: `calc(${(from - 1) / 3} * 100% + 22px - ${inset}px)` }
+          : { right: `calc(${(3 - to) / 3} * 100% + 22px - ${inset}px)` }),
+        width: `min(560px, calc(${(to - from + 1) / 3} * 100% - 44px + ${inset}px))`,
       }}
       role="region"
       aria-label="센서 그래프"
@@ -443,11 +521,12 @@ function GraphBubble({
             </span>
           )}
         </header>
-        <div
-          className={`model-viewer__graph-boxes${row ? "" : " model-viewer__graph-boxes--stack"}`}
-        >
+        <div className="model-viewer__bubble-body">
           {fields.map((field) => (
-            <GraphBox key={field} field={field} samples={samples} />
+            <div key={field} className="model-viewer__bubble-row">
+              <ErrorCell field={field} record={samples.at(-1)?.record} />
+              <GraphBox field={field} samples={samples} />
+            </div>
           ))}
         </div>
       </div>
@@ -558,10 +637,34 @@ export default function ModelViewer({
     controls.enableRotate = false;
     controls.enableZoom = false;
     controls.enablePan = false;
+    // 터치패드 두 손가락 가로 스와이프가 브라우저 뒤로가기로 이어지지 않게, 3D 영역 위에서만 막는다.
+    // 말풍선·테두리 같은 덮개 위에서도 막도록 캔버스가 아닌 3D 영역 전체(.model-viewer)에 건다.
+    // 세로 스크롤은 그대로 페이지에 전달한다.
+    const swipeArea = host.closest<HTMLElement>(".model-viewer") ?? host;
+    const rootStyle = document.documentElement.style;
+    const blockSwipeBack = (event: WheelEvent) => {
+      if (
+        event.deltaX !== 0 &&
+        Math.abs(event.deltaX) >= Math.abs(event.deltaY) * 0.3
+      ) {
+        event.preventDefault();
+      }
+    };
+    const lockSwipeBack = () => {
+      rootStyle.overscrollBehaviorX = "none";
+    };
+    const unlockSwipeBack = () => {
+      rootStyle.overscrollBehaviorX = "";
+    };
+    swipeArea.addEventListener("wheel", blockSwipeBack, { passive: false });
+    swipeArea.addEventListener("pointerenter", lockSwipeBack);
+    swipeArea.addEventListener("pointerleave", unlockSwipeBack);
     controls.target.set(MODEL_MIRROR * 4.05, 1, 0);
     controls.update();
     // 처음 카메라 자세. 화면을 얼마나 밀지 계산할 때만 쓴다(사용자가 돌려 본 뒤에도 같은 값을 쓴다).
     const baseCamera = camera.clone();
+    const basePosition = camera.position.clone();
+    const focus = controls.target.clone();
     const floorCenter = new THREE.Vector3(
       MODEL_MIRROR * FLOOR_FRONT_CENTER[0] * MODEL_SCALE,
       FLOOR_FRONT_CENTER[1],
@@ -570,6 +673,33 @@ export default function ModelViewer({
     const resize = () => {
       if (!host.clientWidth || !host.clientHeight) return;
       camera.aspect = host.clientWidth / host.clientHeight;
+      // 화면 비율이 달라져도 기준 화면(REFERENCE_ASPECT)과 가로로 보이는 범위가 같도록 세로 화각을 맞춘다.
+      // 기준보다 가로로 길면 화각을 줄여 위아래를 자른다. 세로로 길면(모바일) 화각은 두고 카메라를 뒤로 물려 같은 가로 범위를 보인다.
+      // 화각을 벌리면 원근감이 커지고, 너무 물러나면 모델 밖 빈 배경이 보이므로 물러나는 거리에 상한을 둔다.
+      const wanted = Math.min(
+        CAMERA_MAX_DOLLY,
+        Math.max(1, REFERENCE_ASPECT / camera.aspect),
+      );
+      // 세로로 긴 화면은 가장자리의 빈 배경이 보이지 않도록 MOBILE_ZOOM만큼 더 다가간다.
+      const dolly = wanted > 1 ? wanted * MOBILE_ZOOM : 1;
+      camera.position
+        .copy(basePosition)
+        .sub(focus)
+        .multiplyScalar(dolly)
+        .add(focus);
+      baseCamera.position.copy(camera.position);
+      camera.fov = Math.min(
+        CAMERA_FOV,
+        THREE.MathUtils.radToDeg(
+          2 *
+            Math.atan(
+              (Math.tan(THREE.MathUtils.degToRad(CAMERA_FOV / 2)) *
+                REFERENCE_ASPECT) /
+                camera.aspect,
+            ),
+        ),
+      );
+      baseCamera.fov = camera.fov;
       // 카메라 각도는 그대로 두고, 바닥 앞쪽 가장자리의 중심이 화면 가로 가운데에 오도록 화면 전체를 민다.
       baseCamera.aspect = camera.aspect;
       baseCamera.filmOffset = 0;
@@ -583,6 +713,16 @@ export default function ModelViewer({
         2 *
         Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) *
         camera.aspect;
+      // 카메라를 물린 만큼 화면을 위로 밀어, 바닥 아래쪽 모델 밖 빈 배경이 덜 보이게 한다.
+      const rise = Math.min(1, Math.max(0, dolly - 1)) * VIEW_RISE;
+      camera.setViewOffset(
+        host.clientWidth,
+        host.clientHeight,
+        0,
+        -rise * host.clientHeight,
+        host.clientWidth,
+        host.clientHeight,
+      );
       camera.updateProjectionMatrix();
       renderer.setSize(host.clientWidth, host.clientHeight);
     };
@@ -830,8 +970,9 @@ export default function ModelViewer({
     );
     const clock = new THREE.Clock();
     renderer.setAnimationLoop(() => {
-      const delta = clock.getDelta();
-      if (pausedRef.current) return;
+      // 일시정지 중에는 시간을 0으로 두어 컨베이어·상자·벨트만 멈추고, 화면 회전·센서 표시는 유지한다.
+      const delta = pausedRef.current ? 0 : clock.getDelta();
+      if (pausedRef.current) clock.getDelta();
       mixer?.update(delta);
       // 신호등: 칸마다 센서 중 가장 나쁜 판정(정상/주의/경고)의 색으로 켠다. 경고는 깜빡인다.
       const latest = samplesRef.current.at(-1);
@@ -859,7 +1000,9 @@ export default function ModelViewer({
         signals.forEach(({ material, halo }) => {
           const level = material.userData.level as SensorLevel;
           const speed = level === "warning" ? 9 : 4;
-          const blink = 0.55 + 0.45 * Math.sin(clock.elapsedTime * speed);
+          const blink = pausedRef.current
+            ? 1
+            : 0.55 + 0.45 * Math.sin(clock.elapsedTime * speed);
           const factor = level === "normal" ? 1 : blink;
           material.emissiveIntensity = SIGNAL_INTENSITY * factor;
           halo.material.opacity = HALO_OPACITY * factor;
@@ -933,6 +1076,10 @@ export default function ModelViewer({
       if (model) disposeModel(model);
       if (background) disposeModel(background);
       draco.dispose();
+      swipeArea.removeEventListener("wheel", blockSwipeBack);
+      swipeArea.removeEventListener("pointerenter", lockSwipeBack);
+      swipeArea.removeEventListener("pointerleave", unlockSwipeBack);
+      unlockSwipeBack();
       controls.dispose();
       renderer.dispose();
       renderer.domElement.remove();
@@ -1028,6 +1175,7 @@ export default function ModelViewer({
               tail={bubble.tail}
               fields={bubble.fields}
               row={bubble.row}
+              inset={"inset" in bubble ? bubble.inset : 0}
               samples={samples}
               title={BUBBLE_INFO[bubbleColumn]?.title ?? "센서 실시간 추이"}
               note={BUBBLE_INFO[bubbleColumn]?.note}

@@ -398,6 +398,41 @@
   border-radius: 14px;
 }
 
+.settings-profile__photo {
+  position: relative;
+  flex: none;
+  width: 64px;
+  height: 64px;
+}
+
+.settings-profile__add {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  place-items: center;
+  border: 2px solid var(--surface, #fff);
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.settings-profile__add:hover {
+  filter: brightness(1.1);
+}
+
+.settings-profile__add:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
 .settings-profile strong {
   display: block;
   font-size: var(--fs-heading-m);

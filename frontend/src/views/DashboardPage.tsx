@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
+import { SettingsContext } from "../components/layout/settings";
 import PageTitle from "../components/ui/PageTitle";
 import ModelViewer from "../components/dashboard/ModelViewer";
 import DashboardAside from "../components/dashboard/DashboardAside";
@@ -27,6 +28,7 @@ export default function DashboardPage({
   onSessionExpired?: () => void;
   onNavigate?: (page: string) => void;
 }) {
+  const { pauseModelAnimation } = useContext(SettingsContext);
   const [refreshInterval, setRefreshInterval] = useState("1");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [hiddenCharts, setHiddenCharts] = useState<string[]>([]);
@@ -269,7 +271,11 @@ export default function DashboardPage({
             className="sensor-dashboard__placeholder"
             aria-label="3D 모델 뷰어"
           >
-            <ModelViewer samples={model.samples} errorMessage={error} />
+            <ModelViewer
+              paused={pauseModelAnimation}
+              samples={model.samples}
+              errorMessage={error}
+            />
           </section>
           <DashboardAside
             onNavigate={onNavigate}

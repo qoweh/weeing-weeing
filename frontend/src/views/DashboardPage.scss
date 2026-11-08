@@ -438,7 +438,7 @@
   background: var(--surface);
 }
 
-@media (max-width: 700px) {
+@media (max-width: 900px) {
   /* 모바일 폭만 예외: 세로로 쌓고 페이지 스크롤을 허용한다 */
   .shell:has(.sensor-dashboard) {
     height: auto;
@@ -452,6 +452,12 @@
   }
   .sensor-dashboard__placeholder {
     min-height: 160px;
+  }
+  /* 세로로 쌓이면 3D 영역 높이를 정해 주는 부모가 없어 0이 되므로 가로세로 비율로 높이를 정한다.
+     너무 높으면 모델 밖 빈 바닥이 보이고 너무 낮으면 모델이 작아져서 3.3:1로 둔다(기준 화면 비율에 가깝게). */
+  .sensor-dashboard__lower--stacked .model-viewer__stage {
+    flex: none;
+    aspect-ratio: 3.3;
   }
   .dashboard-aside {
     grid-template-columns: minmax(0, 1fr);
@@ -805,6 +811,7 @@
   --bubble-gold: #a8650a;
   --bubble-caution: #d97706;
   --bubble-danger: #d92d20;
+  --bubble-ok: #15803d;
   --bubble-dash: rgba(113, 129, 148, 0.45);
 
   position: absolute;
@@ -835,12 +842,14 @@
   --bubble-gold: #f2c14e;
   --bubble-caution: #fbbf24;
   --bubble-danger: #ff8a80;
+  --bubble-ok: #4ade80;
   --bubble-dash: rgba(168, 196, 224, 0.35);
 }
 .model-viewer__bubble::before {
   content: "";
   position: absolute;
-  top: 50%;
+  /* 말풍선이 길어져 3D 영역 밖(아래 패널)까지 내려가도 꼬리는 3D 영역 안, 눌린 상자 높이에 둔다. */
+  top: min(50%, 90px);
   border: 11px solid transparent;
   transform: translateY(-50%);
 }
@@ -854,6 +863,99 @@
   right: -11px;
   border-right: 0;
   border-left-color: var(--bubble-bg);
+}
+/* 말풍선 안쪽: 폭이 넓으면 왼쪽 이상 내역 + 오른쪽 센서 그래프, 좁으면 위아래로 쌓는다. */
+.model-viewer__bubble {
+  container-type: inline-size;
+}
+.model-viewer__bubble-body {
+  display: grid;
+  gap: 8px;
+}
+/* 센서마다 한 줄: 왼쪽 이상 내역 칸과 오른쪽 센서 그래프 칸이 같은 높이로 나란히 선다. */
+.model-viewer__bubble-row {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr);
+}
+@container (min-width: 340px) {
+  .model-viewer__bubble-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 235px);
+    gap: 10px;
+  }
+}
+/* 좁은 말풍선(가운데 구역·모바일)은 줄이 위아래로 쌓여 너무 길어지므로, 정상·미수신 센서의 이상 내역 칸은 숨긴다. */
+@container (max-width: 339.98px) {
+  .model-viewer__error.model-viewer__error--normal,
+  .model-viewer__error.model-viewer__error--empty {
+    display: none;
+  }
+}
+.model-viewer__error {
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 6px 10px;
+  border: 1px dashed var(--bubble-dash);
+  border-left: 3px solid var(--bubble-caution);
+  border-radius: 8px;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-caption);
+}
+.model-viewer__error--warning {
+  border-left-color: var(--bubble-danger);
+}
+/* 정상 범위: 테두리만 녹색으로 둔다(배경·글자는 그대로). */
+.model-viewer__error--normal {
+  border-color: var(--bubble-ok);
+}
+/* 미수신: 녹색이 아니라 예전과 같은 회색. */
+.model-viewer__error--empty {
+  border-left-color: var(--bubble-dash);
+  color: var(--bubble-muted);
+}
+.model-viewer__error p {
+  margin: 0;
+}
+.model-viewer__error b {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-weight: 700;
+}
+.model-viewer__error em {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--bubble-caution);
+  color: #fff;
+  font-size: 11px;
+  font-style: normal;
+}
+.model-viewer__error--warning em {
+  background: var(--bubble-danger);
+}
+.model-viewer__error--normal em {
+  background: var(--bubble-ok);
+}
+/* 항목 이름은 왼쪽, 값은 오른쪽 끝에 맞춰 줄을 세로로 정렬한다. */
+.model-viewer__error dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 12px;
+  margin: 2px 0 0;
+}
+/* 항목 이름은 줄바꿈하지 않고, 폭이 모자라면 값 쪽이 줄바꿈해서 줄어든다. */
+.model-viewer__error dt {
+  color: var(--bubble-muted);
+  white-space: nowrap;
+}
+.model-viewer__error dd {
+  min-width: 0;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 .model-viewer__graph-boxes {
   display: grid;
@@ -896,8 +998,8 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  padding: 10px 0 12px;
-  border-top: 1px dashed var(--bubble-dash);
+  padding: 6px 8px 8px;
+  border: 1px dashed var(--bubble-dash);
   border-radius: 6px;
   transition:
     border-color 0.15s,
@@ -915,7 +1017,7 @@
 /* 범위를 벗어난 구역: 주의는 주황, 경고는 빨강 테두리. 구역별 강조색보다 우선한다. */
 .model-viewer__graph-box.model-viewer__graph-box--caution,
 .model-viewer__graph-box.model-viewer__graph-box--warning {
-  padding: 10px 10px 12px;
+  padding: 6px 10px 8px;
   border: 1px solid var(--level);
   background: color-mix(in srgb, var(--level) 7%, transparent);
   --bubble-accent: var(--level);
@@ -965,7 +1067,7 @@
 .model-viewer__bubble-plot {
   position: relative;
   flex: none;
-  height: 84px;
+  height: 52px;
 }
 .model-viewer__bubble-plot svg {
   display: block;

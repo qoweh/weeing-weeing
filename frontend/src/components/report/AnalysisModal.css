@@ -3,9 +3,9 @@
   inset: 16px;
   margin: auto;
   width: min(1200px, calc(100vw - 32px));
-  height: calc(100dvh - 32px);
+  height: calc(100dvh / var(--screen-zoom, 1) - 48px);
   max-width: none;
-  max-height: calc(100dvh - 32px);
+  max-height: calc(100dvh / var(--screen-zoom, 1) - 48px);
   overflow: hidden;
   padding: 0;
   border: 1px solid var(--border, #d7e0eb);

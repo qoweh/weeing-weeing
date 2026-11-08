@@ -4,7 +4,12 @@ import { listAllReports, type Incident } from "../../api/client";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import "./layout.scss";
-import { readSettings, saveSettings, type Settings } from "./settings";
+import {
+  readSettings,
+  saveSettings,
+  SettingsContext,
+  type Settings,
+} from "./settings";
 
 export default function AppShell({
   theme,
@@ -181,7 +186,9 @@ export default function AppShell({
         onToggleCollapsed={() => changeSidebarCollapsed(!sidebarCollapsed)}
       />
       <main className="shell__content" id="main-content">
-        {children}
+        <SettingsContext.Provider value={settings}>
+          {children}
+        </SettingsContext.Provider>
       </main>
       <ChatWidget
         screenZoom={screenZoom}

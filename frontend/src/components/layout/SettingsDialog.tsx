@@ -136,6 +136,8 @@ export default function SettingsDialog({
       className="settings-dialog"
       aria-labelledby={titleId}
       onCancel={(event) => {
+        // 파일 선택창 취소(input의 cancel 이벤트)가 버블링되어 설정창이 닫히지 않게 한다.
+        if (event.target !== event.currentTarget) return;
         event.preventDefault();
         onClose();
       }}
@@ -274,6 +276,25 @@ export default function SettingsDialog({
                   서랍
                 </button>
               </div>
+              <h4 className="settings-section">3D 모델</h4>
+              <ul className="settings-list settings-list--single">
+                <li>
+                  <div>
+                    <strong>3D 움직임 멈추기</strong>
+                    <small>
+                      대시보드 3D 컨베이어의 움직임과 신호등 깜빡임을 멈춥니다.
+                      센서 데이터와 사건 탐지는 그대로 갱신됩니다.
+                    </small>
+                  </div>
+                  <Toggle
+                    checked={settings.pauseModelAnimation}
+                    label="3D 움직임 멈추기"
+                    onChange={(checked) =>
+                      update({ pauseModelAnimation: checked })
+                    }
+                  />
+                </li>
+              </ul>
               <h4 className="settings-section">사이드 메뉴</h4>
               <ul className="settings-list settings-list--single">
                 <li>
@@ -341,27 +362,32 @@ export default function SettingsDialog({
           {tab === "계정" && (
             <>
               <div className="settings-profile">
-                <ProfileAvatar
-                  user={{
-                    name: user.name,
-                    employee_no: user.employee_no ?? "",
-                  }}
-                  size={64}
-                />
+                <div className="settings-profile__photo">
+                  <ProfileAvatar
+                    user={{
+                      name: user.name,
+                      employee_no: user.employee_no ?? "",
+                    }}
+                    size={64}
+                  />
+                  <button
+                    type="button"
+                    className="settings-profile__add"
+                    aria-label={profile.photo ? "사진 변경" : "사진 등록"}
+                    title={profile.photo ? "사진 변경" : "사진 등록"}
+                    onClick={() => photoInput.current?.click()}
+                  >
+                    +
+                  </button>
+                </div>
                 <div>
                   <strong>{user.name}</strong>
                   <small>
                     {user.role}
                     {user.employee_no ? ` · 사번 ${user.employee_no}` : ""}
                   </small>
-                  <div className="settings-profile__actions">
-                    <button
-                      type="button"
-                      onClick={() => photoInput.current?.click()}
-                    >
-                      {profile.photo ? "사진 변경" : "사진 등록"}
-                    </button>
-                    {profile.photo && (
+                  {profile.photo && (
+                    <div className="settings-profile__actions">
                       <button
                         type="button"
                         onClick={() => {
@@ -369,10 +395,10 @@ export default function SettingsDialog({
                           profile.remove();
                         }}
                       >
-                        삭제
+                        사진 삭제
                       </button>
-                    )}
-                  </div>
+                    </div>
+                  )}
                   <input
                     ref={photoInput}
                     type="file"

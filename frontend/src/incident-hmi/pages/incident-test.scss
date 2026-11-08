@@ -94,7 +94,9 @@
   @media (max-width: 550px) { &__toolbar { flex-direction: column; align-items: stretch; } &__search { width: 100%; } }
 }
 .incident-history-dialog {
-  width: min(760px, calc(100% - 32px)); max-height: min(calc(85dvh / var(--screen-zoom, 1)), 850px); overflow-y: auto;
+  width: min(1200px, calc(100% - 32px));
+  /* 문서 이력(.report-draft-dialog) 모달과 동일한 높이 */
+  height: calc(100dvh / var(--screen-zoom, 1) - 48px); max-height: calc(100dvh / var(--screen-zoom, 1) - 48px); overflow-y: auto;
   padding: 26px; margin: auto; border: 1px solid var(--border); border-radius: 16px;
   background: var(--surface); color: var(--text); box-shadow: 0 20px 80px #0004;
   &::backdrop { background: #0c182a99; }
@@ -104,6 +106,11 @@
   &__actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
   &__actions button.incident-history-dialog__draft:not(:disabled) { background: var(--library-button, #dceafa); border-color: transparent; color: var(--text, #172033); }
   &__actions button.incident-history-dialog__draft:disabled { background: var(--surface, #fff); color: var(--muted); cursor: not-allowed; }
+  /* 2열: 왼쪽 분석 요약(SNB) + 오른쪽 상세 */
+  .incident-result { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 24px; align-items: start; margin-top: 20px; padding: 0; border: 0; }
+  .incident-result__summary { position: sticky; top: 0; align-self: start; padding: 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+  .incident-result__detail > :first-child { margin-top: 0; }
+  @media (max-width: 900px) { .incident-result { grid-template-columns: 1fr; } .incident-result__summary { position: static; } }
   &__reports { margin-top: 22px; }
   &__reports h3 { margin: 0 0 10px; font-size: 16px; }
   &__reports ul { list-style: none; margin: 0; padding: 0; }
@@ -114,7 +121,7 @@
   @media (max-width: 550px) { padding: 18px; }
 }
 .incident-delete-dialog {
-  width: min(520px, calc(100% - 32px));
+  width: min(520px, calc(100% - 32px)); height: auto; max-height: none;
   p { line-height: 1.7; }
   &__identity { margin: 16px 0 8px; font-weight: 700; overflow-wrap: anywhere; }
   &__warning, &__trigger { color: var(--danger) !important; }
