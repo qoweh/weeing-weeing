@@ -45,7 +45,8 @@ def submit(status="OK", cited=(EV.evidence_id,), id="t9"):
         [
             {
                 "cause": "감지면 오염",
-                "likelihood": "중",
+                "inspection_priority": "우선 확인",
+                "priority_reason": "해당 코드의 매뉴얼에서 선행 점검으로 안내한다.",
                 "basis": "입구 6.2초 true",
                 "evidence_ids": list(cited),
             }
@@ -118,7 +119,7 @@ def test_search_then_submit_gives_cited_result():
 
     assert result.status == "OK"
     assert result.model == "fake/llm"
-    assert result.prompt_version == "incident-analyst-v2"
+    assert result.prompt_version == "incident-analyst-v3"
     assert [e.evidence_id for e in result.evidence] == [EV.evidence_id]  # 인용한 것만
     assert retriever.queries == [("P03 입구 장기 점유", 5, {"code": "BTT2-P03"})]
     assert a.last_memory.turns == 2
@@ -331,3 +332,35 @@ def test_get_analyzer_uses_settings(monkeypatch):
     monkeypatch.setenv("AGENT_MAX_TURNS", "3")
     a = get_analyzer(FakeRetriever(), client=FakeLlm())
     assert a._spec.max_turns == 3
+
+
+@pytest.mark.parametrize("change", ["legacy_only", "invalid_priority", "blank_reason"])
+def test_model_must_submit_priority_and_reason_instead_of_likelihood(change):
+    bad = submit()
+    candidate = bad.input["suspected_causes"][0]
+    if change == "legacy_only":
+        candidate.pop("inspection_priority")
+        candidate.pop("priority_reason")
+        candidate["likelihood"] = "상"
+    elif change == "invalid_priority":
+        candidate["inspection_priority"] = "상"
+    else:
+        candidate["priority_reason"] = "  "
+    llm = FakeLlm(reply(search()), reply(bad), reply(submit()))
+    result = analyzer(llm, FakeRetriever([EV])).analyze(INCIDENT)
+    assert result.status == "OK"
+    cause = result.suspected_causes[0]
+    assert cause.inspection_priority == "우선 확인" and cause.priority_reason.strip()
+    assert cause.likelihood is None
+    assert len(llm.calls) == 3  # 잘못된 제출을 수락하지 않고 같은 역할에서 수정한다.
+
+
+def test_new_model_schema_has_no_probability_grade():
+    from weeing_weeing.agent.analyst import analyst_spec
+
+    spec = analyst_spec(FakeRetriever())
+    candidate = spec.finish.input_schema["$defs"]["InspectionCauseDraft"]
+    assert "likelihood" not in candidate["properties"]
+    assert {"inspection_priority", "priority_reason"} <= set(candidate["required"])
+    assert "현재 현장 점검 결과를 선행 조건으로 요구하지 않는다" in spec.system
+    assert "안전상 선행 조건과 공식 SOP의 순서를 최우선" in spec.system

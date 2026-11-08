@@ -31,7 +31,7 @@ from weeing_weeing.agent.errors import (
 )
 from weeing_weeing.contracts import AnalysisResult, Evidence
 
-PROMPT_VERSION = "llm-check-v4"
+PROMPT_VERSION = "llm-check-v5"
 
 SYSTEM = """너는 배터리 트레이 이송 설비의 정비 보조 AI다. 한국어로 답한다.
 할 일: 사건과 근거(evidence)를 읽고, 근거에 적힌 내용으로 원인 후보와 점검 순서를 제안한다.
@@ -41,7 +41,8 @@ SYSTEM = """너는 배터리 트레이 이송 설비의 정비 보조 AI다. 한
 2. 근거가 사건의 코드나 현상(예: 같은 룰 코드, 같은 센서·증상)을 다루면,
    그 근거에 적힌 점검 대상을 원인 후보로 제시하고 status는 OK로 한다.
    원인 후보는 "가능성"을 제시하는 것이지 원인을 확정하는 것이 아니다.
-   likelihood(상·중·하)로 가능성을 나타낸다.
+   inspection_priority(우선 확인·후속 확인)와 priority_reason으로 점검 순서와 근거를 제시한다.
+   공식 안전·점검 순서를 우선하며 현재 현장 점검 결과가 없다고 후보를 포기하지 않는다. 발생 확률·원인 확정으로 표현하지 않는다.
 3. 원인 후보마다 그 내용을 담은 근거의 evidence_id를 evidence_ids에 넣는다.
    목록에 없는 ID는 쓰지 않는다.
    basis에는 그 후보를 뒷받침하는 사건의 센서 관측을 요약한다(근거 ID를 적지 않는다).
@@ -86,7 +87,7 @@ def draft_schema(evidence_ids: list[str]) -> dict:
     - minItems·maxItems는 API가 강제하지 않아(claude.strict_schema가 뺌) check_draft가 대신 본다.
     """
     schema = AnalysisDraft.model_json_schema()
-    cause = schema["$defs"]["CauseCandidate"]
+    cause = schema["$defs"]["InspectionCauseDraft"]
     for part in (schema, cause):
         part["required"] = list(part["properties"])
     ids = cause["properties"]["evidence_ids"]

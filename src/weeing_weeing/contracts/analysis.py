@@ -8,7 +8,8 @@ from typing import Literal, Self
 
 from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
-Likelihood = Literal["상", "중", "하", "미평가"]
+Likelihood = Literal["상", "중", "하", "미평가"]  # 과거 저장 결과 호환용
+InspectionPriority = Literal["우선 확인", "후속 확인"]
 
 
 class ReportActionTiming(BaseModel):
@@ -51,13 +52,27 @@ class Evidence(BaseModel):
 
 class CauseCandidate(BaseModel):
     cause: str
-    likelihood: Likelihood
+    # 과거 결과만 보존하며 우선순위로 변환하지 않는다.
+    likelihood: Likelihood | None = None
+    inspection_priority: InspectionPriority | None = None
+    priority_reason: str | None = None
     basis: str  # 후보와 문서 근거의 연결 설명(과거 결과에는 센서 요약)
     evidence_ids: list[str] = Field(default_factory=list)
     observations: list[str] = Field(
         default_factory=list
     )  # 서버가 검증한 관련 센서 관측
     unconfirmed: list[str] = Field(default_factory=list)  # 평가에 더 필요한 확인 항목
+
+    @model_validator(mode="after")
+    def priority_has_reason(self) -> Self:
+        if self.inspection_priority is None:
+            if self.likelihood is None:
+                raise ValueError("점검 우선순위 또는 과거 가능성 등급이 필요합니다")
+            if self.priority_reason is not None:
+                raise ValueError("우선순위 없이 점검 순서의 근거를 저장할 수 없습니다")
+        elif not self.priority_reason or not self.priority_reason.strip():
+            raise ValueError("점검 우선순위에는 근거 설명이 필요합니다")
+        return self
 
 
 class MaintenanceReference(BaseModel):

@@ -61,7 +61,7 @@ def test_strict_schema_closes_objects_and_drops_unsupported_keywords():
     schema = strict_schema(AnalysisDraft.model_json_schema())
     assert schema["additionalProperties"] is False
     assert schema["required"] == list(schema["properties"])  # 기본값 있는 칸도 required
-    cause = schema["$defs"]["CauseCandidate"]
+    cause = schema["$defs"]["InspectionCauseDraft"]
     assert cause["additionalProperties"] is False
     assert "default" not in json.dumps(schema)
     assert strict_schema({"type": "array", "minItems": 1, "items": {}}) == {

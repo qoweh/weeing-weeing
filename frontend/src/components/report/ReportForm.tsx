@@ -43,7 +43,9 @@ export type Analysis = {
   suspected_causes?: {
     cause: string;
     basis: string;
-    likelihood?: string;
+    likelihood?: string | null; // 과거 저장 결과 호환
+    inspection_priority?: "우선 확인" | "후속 확인" | null;
+    priority_reason?: string | null;
     observations?: string[];
     unconfirmed?: string[];
     evidence_ids?: string[];

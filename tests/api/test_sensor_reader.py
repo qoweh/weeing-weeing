@@ -100,7 +100,7 @@ def test_default_worker_injects_sensor_tool_and_saves_verified_result(
         job = jobs.latest_job(item.incident_id)
         assert job["status"] == "COMPLETED"
         result = jobs.latest_analysis(item.incident_id)
-        assert result.prompt_version == "incident-analyst-v2"
+        assert result.prompt_version == "incident-analyst-v3"
         assert f"rpm.mean={row.rpm}" in result.observed_facts
         assert "999999" not in result.observed_facts
     finally:

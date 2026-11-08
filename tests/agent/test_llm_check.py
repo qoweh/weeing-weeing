@@ -42,7 +42,8 @@ def answer(status="OK", cited=("BTT-MANUAL:2.0:0007",)):
         [
             {
                 "cause": "감지면 오염",
-                "likelihood": "중",
+                "inspection_priority": "우선 확인",
+                "priority_reason": "해당 코드의 매뉴얼에서 선행 점검으로 안내한다.",
                 "basis": "입구 센서 연속 true",
                 "evidence_ids": list(cited),
             }
@@ -86,7 +87,7 @@ def test_sample_cases_load_and_cover_both_statuses():
 
 def test_schema_requires_cited_ids_from_given_evidence():
     schema = draft_schema(["A:1:0001", "B:1:0002"])
-    cause = schema["$defs"]["CauseCandidate"]
+    cause = schema["$defs"]["InspectionCauseDraft"]
     assert "evidence_ids" in cause["required"]
     ids = cause["properties"]["evidence_ids"]
     assert ids["items"]["enum"] == ["A:1:0001", "B:1:0002"]
@@ -114,7 +115,7 @@ def test_valid_answer_becomes_analysis_result():
     assert result.valid and result.status_match
     assert result.result.model == "fake/llm"
     assert result.result.evidence[0].evidence_id == "BTT-MANUAL:2.0:0007"
-    assert llm.calls[0]["schema"]["$defs"]["CauseCandidate"]
+    assert llm.calls[0]["schema"]["$defs"]["InspectionCauseDraft"]
 
 
 @pytest.mark.parametrize(

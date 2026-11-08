@@ -234,3 +234,44 @@ def test_evidence_relevance_is_optional_and_preserves_rrf_in_json():
 def test_evidence_rejects_nonfinite_relevance(relevance):
     with pytest.raises(ValidationError):
         Evidence(**EVIDENCE.model_dump(exclude={"relevance"}), relevance=relevance)
+
+
+@pytest.mark.parametrize("priority", ["우선 확인", "후속 확인"])
+def test_inspection_priority_round_trip_without_legacy_likelihood(priority):
+    candidate = CauseCandidate(
+        cause="감지면 오염",
+        inspection_priority=priority,
+        priority_reason="해당 코드의 매뉴얼이 감지면 확인을 먼저 안내한다.",
+        basis="문서에 오염 점검 절차가 있다.",
+        evidence_ids=[EVIDENCE.evidence_id],
+    )
+    result = make_analysis(suspected_causes=[candidate])
+    restored = AnalysisResult.model_validate_json(result.model_dump_json())
+    assert restored == result
+    assert restored.suspected_causes[0].likelihood is None
+    with pytest.raises(ValidationError):
+        make_analysis(suspected_causes=[candidate], evidence=[])
+
+
+@pytest.mark.parametrize("legacy", ["상", "중", "하", "미평가"])
+def test_legacy_likelihood_never_becomes_inspection_priority(legacy):
+    old = {"cause": "오염", "likelihood": legacy, "basis": "기존 근거"}
+    candidate = CauseCandidate.model_validate(old)
+    assert candidate.likelihood == legacy
+    assert candidate.inspection_priority is None
+    assert candidate.priority_reason is None
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {},
+        {"inspection_priority": "상", "priority_reason": "이유"},
+        {"inspection_priority": "우선 확인"},
+        {"inspection_priority": "후속 확인", "priority_reason": "   "},
+        {"priority_reason": "등급에서 추측한 순서"},
+    ],
+)
+def test_priority_rejects_unknown_levels_and_missing_explanations(fields):
+    with pytest.raises(ValidationError):
+        CauseCandidate(cause="점검", basis="근거", **fields)
