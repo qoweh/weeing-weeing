@@ -3,6 +3,7 @@ import { deleteIncident, getIncidentAnalysis, listIncidentApprovedReports, listI
 import { AnalysisCard } from '../components/AnalysisCard'
 import { pollAnalysis } from '../components/pollAnalysis'
 import Glyph from '../../components/ui/Glyph'
+import SearchField from '../../components/ui/SearchField'
 import IncidentCodes from '../../components/ui/IncidentCodeLabel'
 import { incidentCodeMatches, incidentCodeText } from '../../components/ui/incidentCodes'
 import '../../components/ui/library.scss'
@@ -190,7 +191,7 @@ export default function IncidentHistoryPage({ focus, onFocusHandled, onSessionEx
 
   return <div className="library-page incident-history" aria-label="사건 현황">
     <h1 className="incident-history__title">사건현황</h1>
-    <div className="incident-history__toolbar"><label className="incident-history__search"><span className="incident-history__sr-only">사건 검색</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="알람명, 에러 코드, 설비 ID, 사건 번호 검색" /></label><button type="button" onClick={refresh} disabled={loading}>목록 새로고침</button></div>
+    <div className="incident-history__toolbar"><label className="incident-history__search"><span className="incident-history__sr-only">사건 검색</span><SearchField value={query} onChange={(event) => setQuery(event.target.value)} placeholder="알람명, 에러 코드, 설비 ID, 사건 번호 검색" /></label><button type="button" onClick={refresh} disabled={loading}>목록 새로고침</button></div>
     {notice && <p role="status">{notice}</p>}
     {loading ? <p role="status">사건을 불러오는 중입니다.</p> : error ? <p className="incident-test__error" role="alert">{error} <button type="button" onClick={refresh}>다시 시도</button></p> : <>
       <IncidentTable title="처리 중인 사건" items={visible.filter((item) => !item.has_approved_report)} onSelect={select} active />

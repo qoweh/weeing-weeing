@@ -47,6 +47,7 @@ export function submitChatRequest(
     : {
         request_id: submission.request_id,
         question: submission.question,
+        ...(submission.model ? { model: submission.model } : {}),
         ...(submission.conditions != null
           ? { conditions: submission.conditions }
           : {}),

@@ -4,8 +4,18 @@ import { useEffect, useRef, useState } from "react";
 import useChatSession, { defaultConditions } from "./useChatSession.js";
 import ChatResponse from "./ChatResponse.jsx";
 import ChatSourceDialog from "./ChatSourceDialog.jsx";
+import ModelPicker from "./ModelPicker.jsx";
 import Glyph from "../ui/Glyph.tsx";
 import "./chat.scss";
+
+// 서버 허용 목록(api/chat.py ALLOWED_CHAT_MODELS)과 같은 값을 유지한다.
+const claudeModels = [
+  { id: "claude-haiku-4-5-20251001", label: "Haiku 4.5" },
+  { id: "claude-sonnet-5", label: "Sonnet 5" },
+  { id: "claude-opus-5", label: "Opus 5" },
+];
+// 기본 선택은 Haiku.
+const defaultClaudeModel = "claude-haiku-4-5-20251001";
 
 export default function ChatWidget({
   screenZoom = 100,
@@ -25,7 +35,8 @@ export default function ChatWidget({
     drawerResize = useRef(null),
     drag = useRef(null);
   const [open, setOpen] = useState(false),
-    [text, setText] = useState("");
+    [text, setText] = useState(""),
+    [claudeModel, setClaudeModel] = useState(defaultClaudeModel);
   const [size, setSize] = useState(null),
     [position, setPosition] = useState({ x: 0, y: 0 });
   const [drawerWidth, setDrawerWidth] = useState(null);
@@ -225,7 +236,7 @@ export default function ChatWidget({
     event.preventDefault();
     if (blocked || !text.trim()) return;
     const value = text.trim();
-    chat.submit("CHAT", value);
+    chat.submit("CHAT", value, claudeModel);
   }
   function closeHistory() {
     setHistoryOpen(false);
@@ -280,7 +291,7 @@ export default function ChatWidget({
           setOpen(true);
         }}
       >
-        <img src="/assets/ICONS/29bcb.svg" alt="" />
+        <span className="chat-launcher__icon" aria-hidden="true" />
       </button>
       <dialog
         ref={dialog}
@@ -362,9 +373,6 @@ export default function ChatWidget({
           }}
         >
           <div className="chat-dialog__identity">
-            <span className="chat-dialog__mark" aria-hidden="true">
-              <span />
-            </span>
             <div>
               <h2 id="chat-title">설비 지원 챗봇</h2>
               <p>
@@ -849,26 +857,24 @@ export default function ChatWidget({
           </div>
           {chat.chatMode && (
             <form className="chat-dialog__composer" onSubmit={send}>
-              <textarea
-                ref={input}
-                aria-label="챗봇 질문"
-                value={text}
-                onChange={(event) => setText(event.target.value)}
-                maxLength={2000}
-                rows={2}
-                placeholder="매뉴얼이나 정비이력을 물어보세요"
-                disabled={blocked}
-                onKeyDown={(event) => {
-                  if (
-                    event.key === "Enter" &&
-                    !event.shiftKey &&
-                    !event.nativeEvent.isComposing
-                  ) {
-                    event.preventDefault();
-                    event.currentTarget.form.requestSubmit();
-                  }
-                }}
-              />
+              <div className="chat-dialog__field">
+                <input
+                  ref={input}
+                  type="text"
+                  aria-label="챗봇 질문"
+                  value={text}
+                  onChange={(event) => setText(event.target.value)}
+                  maxLength={2000}
+                  placeholder="매뉴얼이나 정비이력을 물어보세요"
+                  disabled={blocked}
+                />
+                <ModelPicker
+                  models={claudeModels}
+                  value={claudeModel}
+                  onChange={setClaudeModel}
+                  disabled={blocked}
+                />
+              </div>
               <button disabled={blocked || !text.trim()} aria-label="질문 전송">
                 {blocked || !text.trim() ? (
                   <img src="/assets/chat/send-disabled.svg" alt="" />

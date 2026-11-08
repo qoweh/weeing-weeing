@@ -80,11 +80,11 @@ Catalog = Annotated[FaqCatalog, Depends(faq_catalog)]
 
 
 def stored_chat(repo: Chats) -> StoredChatService:
-    def new_service():
+    def new_service(model: str | None = None):
         from weeing_weeing.api.chat_knowledge import get_chat_knowledge
 
         catalog = _faq_snapshot()
-        return get_chat_service(get_chat_knowledge(), faq=catalog)
+        return get_chat_service(get_chat_knowledge(), faq=catalog, model=model)
 
     # 저장된 중복 요청은 카탈로그·검색·LLM 장애와 무관하게 반환한다.
     # 새 실행 토큰을 얻은 요청만 FAQ 스냅샷 또는 생성 서비스를 연다.
@@ -94,6 +94,24 @@ def stored_chat(repo: Chats) -> StoredChatService:
 
 
 Stored = Annotated[StoredChatService, Depends(stored_chat)]
+
+
+ALLOWED_CHAT_MODELS = ("claude-sonnet-5", "claude-opus-5", "claude-haiku-4-5-20251001")
+
+
+class ChatMessageBody(ChatQuestion):
+    """자유 질문 본문. model을 생략하면 서버 기본 모델(LLM_MODEL)을 쓴다."""
+
+    model: str | None = None
+
+    @field_validator("model")
+    @classmethod
+    def _allowed_model(cls, value):
+        if value is not None and value not in ALLOWED_CHAT_MODELS:
+            raise ValueError(
+                f"지원하지 않는 모델입니다. 허용: {', '.join(ALLOWED_CHAT_MODELS)}"
+            )
+        return value
 
 
 class ConversationCreate(ChatModel):
@@ -236,7 +254,7 @@ def select_faq(
 @router.post("/conversations/{conversation_id}/messages", responses=_REQUEST_RESPONSES)
 def send_message(
     conversation_id: UUID,
-    body: ChatQuestion,
+    body: ChatMessageBody,
     user: CurrentUser,
     service: Stored,
     response: Response,
@@ -247,12 +265,18 @@ def send_message(
         kind="CHAT",
         request_id=body.request_id,
         question=body.question,
+        model=body.model,
         conditions=body.conditions if "conditions" in body.model_fields_set else None,
     )
     # 서버 하나를 여럿이 써도 사용량 기록이 로그인한 사람으로 남게 한다.
     with trace_user(user.name):
         result = _call(
-            service.submit, user.employee_no, conversation_id, submission, retry=retry
+            service.submit,
+            user.employee_no,
+            conversation_id,
+            submission,
+            retry=retry,
+            model=body.model,
         )
     return _request_result(result, response)
 
@@ -269,7 +293,7 @@ def send_message(
 )
 def stream_message(
     conversation_id: UUID,
-    body: ChatQuestion,
+    body: ChatMessageBody,
     user: CurrentUser,
     service: Stored,
     repo: Chats,
@@ -281,6 +305,7 @@ def stream_message(
         kind="CHAT",
         request_id=body.request_id,
         question=body.question,
+        model=body.model,
         conditions=body.conditions if "conditions" in body.model_fields_set else None,
     )
 
@@ -294,6 +319,7 @@ def stream_message(
                 submission,
                 retry=retry,
                 on_progress=progress,
+                model=body.model,
             )
 
     return StreamingResponse(

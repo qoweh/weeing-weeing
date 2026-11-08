@@ -640,3 +640,39 @@ def test_non_ok_stream_has_no_answer_delta_and_conflict_is_sanitized(setup):
     assert stream_events(changed.text)[-1]["status_code"] == 409
     assert stream_events(changed.text)[-1]["request_reserved"] is False
     assert fake.calls == 1
+
+
+def test_message_model_selection_reaches_service_factory(setup):
+    client, headers, _, _, fake = setup
+    stored = app.dependency_overrides[chat.stored_chat]()
+    seen = []
+
+    def factory(model=None):
+        seen.append(model)
+        return fake
+
+    stored._service_factory = factory
+    owner = headers["owner"]
+    path = create(client, owner)
+    start(client, owner, path)
+
+    def send(**extra):
+        body = dict(request_id=str(uuid4()), question="질문", **extra)
+        return client.post(path + "/messages", headers=owner, json=body)
+
+    assert send(model="claude-opus-5").status_code == 200
+    assert send().status_code == 200
+    assert send(model="gpt-4").status_code == 422
+    assert seen == ["claude-opus-5", None]
+
+    request_id = str(uuid4())
+    body = {"request_id": request_id, "question": "중복 질문", "model": "claude-opus-5"}
+    first = client.post(path + "/messages", headers=owner, json=body)
+    assert first.status_code == 200
+    assert first.json()["submission"]["model"] == "claude-opus-5"
+    assert (
+        client.post(
+            path + "/messages", headers=owner, json={**body, "model": "claude-sonnet-5"}
+        ).status_code
+        == 409
+    )

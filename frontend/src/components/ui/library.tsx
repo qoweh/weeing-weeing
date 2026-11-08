@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import IncidentCodes from "./IncidentCodeLabel";
+import SearchField from "./SearchField";
 import { incidentCodeMatches } from "./incidentCodes";
 
 type FiltersState = { period: string; docType: string };
@@ -55,6 +56,7 @@ export function Filters({
   setFilters,
   report = false,
   onRefresh,
+  onSearch,
   loading,
   children,
 }: {
@@ -64,6 +66,7 @@ export function Filters({
   setFilters: (value: FiltersState) => void;
   report?: boolean;
   onRefresh: () => void;
+  onSearch?: () => void;
   loading: boolean;
   children?: ReactNode;
 }) {
@@ -71,7 +74,8 @@ export function Filters({
     <div
       className={`library-filters ${report ? "library-filters--report" : "library-filters--manual"}`}
     >
-      <input
+      <SearchField
+        className="library-search"
         aria-label={report ? "보고서 검색" : "문서 검색"}
         placeholder={
           report
@@ -80,6 +84,7 @@ export function Filters({
         }
         value={query}
         onChange={(e) => setQuery(e.target.value)}
+        onSearch={onSearch}
       />
       <select
         aria-label={report ? "발생 기간" : "등록 기간"}

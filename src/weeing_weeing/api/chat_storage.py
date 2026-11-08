@@ -45,7 +45,7 @@ class StoredChatService:
         *,
         faq: FaqCatalog | None = None,
         faq_factory: Callable[[], FaqCatalog] = load_faq_catalog,
-        service_factory: Callable[[], ChatService] = _default_service,
+        service_factory: Callable[..., ChatService] = _default_service,
     ):
         self.repository = repository
         self._faq = faq
@@ -61,6 +61,7 @@ class StoredChatService:
         retry: bool = False,
         timeout_s: float = 120,
         on_progress: ChatProgress | None = None,
+        model: str | None = None,
     ) -> ChatRequestView:
         """동일 요청은 저장 상태만 반환한다. 실행 전 실패에만 명시적 재시도를 허용한다."""
         if (
@@ -98,7 +99,12 @@ class StoredChatService:
                     actor_id, conversation_id, request_id, token
                 )
             else:
-                service = self._service_factory()
+                # 저장된 요청의 모델을 사용해 재시도에서도 최초 선택을 유지한다.
+                service = (
+                    self._service_factory(request.submission.model)
+                    if request.submission.model
+                    else self._service_factory()
+                )
                 context = self.repository.get_context(actor_id, conversation_id)
                 question = ChatQuestion(
                     request_id=request_id,

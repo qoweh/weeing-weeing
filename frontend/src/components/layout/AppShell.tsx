@@ -91,11 +91,8 @@ export default function AppShell({
       /* Storage may be unavailable. */
     }
   }
-  // 기본 화면 비율: 화면 폭이 1800px보다 좁은 노트북은 90%, 넓은 모니터는 100%.
-  // 사용자가 직접 바꾼 값은 이 브라우저에 저장해 다음에도 유지한다.
-  const [defaultScreenZoom] = useState(() =>
-    window.innerWidth < 1800 ? 90 : 100,
-  );
+  // 기본 화면 비율은 모니터 크기와 상관없이 100%. 사용자가 바꾼 값은 이 브라우저에 저장해 유지한다.
+  const defaultScreenZoom = 100;
   const [screenZoom, setScreenZoom] = useState(() => {
     try {
       const saved = Number(localStorage.getItem("weeing-zoom"));

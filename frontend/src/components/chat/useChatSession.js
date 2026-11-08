@@ -312,7 +312,7 @@ export default function useChatSession(
         guard(signal);
         setConversation(updated);
       }),
-    submit: (kind, value) =>
+    submit: (kind, value, model) =>
       run(async (signal) => {
         if (pending)
           throw new Error(
@@ -333,7 +333,12 @@ export default function useChatSession(
         const submission =
           kind === "FAQ"
             ? { kind, request_id: api.newChatRequestId(), faq_id: value.faq_id }
-            : { kind, request_id: api.newChatRequestId(), question: value };
+            : {
+                kind,
+                request_id: api.newChatRequestId(),
+                question: value,
+                ...(model ? { model } : {}),
+              };
         const initial = {
           conversation_id: current.conversation_id,
           submission,
