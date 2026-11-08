@@ -30,6 +30,10 @@ export const defaultSettings: Settings = {
 };
 
 export const SettingsContext = createContext<Settings>(defaultSettings);
+// 화면 안의 패널(예: 그래프 설정)에서 설정을 바꿀 때 쓴다.
+export const SettingsUpdateContext = createContext<
+  (patch: Partial<Settings>) => void
+>(() => {});
 
 // 설정은 이 브라우저에만 저장한다. 저장소를 쓸 수 없으면 기본값으로 동작한다.
 export function readSettings(): Settings {

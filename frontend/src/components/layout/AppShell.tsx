@@ -8,6 +8,7 @@ import {
   readSettings,
   saveSettings,
   SettingsContext,
+  SettingsUpdateContext,
   type Settings,
 } from "./settings";
 
@@ -73,6 +74,8 @@ export default function AppShell({
     setSettings(next);
     saveSettings(next);
   }
+  const updateSettings = (patch: Partial<Settings>) =>
+    changeSettings({ ...settings, ...patch });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
       return localStorage.getItem("weeing-sidebar") === "collapsed";
@@ -187,7 +190,9 @@ export default function AppShell({
       />
       <main className="shell__content" id="main-content">
         <SettingsContext.Provider value={settings}>
-          {children}
+          <SettingsUpdateContext.Provider value={updateSettings}>
+            {children}
+          </SettingsUpdateContext.Provider>
         </SettingsContext.Provider>
       </main>
       <ChatWidget

@@ -276,25 +276,6 @@ export default function SettingsDialog({
                   서랍
                 </button>
               </div>
-              <h4 className="settings-section">3D 모델</h4>
-              <ul className="settings-list settings-list--single">
-                <li>
-                  <div>
-                    <strong>3D 움직임 멈추기</strong>
-                    <small>
-                      대시보드 3D 컨베이어의 움직임과 신호등 깜빡임을 멈춥니다.
-                      센서 데이터와 사건 탐지는 그대로 갱신됩니다.
-                    </small>
-                  </div>
-                  <Toggle
-                    checked={settings.pauseModelAnimation}
-                    label="3D 움직임 멈추기"
-                    onChange={(checked) =>
-                      update({ pauseModelAnimation: checked })
-                    }
-                  />
-                </li>
-              </ul>
               <h4 className="settings-section">사이드 메뉴</h4>
               <ul className="settings-list settings-list--single">
                 <li>
