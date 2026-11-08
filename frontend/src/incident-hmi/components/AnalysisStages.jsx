@@ -48,7 +48,7 @@ export default function AnalysisStages({ stages = [], incident = null }) {
   const id = useId()
   if (!stages.length) return null
   const runs = stages.filter((run) => run.role === active).sort((a, b) => a.attempt - b.attempt)
-  return <details className="analysis-stages" aria-label="단계별 분석 근거">
+  return <details className="analysis-stages" aria-label="단계별 분석 근거" open>
     <summary className="analysis-stages__toggle"><strong>분석 과정 및 근거 보기</strong></summary>
     <div className="analysis-stages__tabs" role="tablist" aria-label="분석 단계">{roles.map(([role, label]) => {
       const latest = stages.filter((run) => run.role === role).at(-1)

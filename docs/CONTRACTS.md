@@ -36,11 +36,29 @@ ACK와 latest/stream의 `rule_coverage.excluded`에 사유를 제공한다.
 
 코드 위치: `src/weeing_weeing/contracts/`. 이 문서는 요약이고, 필드의 정확한 정의는 코드가 기준이다.
 
+## 원인 후보의 점검 우선순위
+
+영향 모듈: contracts, agent(단일·멀티 분석 및 검증), api·db(기존 JSON 저장/조회),
+frontend·hmi/web(분석 결과·단계·보고서 표시). DB 마이그레이션이나 사람 작성·결재 칸 변경은 없다.
+
+- `CauseCandidate.inspection_priority`: 선택적 `우선 확인` / `후속 확인`.
+- `CauseCandidate.priority_reason`: 우선순위가 있으면 공백이 아닌 근거 설명이 필수다.
+  우선순위 없는 이유만 저장하거나 알 수 없는 우선순위를 저장하면 거부한다.
+- `likelihood`: 과거 상/중/하/미평가 값의 역직렬화를 위해 선택적으로 보존한다.
+  새 분석 제출 스키마에는 없으며 새 결과에서는 null이다. 등급을 우선순위로 자동 변환하지 않는다.
+- 새 모델 제출은 두 새 필드를 필수로 요구하며 관련 출처·센서 수치 검사는 유지한다.
+  기존 결과는 필드가 없어도 읽고 화면에는 점검 우선순위 미지정으로 표시한다.
+- 우선 확인은 실제 원인 확률이 아니다. 안전상 선행 조건·공식 순서·현재 코드/증상과
+  근거의 관련성으로 점검 순서를 제안한다. 현장 점검 전 사용이므로 현재 점검 결과는 필수가 아니다.
+  문서·사례가 없으면 기존대로 INSUFFICIENT_EVIDENCE이며 안전·승인 조건을 완화하지 않는다.
+- 이전 저장 분석과 완료 체크포인트를 재해석하거나 유료 호출로 자동 갱신하지 않는다.
+  새 기준은 새 분석에 적용된다. 프롬프트 버전은 단일 v3, 멀티 v6이다.
+
 ## 멀티 사건 분석 단계 결과
 
 `contracts/analysis_workflow.py`를 추가한다. 영향 모듈은 agent·api·db·hmi/web이며,
-기존 필드를 유지하며 `CauseCandidate.likelihood`에 `미평가`, `Incident`에 선택적
-`telemetry_provenance`를 추가한다. 보고서의 사람 작성·결재 계약은 유지한다.
+이전 버전에서 `CauseCandidate.likelihood`에 `미평가`, `Incident`에 선택적
+`telemetry_provenance`를 추가했다. 새 점검 우선순위 계약은 위 절을 따른다. 보고서의 사람 작성·결재 계약은 유지한다.
 
 - `Evidence.title/page`: 선택적 문서명과 PDF 실제 페이지(표지 포함, 1부터 시작).
   저장된 청크 메타데이터에서 전달하며 절 제목과 페이지를 함께 보존한다. 청크 순번을 페이지로
@@ -48,7 +66,7 @@ ACK와 latest/stream의 `rule_coverage.excluded`에 사유를 제공한다.
   영향 모듈: contracts, rag, api, agent·db(기존 JSON 보존), hmi/web.
   긴 evidence_id는 내부 인용 검증에 유지하며 HMI의 기본 출처 표시는 문서명·버전·PDF 페이지다.
 
-- `미평가`: 원인 가능성이 낮다는 의미가 아니라 현재 관측으로 등급을 매길 수 없다는 의미다.
+- 과거 `미평가`: 원인 가능성이 낮다는 의미가 아니라 현재 관측으로 등급을 매길 수 없다는 의미다.
   관련 문서에 근거한 점검 후보를 제시할 수 있다. 실제 검색 근거 없는 OK는 계속 거부한다.
 - `TelemetryProvenance`: origin(UNKNOWN/SIMULATION/REPLAY/MEASURED), 선택적
   expected_interval_s(0초 초과~60초). 출처·주기는 송신자 선언이며 독립적 실측 검증이 아니다.

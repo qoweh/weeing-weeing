@@ -287,7 +287,7 @@ def test_wrong_number_returns_error_then_corrected_in_real_tool_loop(records):
     )
     result = analyzer.analyze(INCIDENT)
     assert result.status == "OK"
-    assert result.prompt_version == "incident-analyst-v2"
+    assert result.prompt_version == "incident-analyst-v3"
     assert "rpm.mean=1200.0 rpm" in result.observed_facts
     assert "999999" not in result.observed_facts + result.suspected_causes[0].basis
     assert "물체가 없음" not in result.observed_facts
@@ -328,7 +328,7 @@ def test_sensor_tools_keep_incident_session_and_v2_tag_in_tracing(records):
     assert result.status == "INSUFFICIENT_EVIDENCE"
     assert "rpm.mean=1200.0 rpm" in result.observed_facts
     assert fake.propagated[0]["session_id"] == INCIDENT.incident_id
-    assert fake.propagated[0]["tags"] == ["analyze", "incident-analyst-v2"]
+    assert fake.propagated[0]["tags"] == ["analyze", "incident-analyst-v3"]
     assert [o.kwargs["name"] for o in fake.observations] == [
         "incident-analyst",
         "get_sensor_window",

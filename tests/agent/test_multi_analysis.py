@@ -65,7 +65,8 @@ def draft(*ids, status="OK", reference_case_indices=()):
         suspected_causes=[
             {
                 "cause": "냉각 불량 가능성",
-                "likelihood": "중",
+                "inspection_priority": "우선 확인",
+                "priority_reason": "해당 코드의 매뉴얼에서 선행 점검으로 안내한다.",
                 "basis": "매뉴얼이 냉각 상태 점검을 안내한다. 현재 냉각 상태는 현장 확인이 필요하다.",
                 "evidence_ids": list(ids),
                 "unconfirmed": ["냉각 상태 현장 점검 결과"],
@@ -266,9 +267,11 @@ def test_three_agents_preserve_each_source_and_skip_verification():
     assert any(e.status == "RUNNING" for e in events)
 
 
-def test_grounded_unevaluated_inspection_candidate_can_pass_independent_review():
+def test_pre_inspection_priority_can_pass_without_current_inspection_or_reports():
     response = draft(DOC.evidence_id)
-    response.content[0].input["suspected_causes"][0]["likelihood"] = "미평가"
+    response.content[0].input["suspected_causes"][0]["inspection_priority"] = (
+        "후속 확인"
+    )
     analyzer, calls, _ = setup(
         verify=True,
         plans={
@@ -280,7 +283,12 @@ def test_grounded_unevaluated_inspection_candidate_can_pass_independent_review()
         knowledge=Knowledge(reports=[]),
     )
     result = analyzer.analyze(INCIDENT)
-    assert result.status == "OK" and result.suspected_causes[0].likelihood == "미평가"
+    assert (
+        result.status == "OK"
+        and result.suspected_causes[0].inspection_priority == "후속 확인"
+    )
+    assert result.suspected_causes[0].priority_reason
+    assert result.suspected_causes[0].likelihood is None
     assert finished(analyzer, "verification")[0].verification.verdict == "PASS"
     from weeing_weeing.agent.analyst import ASSESSMENT_RULES
 
@@ -944,7 +952,7 @@ def test_analysis_is_one_trace_with_roles_nested_and_status_score():
     assert [p["trace_name"] for p in fake.propagated] == ["incident-analysis"]
     root = fake.propagated[0]
     assert root["session_id"] == INCIDENT.incident_id
-    assert "multi-analysis-v5" in root["tags"]
+    assert "multi-analysis-v6" in root["tags"]
     assert fake.observations[0].kwargs["name"] == "incident-analysis"
     agents = {
         o.kwargs["name"] for o in fake.observations if o.kwargs["as_type"] == "agent"

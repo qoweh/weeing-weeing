@@ -1,6 +1,6 @@
 # 멀티에이전트 프롬프트와 결과 제출
 
-현재 `multi-analysis-v5` 코드의 지시 구성과 데이터 전달을 설명한다.
+현재 `multi-analysis-v6` 코드의 지시 구성과 데이터 전달을 설명한다.
 아래 역할 설명은 코드의 지시를 정리한 것이며 실제 프롬프트 전문을 그대로 복사한 문서는 아니다.
 정확한 실행 지시와 JSON 스키마는 연결된 코드가 기준이다. 흐름·DB·설정·재시도는
 [MULTI_AGENT_ANALYSIS](MULTI_AGENT_ANALYSIS.md)를 참고한다.
@@ -27,10 +27,10 @@
 
 | 역할 | 조합 | 프롬프트 버전 |
 |---|---|---|
-| 문서 조사 | 문서 조사 역할 지시 + `RESEARCH_OUTPUT_RULES` + 사례 목록을 비우라는 지시 | `multi-analysis-v5-documents` |
-| 정비이력 조사 | 이력 조사 역할 지시 + `RESEARCH_OUTPUT_RULES` + `REPORT_SELECTION_RULES` | `multi-analysis-v5-reports` |
-| 통합 분석 | `SYSTEM` + `MULTI_SENSOR_SYSTEM` + `SYNTHESIS_OUTPUT_RULES` + 통합 역할 지시 | `multi-analysis-v5-synthesis` |
-| 근거 검증 | 독립 검증 역할 지시 + `ASSESSMENT_RULES` + `VERIFICATION_OUTPUT_RULES` + 미평가 허용 지시 | `multi-analysis-v5-verification` |
+| 문서 조사 | 문서 조사 역할 지시 + `RESEARCH_OUTPUT_RULES` + 사례 목록을 비우라는 지시 | `multi-analysis-v6-documents` |
+| 정비이력 조사 | 이력 조사 역할 지시 + `RESEARCH_OUTPUT_RULES` + `REPORT_SELECTION_RULES` | `multi-analysis-v6-reports` |
+| 통합 분석 | `SYSTEM` + `MULTI_SENSOR_SYSTEM` + `SYNTHESIS_OUTPUT_RULES` + 통합 역할 지시 | `multi-analysis-v6-synthesis` |
+| 근거 검증 | 독립 검증 역할 지시 + `ASSESSMENT_RULES` + `VERIFICATION_OUTPUT_RULES` + 점검 우선순위 검토 지시 | `multi-analysis-v6-verification` |
 
 `SYSTEM`에는 `ASSESSMENT_RULES`가 이미 붙어 있다. 단일 분석과 공통 정비 보조 지시를
 공유하지만 멀티 통합 역할은 추가 지시로 검색 대신 전달된 자료를 사용하고 후보 설명·
@@ -124,7 +124,9 @@ findings에는 사례 전체를 다시 쓰기보다 필요한 비교 결론을 �
 - 두 조사 결과를 복사하지 말고 중복을 합쳐 현재 필요한 점검·조치를 짧게 안내한다.
 - 공식 절차와 과거 사례를 구분하고 공식 안전·승인 조건을 우선한다.
 - 원인 후보는 1~3개, 점검은 3~5개를 목표로 하되 필수 조건을 개수 때문에 삭제하지 않는다.
-- 후보 basis는 인용 문서와 후보의 연결 설명, unconfirmed는 부족한 확인 항목으로 작성한다.
+- 후보 basis는 인용 문서와 후보의 연결 설명, unconfirmed는 확인할 항목으로 작성한다.
+- inspection_priority와 priority_reason은 후보를 어떤 순서로 점검할지와 그 근거다.
+  원인 발생 확률이 아니며 현장 점검 결과 부재를 이유로 모두 미평가로 만들지 않는다.
 - 숫자 관측은 `sensor_claims`와 후보의 `sensor_claim_indices`로 연결한다.
   조회되지 않은 값을 만들거나 센서 공백을 정상값으로 채우지 않는다.
 - 모든 점검·권고 조치·승인 필요 조치에 항목 위치와 근거 ID를 연결한다.
@@ -156,8 +158,9 @@ findings에는 사례 전체를 다시 쓰기보다 필요한 비교 결론을 �
 - 인용 의미 불일치, 다른 설비·조건의 적용, 관측하지 않은 수치, 근거 없는 원인 확정을 검사한다.
 - 안전 절차·승인 조건 누락과 과거 사례의 무비판적 적용을 검사한다.
 - 참고 사례의 증상·조치·결과·유사점·차이점도 원문과 대조한다.
-- likelihood는 상/중/하/미평가만 허용하며 미평가는 낮은 확률이 아니다.
-- 근거 있는 점검 후보의 미평가, 적절하게 명시한 자료 부재, 관련 이력 없음, 문체 취향 자체는
+- inspection_priority는 우선 확인/후속 확인이며 priority_reason으로 순서의 이유를 설명한다.
+- 공식 안전·점검 순서, 현재 코드·증상과의 관련성, 권고 점검과 우선순위의 일치를 검토한다.
+- 현재 점검 결과 부재, 적절하게 명시한 자료 부재, 관련 이력 없음, 문체 취향 자체는
   반려 사유가 아니다. PASS는 원인 확정이나 설비 안전 인증이 아니다.
 - 요약은 판정 이유 1~2문장으로 쓰고 개별 지적과 반복하지 않는다.
 

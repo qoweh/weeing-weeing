@@ -111,7 +111,8 @@ test('report measurements round to two decimals with units without changing sour
 test('causes display basis, assessment, sensor observations and unconfirmed details without source IDs', () => {
   const html = render(props)
   assert.match(html, /매뉴얼을 참고해 방열 상태 확인이 필요합니다/)
-  assert.match(html, /미평가 · 추가 점검 필요/)
+  assert.match(html, /점검 우선순위 미지정/)
+  assert.doesNotMatch(html, /미평가 · 추가 점검 필요|가능성 상|우선순위 · 우선 확인/)
   assert.match(html, /관련 센서 관측/)
   assert.match(html, /조회 구간 1 모터 외함 온도 최댓값=95.0℃/)
   assert.match(html, /2026\. 11\. 03\. 11:08:22/)
@@ -167,4 +168,15 @@ test('report displays the linked asset rather than substituting another equipmen
   })
   assert.match(supplied, /<strong>설비<\/strong><span>BLDC-001/)
   assert.doesNotMatch(supplied, /WW-BTC-001/)
+})
+
+
+test('report renders inspection priority and its reason instead of legacy likelihood', () => {
+  const candidate = { ...analysis.suspected_causes[0], likelihood: '상',
+    inspection_priority: '후속 확인', priority_reason: '공식 절차에서 전원 확인 후 시행하도록 안내한다.' }
+  const html = render({ ...props, analysis: { ...analysis, suspected_causes: [candidate] } })
+  assert.match(html, /후속 확인/)
+  assert.match(html, /점검 순서의 근거/)
+  assert.match(html, /공식 절차에서 전원 확인 후 시행하도록 안내한다/)
+  assert.doesNotMatch(html, /가능성 상|미평가 · 추가 점검 필요/)
 })

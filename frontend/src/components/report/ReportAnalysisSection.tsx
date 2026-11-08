@@ -1,4 +1,5 @@
 import type { Analysis, ReportIncident } from "./ReportForm";
+import { inspectionPriorityLabel } from "../../incident-hmi/components/inspectionPriority";
 import "./ReportForm.css";
 
 function evidenceLabel(item: NonNullable<Analysis["evidence"]>[number]) {
@@ -127,14 +128,12 @@ export default function ReportAnalysisSection({
                 {analysis.suspected_causes.map((item, index) => (
                   <li key={index}>
                     <strong>{item.cause}</strong>
-                    {item.likelihood && (
-                      <>
-                        {" "}
-                        ·{" "}
-                        {item.likelihood === "미평가"
-                          ? "미평가 · 추가 점검 필요"
-                          : `가능성 ${item.likelihood}`}
-                      </>
+                    <span> · {inspectionPriorityLabel(item)}</span>
+                    {item.inspection_priority && item.priority_reason && (
+                      <p>
+                        <strong>점검 순서의 근거</strong>:{" "}
+                        {item.priority_reason}
+                      </p>
                     )}
                     {item.basis &&
                       item.basis.replace(/\r\n/g, "\n").trim() !==

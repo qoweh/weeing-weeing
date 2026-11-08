@@ -8,7 +8,7 @@ const statistics = { min: '최솟값', max: '최댓값', mean: '평균', first: 
 
 export function humanizeAnalysisText(value) {
   if (typeof value !== 'string') return value
-  return value.replace(/\blikelihood\b(가|를|는|와)?/g, (_, particle) => `원인 가능성${({ 가: '이', 를: '을', 는: '은', 와: '과' })[particle] || ''}`)
+  return value.replace(/\bpriority_reason\b/g, '점검 순서의 근거').replace(/\binspection_priority\b/g, '점검 우선순위').replace(/\blikelihood\b(가|를|는|와)?/g, (_, particle) => `원인 가능성${({ 가: '이', 를: '을', 는: '은', 와: '과' })[particle] || ''}`)
     .replace(/\b(sensor_claims|sensor_claim_indices|offset_seconds|check_citations|action_citations|approval_citations|evidence_ids)\b/g, (word) => ({ sensor_claims: '검증용 센서 수치', sensor_claim_indices: '관련 센서 관측', offset_seconds: '사건 대비 조치 시간 차이(초)', check_citations: '점검 출처 연결', action_citations: '조치 출처 연결', approval_citations: '승인 필요 조치의 출처 연결', evidence_ids: '출처 정보' })[word])
     .replace(/\b([a-z_]+)\.(min|max|mean|first|last|delta|valid_count|missing_count|true_count|false_count)\b/g, (whole, field, stat) => fields[field] ? `${fields[field]} ${statistics[stat]}` : whole)
     .replace(/\bwindow-(\d+)\b/g, '조회 구간 $1')
