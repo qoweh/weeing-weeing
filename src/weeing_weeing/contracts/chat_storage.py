@@ -25,13 +25,14 @@ class ChatSubmission(ChatModel):
     question: str | None = Field(default=None, min_length=1, max_length=2000)
     faq_id: FaqId | None = None
     conditions: ChatSearchConditions | None = None
+    model: str | None = None
 
     @model_validator(mode="after")
     def _kind(self) -> Self:
         if self.kind == "CHAT":
             if self.question is None or self.faq_id is not None:
                 raise ValueError("자유 질문에는 질문 본문만 필요함")
-        elif self.question is not None or self.faq_id is None:
+        elif self.question is not None or self.faq_id is None or self.model is not None:
             raise ValueError("FAQ 선택에는 FAQ ID만 필요함")
         return self
 

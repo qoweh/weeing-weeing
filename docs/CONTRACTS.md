@@ -271,7 +271,7 @@ api(공통 검색 주입·인증·대화 소유권)다. 기존 `ChatQuestion`·`
 기존 `ChatQuestion`·`ChatResponse` 구조는 유지하며 `ChatConversation`에 기본 FAQ인
 FAQ/CHAT 모드를 추가한다. 별도 ChatSavedConversation 파생 모델은 두지 않는다.
 
-- `ChatSubmission`: request_id + CHAT(질문) 또는 FAQ(ID). 사용자/소유자 ID,
+- `ChatSubmission`: request_id + CHAT(질문과 선택적 모델) 또는 FAQ(ID). 모델은 재시도와 중복 요청 비교에 포함한다. 사용자/소유자 ID,
   이전 문맥·의도·실행 토큰은 입력 불가. 생략한 conditions는 첫 예약의 대화 조건을 사용한다.
 - `ChatRequestView`: 상태, 최초 예약 조건, 저장 응답, 재시도 가능 여부와 안전한 오류 코드.
   없는/비활성 FAQ는 FAQ_NOT_FOUND다. 같은 ID 재실행 없이 목록 새로고침 후 새 ID로 선택한다.

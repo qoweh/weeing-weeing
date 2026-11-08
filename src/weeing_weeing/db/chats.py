@@ -124,6 +124,8 @@ def _view(row):
 def _fingerprint(submission):
     # 이전 대화의 현재 상태가 아닌, 클라이언트가 보낸 정규화된 본문만 비교한다.
     payload = submission.model_dump(mode="json", exclude={"request_id"})
+    if payload.get("model") is None:
+        payload.pop("model", None)
     return hashlib.sha256(
         json.dumps(payload, sort_keys=True, ensure_ascii=False).encode()
     ).hexdigest()

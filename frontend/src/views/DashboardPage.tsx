@@ -5,6 +5,7 @@ import {
 } from "../components/layout/settings";
 import PageTitle from "../components/ui/PageTitle";
 import ModelViewer from "../components/dashboard/ModelViewer";
+import CctvPanel, { useCctvMode } from "../components/dashboard/CctvPanel";
 import DashboardAside from "../components/dashboard/DashboardAside";
 import useTelemetryDashboard from "./useTelemetryDashboard";
 import useDragScroll from "./useDragScroll";
@@ -32,6 +33,7 @@ export default function DashboardPage({
   onNavigate?: (page: string) => void;
 }) {
   const { pauseModelAnimation } = useContext(SettingsContext);
+  const cctvMode = useCctvMode();
   const updateSettings = useContext(SettingsUpdateContext);
   const [refreshInterval, setRefreshInterval] = useState("1");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -293,6 +295,7 @@ export default function DashboardPage({
             aria-label="3D 모델 뷰어"
           >
             <ModelViewer
+              backdrop={cctvMode ? <CctvPanel /> : undefined}
               paused={pauseModelAnimation}
               samples={model.samples}
               errorMessage={error}

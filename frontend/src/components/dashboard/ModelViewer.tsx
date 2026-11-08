@@ -1,6 +1,12 @@
 import "./model-hotspots.scss";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -126,6 +132,8 @@ const hotspots: readonly (typeof HOTSPOTS)[number][] = SHOW_HOTSPOTS
   : [];
 
 type Props = {
+  // 있으면 3D 대신 이 내용을 보여 준다(예: CCTV). 이 경우 3D는 그리지 않고, 구역 틀·말풍선·센서 표시는 그대로 쓴다.
+  backdrop?: ReactNode;
   paused?: boolean;
   onExpand?: () => void;
   samples?: SensorSample[];
@@ -535,6 +543,7 @@ function GraphBubble({
 }
 
 export default function ModelViewer({
+  backdrop,
   paused = false,
   onExpand,
   samples = [],
@@ -549,17 +558,14 @@ export default function ModelViewer({
   const samplesRef = useRef(samples);
   samplesRef.current = samples;
   const [status, setStatus] = useState("모델을 불러오는 중입니다.");
-  const [showCctv, setShowCctv] = useState(false);
+  const hasBackdrop = backdrop != null;
   pausedRef.current = paused;
 
   useEffect(() => {
-    setShowCctv(new URLSearchParams(window.location.search).get("cctv") === "1");
-  }, []);
-
-  useEffect(() => {
-    if (showCctv) return;
+    if (hasBackdrop || paused) return;
     const host = hostRef.current;
     if (!host) return;
+    setStatus("모델을 불러오는 중입니다.");
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -1088,9 +1094,11 @@ export default function ModelViewer({
       unlockSwipeBack();
       controls.dispose();
       renderer.dispose();
+      // dispose만으로는 WebGL 컨텍스트와 GPU 메모리 반납이 미뤄져 페이지를 오갈수록 쌓이므로 즉시 반납한다.
+      renderer.forceContextLoss();
       renderer.domElement.remove();
     };
-  }, [showCctv]);
+  }, [paused, hasBackdrop]);
 
   return (
     <div className="model-viewer">
@@ -1112,12 +1120,14 @@ export default function ModelViewer({
         }}
       >
         <div className="model-viewer__canvas" ref={hostRef}>
-          {showCctv && (
-            <iframe
-              title="실시간 CCTV"
-              src="http://127.0.0.1:18080/viewer.html"
-              allow="autoplay"
-              className="model-viewer__cctv"
+          {hasBackdrop ? (
+            backdrop
+          ) : paused && (
+            <img
+              className="model-viewer__poster"
+              src="/models/conveyor-poster.webp"
+              alt=""
+              draggable={false}
             />
           )}
         </div>
@@ -1199,7 +1209,7 @@ export default function ModelViewer({
               onClose={() => setBubbleColumn(null)}
             />
           ))}
-        {!showCctv && status && <p className="model-viewer__status">{status}</p>}
+        {!hasBackdrop && !paused && status && <p className="model-viewer__status">{status}</p>}
         {onExpand && (
           <button
             type="button"

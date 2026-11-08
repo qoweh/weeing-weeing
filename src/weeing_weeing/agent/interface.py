@@ -277,8 +277,9 @@ def get_chat_service(
     faq: "FaqCatalog | None" = None,
     client: LlmClient | None = None,
     settings: "Settings | None" = None,
+    model: str | None = None,
 ) -> ChatService:
-    """기존 Claude를 쓰는 자유 대화. 조건·출처 상태 검증 검색기를 API가 주입한다."""
+    """기존 Claude를 쓰는 자유 대화. model을 주면 답변 생성 모델만 바꾼다(검토 모델은 설정 유지). 조건·출처 상태 검증 검색기를 API가 주입한다."""
     from weeing_weeing.agent.chat import ToolChatService
     from weeing_weeing.config import get_settings
 
@@ -287,7 +288,9 @@ def get_chat_service(
     if client is None:
         # 챗봇 전용 effort·검토 모델(#216·#217). 비우면 공용 LLM 설정과 같다.
         effort = settings.chat_llm_effort or settings.llm_effort
-        client = get_llm_client(settings, entrypoint="chatbot", effort=effort)
+        client = get_llm_client(
+            settings, entrypoint="chatbot", effort=effort, model=model
+        )
         if settings.chat_review_model or settings.chat_review_effort:
             review_client = get_llm_client(
                 settings,

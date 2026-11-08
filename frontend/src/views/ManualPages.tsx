@@ -109,12 +109,17 @@ export function ManualPage({
     };
   }, [reload, onSessionExpired]);
   const term = query.trim();
+  // Enter 키·엔터 버튼으로 검색하면 입력 대기(300ms) 없이 바로 서버에 요청한다.
+  const searchNow = useRef(false);
+  const [searchTick, setSearchTick] = useState(0);
   const searchPending =
     Boolean(term) && (search.term !== term || search.reload !== reload);
   useEffect(() => {
     if (!term) return;
     let cancelled = false;
-    // 입력이 멈춘 뒤 300ms 후에만 서버 검색을 요청한다.
+    const delay = searchNow.current ? 0 : 300;
+    searchNow.current = false;
+    // 입력이 멈춘 뒤 300ms 후에만 서버 검색을 요청한다(Enter·엔터 버튼은 즉시).
     const timer = setTimeout(() => {
       listDocuments(term)
         .then((data) => {
@@ -131,12 +136,12 @@ export function ManualPage({
           if (failure.status === 401) onSessionExpired();
           setSearch({ term, reload, items: [], error: failure.message });
         });
-    }, 300);
+    }, delay);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [term, reload, onSessionExpired]);
+  }, [term, reload, searchTick, onSessionExpired]);
   async function removeDocument() {
     if (!deleting || deleteBusy || !canManage) return;
     const target = deleting;
@@ -169,6 +174,10 @@ export function ManualPage({
         filters={filters}
         setFilters={setFilters}
         onRefresh={() => setReload((n) => n + 1)}
+        onSearch={() => {
+          searchNow.current = true;
+          setSearchTick((n) => n + 1);
+        }}
         loading={loading}
       >
         {canManage && (

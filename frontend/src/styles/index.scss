@@ -41,12 +41,12 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --background: #101722;
-  --surface: #1a2432;
-  --surface-hover: #263342;
-  --text: #edf2f8;
-  --muted: #a5b1c1;
-  --border: #303d4c;
+  --background: #121212;
+  --surface: #1e1e1e;
+  --surface-hover: #262626;
+  --text: #e6e6e6;
+  --muted: #9a9a9a;
+  --border: #333;
   --primary: #8aafff;
   --primary-hover: #6e99f5;
   --primary-soft: #253b5e;
@@ -54,11 +54,11 @@
   --success: #79d4a5;
   --success-bg: #204538;
   --warning: #f5c87b;
-  --warning-bg: #514024;
+  --warning-bg: #3d3320;
   --danger: #f39bb0;
-  --danger-bg: #4d2e3b;
-  --sidebar-background: #1d3448;
-  --sidebar-text: #dfedf7;
+  --danger-bg: #3d2a31;
+  --sidebar-background: #181818;
+  --sidebar-text: #d0d0d0;
   --sidebar-active-text: #abc6ff;
   --sidebar-notice: rgba(255, 255, 255, 0.07);
   --side-card: var(--surface);
@@ -99,27 +99,26 @@ p {
   --library-button: #dceafa;
 }
 :root[data-theme="dark"] {
-  --background: #0d1724;
-  --surface: #162538;
-  --surface-hover: #1c324b;
-  --text: #dce6f3;
-  --muted: #91a0b3;
-  --border: #34465b;
   --primary: #8ab1ff;
-  --sidebar-background: #1c3449;
-  --sidebar-text: #c8d4e3;
   --sidebar-active-text: #b4caff;
-  --library-input: #102033;
-  --library-row: #152538;
+  --library-input: #232323;
+  --library-row: #1e1e1e;
   --library-button: #294f80;
   --warning: #ffca74;
   --danger: #ff9eaa;
 }
+/* 다크 모드 모달 뒷배경: 파란 기운 없이 무채색으로 어둡게 한다. */
+:root[data-theme="dark"] dialog::backdrop {
+  background: rgb(0 0 0 / 60%);
+}
+:root[data-theme="dark"] .chat-widget .chat-dialog--modal::backdrop {
+  background: rgb(0 0 0 / 40%);
+}
 :root[data-theme="dark"] .header {
-  background: #192536;
+  background: #181818;
 }
 :root[data-theme="dark"] .manual-upload-card {
-  --library-input: #111e2f;
+  --library-input: #1b1b1b;
 }
 :root[data-theme="dark"] .brand__mark img,
 :root[data-theme="dark"] .login-brand__mark img {
