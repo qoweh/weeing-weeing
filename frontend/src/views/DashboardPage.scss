@@ -788,10 +788,10 @@
 .model-viewer__frame + .model-viewer__frame {
   border-left: 1px solid #a1a1a1;
 }
-/* 주의·경고 센서가 들어오면 그 구역이 반투명 색으로 두 번 깜빡인다. */
+/* 주의·경고 상태가 유지되는 동안 해당 구역을 반복해 점멸한다. */
 .model-viewer__frame--caution,
 .model-viewer__frame--warning {
-  animation: model-viewer-zone-flash 1.4s ease-in-out 1;
+  animation: model-viewer-zone-flash 1.4s ease-in-out infinite;
 }
 .model-viewer__frame--caution {
   --zone-flash: rgba(255, 160, 0, 0.35);
