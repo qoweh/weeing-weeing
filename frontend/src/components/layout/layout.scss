@@ -816,10 +816,11 @@ button.nav-item:has(.nav-item__attention) { position: relative; }
   padding: 0;
   width: 380px;
   height: 540px;
-  min-width: min(280px, calc(100vw - 52px));
-  max-width: calc(100vw - 52px);
-  min-height: min(300px, calc(100vh - 120px));
-  max-height: calc(100vh - 120px);
+  /* 화면 비율(html zoom)은 vh·vw에도 곱해지므로 --screen-zoom으로 나눠 실제 화면 안에 들어오게 한다. */
+  min-width: min(280px, calc(100vw / var(--screen-zoom, 1) - 52px));
+  max-width: calc(100vw / var(--screen-zoom, 1) - 52px);
+  min-height: min(300px, calc(100dvh / var(--screen-zoom, 1) - 120px));
+  max-height: calc(100dvh / var(--screen-zoom, 1) - 120px);
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 18px;
@@ -1193,8 +1194,8 @@ button.nav-item:has(.nav-item__attention) { position: relative; }
     margin: 0 16px 16px auto;
   }
   .chat-dialog {
-    min-width: min(280px, calc(100vw - 32px));
-    max-width: calc(100vw - 32px);
+    min-width: min(280px, calc(100vw / var(--screen-zoom, 1) - 32px));
+    max-width: calc(100vw / var(--screen-zoom, 1) - 32px);
   }
 }
 

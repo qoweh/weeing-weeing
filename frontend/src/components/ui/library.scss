@@ -813,7 +813,7 @@
   background-size: 20px 20px;
 }
 
-/* 검색 입력칸: 글자가 있으면 오른쪽에 엔터(↵) 버튼이 나타난다(SearchField). 버튼은 입력칸 안쪽 오른쪽 끝에 놓는다. */
+/* 검색 입력칸(SearchField) */
 .search-field {
   position: relative;
   display: block;
@@ -822,58 +822,7 @@
 .search-field > input {
   display: block;
 }
-.search-field:has(.search-field__enter) > input {
-  padding-right: 44px;
-}
-.search-field .search-field__enter {
-  position: absolute;
-  top: 50%;
-  right: 8px;
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  margin: 0;
-  padding: 0;
-  transform: translateY(-50%);
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  transition:
-    background-color 0.15s,
-    color 0.15s,
-    transform 0.15s;
-}
-/* 아이콘은 mask로 그려 글자색(currentColor)을 따라가므로 라이트·다크 모두 같은 규칙으로 바뀐다. */
-.search-field .search-field__enter::before {
-  content: "";
-  width: 20px;
-  height: 20px;
-  background: currentColor;
-  -webkit-mask: var(--search-enter-icon) center / 20px 20px no-repeat;
-  mask: var(--search-enter-icon) center / 20px 20px no-repeat;
-  transition: transform 0.15s;
-}
-:root {
-  --search-enter-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 4v6a2 2 0 0 1-2 2H4'/%3E%3Cpath d='m7.5 8.5-3.5 3.5 3.5 3.5'/%3E%3C/svg%3E");
-}
-.search-field .search-field__enter:hover {
-  background: var(--surface-hover);
-  color: var(--primary);
-}
-.search-field .search-field__enter:hover::before {
-  transform: translateX(-2px);
-}
-.search-field .search-field__enter:active {
-  transform: translateY(-50%) scale(0.92);
-}
-.search-field .search-field__enter:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 1px;
-}
-/* 전체 지우기(×) 버튼: 엔터 버튼 왼쪽(입력칸 오른쪽 여백 안쪽 끝)에 놓는다. */
+/* 전체 지우기(×) 버튼 */
 :root {
   --search-clear-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%234b5563' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='m3.5 3.5 9 9m0-9-9 9'/%3E%3C/svg%3E");
 }
