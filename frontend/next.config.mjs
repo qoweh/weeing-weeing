@@ -14,7 +14,7 @@ const contentSecurityPolicy = [
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
   `connect-src 'self' https://raw.githubusercontent.com${dev ? " ws: wss:" : ""}`,
-  "frame-src 'self' blob:",
+  "frame-src 'self' blob: http://127.0.0.1:18080",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
