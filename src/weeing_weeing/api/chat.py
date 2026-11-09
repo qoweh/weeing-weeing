@@ -96,7 +96,7 @@ def stored_chat(repo: Chats) -> StoredChatService:
 Stored = Annotated[StoredChatService, Depends(stored_chat)]
 
 
-ALLOWED_CHAT_MODELS = ("claude-sonnet-5", "claude-opus-5", "claude-haiku-4-5-20251001")
+ALLOWED_CHAT_MODELS = ("claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5")
 
 
 class ChatMessageBody(ChatQuestion):

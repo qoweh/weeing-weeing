@@ -10,12 +10,12 @@ import "./chat.scss";
 
 // 서버 허용 목록(api/chat.py ALLOWED_CHAT_MODELS)과 같은 값을 유지한다.
 const claudeModels = [
-  { id: "claude-haiku-4-5-20251001", label: "Haiku 4.5" },
-  { id: "claude-sonnet-5", label: "Sonnet 5" },
-  { id: "claude-opus-5", label: "Opus 5" },
+  { id: "claude-haiku-5-5", label: "Haiku 5.5" },
+  { id: "claude-sonnet-5-5", label: "Sonnet 5.5" },
+  { id: "claude-opus-5-5", label: "Opus 5.5" },
 ];
 // 기본 선택은 Haiku.
-const defaultClaudeModel = "claude-haiku-4-5-20251001";
+const defaultClaudeModel = "claude-haiku-5-5";
 
 export default function ChatWidget({
   screenZoom = 100,
