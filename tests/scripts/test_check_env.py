@@ -191,13 +191,17 @@ def test_add_missing_brings_description_and_uses_following_key_when_no_earlier(
     ]
 
 
-def test_add_missing_appends_only_when_no_template_key_exists(tmp_path):
+@pytest.mark.parametrize("newline", ["\n", "\r\n"])
+def test_add_missing_appends_only_when_no_template_key_exists(tmp_path, newline):
     (tmp_path / ".env.example").write_text("A=1\nB=2\n", encoding="utf-8")
     env = tmp_path / ".env"
-    env.write_text("MINE=x\r\n", encoding="utf-8")  # 템플릿 키가 하나도 없음, CRLF
+    # Windows의 텍스트 쓰기 변환 없이 검사할 줄바꿈을 정확히 만든다.
+    env.write_bytes(f"MINE=x{newline}".encode("utf-8"))  # 템플릿 키가 하나도 없음
     assert check_env.add_missing(env, tmp_path / ".env.example") == ["A", "B"]
     raw = env.read_bytes().decode("utf-8")
-    assert "\r\n" in raw and "\n" not in raw.replace("\r\n", "")  # 줄바꿈 방식 유지
+    assert newline in raw and "\n" not in raw.replace(newline, "")  # 줄바꿈 방식 유지
+    if newline == "\n":
+        assert "\r" not in raw
     lines = raw.splitlines()
     assert lines[0] == "MINE=x"
     assert lines[2].startswith("# ── .env.example에서 자동 추가 (")
