@@ -100,7 +100,11 @@
   @media (max-width: 550px) { padding: 18px; }
 }
 .incident-delete-dialog {
-  width: min(520px, calc(100% - 32px));
+  &.incident-history-dialog {
+    width: min(520px, calc(100% - 32px));
+    height: fit-content; min-height: 0;
+    max-height: calc(100dvh / var(--screen-zoom, 1) - 32px);
+  }
   p { line-height: 1.7; }
   &__identity { margin: 16px 0 8px; font-weight: 700; overflow-wrap: anywhere; }
   &__warning, &__trigger { color: var(--danger) !important; }

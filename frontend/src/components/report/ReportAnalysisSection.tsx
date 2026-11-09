@@ -1,6 +1,7 @@
 import type { Analysis, ReportIncident } from "./ReportForm";
 import { inspectionPriorityLabel } from "../../incident-hmi/components/inspectionPriority";
 import "./ReportForm.css";
+import { sensorFixtureText } from "./sensorFixtureText";
 
 function evidenceLabel(item: NonNullable<Analysis["evidence"]>[number]) {
   if (!item.page && !item.title) return item.citation;
@@ -44,7 +45,7 @@ function readableText(text: string, incident?: ReportIncident | null) {
     true_count: "감지 표본 수",
     false_count: "미감지 표본 수",
   };
-  return display
+  return sensorFixtureText(display, incident?.incident_id)
     .replace(/\bwindow-(\d+)\b/g, "조회 구간 $1")
     .replace(
       /\b([a-z_]+)\.(min|max|mean|first|last|delta|valid_count|missing_count|true_count|false_count)\b/g,

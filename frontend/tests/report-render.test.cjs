@@ -180,3 +180,23 @@ test('report renders inspection priority and its reason instead of legacy likeli
   assert.match(html, /공식 절차에서 전원 확인 후 시행하도록 안내한다/)
   assert.doesNotMatch(html, /가능성 상|미평가 · 추가 점검 필요/)
 })
+
+test('sensor fixture prefixes are hidden on old approved reports without changing other reports', () => {
+  const fixtureId = 'INC-SENSOR-TEST-V1-M10-001'
+  const tagged = {
+    ...props,
+    incident: { ...incident, incident_id: fixtureId },
+    analysis: null,
+    savedValues: {
+      actualActions: '[가상 시연] 방열구 청소',
+      confirmedCause: '[가상 현장 확인 설정] 분진 축적',
+      trialDetails: '[가상설정] 정상 확인',
+    },
+  }
+  const html = render(tagged)
+  assert.match(html, /방열구 청소/)
+  assert.match(html, /분진 축적/)
+  assert.doesNotMatch(html, /가상 시연|가상 현장 확인 설정|가상설정/)
+  assert.match(render({ ...tagged, incident }), /가상 시연/)
+  assert.equal(tagged.savedValues.actualActions, '[가상 시연] 방열구 청소')
+})

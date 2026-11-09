@@ -1,4 +1,5 @@
 import IncidentCodes from "../ui/IncidentCodeLabel";
+import { sensorFixtureText } from "./sensorFixtureText";
 import {
   Fragment,
   useEffect,
@@ -522,7 +523,7 @@ export default function ReportForm({
       <Field
         name={name}
         label={label}
-        value={values[name]}
+        value={sensorFixtureText(values[name], incident?.incident_id)}
         onChange={handleChange}
         {...extra}
       />
@@ -592,7 +593,7 @@ export default function ReportForm({
                 <span style={{ whiteSpace: "pre-line" }}>
 
                   {observedIncident?.evidence?.length
-                    ? observedIncident.evidence.map(measurementSummary).join("\n")
+                    ? observedIncident.evidence.map((item) => sensorFixtureText(measurementSummary(item), incident?.incident_id)).join("\n")
                     : "관측 정보 없음"}
                 </span>
               </div>
