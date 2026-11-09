@@ -50,6 +50,7 @@ services:
       ML_PREDICTION_DIR: /app/outputs/ml_live
       # 승인된 상태·이벤트 연결. 클라이언트는 UNREAL_STATE를 명시해야 한다.
       TELEMETRY_UNREAL_CONTEXT_ENABLED: "true"
+      TELEMETRY_RETENTION_ENABLED: "true"
     volumes:
       - storage:/app/storage
       - outputs:/app/outputs

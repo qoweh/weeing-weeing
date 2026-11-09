@@ -65,6 +65,7 @@ class Settings:
     analysis_total_timeout_s: float = 180
     analysis_max_calls: int = 24
     telemetry_db_enabled: bool = False  # 분석 작업 없이 센서·사건만 저장
+    telemetry_retention_enabled: bool = False
     telemetry_auth_required: bool = False  # 운영 compose는 항상 true
     telemetry_producer_token_sha256: str = ""  # 원본 토큰 대신 SHA-256만 보관
     telemetry_simulation_rpm_enabled: bool = False  # loopback RPM 시나리오 시험만
@@ -135,6 +136,8 @@ def get_settings() -> Settings:
         analysis_total_timeout_s=float(env("ANALYSIS_TOTAL_TIMEOUT_S", "180")),
         analysis_max_calls=int(env("ANALYSIS_MAX_CALLS", "24")),
         telemetry_db_enabled=env("TELEMETRY_DB_ENABLED", "false").lower()
+        in ("1", "true", "yes"),
+        telemetry_retention_enabled=env("TELEMETRY_RETENTION_ENABLED", "false").lower()
         in ("1", "true", "yes"),
         telemetry_auth_required=env("TELEMETRY_AUTH_REQUIRED", "false").lower()
         in ("1", "true", "yes"),
