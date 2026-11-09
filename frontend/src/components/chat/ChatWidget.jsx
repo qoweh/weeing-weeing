@@ -46,6 +46,8 @@ export default function ChatWidget({
   const [historyOpen, setHistoryOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [menuId, setMenuId] = useState(null);
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState([]);
   const [menuPosition, setMenuPosition] = useState({ left: 0, top: 0 });
   const chat = useChatSession(open, onSessionExpired, () => setText(""));
   const conditions = chat.conversation?.conditions || defaultConditions;
@@ -238,6 +240,33 @@ export default function ChatWidget({
     const value = text.trim();
     chat.submit("CHAT", value, claudeModel);
   }
+  useEffect(() => {
+    if (!historyOpen) {
+      setSelecting(false);
+      setSelected([]);
+    }
+  }, [historyOpen]);
+  function toggleSelected(id) {
+    setSelected((current) =>
+      current.includes(id)
+        ? current.filter((value) => value !== id)
+        : [...current, id],
+    );
+  }
+  function deleteSelected() {
+    if (!selected.length) return;
+    if (
+      !window.confirm(
+        `선택한 대화 ${selected.length}개를 삭제할까요? 대화 내용도 함께 삭제됩니다.`,
+      )
+    )
+      return;
+    chat.deleteConversations(selected).then((failed) => {
+      if (!failed) return;
+      setSelecting(failed.length > 0);
+      setSelected(failed);
+    });
+  }
   function closeHistory() {
     setHistoryOpen(false);
     setMenuId(null);
@@ -401,7 +430,19 @@ export default function ChatWidget({
               setHistoryOpen(true);
             }}
           >
-            <span aria-hidden="true">☰</span> 내 대화
+            <svg
+              viewBox="0 0 16 16"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <path d="M2.5 4h11M2.5 8h11M2.5 12h11" />
+            </svg>
+            <span>내 대화</span>
           </button>
           <span className="chat-controls__title">
             {chat.conversation?.title || "새 대화"}
@@ -485,7 +526,23 @@ export default function ChatWidget({
               className="chat-history-drawer__list"
               onScroll={() => setMenuId(null)}
             >
-              <p className="chat-history-drawer__label">대화 기록</p>
+              <div className="chat-history-drawer__label-row">
+                <p className="chat-history-drawer__label">대화 기록</p>
+                {history.length > 0 && (
+                  <button
+                    type="button"
+                    className="chat-history-drawer__select"
+                    disabled={chat.busy}
+                    onClick={() => {
+                      setSelecting((current) => !current);
+                      setSelected([]);
+                      setMenuId(null);
+                    }}
+                  >
+                    {selecting ? "취소" : "선택"}
+                  </button>
+                )}
+              </div>
               {history.length ? (
                 history.map((c) => (
                   <div
@@ -504,28 +561,61 @@ export default function ChatWidget({
                           : undefined
                       }
                       disabled={chat.busy}
+                      role={selecting ? "checkbox" : undefined}
+                      aria-checked={
+                        selecting
+                          ? selected.includes(c.conversation_id)
+                          : undefined
+                      }
                       onClick={() => {
+                        if (selecting) {
+                          toggleSelected(c.conversation_id);
+                          return;
+                        }
                         chat.selectConversation(c.conversation_id);
                         closeHistory();
                       }}
                     >
+                      {selecting && (
+                        <span
+                          className="chat-history-entry__check"
+                          aria-hidden="true"
+                        >
+                          {selected.includes(c.conversation_id) && (
+                            <svg
+                              viewBox="0 0 12 12"
+                              width="12"
+                              height="12"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M2.5 6.5 5 9l4.5-5.5" />
+                            </svg>
+                          )}
+                        </span>
+                      )}
                       <span>{c.title || "새 대화"}</span>
                       <small>
                         {new Date(c.updated_at).toLocaleDateString("ko-KR")}
                       </small>
                     </button>
-                    <button
-                      type="button"
-                      className="chat-history-entry__menu-button"
-                      aria-label={`${c.title || "새 대화"} 메뉴`}
-                      aria-expanded={menuId === c.conversation_id}
-                      onClick={(event) => {
-                        if (menuId === c.conversation_id) setMenuId(null);
-                        else openHistoryMenu(event, c.conversation_id, true);
-                      }}
-                    >
-                      ⋯
-                    </button>
+                    {!selecting && (
+                      <button
+                        type="button"
+                        className="chat-history-entry__menu-button"
+                        aria-label={`${c.title || "새 대화"} 메뉴`}
+                        aria-expanded={menuId === c.conversation_id}
+                        onClick={(event) => {
+                          if (menuId === c.conversation_id) setMenuId(null);
+                          else openHistoryMenu(event, c.conversation_id, true);
+                        }}
+                      >
+                        ⋯
+                      </button>
+                    )}
                   </div>
                 ))
               ) : (
@@ -544,6 +634,20 @@ export default function ChatWidget({
                 </button>
               )}
             </div>
+            {selecting && (
+              <div className="chat-history-drawer__selection">
+                {chat.error && <span role="alert">{chat.error}</span>}
+                <span>{selected.length}개 선택</span>
+                <button
+                  type="button"
+                  className="chat-history-drawer__delete"
+                  disabled={chat.busy || !selected.length}
+                  onClick={deleteSelected}
+                >
+                  삭제
+                </button>
+              </div>
+            )}
             {menuConversation && (
               <div className="chat-history-entry__menu" style={menuPosition}>
                 <button
@@ -608,7 +712,7 @@ export default function ChatWidget({
                 aria-label="검색 조건 닫기"
                 onClick={closeFilter}
               >
-                ×
+                <img src="/assets/chat/close.svg" alt="" />
               </button>
             </div>
             <form
@@ -634,6 +738,9 @@ export default function ChatWidget({
                   placeholder="지정 안 함"
                   disabled={blocked}
                 />
+                <span className="chat-conditions__hint">
+                  매뉴얼 검색에 사용합니다
+                </span>
               </label>
               <label>
                 조치 시작일
@@ -641,6 +748,10 @@ export default function ChatWidget({
                   name="date_from"
                   type="date"
                   defaultValue={conditions.date_from || ""}
+                  data-empty={!conditions.date_from}
+                  onChange={(event) => {
+                    event.target.dataset.empty = String(!event.target.value);
+                  }}
                   disabled={blocked}
                 />
               </label>
@@ -650,13 +761,16 @@ export default function ChatWidget({
                   name="date_to"
                   type="date"
                   defaultValue={conditions.date_to || ""}
+                  data-empty={!conditions.date_to}
+                  onChange={(event) => {
+                    event.target.dataset.empty = String(!event.target.value);
+                  }}
                   disabled={blocked}
                 />
+                <span className="chat-conditions__hint">
+                  정비 조치일 기준입니다
+                </span>
               </label>
-              <p>
-                기간은 정비 조치일 기준입니다. 모델 조건은 매뉴얼 검색에
-                사용합니다.
-              </p>
               <button disabled={blocked}>조건 적용</button>
             </form>
           </section>
@@ -688,7 +802,18 @@ export default function ChatWidget({
                     className="chat-dialog__message-icon"
                     aria-hidden="true"
                   >
-                    ✦
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="16"
+                      height="16"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M4 5h16v11H9l-5 4V5Z" />
+                    </svg>
                   </span>
                 )}
                 <div className="chat-dialog__message">
@@ -722,14 +847,13 @@ export default function ChatWidget({
             {chat.busy && (
               <p role="status">
                 {{
-                  accepted: "요청을 확인하고 있습니다…",
-                  searching: "자료 검색 중…",
-                  generating: "답변 작성 중…",
-                  verifying: "근거 검토 중…",
-                  saving: "답변을 저장하고 있습니다…",
-                  delivering: "검증된 답변을 표시하고 있습니다…",
-                }[chat.stream?.phase] ||
-                  "답변과 대화 상태를 확인하고 있습니다…"}
+                  accepted: "요청 확인 중",
+                  searching: "자료 검색 중",
+                  generating: "답변 작성 중",
+                  verifying: "근거 검토 중",
+                  saving: "답변 저장 중",
+                  delivering: "답변 표시 중",
+                }[chat.stream?.phase] || "상태 확인 중"}
               </p>
             )}
             {chat.busy &&
@@ -747,7 +871,18 @@ export default function ChatWidget({
                     className="chat-dialog__message-icon"
                     aria-hidden="true"
                   >
-                    ✦
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="16"
+                      height="16"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M4 5h16v11H9l-5 4V5Z" />
+                    </svg>
                   </span>
                   <div className="chat-dialog__message">
                     <ChatMarkdown>{chat.stream.text}</ChatMarkdown>
@@ -795,14 +930,14 @@ export default function ChatWidget({
           )}
           {!chat.chatMode && (
             <section className="chat-dialog__examples" aria-label="FAQ 목록">
-              <h3>{chat.topic?.title || "이런 내용을 물어볼 수 있어요"}</h3>
+              <h3>{chat.topic?.title || "이런 내용을 물어볼 수 있습니다"}</h3>
               {chat.topic && (
                 <button type="button" onClick={() => chat.loadFaq()}>
                   주제 목록으로
                 </button>
               )}
               {chat.faqLoading ? (
-                <p role="status">FAQ를 불러오는 중입니다.</p>
+                <p role="status">불러오는 중</p>
               ) : chat.faqError ? (
                 <p role="alert">
                   {chat.faqError}{" "}

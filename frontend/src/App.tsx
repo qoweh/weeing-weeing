@@ -282,14 +282,29 @@ export default function App() {
         setTheme((current) => (current === "light" ? "dark" : "light"))
       }
     >
-      {decisionMessage && <div className="report-decision-message" role="status">{decisionMessage}<button type="button" aria-label="완료 메시지 닫기" onClick={() => setDecisionMessage("")}>×</button></div>}
+      {decisionMessage && (
+        <div className="report-decision-message" role="status">
+          {decisionMessage}
+          <button
+            type="button"
+            aria-label="완료 메시지 닫기"
+            onClick={() => setDecisionMessage("")}
+          >
+            ×
+          </button>
+        </div>
+      )}
       {error && (
         <p className="workspace-error" role="alert">
           {error}
         </p>
       )}
       <div hidden={page !== "home"}>
-        <DashboardPage onSessionExpired={forgetSession} onNavigate={navigate} />
+        <DashboardPage
+          visible={page === "home"}
+          onSessionExpired={forgetSession}
+          onNavigate={navigate}
+        />
       </div>
       {page === "mypage" && (
         <MyPage

@@ -61,7 +61,7 @@ export default function useChatSession(
     setStream(null);
     setError("");
     try {
-      await task(controller.signal);
+      return await task(controller.signal);
     } catch (failure) {
       if (!controller.signal.aborted && mounted.current) fail(failure);
     } finally {
@@ -267,6 +267,32 @@ export default function useChatSession(
           loadFaq();
         }
         await loadList(signal);
+      }),
+    // 선택한 대화를 차례로 지운다. 일부가 실패해도 나머지는 지우고, 실패 개수를 알린다.
+    deleteConversations: (ids) =>
+      run(async (signal) => {
+        const failed = [];
+        for (const id of ids) {
+          try {
+            await api.deleteChatConversation(id, signal);
+            guard(signal);
+          } catch (failure) {
+            if (signal.aborted || failure.status === 401) throw failure;
+            failed.push(id);
+          }
+        }
+        const removed = ids.filter((id) => !failed.includes(id));
+        if (removed.includes(conversation?.conversation_id)) {
+          setConversation(null);
+          setMessages([]);
+          setPending(null);
+          setChatMode(false);
+          loadFaq();
+        }
+        await loadList(signal);
+        if (failed.length)
+          setError(`대화 ${failed.length}개를 삭제하지 못했습니다`);
+        return failed;
       }),
     newConversation: () =>
       run(async (signal) => {

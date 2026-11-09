@@ -38,7 +38,19 @@ const config = {
   poweredByHeader: false,
   env: { NEXT_PUBLIC_API_ORIGIN: new URL(apiOrigin).origin },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    // 3D 모델·draco 디코더는 자주 안 바뀌는 큰 정적 파일이라 브라우저가 재사용하게 한다.
+    // 파일 이름이 그대로라 immutable은 쓰지 않고, 하루 캐시 + 만료 후 백그라운드 갱신으로 둔다.
+    const staticAssetCache = [
+      {
+        key: "Cache-Control",
+        value: "public, max-age=86400, stale-while-revalidate=604800",
+      },
+    ];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      { source: "/models/:path*", headers: staticAssetCache },
+      { source: "/draco/:path*", headers: staticAssetCache },
+    ];
   },
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${apiOrigin}/:path*` }];

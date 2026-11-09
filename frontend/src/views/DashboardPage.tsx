@@ -26,9 +26,12 @@ const noop = () => {};
 const SHOW_OTHER_BOXES = false;
 
 export default function DashboardPage({
+  visible = true,
   onSessionExpired = noop,
   onNavigate,
 }: {
+  // 다른 화면으로 이동하면 대시보드는 숨겨지기만 하므로, 숨겨진 동안은 주기 갱신과 3D 렌더를 멈춘다.
+  visible?: boolean;
   onSessionExpired?: () => void;
   onNavigate?: (page: string) => void;
 }) {
@@ -44,6 +47,7 @@ export default function DashboardPage({
   const { model, error, now } = useTelemetryDashboard(
     Number(refreshInterval) * 1000,
     onSessionExpired,
+    visible,
   );
   const state = model.snapshot;
   const record = state?.telemetry;
@@ -76,7 +80,10 @@ export default function DashboardPage({
     <div className="sensor-dashboard">
       <div className="sensor-dashboard__header">
         <div className="home-heading">
-          <PageTitle>공정 실시간 모니터링 (BAT-TRANSFER-01)</PageTitle>
+          <PageTitle>
+            공정 실시간 모니터링
+            <span className="home-heading__id">BAT-TRANSFER-01</span>
+          </PageTitle>
         </div>
         <div className="sensor-dashboard__settings" ref={settingsRef}>
           <button
@@ -294,13 +301,13 @@ export default function DashboardPage({
             aria-label="3D 모델 뷰어"
           >
             <ModelViewer
-              backdrop={<CctvPanel />}
-              paused={pauseModelAnimation}
+              backdrop={<CctvPanel active={visible} />}
               samples={model.samples}
               errorMessage={error}
             />
           </section>
           <DashboardAside
+            visible={visible}
             onNavigate={onNavigate}
             onSessionExpired={onSessionExpired}
           />
