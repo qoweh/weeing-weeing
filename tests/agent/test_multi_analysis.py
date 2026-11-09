@@ -290,10 +290,10 @@ def test_pre_inspection_priority_can_pass_without_current_inspection_or_reports(
     assert result.suspected_causes[0].priority_reason
     assert result.suspected_causes[0].likelihood is None
     assert finished(analyzer, "verification")[0].verification.verdict == "PASS"
-    from weeing_weeing.agent.analyst import ASSESSMENT_RULES
+    from weeing_weeing.agent.analysis_briefs import INCIDENT_EVIDENCE_RULES
 
-    assert ASSESSMENT_RULES in calls[-2]["system"]
-    assert ASSESSMENT_RULES in calls[-1]["system"]
+    assert INCIDENT_EVIDENCE_RULES in calls[-2]["system"]
+    assert INCIDENT_EVIDENCE_RULES in calls[-1]["system"]
 
 
 def test_check_only_sources_are_preserved_and_missing_citations_are_rejected():
@@ -380,6 +380,32 @@ def test_revision_is_limited_and_keeps_before_after(second, expected):
     result = analyzer.analyze(INCIDENT)
     assert result.status == expected
     assert len(calls) == 8 and counts["synthesis"] == counts["verification"] == 2
+    import json
+
+    first_review, second_review = [
+        json.loads(call["messages"][0]["content"])
+        for call in calls
+        if call["tools"][-1]["name"] == "submit_verification"
+    ]
+    for request, cited_ids in (
+        (first_review, [DOC.evidence_id]),
+        (second_review, [DOC.evidence_id, REPORT.evidence_id]),
+    ):
+        assert "evidence" not in request["analysis"]
+        assert request["analysis"]["suspected_causes"][0]["evidence_ids"] == cited_ids
+        assert request["evidence"] == [
+            DOC.model_dump(mode="json"),
+            REPORT.model_dump(mode="json"),
+        ]
+    assert {item.evidence_id for item in result.evidence} == {
+        DOC.evidence_id,
+        REPORT.evidence_id,
+    }
+    assert "previous_issues" not in first_review
+    assert second_review["previous_issues"] == [
+        issue.model_dump()
+        for issue in finished(analyzer, "verification")[0].verification.issues
+    ]
     assert [r.attempt for r in finished(analyzer, "synthesis")] == [1, 2]
     assert (
         finished(analyzer, "verification")[0].verification.issues[0].correction
@@ -952,7 +978,7 @@ def test_analysis_is_one_trace_with_roles_nested_and_status_score():
     assert [p["trace_name"] for p in fake.propagated] == ["incident-analysis"]
     root = fake.propagated[0]
     assert root["session_id"] == INCIDENT.incident_id
-    assert "multi-analysis-v8" in root["tags"]
+    assert "multi-analysis-v10" in root["tags"]
     assert fake.observations[0].kwargs["name"] == "incident-analysis"
     agents = {
         o.kwargs["name"] for o in fake.observations if o.kwargs["as_type"] == "agent"

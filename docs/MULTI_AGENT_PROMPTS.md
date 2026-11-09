@@ -1,6 +1,6 @@
 # 멀티에이전트 프롬프트와 결과 제출
 
-현재 `multi-analysis-v8` 코드의 지시 구성과 데이터 전달을 설명한다.
+현재 `multi-analysis-v10` 코드의 지시 구성과 데이터 전달을 설명한다.
 아래 역할 설명은 코드의 지시를 정리한 것이며 실제 프롬프트 전문을 그대로 복사한 문서는 아니다.
 정확한 실행 지시와 JSON 스키마는 연결된 코드가 기준이다. 흐름·DB·설정·재시도는
 [MULTI_AGENT_ANALYSIS](MULTI_AGENT_ANALYSIS.md)를 참고한다.
@@ -27,14 +27,12 @@
 
 | 역할 | 조합 | 프롬프트 버전 |
 |---|---|---|
-| 문서 조사 | 문서 조사 역할 지시 + `RESEARCH_OUTPUT_RULES` + 사례 목록을 비우라는 지시 | `multi-analysis-v8-documents` |
-| 정비이력 조사 | 이력 조사 역할 지시 + `RESEARCH_OUTPUT_RULES` + `REPORT_SELECTION_RULES` | `multi-analysis-v8-reports` |
-| 통합 분석 | `SYSTEM` + `MULTI_SENSOR_SYSTEM` + `SYNTHESIS_OUTPUT_RULES` + 통합 역할 지시 | `multi-analysis-v8-synthesis` |
-| 근거 검증 | 독립 검증 역할 지시 + `ASSESSMENT_RULES` + `VERIFICATION_OUTPUT_RULES` + 점검 우선순위 검토 지시 | `multi-analysis-v8-verification` |
+| 문서 조사 | 문서 조사 역할 지시 + `RESEARCH_OUTPUT_RULES` + 사례 목록을 비우라는 지시 | `multi-analysis-v10-documents` |
+| 정비이력 조사 | 이력 조사 역할 지시 + `RESEARCH_OUTPUT_RULES` + `REPORT_SELECTION_RULES` | `multi-analysis-v10-reports` |
+| 통합 분석 | `INCIDENT_EVIDENCE_RULES` + `MULTI_SENSOR_SYSTEM` + `SYNTHESIS_OUTPUT_RULES` | `multi-analysis-v10-synthesis` |
+| 근거 검증 | `INCIDENT_EVIDENCE_RULES` + `VERIFICATION_OUTPUT_RULES` | `multi-analysis-v10-verification` |
 
-`SYSTEM`에는 `ASSESSMENT_RULES`가 이미 붙어 있다. 단일 분석과 공통 정비 보조 지시를
-공유하지만 멀티 통합 역할은 추가 지시로 검색 대신 전달된 자료를 사용하고 후보 설명·
-검증된 센서 관측을 분리한다. 통합 역할에는 문서 검색 도구를 제공하지 않는다.
+통합·검증은 사건 근거 해석 기준을 공유한다. 통합은 전달된 조사 원문과 센서 도구를 사용한다.
 
 - 역할 본문·조합·입력: [multi_analysis.py](../src/weeing_weeing/agent/multi_analysis.py)
 - 공통 지시·평가·센서 규칙: [analyst.py](../src/weeing_weeing/agent/analyst.py)
@@ -123,7 +121,7 @@ findings에는 사례 전체를 다시 쓰기보다 필요한 비교 결론을 �
 
 - 두 조사 결과를 복사하지 말고 중복을 합쳐 현재 필요한 점검·조치를 짧게 안내한다.
 - 공식 절차와 과거 사례를 구분하고 공식 안전·승인 조건을 우선한다.
-- 원인 후보는 1~3개, 점검은 3~5개를 목표로 하되 필수 조건을 개수 때문에 삭제하지 않는다.
+- 근거가 있는 후보와 필요한 점검을 제시한다. 근거 부족 시 후보와 참고 사례 선택을 비운다.
 - 후보 basis는 인용 문서와 후보의 연결 설명, unconfirmed는 확인할 항목으로 작성한다.
 - inspection_priority와 priority_reason은 후보를 어떤 순서로 점검할지와 그 근거다.
   원인 발생 확률이 아니며 현장 점검 결과 부재를 이유로 모두 미평가로 만들지 않는다.
@@ -133,7 +131,7 @@ findings에는 사례 전체를 다시 쓰기보다 필요한 비교 결론을 �
 - reports.reference_cases 중 유용한 것만 `reference_case_indices`로 선택한다.
   서버가 조사에서 작성한 요약을 복사하므로 통합 모델이 사례 문구나 보고서 번호를 재생성하지 않는다.
 - 공식 문서가 충분하면 정비이력이 없어도 OK로 안내할 수 있다.
-- 추가 확인은 핵심 자료 중심, 한계는 2~3문장을 목표로 한다. 내부 필드 이름과 JSON을
+- 추가 확인은 핵심 자료 중심, 한계는 서버가 붙이는 공통 주의사항과 중복하지 않는다. 내부 필드 이름과 JSON을
   사용자 문장에 복사하지 않는다. 검증 지적이 있으면 해당 부분을 보완한다.
 
 ### 제출과 서버가 작성하는 정보
@@ -149,7 +147,7 @@ findings에는 사례 전체를 다시 쓰기보다 필요한 비교 결론을 �
 
 ## 6. 근거 검증 — verification
 
-입력은 사건, 통합 `AnalysisResult`, 두 조사에서 확보한 전체 원문, 센서 조회 결과다.
+검증 요청은 사건, 통합 분석 내용, 두 조사에서 확보한 전체 원문, 센서 조회 결과를 담는다. 원문은 최상위 `evidence`에 한 번씩 보내며, 분석 내용의 항목별 인용 ID는 이 목록을 가리킨다. 저장된 분석 결과에는 기존대로 인용 원문이 포함된다. 2차 검증에는 1차 지적 목록도 전달하며, 현재 초안에서 해결됐는지 원문과 다시 대조한다.
 필요하면 센서 도구를 추가 호출할 수 있지만 새 문서 검색 도구는 없다.
 
 ### 검증 기준
@@ -170,17 +168,18 @@ findings에는 사례 전체를 다시 쓰기보다 필요한 비교 결론을 �
 
 | 필드 | 의미 |
 |---|---|
-| `verdict` | PASS / REVISE / INSUFFICIENT_EVIDENCE |
+| `verdict` | PASS / CAUTION / REVISE / INSUFFICIENT_EVIDENCE |
 | `summary` | 판정 이유 |
 | `issues[].claim` | 문제가 있는 주장 |
 | `issues[].reason` | 문제와 근거 |
 | `issues[].evidence_ids` | 대조한 실제 근거 |
 | `issues[].correction` | 구체적인 수정 요청 |
 
-PASS에 미해결 issues를 넣거나 issues 없이 REVISE로 제출할 수 없다. 없는 근거 ID를
+PASS에 미해결 issues를 넣거나 issues 없이 CAUTION 또는 REVISE로 제출할 수 없다. 없는 근거 ID를
 지적에 인용해도 거부한다. 이 검증은 별도 LLM의 의미 대조이며 완전한 사실 검증을 보장하지 않는다.
 서버의 스키마·출처·수치 검사는 검증 설정을 꺼도 통합 제출에서 계속 수행한다.
 
+점검 행동이 타당하고 순서의 출처 설명만 고치면 CAUTION으로 종료한다. 안전 조건이나 핵심 판단에 오류가 있으면 수정이 필요하다.
 1차 REVISE면 같은 조사 결과·원문과 검증 지적을 통합 역할에 다시 전달한다.
 수정 후 2차에도 REVISE면 최종 VERIFICATION_FAILED로 종료한다. 부적합 참고 사례는
 수정 분석에서 선택 목록에서 뺄 수 있다. 검증자는 별도의 최종 답변을 생성하지 않는다.
