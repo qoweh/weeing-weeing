@@ -82,7 +82,8 @@ test("short gaps keep the original forecast and its original time, then recover"
 test("HTTP failure preserves the last result with an explicit error, recovery clears it", () => {
   const lost = { ...initial(), lost: true };
   const view = predictionDisplay(lost);
-  assert.equal(view.prediction.error_probability, 0.292);
+  assert.equal(view.prediction, null);
+  assert.equal(view.held, false);
   assert.equal(view.isError, true);
   assert.equal(
     view.message,
@@ -173,7 +174,8 @@ test("stale connection and current detected errors keep clearly historical resul
   const stale = predictionDisplay(
     receivePrediction(initial(), snapshot({ stale: true }), at),
   );
-  assert.equal(stale.held, true);
+  assert.equal(stale.prediction, null);
+  assert.equal(stale.held, false);
   assert.match(stale.message, /수신 지연/);
   const ineligible = predictionDisplay(
     receivePrediction(
@@ -188,7 +190,8 @@ test("stale connection and current detected errors keep clearly historical resul
     ),
   );
   assert.equal(ineligible.held, true);
-  assert.match(ineligible.message, /현재 감지된 오류/);
+  assert.equal(ineligible.message, "이상이 발생하였습니다.");
+  assert.equal(ineligible.faulted, true);
 });
 
 test("invalid probabilities cannot replace a good result or be displayed on first load", () => {
@@ -308,7 +311,22 @@ test("warmup shows the collecting message and 100% shows the error-found message
       at,
     ),
   );
-  assert.equal(full.message, "에러가 발견 되었습니다");
+  assert.equal(full.message, "이상현상이 발견 되었습니다");
   assert.equal(full.found, true);
+  assert.equal(full.prediction, null);
   assert.equal(predictionDisplay(initial()).found, false);
+  const recovered = predictionDisplay(
+    receivePrediction(
+      receivePrediction(
+        emptyPredictionState(),
+        snapshot({}, { error_probability: 1 }),
+        at,
+      ),
+      snapshot({}, { error_probability: 0.1 }),
+      at,
+    ),
+  );
+  assert.equal(recovered.found, false);
+  assert.equal(recovered.message, "");
+  assert.equal(recovered.prediction.error_probability, 0.1);
 });

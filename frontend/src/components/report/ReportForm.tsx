@@ -263,10 +263,13 @@ const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 function PhotoField({
   side,
   title,
+  locked,
   onEdit,
 }: {
   side: string;
   title: string;
+  // 읽기 전용(작성 완료·제출 이후)이거나 저장 중이면 사진을 바꿀 수 없다.
+  locked: boolean;
   onEdit: () => void;
 }) {
   const [file, setFile] = useState<File | null>(null);
@@ -282,8 +285,9 @@ function PhotoField({
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
-  // 읽기 상태(fieldset disabled)에서도 선택창이 열리도록 fieldset 밖에서 만든 input을 사용한다.
+  // fieldset disabled는 이 input을 막지 못하므로(밖에서 만든 input) locked를 직접 확인한다.
   function openPicker() {
+    if (locked) return;
     const input = document.createElement("input");
     input.type = "file";
     input.accept = PHOTO_TYPES.join(",");
@@ -304,6 +308,7 @@ function PhotoField({
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (locked) return;
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       openPicker();
@@ -318,7 +323,8 @@ function PhotoField({
         <div
           className="report-photo-preview"
           role="button"
-          tabIndex={0}
+          tabIndex={locked ? -1 : 0}
+          aria-disabled={locked}
           aria-label={`${title} 사진 첨부`}
           onClick={openPicker}
           onKeyDown={handleKeyDown}
@@ -327,9 +333,13 @@ function PhotoField({
             <img ref={imageRef} alt={`${title} 미리보기`} />
           ) : (
             <p>
-              <strong>{title} 사진 1장 첨부</strong>
+              <strong>
+                {locked ? `${title} 사진 없음` : `${title} 사진 1장 첨부`}
+              </strong>
               <br />
-              비율 유지 / 원본은 연결 사건에 보관
+              {locked
+                ? "작성이 끝난 보고서는 사진을 바꿀 수 없습니다"
+                : "비율 유지 / 원본은 연결 사건에 보관"}
             </p>
           )}
         </div>
@@ -804,9 +814,15 @@ export default function ReportForm({
               <PhotoField
                 side="before"
                 title="조치 전"
+                locked={locked}
                 onEdit={clearFeedback}
               />
-              <PhotoField side="after" title="조치 후" onEdit={clearFeedback} />
+              <PhotoField
+                side="after"
+                title="조치 후"
+                locked={locked}
+                onEdit={clearFeedback}
+              />
             </div>
           </Section>
 

@@ -201,8 +201,14 @@ export default function DashboardAside({
         {notice && (
           <p
             className={`dashboard-panel__notice${predictionData ? "" : " dashboard-panel__notice--empty"}`}
-            data-lost={mlDisplay.isError || mlDisplay.found}
-            role={mlDisplay.isError || mlDisplay.found ? "alert" : "status"}
+            data-lost={
+              mlDisplay.isError || mlDisplay.found || mlDisplay.faulted
+            }
+            role={
+              mlDisplay.isError || mlDisplay.found || mlDisplay.faulted
+                ? "alert"
+                : "status"
+            }
           >
             {notice}
           </p>

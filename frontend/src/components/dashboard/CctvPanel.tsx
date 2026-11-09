@@ -11,6 +11,7 @@ export default function CctvPanel({ active = true }: { active?: boolean }) {
       title="실시간 CCTV"
       src={active ? CCTV_URL : "about:blank"}
       allow="autoplay"
+      scrolling="no"
       className="cctv-panel"
     />
   );

@@ -80,8 +80,13 @@ export function predictionDisplay(state: PredictionState) {
   const p = snapshot?.prediction;
   let error = "";
   let notice = "";
-  if (state.lost) error = "예측 조회 통신";
-  else if (!snapshot) notice = "예측을 준비하고 있습니다.";
+  // 통신·센서 수신 지연 중에는 오래된 그래프를 숨기고, 정상 복귀하면 그래프만 보인다.
+  let hideGraph = false;
+  let faulted = false;
+  if (state.lost) {
+    error = "예측 조회 통신";
+    hideGraph = true;
+  } else if (!snapshot) notice = "예측을 준비하고 있습니다.";
   else if (!snapshot.enabled) notice = "예측 기능이 꺼져 있습니다.";
   else if (p?.status === "model_error") error = "ML 모델 로딩";
   else if (p?.status === "inference_error") error = "ML 추론";
@@ -97,13 +102,15 @@ export function predictionDisplay(state: PredictionState) {
     )
       notice = "데이터 공백으로 예측 갱신을 기다리고 있습니다.";
     else error = inputErrors[p.reason ?? ""] ?? "예측 입력 데이터";
-  } else if (!snapshot.producer_connected || snapshot.stale)
+  } else if (!snapshot.producer_connected || snapshot.stale) {
     notice = "센서 수신 지연으로 예측 갱신을 기다리고 있습니다.";
-  else if (p?.status === "not_ready" || p?.status === "initializing")
+    hideGraph = true;
+  } else if (p?.status === "not_ready" || p?.status === "initializing")
     notice = "데이터를 수집하고 있습니다.";
-  else if (p?.evaluation_eligible === false)
-    notice = "현재 감지된 오류가 있어 미래 예측 갱신을 기다리고 있습니다.";
-  else if (p?.deadline_exceeded) error = "예측 처리 시간 초과";
+  else if (p?.evaluation_eligible === false) {
+    notice = "이상이 발생하였습니다.";
+    faulted = true;
+  } else if (p?.deadline_exceeded) error = "예측 처리 시간 초과";
   else if (!usable(snapshot)) error = "예측 응답";
 
   // 수신된 예측의 에러 확률이 100%에 도달하면 에러가 발견된 것으로 알린다.
@@ -111,15 +118,21 @@ export function predictionDisplay(state: PredictionState) {
     !error &&
     !notice &&
     (state.lastGood?.snapshot.prediction.error_probability ?? 0) >= 1;
-  if (found) notice = "에러가 발견 되었습니다";
+  if (found) {
+    notice = "이상현상이 발견 되었습니다";
+    hideGraph = true; // 정상 복귀(확률 100% 미만)하면 그래프를 다시 보여 준다.
+  }
 
-  const held = Boolean(state.lastGood && (error || notice));
+  const held = Boolean(!hideGraph && state.lastGood && (error || notice));
   const reference = state.lastGood?.snapshot.prediction.reference_time;
   return {
-    prediction: state.lastGood?.snapshot.prediction ?? null,
+    prediction: hideGraph
+      ? null
+      : (state.lastGood?.snapshot.prediction ?? null),
     held,
     isError: Boolean(error),
     found,
+    faulted,
     message: error
       ? `${error} 에러가 발생했습니다. 확인이 필요합니다.`
       : notice,
