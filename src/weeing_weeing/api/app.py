@@ -14,6 +14,7 @@ from weeing_weeing.api.documents import router as documents_router
 from weeing_weeing.api.llm_usage import router as llm_usage_router
 from weeing_weeing.api.ml import router as ml_router
 from weeing_weeing.api.reports import router as reports_router
+from weeing_weeing.api.retention import RetentionWorker
 from weeing_weeing.api.telemetry import router as telemetry_router
 from weeing_weeing.api.telemetry_live import router as telemetry_live_router
 from weeing_weeing.config import get_settings
@@ -25,6 +26,13 @@ from weeing_weeing.ml.interface import create_live_service
 @asynccontextmanager
 async def lifespan(app):
     settings = get_settings()
+    retention = (
+        RetentionWorker(settings.database_url, settings.db_timeout_s)
+        if settings.telemetry_retention_enabled
+        else None
+    )
+    if retention:
+        retention.start()
     service = (
         AnalysisService(analysis_enabled=settings.analysis_auto_enabled)
         if settings.analysis_auto_enabled or settings.telemetry_db_enabled
@@ -53,6 +61,8 @@ async def lifespan(app):
         await anyio.to_thread.run_sync(app.state.ml_service.stop)
         if service:
             await anyio.to_thread.run_sync(service.stop)
+        if retention:
+            await anyio.to_thread.run_sync(retention.stop)
 
 
 app = FastAPI(title="weeing-weeing", version=__version__, lifespan=lifespan)

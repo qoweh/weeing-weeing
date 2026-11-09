@@ -206,6 +206,9 @@ class TelemetryRow(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     record_id: Mapped[str] = mapped_column(String(64))
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    stored_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"), index=True
+    )
     process_id: Mapped[str] = mapped_column(String(64))
     asset_id: Mapped[str] = mapped_column(String(64))
     schema_version: Mapped[str] = mapped_column(String(16))
