@@ -286,6 +286,8 @@ cd ~/langfuse && docker compose start    # 다시 켜기
 - 공식 이미지가 하위 경로를 지원하지 않아 `langfuse.<EC2_IP>.sslip.io`(IP를 가리키는 무료 이름)로 연다
 - 앱과 따로 `~/langfuse/`에서 띄운다(`deploy/langfuse/`). 앱 배포 때 재시작되지 않는다. 앱을 먼저 한 번 띄워 네트워크 `weeing-weeing_default`가 있어야 한다. 배포 워크플로는 `~/langfuse`를 건드리지 않으므로 레포의 `deploy/langfuse/docker-compose.yml`을 바꾸면 서버에 직접 복사한다
 - 이미지는 옮겨 온 데이터를 만든 버전(Langfuse 4.71.0, ClickHouse 25.12.11.4)으로 고정했다. 더 낮은 버전으로 띄우지 않는다
+- ClickHouse는 `deploy/langfuse/clickhouse/`의 저부하 설정으로 띄운다. 서버의 `~/langfuse/clickhouse/`에도 같은 파일을 둔다. 기본값 그대로면 자기 진단 로그(`system.trace_log`·`metric_log` 등)를 쓰고 합치느라 2코어를 거의 다 쓰고, 보관 기한 없이 3일에 약 3GB가 쌓였다(2026-11-09). 진단 로그는 `query_log`(3일 보관)·`error_log`만 남기고 메모리 한도는 RAM의 30%다
+- 설정을 바꾼 뒤에는 `docker compose up -d langfuse-clickhouse`로 ClickHouse만 다시 띄운다. 그동안 Langfuse 기록만 잠깐 빠진다. `background_pool_size`를 16 아래로 줄이면 MergeTree 설정 검사에 걸려 시작하지 않는다
 - 가입은 막혀 있다. 계정은 홈서버에서 옮겨 온 팀원 계정이다([AWS_ACCESS](AWS_ACCESS.md#5-langfuse-llm-기록))
 - `.env`의 `SALT`·`ENCRYPTION_KEY`는 홈서버 값과 같아야 한다. `SALT`가 다르면 기존 sk 인증이 실패한다
 

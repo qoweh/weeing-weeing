@@ -94,6 +94,9 @@ services:
     volumes:
       - clickhouse_data:/var/lib/clickhouse
       - clickhouse_logs:/var/log/clickhouse-server
+      # 진단 로그·프로파일러를 꺼 2코어 서버의 CPU·디스크를 아낀다(파일 안 설명 참고). 이 폴더도 서버에 함께 둔다.
+      - ./clickhouse/config.d/low-resource.xml:/etc/clickhouse-server/config.d/low-resource.xml:ro
+      - ./clickhouse/users.d/low-resource.xml:/etc/clickhouse-server/users.d/low-resource.xml:ro
     healthcheck:
       test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
       interval: 5s
