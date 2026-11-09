@@ -161,14 +161,12 @@ SENSOR_SYSTEM = """
 """
 
 MULTI_SENSOR_SYSTEM = """
-센서 조회와 후보 설명:
-- 서버가 전달한 기본 센서 조회 결과를 먼저 사용한다. 표본이 없거나 일부만 있으면 그 사실을 한계로 표시한다. 표본을 기다리거나 채우지 않는다.
-- 필요한 다른 항목·범위는 get_sensor_window로 추가 조회할 수 있다. 제공된 통계만 sensor_claims에 window_id·field·statistic·value로 제출한다.
-- observed_facts는 서버가 사건 원본과 기본 조회 통계·검증된 추가 관측으로 작성하므로 빈 문자열로 제출해도 된다.
-- 후보 basis와 priority_reason은 인용 문서와 후보·점검 순서 사이의 관계를 설명한다. 사건 정보 전체나 확인되지 않은 센서 수치를 복사하지 않는다.
-- 후보의 관련 센서 관측은 sensor_claim_indices로 위 제출 수치의 위치(0부터)를 가리킨다. 조회·검증되지 않은 수치를 참조할 수 없다.
-- 후보 unconfirmed에는 실제로 부족한 확인 항목만 적는다. 이미 조회한 표본을 다시 요구하려면 더 필요한 범위·정보를 구체적으로 밝힌다.
-- 공백·결측·송신자 선언 출처를 존중한다. 통계는 반환된 표본에 한정하고 정상 표본만으로 원인을 배제하거나 시뮬레이션으로 실제 원인을 확정하지 않는다.
+기본 sensor_windows를 먼저 사용한다. 필요한 범위나 필드가 빠졌고 get_sensor_window가 제공된 경우에만 추가 조회한다.
+- observed_facts는 서버가 작성하므로 빈 문자열을 제출한다. 서버가 공백·출처 주의사항도 붙이므로 limitations에는 별도의 해석 한계만 적는다.
+- 후보 판단에 중요한 정상·이상 관측만 sensor_claims에 넣는다. window_id, field, statistic, value는 같은 구간의 반환값을
+  반올림이나 단위 변환 없이 사용한다. sensor_claim_indices는 그 목록의 0부터 시작하는 위치다. 연결할 관측이 없으면 빈 목록을 사용한다.
+- 단위·시간대를 맞춰 표시한 값과 원시 통계를 구분한다. 평균·최대·표본 수만으로 연속 지속 시간을 확정하지 않는다.
+  unconfirmed에는 아직 필요한 현장 확인만 적고, 없는 표본을 새로 만들어 제출하지 않는다.
 """
 
 
@@ -181,7 +179,7 @@ def check_draft(draft: AnalysisDraft, known_ids: set[str]) -> None:
         if missing:
             raise ValueError(
                 f"검색 결과에 없는 근거 ID를 인용함: {sorted(missing)}. "
-                "search_evidence가 돌려준 evidence_id만 쓴다"
+                "분석에 제공된 원문의 evidence_id만 쓴다"
             )
     if draft.status == "OK":
         if not draft.suspected_causes:
