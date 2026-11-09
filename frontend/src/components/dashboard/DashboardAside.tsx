@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { IncidentCodeLabel } from "../ui/IncidentCodeLabel";
+import Glyph from "../ui/Glyph";
 import { incidentCodeText } from "../ui/incidentCodes";
 import {
   getMlPrediction,
@@ -44,7 +45,9 @@ export function probabilityTone(value: number) {
   return "normal";
 }
 
-export const percent = (value: number) => `${Math.round(value * 1000) / 10}%`;
+// 소수 첫째 자리까지 같은 형식으로 보여 줘서 4.0%와 5.1%의 자릿수가 어긋나지 않는다.
+export const percent = (value: number) =>
+  `${(Math.round(value * 1000) / 10).toFixed(1)}%`;
 
 export type PredictionRow = { code: string; probability: number };
 
@@ -90,6 +93,12 @@ function isUnauthorized(error: unknown) {
   );
 }
 
+function formatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("ko-KR");
+}
+
 function formatTime(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
@@ -101,9 +110,12 @@ function formatTime(value: string) {
 }
 
 export default function DashboardAside({
+  visible = true,
   onNavigate,
   onSessionExpired,
 }: {
+  // 대시보드가 숨겨진 동안은 조회를 멈추고, 다시 보이면 바로 한 번 조회한 뒤 이어간다.
+  visible?: boolean;
   onNavigate?: (page: string) => void;
   onSessionExpired?: () => void;
 }) {
@@ -111,6 +123,7 @@ export default function DashboardAside({
   const [mlState, setMlState] = useState(emptyPredictionState);
 
   useEffect(() => {
+    if (!visible) return undefined;
     let active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const controller = new AbortController();
@@ -140,9 +153,10 @@ export default function DashboardAside({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [onSessionExpired]);
+  }, [onSessionExpired, visible]);
 
   useEffect(() => {
+    if (!visible) return undefined;
     let active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     // 각 목록은 독립적으로 불러와 한 곳이 실패해도 나머지는 유지한다.
@@ -163,7 +177,7 @@ export default function DashboardAside({
       active = false;
       clearTimeout(timer);
     };
-  }, [onSessionExpired]);
+  }, [onSessionExpired, visible]);
 
   const recentReports = [...(reports ?? [])]
     .sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)))
@@ -181,10 +195,12 @@ export default function DashboardAside({
         aria-labelledby="aside-predictions"
         data-prediction-error={mlDisplay.isError}
       >
-        <h2 id="aside-predictions">예측 이상 현상 내역</h2>
+        <div className="dashboard-panel__header">
+          <h2 id="aside-predictions">예측 이상 현상 내역</h2>
+        </div>
         {notice && (
           <p
-            className="dashboard-panel__notice"
+            className={`dashboard-panel__notice${predictionData ? "" : " dashboard-panel__notice--empty"}`}
             data-lost={mlDisplay.isError || mlDisplay.found}
             role={mlDisplay.isError || mlDisplay.found ? "alert" : "status"}
           >
@@ -238,13 +254,25 @@ export default function DashboardAside({
       </section>
 
       <section className="dashboard-panel" aria-labelledby="aside-reports">
-        <h2 id="aside-reports">최근 정비 이력</h2>
+        <div className="dashboard-panel__header">
+          <h2 id="aside-reports">최근 정비 이력</h2>
+          {onNavigate && (
+            <button
+              type="button"
+              className="dashboard-panel__more"
+              onClick={() => onNavigate("maintenance")}
+            >
+              전체 보기
+              <Glyph name="chevron-right" size={16} />
+            </button>
+          )}
+        </div>
         {reports === null ? (
-          <p className="dashboard-panel__empty">불러오는 중입니다.</p>
+          <p className="dashboard-panel__empty">불러오는 중</p>
         ) : recentReports.length === 0 ? (
-          <p className="dashboard-panel__empty">정비 이력이 없습니다.</p>
+          <p className="dashboard-panel__empty">정비 이력이 없습니다</p>
         ) : (
-          <ul>
+          <ul className="dashboard-panel__list">
             {recentReports.map((report) => (
               <li key={report.report_id} className="dashboard-panel__line">
                 <button
@@ -253,6 +281,9 @@ export default function DashboardAside({
                 >
                   {report.report_id}
                 </button>
+                <span className="dashboard-panel__meta">
+                  {formatDate(report.updated_at)}
+                </span>
                 <span
                   className="dashboard-badge"
                   data-tone={reportTone[report.report_status] ?? "info"}

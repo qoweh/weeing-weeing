@@ -92,8 +92,10 @@ class ApiError extends Error {
 }
 
 let accessToken = "";
+const inFlight = new Map<string, Promise<any>>();
 
 export function setAccessToken(token: string) {
+  if (token !== accessToken) inFlight.clear();
   accessToken = token;
 }
 
@@ -189,6 +191,8 @@ export async function request(
           : JSON.stringify(body),
     });
 
+    // 쓰기 성공 뒤에는 그 전에 시작한 목록 조회를 재사용하지 않는다.
+    if (response.ok && method.toUpperCase() !== "GET") inFlight.clear();
     if (response.ok && responseType === "stream")
       return await readChatStream(response, {
         onEvent,
@@ -315,8 +319,21 @@ export function currentUser() {
 export function logoutUser() {
   return request("/auth/logout", { method: "POST" });
 }
+// 같은 GET이 이미 진행 중이면 새로 보내지 않고 그 응답을 함께 쓴다(헤더·대시보드 등이 동시에 같은 목록을 부를 때).
+// 응답은 호출자마다 복사해 줘서 한쪽이 배열을 바꿔도 다른 쪽에 영향이 없다.
+function sharedGet<T>(path: string): Promise<T> {
+  let pending = inFlight.get(path);
+  if (!pending) {
+    const current = request(path);
+    pending = current.finally(() => {
+      if (inFlight.get(path) === pending) inFlight.delete(path);
+    });
+    inFlight.set(path, pending);
+  }
+  return pending.then((value) => structuredClone(value));
+}
 export function listIncidents(): Promise<Incident[]> {
-  return request("/incidents");
+  return sharedGet("/incidents");
 }
 export function getIncidentAnalysis(id: string) {
   return request(`/incidents/${encodeURIComponent(id)}/analysis`);
@@ -382,7 +399,7 @@ export function getLlmUsage(period: LlmUsagePeriod): Promise<LlmUsageSummary> {
   return request(`/llm-usage?period=${period}`, { timeoutMs: 20_000 });
 }
 export function listReports(scope = "mine"): Promise<ReportSummary[]> {
-  return request(`/reports?scope=${encodeURIComponent(scope)}`);
+  return sharedGet(`/reports?scope=${encodeURIComponent(scope)}`);
 }
 export function getReport(id: string, version?: number, signal?: AbortSignal) {
   const suffix = version ? `/versions/${version}` : "";

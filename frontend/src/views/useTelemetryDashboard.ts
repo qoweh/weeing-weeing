@@ -5,6 +5,7 @@ import { applySnapshot, emptyChartModel } from "./telemetryCharts";
 export default function useTelemetryDashboard(
   interval: number,
   onSessionExpired: () => void,
+  visible = true,
 ) {
   const model = useRef(emptyChartModel());
   const error = useRef<string | null>(null);
@@ -79,17 +80,18 @@ export default function useTelemetryDashboard(
     };
   }, [onSessionExpired]);
 
+  // 화면에 보일 때만 주기적으로 다시 그린다. 데이터 수신은 계속하고, 다시 보이면 바로 최신 값으로 갱신한다.
   useEffect(() => {
-    const timer = setInterval(
-      () =>
-        setView({
-          model: model.current,
-          error: error.current,
-          now: Date.now(),
-        }),
-      interval,
-    );
+    if (!visible) return undefined;
+    const publish = () =>
+      setView({
+        model: model.current,
+        error: error.current,
+        now: Date.now(),
+      });
+    publish();
+    const timer = setInterval(publish, interval);
     return () => clearInterval(timer);
-  }, [interval]);
+  }, [interval, visible]);
   return view;
 }

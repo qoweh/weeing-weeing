@@ -16,3 +16,66 @@ docker compose exec -T api python scripts/seed_330_reports.py \
 ```
 
 `--aws`는 Docker 내부 DB 호스트 `postgres`와 Qdrant 호스트 `qdrant`에서만 허용한다. 로컬 실행은 이 옵션을 빼고 로컬 PostgreSQL과 Qdrant 서버를 사용한다. 외부 임베딩 공급자를 사용하면 색인 과정에서 API 비용이 발생할 수 있다. 종료 후 출력된 신규·기존·검색 등록 건수, 사이트의 정비이력, Qdrant 검색 결과를 확인한다.
+
+## 센서 연결 시험용 5건
+
+`seed_5_sensor_reports.py`는 각각 에러 확정 시점의 센서 표본 한 건을 가진 M10 사건과 승인 정비보고서 5건을 생성한다. 데이터와 조치·결재는 모두 시연용이다. 보고서의 AI 분석은 LLM을 호출하지 않고 시연용 점검 가이드에 따라 미리 작성한 내용이다. `SYNTHETIC` 보고서와 `SIMULATION` 센서 출처를 기록한다.
+
+새 ID `INC-SENSOR-TEST-V3-M10-001`~`005`와 2026-08-11~15 12:12:34 KST를 사용한다. 이전 V1·V2 시험 데이터의 시각이나 ID와 다르다. 같은 시각에 다른 센서 표본이 있으면 덮어쓰지 않고 중단한다. 발생 전 이력이나 조치 후 센서 시계열은 만들지 않는다.
+
+| 사례 | 가상 현장 확인 | 확정 온도 | 입력전류 | 구동측 진동 RMS |
+|---|---|---:|---:|---:|
+| 1 | 방열구 분진 | 94℃ | 0.092 A | 0.060 g |
+| 2 | 주변 열원 | 92℃ | 0.091 A | 0.055 g |
+| 3 | 벨트·가이드 접촉 | 96℃ | 0.093 A | 0.078 g |
+| 4 | 하중 증가 | 95℃ | 0.0935 A | 0.065 g |
+| 5 | 온도 센서 부착 위치 이탈 | 93℃ | 0.092 A | 0.058 g |
+
+나머지 센서는 회전수 1015rpm, 전압 24V, 입·출구 미감지, 구동측 첨도 4.5, 반구동측 진동 0.055g, 첨도 4.3이다. 센서 수치와 확인 원인 간 관계는 시연 설정으로 실제 물리 검증 결과가 아니다.
+
+DB 없이 JSON 미리보기:
+
+```bash
+PYTHONPATH=src uv run --no-sync python scripts/seed_5_sensor_reports.py --output /tmp/sensor-report-cases-v3.json
+```
+
+로컬 SQLite 또는 로컬 PostgreSQL에 등록하려면 활성 시연 계정과 DB 스키마를 준비하고 실행한다. 실제 DB 설정과 키는 이 명령의 사용자만 확인한다.
+
+```bash
+PYTHONPATH=src uv run --no-sync python scripts/seed_5_sensor_reports.py \
+  --apply --author I4001 --reviewer L2001 --approver C1001
+```
+
+서버에 배포한 후 Docker 내부에서 등록하려면 `docker compose exec -T api python scripts/seed_5_sensor_reports.py --apply --aws --author I4001 --reviewer L2001 --approver C1001`을 사용한다. `--index`는 별도 검색 색인을 실행하며 외부 임베딩 설정에서는 비용이 발생할 수 있다. 보고서 색인에는 센서 시계열이 포함되지 않는다. 동일한 완료 사례는 재사용하며 다른 기존 자료를 덮어쓰지 않는다. 등록은 여러 저장 작업으로 구성되므로 중단되면 일부 자료가 남을 수 있다.
+
+각 사례는 공통 안전·온도 실측 절차를 유지하면서 방열구, 주변 열원, 벨트 접촉, 하중, 센서 부착 위치 중 서로 다른 항목을 우선 점검하도록 구성한다. 해당 우선순위는 시연용으로 설정한 점검 계획이며 정비 후 확인 원인을 미리 알고 확정한 결과가 아니다.
+
+## 센서와 분석 권고가 포함된 새 330건
+
+`seed_330_sensor_reports.py`는 기존 330건과 같은 22개 에러 코드에 대해 코드당 15건, 총 330건을 새로 생성한다.
+
+- 사용: `P01~P07`, `M02`, `M03`, `M05~M08`, `M10~M18`.
+- 기존 330건에서 제외: `M01`, `M04`, `M09`, `M19`, `D01~D05`. 이는 **이 데이터 세트의 범위**이며 이 코드들이 시스템에서 전부 미사용이라는 뜻이 아니다. 현재 시뮬레이터 프로필의 별도 제외 대상은 `M04`와 `M19`다.
+- ID: `INC-SENSOR-BATCH-V1-BTT2-<코드>-<순번>`으로 기존 삭제 ID와 5건 시험 ID에 겹치지 않는다. 사건별 시각은 2024-01-01 12:12:34 KST부터 매일 한 건으로 고정한다. 같은 공정·설비·시각에 센서 표본이 있으면 덮어쓰지 않고 중단한다.
+- 각 보고서는 에러 확정 시점의 **센서 표본 한 건**과 정적 시연용 AI 후보·점검·권고 및 가상 정비 결과를 갖는다. LLM을 호출하지 않는다. 각 표본과 보고서는 `SIMULATION`과 `SYNTHETIC`으로 식별한다.
+- 이송 시간·반복 횟수·센서 지속 조건은 단일 표본에서 계산할 수 없다. 그런 사건은 기존 가상 사건의 판정 정보로만 기록하며 단일 표본이 시간 조건을 증명한다고 주장하지 않는다.
+- 정적 분석의 출처는 별도 시연용 가이드이며 실제 매뉴얼 원문 검색 결과나 현장 검증 결과가 아니다. 확인 원인·수행 조치는 분석 권고에 복사하지 않는다.
+
+실제 DB 없이 생성 결과를 확인한다.
+
+```bash
+PYTHONPATH=src uv run --no-sync python scripts/seed_330_sensor_reports.py \
+  --output /tmp/sensor-report-cases-330.json
+```
+
+로컬 DB에 등록하고 로컬 Qdrant 서버에 Voyage로 색인하는 예시다. 로컬 PostgreSQL/SQLite, 활성 시연 계정 및 해당 컬렉션과 일치하는 임베딩 설정이 필요하다. 서버와 컬렉션이 사용할 대상인지 반드시 확인한다. **API 키는 채팅·소스·명령 인자로 넣지 않는다.** 다음 명령은 사용자가 본인 터미널에서만 실행한다.
+
+```bash
+VECTOR_STORE=qdrant QDRANT_URL=http://localhost:6333 \
+RAG_COLLECTION=knowledge_voyage EMBEDDING_PROVIDER=voyage \
+EMBEDDING_MODEL=voyage-4-lite EMBEDDING_DIM=1024 PYTHONPATH=src \
+uv run --no-sync --env-file .env python scripts/seed_330_sensor_reports.py \
+  --apply --index --author I4001 --reviewer L2001 --approver C1001
+```
+
+`--index`를 빼면 보고서와 센서만 등록하고 검색 작업은 대기 상태로 둔다. 실패한 색인 작업은 같은 명령으로 재시도한다. Voyage 사용 시 외부 API 비용이 생길 수 있다. 기존 보고서 색인은 현장 기록 중심이며 AI 권고와 센서 표본은 색인하지 않는다. 이미 등록된 사례는 사건·보고서·분석·센서가 기대 데이터와 정확히 일치할 때만 재사용하며, 일치하지 않거나 시각이 겹치면 중단한다. 작업 중 중단되면 일부가 저장될 수 있으므로 상태를 확인한 뒤 재실행한다.

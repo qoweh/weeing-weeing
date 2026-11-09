@@ -11,9 +11,6 @@ export default function AssistantPanel() {
         <span className="card-heading__sample">준비 중</span>
       </div>
       <div className="assistant__body">
-        <div className="assistant__orb" aria-hidden="true">
-          ✦
-        </div>
         <strong>무엇을 도와드릴까요?</strong>
         <p>
           이상 사건과 정비 문서를 바탕으로

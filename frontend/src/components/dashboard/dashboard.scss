@@ -9,13 +9,13 @@
   color: var(--primary);
   font-size: var(--fs-caption);
   line-height: var(--lh-caption);
-  letter-spacing: 0.14em;
-  font-weight: 800;
+  letter-spacing: 0;
+  font-weight: 500;
   margin-bottom: 8px;
 }
 .dashboard h1 {
   font-size: clamp(1.65rem, 3vw, 2rem);
-  letter-spacing: -0.045em;
+  letter-spacing: 0;
 }
 .dashboard__heading p {
   color: var(--muted);
@@ -108,8 +108,8 @@
 }
 .metric__value {
   font-size: var(--fs-display);
-  font-weight: 800;
-  letter-spacing: -0.04em;
+  font-weight: 600;
+  letter-spacing: 0;
   margin: 13px 0 10px;
   line-height: 1;
 }
@@ -118,7 +118,7 @@
   color: var(--muted);
   font-size: var(--fs-body);
   line-height: var(--lh-body);
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: 0;
 }
 .chart-card,
@@ -129,7 +129,7 @@
 .card-heading h2 {
   font-size: var(--fs-heading-m);
   line-height: var(--lh-heading-m);
-  letter-spacing: -0.025em;
+  letter-spacing: 0;
 }
 .card-heading p {
   color: var(--muted);
@@ -141,7 +141,7 @@
   color: var(--muted);
   background: var(--surface-hover);
   border-radius: 6px;
-  padding: 4px 7px;
+  padding: 4px 8px;
   font-size: var(--fs-caption);
   line-height: var(--lh-caption);
   white-space: nowrap;
@@ -168,7 +168,7 @@
   display: block;
   margin: 12px 0 8px;
   font-size: var(--fs-display);
-  font-weight: 800;
+  font-weight: 600;
   line-height: var(--lh-display);
 }
 .trend__summary small {
@@ -221,7 +221,7 @@
 .bar-chart__bar {
   width: min(100%, 32px);
   min-height: 5px;
-  border-radius: 9px 9px 5px 5px;
+  border-radius: 4px 4px 0 0;
   background: color-mix(in srgb, var(--primary) 28%, var(--surface));
 }
 .bar-chart__bar--active {
@@ -276,7 +276,7 @@ th {
   color: var(--muted);
   font-size: var(--fs-caption);
   line-height: var(--lh-caption);
-  font-weight: 700;
+  font-weight: 500;
   padding: 12px 10px;
   border-bottom: 1px solid var(--border);
 }
@@ -308,12 +308,11 @@ tbody tr:last-child td {
   height: 64px;
   margin: 0 auto 18px;
   border-radius: 50%;
-  color: white;
-  font-size: var(--fs-display);
-  font-weight: 800;
-  line-height: var(--lh-display);
-  background: radial-gradient(circle at 30% 25%, #95c9ff, #2865ed 65%, #1640a1);
-  box-shadow: 0 8px 28px rgba(40, 101, 237, 0.25);
+  color: var(--primary);
+  font-size: var(--fs-heading-l);
+  font-weight: 500;
+  line-height: var(--lh-heading-l);
+  background: var(--primary-soft);
 }
 .assistant__body strong {
   font-size: var(--fs-emphasis);
@@ -371,7 +370,7 @@ tbody tr:last-child td {
   }
   .metric__value {
     font-size: var(--fs-display);
-    font-weight: 800;
+    font-weight: 600;
     line-height: var(--lh-display);
   }
   .chart-card,
