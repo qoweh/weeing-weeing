@@ -32,13 +32,13 @@ export function AnalysisCard({ incident, result, user, onResult, onSessionExpire
     </aside>
     <div className="incident-result__detail">
     {state === 'COMPLETED' && analysis && <>
-      {analysis.status === 'OK' && latestVerification?.verdict === 'CAUTION' && <div className="incident-result__group" role="note"><h4>검증 주의사항</h4><ul>{latestVerification.issues.map((issue, index) => <li key={index}><AnalysisText text={issue.reason} /><AnalysisText text={issue.correction} /></li>)}</ul></div>}
       {analysis.status !== 'OK' && <p className="incident-result__status">{analysis.status === 'VERIFICATION_FAILED' ? '검증 미통과 · 분석 초안 — 담당자 확인 필요' : analysis.status === 'INSUFFICIENT_EVIDENCE' ? '관련 근거가 부족해 추가 자료가 필요합니다' : 'AI 분석에 실패했습니다'}</p>}
       {analysis.suspected_causes?.length > 0 && <div className="incident-result__group incident-result__group--candidates"><h4>원인·점검 후보</h4><CauseCandidates analysis={analysis} incident={incident} compact showSources={false} /></div>}
       {analysis.recommended_checks?.length > 0 && <div className="incident-result__group incident-result__group--checks"><h4>권고 점검 절차</h4><InspectionChecks analysis={analysis} showSources={false} /></div>}
       {analysis.recommended_actions?.length > 0 && <div className="incident-result__group incident-result__group--actions"><h4>권고 조치</h4><AnalysisActions analysis={analysis} showSources={false} /></div>}
       {analysis.actions_requiring_approval?.length > 0 && <div className="incident-result__group incident-result__group--approval"><h4>승인이 필요한 조치</h4><AnalysisActions analysis={analysis} approval showSources={false} /></div>}
       <Lines title="추가 확인 사항" items={analysis.additional_checks} />
+      {analysis.status === 'OK' && latestVerification?.verdict === 'CAUTION' && <div className="incident-result__group incident-result__group--additional incident-result__group--caution" role="note"><h4>검증 주의사항</h4><ol>{latestVerification.issues.map((issue, index) => <li key={index}><AnalysisText text={issue.reason} /><div className="incident-result__caution-check"><strong>확인 사항</strong><AnalysisText text={issue.correction} /></div></li>)}</ol></div>}
       <MaintenanceReferences showSources={false} cases={analysis.reference_cases} evidence={analysis.evidence} onOpenReport={onOpenReport} busy={busy} />
       {analysis.observed_facts && <details className="incident-result__group"><summary>사건·센서 정보</summary><AnalysisText text={displayIncidentFacts(analysis.observed_facts, incident)} /></details>}
       {analysis.limitations && <details className="incident-result__group"><summary>분석 한계 및 데이터 주의사항</summary><AnalysisText text={analysis.limitations} className="incident-result__note" /></details>}

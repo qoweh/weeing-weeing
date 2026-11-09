@@ -16,6 +16,8 @@
   &__run h5 { font-size: 14px; margin: 18px 0 8px; }
   &__run li { margin: 8px 0; }
   &__run li p { margin-bottom: 4px; }
+  &__sources { margin-top: 20px; }
+  &__sources > summary { padding: 8px 0; }
   &__sources details { padding: 10px 0; border-top: 1px solid #a8b5c655; }
   &__sources summary { cursor: pointer; font-weight: 600; }
   &__sources summary span { display: inline-block; margin-left: 8px; font-weight: 400; font-size: 11px; }

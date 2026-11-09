@@ -1,6 +1,6 @@
 # 멀티에이전트 사건 분석 구현 가이드
 
-현재 작업 코드의 `multi-analysis-v7` 기준 문서다. 실제 실행 환경의 설정값이나 배포 완료를
+현재 작업 코드의 `multi-analysis-v8` 기준 문서다. 실제 실행 환경의 설정값이나 배포 완료를
 뜻하지 않는다. 기본값은 단일 분석이며 `ANALYSIS_MODE=multi`일 때 아래 흐름을 사용한다.
 
 - 역할·프롬프트·제출 형식: [MULTI_AGENT_PROMPTS](MULTI_AGENT_PROMPTS.md)
@@ -155,8 +155,8 @@ MEASURED도 독립적인 실측 인증이 아니다. 일정한 값이나 문서 
 ## 6. 프롬프트와 출력 길이
 
 프롬프트는 코드에서 역할 지시문·공통 평가 기준·센서 규칙·요약 기준을 조합한다.
-현재 단계 버전은 `multi-analysis-v7-documents`, `-reports`, `-synthesis`, `-verification`이다.
-최종 `AnalysisResult.prompt_version`은 `multi-analysis-v7`다.
+현재 단계 버전은 `multi-analysis-v8-documents`, `-reports`, `-synthesis`, `-verification`이다.
+최종 `AnalysisResult.prompt_version`은 `multi-analysis-v8`다.
 
 조사 발견은 최대 5개(각 400자), 한계는 최대 3개(각 300자)로 제출을 제한한다.
 통합은 후보 1~3개·점검 3~5개, 짧은 설명과 중복 통합을 목표로 한다. 검증 요약은 1~2문장을

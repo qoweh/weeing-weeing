@@ -158,7 +158,8 @@ def test_analysis_research_scopes_sources_and_rechecks_deleted_manual(knowledge,
         documents, reports = documents.result(), reports.result()
     assert [e.doc_id for e in documents] == [record.doc_id]
     assert [e.doc_id for e in reports] == [row.report_id]
-    assert "가상 사례" in reports[0].citation
+    assert "가상 사례" not in reports[0].citation
+    assert adapter.sources[reports[0].evidence_id].synthetic is True
     assert adapter.is_current(documents[0], timeout_s=10)
     remove(knowledge, record.doc_id)
     assert not adapter.is_current(documents[0], timeout_s=10)

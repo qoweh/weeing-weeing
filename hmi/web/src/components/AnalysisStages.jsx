@@ -17,14 +17,14 @@ const verdicts = { PASS: '검증 통과', CAUTION: '주의사항 확인', REVISE
 
 function Sources({ run }) {
   const selected = new Set(run.analysis?.evidence?.map((item) => item.evidence_id) || [])
-  return <div className="analysis-stages__sources"><h5>확보한 근거 원문 · {run.evidence.length}건</h5>
+  return <details className="analysis-stages__sources"><summary>확보한 근거 원문 · {run.evidence.length}건</summary>
     {run.evidence.map((item) => <details key={item.evidence_id}><summary>{evidenceLabel(item)}{run.role === 'synthesis' && <span>{selected.has(item.evidence_id) ? '분석에서 인용' : '전달된 참고 근거'}</span>}</summary>
       <p className="analysis-stages__source-id">문서 ID: {item.doc_id} · 버전: {item.doc_version}{item.section && ` · ${item.section}`}</p>
       <EvidenceTrace evidence={item} /><ReadableText text={item.text} className="analysis-stages__original" />
       {item.report_timing?.map((timing) => <p className="analysis-stages__note" key={timing.action_index}>서버 시간 비교 · 조치 {timing.action_index + 1}: {formatReadableTime(timing.action_at)} / 현재 사건 최초 감지: {formatReadableTime(timing.incident_at)} · {timing.offset_seconds === 0 ? '동일 시각' : `사건 ${timing.offset_seconds < 0 ? '이전' : '이후'} ${Math.abs(timing.offset_seconds).toFixed(3)}초`}</p>)}
     </details>)}
     {!run.evidence.length && <p>{['PENDING', 'RUNNING'].includes(run.status) ? '조사가 끝나면 확보한 근거가 표시됩니다.' : '이 단계에 확보된 근거가 없습니다.'}</p>}
-  </div>
+  </details>
 }
 
 function SensorWindows({ windows = {} }) {

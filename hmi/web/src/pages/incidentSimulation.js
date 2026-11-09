@@ -59,6 +59,7 @@ export async function runDashboardSimulation({ signal, getMode, onFrame, onConne
         record_id: `DEMO-${runId}-${count}`, timestamp: new Date().toISOString(),
         process_id: 'BAT-TRANSFER-01', asset_id: 'BLDC-001', schema_version: '3.0.0',
         ...demoNormalValues, motor_housing_temp_c: mode === 'error' ? 95 : 65,
+        dc_bus_voltage_v: mode === 'voltage_error' ? 28 : demoNormalValues.dc_bus_voltage_v,
       }
       const pending = nextMessage(socket, signal)
       socket.send(JSON.stringify(record))

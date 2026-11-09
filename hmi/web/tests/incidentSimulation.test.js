@@ -12,7 +12,7 @@ class FakeSocket extends EventTarget {
     this.url = url
     this.sent = []
     FakeSocket.instance = this
-    queueMicrotask(() => this.message(FakeSocket.ready))
+    queueMicrotask(() => this.message(typeof FakeSocket.ready === 'function' ? FakeSocket.ready(url) : FakeSocket.ready))
   }
   message(data) { this.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(data) })) }
   send(data) {
@@ -78,13 +78,16 @@ test('dashboard sends normal, error, and recovered values over one connection', 
     onFrame: (record) => {
       sent.push(record)
       if (sent.length === 1) mode = 'error'
-      if (sent.length === 2) mode = 'normal'
-      if (sent.length === 3) controller.abort()
+      if (sent.length === 2) mode = 'voltage_error'
+      if (sent.length === 3) mode = 'normal'
+      if (sent.length === 4) controller.abort()
     },
   })
   await assert.rejects(run, { name: 'AbortError' })
-  assert.deepEqual(sent.map((record) => record.motor_housing_temp_c), [65, 95, 65])
-  assert.equal(new Set(sent.map((record) => record.record_id)).size, 3)
+  assert.deepEqual(sent.map((record) => record.motor_housing_temp_c), [65, 95, 65, 65])
+  assert.deepEqual(sent.map((record) => record.dc_bus_voltage_v), [24, 24, 28, 24])
+  assert.equal(new URL(FakeSocket.instance.url).searchParams.get('context'), 'MINIMAL')
+  assert.equal(new Set(sent.map((record) => record.record_id)).size, 4)
   assert.equal(FakeSocket.instance.closed, true)
 })
 

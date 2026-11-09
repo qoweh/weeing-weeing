@@ -1,6 +1,6 @@
 # 멀티에이전트 프롬프트와 결과 제출
 
-현재 `multi-analysis-v7` 코드의 지시 구성과 데이터 전달을 설명한다.
+현재 `multi-analysis-v8` 코드의 지시 구성과 데이터 전달을 설명한다.
 아래 역할 설명은 코드의 지시를 정리한 것이며 실제 프롬프트 전문을 그대로 복사한 문서는 아니다.
 정확한 실행 지시와 JSON 스키마는 연결된 코드가 기준이다. 흐름·DB·설정·재시도는
 [MULTI_AGENT_ANALYSIS](MULTI_AGENT_ANALYSIS.md)를 참고한다.
@@ -27,10 +27,10 @@
 
 | 역할 | 조합 | 프롬프트 버전 |
 |---|---|---|
-| 문서 조사 | 문서 조사 역할 지시 + `RESEARCH_OUTPUT_RULES` + 사례 목록을 비우라는 지시 | `multi-analysis-v7-documents` |
-| 정비이력 조사 | 이력 조사 역할 지시 + `RESEARCH_OUTPUT_RULES` + `REPORT_SELECTION_RULES` | `multi-analysis-v7-reports` |
-| 통합 분석 | `SYSTEM` + `MULTI_SENSOR_SYSTEM` + `SYNTHESIS_OUTPUT_RULES` + 통합 역할 지시 | `multi-analysis-v7-synthesis` |
-| 근거 검증 | 독립 검증 역할 지시 + `ASSESSMENT_RULES` + `VERIFICATION_OUTPUT_RULES` + 점검 우선순위 검토 지시 | `multi-analysis-v7-verification` |
+| 문서 조사 | 문서 조사 역할 지시 + `RESEARCH_OUTPUT_RULES` + 사례 목록을 비우라는 지시 | `multi-analysis-v8-documents` |
+| 정비이력 조사 | 이력 조사 역할 지시 + `RESEARCH_OUTPUT_RULES` + `REPORT_SELECTION_RULES` | `multi-analysis-v8-reports` |
+| 통합 분석 | `SYSTEM` + `MULTI_SENSOR_SYSTEM` + `SYNTHESIS_OUTPUT_RULES` + 통합 역할 지시 | `multi-analysis-v8-synthesis` |
+| 근거 검증 | 독립 검증 역할 지시 + `ASSESSMENT_RULES` + `VERIFICATION_OUTPUT_RULES` + 점검 우선순위 검토 지시 | `multi-analysis-v8-verification` |
 
 `SYSTEM`에는 `ASSESSMENT_RULES`가 이미 붙어 있다. 단일 분석과 공통 정비 보조 지시를
 공유하지만 멀티 통합 역할은 추가 지시로 검색 대신 전달된 자료를 사용하고 후보 설명·
@@ -195,3 +195,7 @@ PASS에 미해결 issues를 넣거나 issues 없이 REVISE로 제출할 수 없�
    저장된 과거 결과는 자동 재실행되지 않고 재시도는 완료 단계의 이전 출력을 재사용한다.
 4. 기본 검사와 실제 모델 품질 평가는 구분한다. 자동 검증에는 가짜 SDK·검색기·임시 DB를
    사용하며 실제 환경 파일·키·유료 API 호출은 사용자가 자기 터미널에서 확인한다.
+
+문서가 순서를 명시한 경우에만 공식 순서라고 표현한다. 유사 사례의 반복은 안전·현재 증상·문서 절차와 함께 점검 우선순위의 참고로 활용하되 사례 건수만으로 현재 원인이나 조치 효과를 확정하지 않는다.
+
+통합 분석은 각 문서가 직접 뒷받침하는 주장만 인용하고, 후보 판단에 중요한 정상 범위 관측도 고려한다. 미관측 구간의 장비 상태는 추정하지 않으며 점검 대상인 데이터 수집 공백을 명확히 구분한다.
