@@ -1,0 +1,13 @@
+<!--
+  Langfuse가 쓰는 계정(default 프로필)의 쿼리별 프로파일러를 끈다. 켜 두면 쿼리마다 trace_log에 샘플을 남긴다.
+  서버 설정은 config.d/low-resource.xml.
+-->
+<clickhouse>
+    <profiles>
+        <default>
+            <memory_profiler_step>0</memory_profiler_step>
+            <query_profiler_real_time_period_ns>0</query_profiler_real_time_period_ns>
+            <query_profiler_cpu_time_period_ns>0</query_profiler_cpu_time_period_ns>
+        </default>
+    </profiles>
+</clickhouse>
