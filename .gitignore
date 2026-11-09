@@ -77,6 +77,11 @@ conveyor_dataset*.csv
 *.joblib
 /deploy/ml-models/
 weeing.ppk
+*.ppk
+/.codex/config(1).toml
+/.cache/
+/t
+/tatus
 
 # 로컬 병렬 테스트 임시 산출물
 /.pytest-*/

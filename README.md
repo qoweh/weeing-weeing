@@ -24,7 +24,7 @@ DB·색인·Claude API 키가 필요하고 실제 API 비용이 발생합니다.
 로그인한 사용자용 HTTP API는 `make api` 실행 후 `/docs`에서 확인할 수 있습니다.
 FAQ 버튼 선택·대화 저장·중복 요청·본인 조회 흐름은 [CHAT_API](docs/CHAT_API.md)에 정리했습니다.
 챗봇 LLM 왕복·재작성 개선과 실제 지연 비교 명령은
-[CHAT_ROUNDTRIP_PERFORMANCE](docs/CHAT_ROUNDTRIP_PERFORMANCE.md)를 참고하세요.
+[CHAT_ROUNDTRIP_PERFORMANCE](docs/CHAT_EVALUATION.md)를 참고하세요.
 
 자세한 설치(uv·Docker·Claude API 키)와 문제 해결: [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md)
 
@@ -56,6 +56,8 @@ ops/           로컬·운영 서버 명령 모음 (local.sh, aws.sh)
 
 ## 문서
 
+전체 문서 지도와 RAG·챗봇 작업 정리는 [문서 안내](docs/README.md)를 참고하세요.
+
 | 문서 | 내용 |
 |---|---|
 | [ARCHITECTURE](docs/ARCHITECTURE.md) | 전체 흐름, 모듈 표, 의존 규칙 **← 먼저 읽기** |
@@ -79,6 +81,7 @@ ops/           로컬·운영 서버 명령 모음 (local.sh, aws.sh)
 | [USAGE_TRACKING](docs/USAGE_TRACKING.md) | LLM 사용량 기록(Langfuse): 무엇을 남기는지, 팀원 설정 |
 | [DIRECTION_CHANGES](docs/DIRECTION_CHANGES.md) | 방향 전환 때 없앤 것·바꾼 것 기록(로컬 LLM 폐지 등) |
 | [RAG_RETRIEVAL](docs/RAG_RETRIEVAL.md) | 폴더별 역할, 검색·리랭킹 구조, 공개 연결 방법과 평가 |
+| [RAG 성능 평가](docs/rag_e2e/README.md) | 검색·리랭킹·청킹·새 질문·챗봇 응답 평가 결과와 보완 과제 |
 | [EMBEDDING_API](docs/EMBEDDING_API.md) | 임베딩·리랭크 공급자 선정(해시 기본·Voyage), 후보 비교와 가격 |
 | [COMMERCIAL_MODELS](docs/COMMERCIAL_MODELS.md) | 로컬 모델 → 상용 API 전환 점검: 안 해도 되는 것, 새로 챙길 것, 다시 정할 값 |
 | [AI_DATA_SECURITY](docs/AI_DATA_SECURITY.md) | 외부 AI로 나가는 데이터, 기업의 일반적 관리 방식, 도입 전 점검표 |
