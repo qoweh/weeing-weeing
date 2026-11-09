@@ -660,19 +660,25 @@ def test_message_model_selection_reaches_service_factory(setup):
         body = dict(request_id=str(uuid4()), question="질문", **extra)
         return client.post(path + "/messages", headers=owner, json=body)
 
-    assert send(model="claude-opus-5").status_code == 200
+    assert send(model="claude-opus-5-5").status_code == 200
     assert send().status_code == 200
     assert send(model="gpt-4").status_code == 422
-    assert seen == ["claude-opus-5", None]
+    assert seen == ["claude-opus-5-5", None]
 
     request_id = str(uuid4())
-    body = {"request_id": request_id, "question": "중복 질문", "model": "claude-opus-5"}
+    body = {
+        "request_id": request_id,
+        "question": "중복 질문",
+        "model": "claude-opus-5-5",
+    }
     first = client.post(path + "/messages", headers=owner, json=body)
     assert first.status_code == 200
-    assert first.json()["submission"]["model"] == "claude-opus-5"
+    assert first.json()["submission"]["model"] == "claude-opus-5-5"
     assert (
         client.post(
-            path + "/messages", headers=owner, json={**body, "model": "claude-sonnet-5"}
+            path + "/messages",
+            headers=owner,
+            json={**body, "model": "claude-sonnet-5-5"},
         ).status_code
         == 409
     )

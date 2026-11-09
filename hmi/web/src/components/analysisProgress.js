@@ -17,7 +17,7 @@ export function analysisProgress(result) {
     let detail = LABELS[run?.status] || '대기'
     if (role === 'synthesis' && run?.status === 'RUNNING' && run.summary === '센서 이력 확인 중') detail = '센서 이력 확인 중'
     if (run?.status === 'COMPLETED' && role === 'verification') {
-      detail = { PASS: '검증 통과', REVISE: '수정 필요', INSUFFICIENT_EVIDENCE: '근거 부족' }[run.verification?.verdict] || detail
+      detail = { PASS: '검증 통과', CAUTION: '주의사항 확인', REVISE: '수정 필요', INSUFFICIENT_EVIDENCE: '근거 부족' }[run.verification?.verdict] || detail
     }
     if (run?.attempt > 1 && ['synthesis', 'verification'].includes(role)) detail = `2차 · ${detail}`
     if (run?.reused_from_job_id && run.status === 'COMPLETED') detail += ' · 재사용'
@@ -47,6 +47,10 @@ export function analysisProgress(result) {
     } else if (result.analysis?.status === 'INSUFFICIENT_EVIDENCE') {
       title = '분석 완료 · 근거 부족'
       description = '충분한 근거가 없어 추가 확인이 필요합니다.'
+      tone = 'warning'
+    } else if (verification?.status === 'COMPLETED' && verification.verification?.verdict === 'CAUTION') {
+      title = '분석 완료 · 주의사항 확인'
+      description = '분석 결과와 검증 주의사항을 함께 확인하세요.'
       tone = 'warning'
     } else if (verification?.status === 'COMPLETED' && verification.verification?.verdict === 'PASS') {
       title = '분석 완료 · 검증 통과'

@@ -490,6 +490,9 @@ ul.report-analysis-list {
   cursor: pointer;
 }
 
+.report-sheet .report-photo-preview[aria-disabled="true"] {
+  cursor: default;
+}
 .report-photo-preview input[type="file"] {
   position: absolute;
   width: 1px;

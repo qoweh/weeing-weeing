@@ -35,7 +35,7 @@ class VerificationIssue(BaseModel):
 
 
 class VerificationResult(BaseModel):
-    verdict: Literal["PASS", "REVISE", "INSUFFICIENT_EVIDENCE"]
+    verdict: Literal["PASS", "CAUTION", "REVISE", "INSUFFICIENT_EVIDENCE"]
     summary: str = Field(min_length=1, max_length=2000)
     issues: list[VerificationIssue] = Field(default_factory=list, max_length=12)
 
@@ -43,7 +43,7 @@ class VerificationResult(BaseModel):
     def consistent(self) -> Self:
         if self.verdict == "PASS" and self.issues:
             raise ValueError("검증 통과에는 미해결 지적을 넣을 수 없습니다")
-        if self.verdict == "REVISE" and not self.issues:
+        if self.verdict in ("REVISE", "CAUTION") and not self.issues:
             raise ValueError("수정 요청에는 구체적인 지적이 필요합니다")
         return self
 

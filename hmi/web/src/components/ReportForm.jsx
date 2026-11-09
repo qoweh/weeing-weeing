@@ -398,6 +398,12 @@ export default function ReportForm({
                 )}
               </ReadValue>
 
+              {linkedAnalysis.limitations && (
+                <ReadValue label="분석 한계 및 검증 주의사항" wide>
+                  <span style={{ whiteSpace: "pre-wrap" }}>{linkedAnalysis.limitations}</span>
+                </ReadValue>
+              )}
+
               <ReadValue label="참조 매뉴얼·이력" wide>
                 <ul>
                   {linkedAnalysis.evidence.map((item) => (

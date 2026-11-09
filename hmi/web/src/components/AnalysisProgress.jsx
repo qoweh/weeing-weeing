@@ -10,7 +10,7 @@ export default function AnalysisProgress({ result }) {
       <div><strong>{progress.title}</strong><p>{progress.description}</p></div>
     </div>
     <ol className="analysis-progress__steps">{progress.steps.map((step) => <li key={step.role} data-status={step.status} data-verdict={step.verdict}>
-      <span className="analysis-progress__marker" aria-hidden="true">{step.status === 'FAILED' || ['REVISE', 'INSUFFICIENT_EVIDENCE'].includes(step.verdict) ? '!' : step.status === 'COMPLETED' ? '✓' : step.status === 'SKIPPED' ? '–' : '●'}</span>
+      <span className="analysis-progress__marker" aria-hidden="true">{step.status === 'FAILED' || ['CAUTION', 'REVISE', 'INSUFFICIENT_EVIDENCE'].includes(step.verdict) ? '!' : step.status === 'COMPLETED' ? '✓' : step.status === 'SKIPPED' ? '–' : '●'}</span>
       <span><strong>{step.label}</strong><small>{step.detail}</small></span>
     </li>)}</ol>
   </section>

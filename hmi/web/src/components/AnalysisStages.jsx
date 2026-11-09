@@ -13,7 +13,7 @@ import MaintenanceReferences from './MaintenanceReferences'
 
 const roles = [['documents', '문서 근거'], ['reports', '정비이력 근거'], ['synthesis', '통합 근거'], ['verification', '근거 검증']]
 const statuses = { PENDING: '대기', RUNNING: '진행 중', COMPLETED: '완료', FAILED: '실패', SKIPPED: '생략' }
-const verdicts = { PASS: '검증 통과', REVISE: '수정 필요', INSUFFICIENT_EVIDENCE: '필수 근거 부족' }
+const verdicts = { PASS: '검증 통과', CAUTION: '주의사항 확인', REVISE: '수정 필요', INSUFFICIENT_EVIDENCE: '필수 근거 부족' }
 
 function Sources({ run }) {
   const selected = new Set(run.analysis?.evidence?.map((item) => item.evidence_id) || [])
@@ -48,7 +48,7 @@ export default function AnalysisStages({ stages = [], incident = null }) {
   const id = useId()
   if (!stages.length) return null
   const runs = stages.filter((run) => run.role === active).sort((a, b) => a.attempt - b.attempt)
-  return <details className="analysis-stages" aria-label="단계별 분석 근거" open>
+  return <details className="analysis-stages" aria-label="단계별 분석 근거">
     <summary className="analysis-stages__toggle"><strong>분석 과정 및 근거 보기</strong></summary>
     <div className="analysis-stages__tabs" role="tablist" aria-label="분석 단계">{roles.map(([role, label]) => {
       const latest = stages.filter((run) => run.role === role).at(-1)

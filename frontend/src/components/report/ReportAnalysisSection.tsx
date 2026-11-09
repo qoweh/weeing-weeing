@@ -209,6 +209,14 @@ export default function ReportAnalysisSection({
             />
           </div>
         </div>
+        {ready && analysis.limitations && (
+          <div className="report-cell report-cell--wide">
+            <strong>분석 한계 및 검증 주의사항</strong>
+            <div className="report-analysis-content" style={{ whiteSpace: "pre-wrap" }}>
+              {readableText(analysis.limitations, incident)}
+            </div>
+          </div>
+        )}
         <div className="report-cell report-cell--wide">
           <strong>참조 매뉴얼·이력</strong>
           <div className="report-analysis-content">

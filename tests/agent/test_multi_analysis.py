@@ -103,7 +103,7 @@ def verdict(value="PASS"):
                 "correction": "가능성으로 표현",
             }
         ]
-        if value == "REVISE"
+        if value in ("REVISE", "CAUTION")
         else [],
     )
 
@@ -952,7 +952,7 @@ def test_analysis_is_one_trace_with_roles_nested_and_status_score():
     assert [p["trace_name"] for p in fake.propagated] == ["incident-analysis"]
     root = fake.propagated[0]
     assert root["session_id"] == INCIDENT.incident_id
-    assert "multi-analysis-v6" in root["tags"]
+    assert "multi-analysis-v7" in root["tags"]
     assert fake.observations[0].kwargs["name"] == "incident-analysis"
     agents = {
         o.kwargs["name"] for o in fake.observations if o.kwargs["as_type"] == "agent"
@@ -1009,3 +1009,20 @@ def test_get_analyzer_gives_multi_analyzer_a_tracer():
     )
     assert isinstance(analyzer, MultiIncidentAnalyzer)
     assert analyzer.tracer is NULL_TRACER
+
+
+def test_caution_returns_analysis_without_second_synthesis():
+    plans = {
+        "documents": [research(DOC)],
+        "reports": [research(REPORT)],
+        "synthesis": [[draft(DOC.evidence_id, REPORT.evidence_id)]],
+        "verification": [[verdict("CAUTION")]],
+    }
+    analyzer, _, counts = setup(verify=True, plans=plans)
+    result = analyzer.analyze(INCIDENT)
+    assert result.status == "OK"
+    assert counts["synthesis"] == 1
+    assert counts["verification"] == 1
+    assert "검증 주의사항" in result.limitations
+    assert "가능성으로 표현" in result.limitations
+    assert finished(analyzer, "verification")[0].verification.verdict == "CAUTION"

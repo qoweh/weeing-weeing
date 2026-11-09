@@ -15,6 +15,7 @@
   &__steps small { display: block; margin-top: 3px; color: var(--muted); }
   &__marker { color: var(--primary); font-weight: 700; }
   &__steps li[data-status='FAILED'] &__marker { color: var(--danger); }
+  &__steps li[data-verdict='CAUTION'] &__marker,
   &__steps li[data-verdict='REVISE'] &__marker, &__steps li[data-verdict='INSUFFICIENT_EVIDENCE'] &__marker { color: var(--warning); }
   @media (max-width: 600px) { &__steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (prefers-reduced-motion: reduce) { &__spinner { animation: none; } }
