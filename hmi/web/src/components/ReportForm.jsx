@@ -368,7 +368,7 @@ export default function ReportForm({
             <dl className="report-read-grid">
               <ReadValue label="추정 원인 및 근거" wide>
                 {linkedAnalysis.suspected_causes.length ? (
-                  <CauseCandidates analysis={linkedAnalysis} incident={incident} showSources={false} />
+                  <CauseCandidates analysis={linkedAnalysis} incident={incident} showSources={false} showObservations={false} showUnconfirmed={false} />
                 ) : (
                   "제시된 원인 후보 없음"
                 )}
@@ -397,12 +397,6 @@ export default function ReportForm({
                   "별도 제시 없음"
                 )}
               </ReadValue>
-
-              {linkedAnalysis.limitations && (
-                <ReadValue label="분석 한계 및 검증 주의사항" wide>
-                  <span style={{ whiteSpace: "pre-wrap" }}>{linkedAnalysis.limitations}</span>
-                </ReadValue>
-              )}
 
               <ReadValue label="참조 매뉴얼·이력" wide>
                 <ul>

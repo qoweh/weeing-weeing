@@ -108,8 +108,6 @@ class DatabaseAnalysisKnowledge:
                 )
                 if section:
                     item.citation += f" · {section}"
-                if source.kind == "REPORT" and source.synthetic:
-                    item.citation += " (가상 사례)"
                 self.sources[item.evidence_id] = source
                 results.append(item)
             return results

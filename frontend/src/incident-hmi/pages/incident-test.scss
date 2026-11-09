@@ -45,6 +45,8 @@
   &__group--checks > ol > li::before { counter-increment: inspection; content: counter(inspection, decimal-leading-zero); position: absolute; left: 0; top: 12px; color: var(--primary); font-size: 12px; font-weight: 700; }
   &__group--actions > ol > li::before, &__group--approval > ol > li::before, &__group--additional > ol > li::before { content: ''; position: absolute; top: 21px; left: 8px; width: 5px; height: 5px; border-radius: 50%; background: var(--primary); }
   &__group--approval { border-left: 4px solid var(--primary); background: var(--background); }
+  &__caution-check { margin-top: 8px; color: var(--muted); }
+  &__caution-check strong { display: block; font-size: 13px; margin-bottom: 2px; }
   &__group--checks > ol > li p, &__group--actions > ol > li p, &__group--approval > ol > li p, &__group--additional > ol > li p { margin: 0; }
   @media (max-width: 550px) { &__group--checks, &__group--actions, &__group--approval, &__group--additional { padding: 14px; } }
   &__group--candidates { margin-top: 22px; padding: 18px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }

@@ -952,7 +952,7 @@ def test_analysis_is_one_trace_with_roles_nested_and_status_score():
     assert [p["trace_name"] for p in fake.propagated] == ["incident-analysis"]
     root = fake.propagated[0]
     assert root["session_id"] == INCIDENT.incident_id
-    assert "multi-analysis-v7" in root["tags"]
+    assert "multi-analysis-v8" in root["tags"]
     assert fake.observations[0].kwargs["name"] == "incident-analysis"
     agents = {
         o.kwargs["name"] for o in fake.observations if o.kwargs["as_type"] == "agent"

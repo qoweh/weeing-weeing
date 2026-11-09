@@ -145,34 +145,6 @@ export default function ReportAnalysisSection({
                           {readableText(item.basis, incident)}
                         </p>
                       )}
-                    {item.observations?.length ? (
-                      <>
-                        <p>
-                          <strong>관련 센서 관측</strong>
-                        </p>
-                        <ul>
-                          {item.observations.map((text, observationIndex) => (
-                            <li key={observationIndex}>
-                              {readableText(text, incident)}
-                            </li>
-                          ))}
-                        </ul>
-                      </>
-                    ) : null}
-                    {item.unconfirmed?.length ? (
-                      <>
-                        <p>
-                          <strong>미확인 사항</strong>
-                        </p>
-                        <ul>
-                          {item.unconfirmed.map((text, unconfirmedIndex) => (
-                            <li key={unconfirmedIndex}>
-                              {readableText(text, incident)}
-                            </li>
-                          ))}
-                        </ul>
-                      </>
-                    ) : null}
                   </li>
                 ))}
               </ul>
@@ -209,14 +181,6 @@ export default function ReportAnalysisSection({
             />
           </div>
         </div>
-        {ready && analysis.limitations && (
-          <div className="report-cell report-cell--wide">
-            <strong>분석 한계 및 검증 주의사항</strong>
-            <div className="report-analysis-content" style={{ whiteSpace: "pre-wrap" }}>
-              {readableText(analysis.limitations, incident)}
-            </div>
-          </div>
-        )}
         <div className="report-cell report-cell--wide">
           <strong>참조 매뉴얼·이력</strong>
           <div className="report-analysis-content">

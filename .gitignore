@@ -76,3 +76,7 @@ conveyor_dataset*.csv
 /data/ml/raw/
 *.joblib
 /deploy/ml-models/
+weeing.ppk
+
+# 로컬 병렬 테스트 임시 산출물
+/.pytest-*/
