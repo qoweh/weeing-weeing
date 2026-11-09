@@ -75,6 +75,7 @@
   &__steps li[data-status="FAILED"] &__marker {
     color: var(--danger);
   }
+  &__steps li[data-verdict="CAUTION"] &__marker,
   &__steps li[data-verdict="REVISE"] &__marker,
   &__steps li[data-verdict="INSUFFICIENT_EVIDENCE"] &__marker {
     color: var(--warning);

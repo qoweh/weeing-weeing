@@ -84,8 +84,8 @@ frontend·hmi/web(분석 결과·단계·보고서 표시). DB 마이그레이�
   유지한다. 과거 JSON·단일 분석은 기본 빈 목록이며 기존 DB JSON에 저장하므로 새 마이그레이션은
   없다. 영향 모듈: contracts, agent, api·db(JSON 저장/조회), hmi/web. 보고서의 사람 작성·결재
   필드는 변경하지 않는다.
-- `VerificationResult`: PASS/REVISE/INSUFFICIENT_EVIDENCE, 요약과 구체적인 주장·이유·수정 요청.
-  PASS에 미해결 지적을 넣거나 구체적인 지적 없이 REVISE를 제출할 수 없다.
+- `VerificationResult`: PASS/CAUTION/REVISE/INSUFFICIENT_EVIDENCE, 요약과 구체적인 주장·이유·확인 또는 수정 요청. CAUTION은 안전과 핵심 판단에 영향 없는 주의사항만 남은 경우다.
+  PASS에 미해결 지적을 넣거나 구체적인 지적 없이 CAUTION 또는 REVISE를 제출할 수 없다.
 - `AnalysisAgentRun`: documents/reports/synthesis/verification 역할과 시도 1~2,
   PENDING/RUNNING/COMPLETED/FAILED/SKIPPED, 원문 근거·조사·분석·검증 결과,
   시각·모델·프롬프트 버전·호출 수·사용량·오류 코드. 없는 근거 ID 인용과 알 수 없는 필드를 거부한다.

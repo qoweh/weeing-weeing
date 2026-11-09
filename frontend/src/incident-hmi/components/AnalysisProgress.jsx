@@ -4,7 +4,7 @@ import './analysis-progress.scss'
 // 화살표는 다음 단계의 진행 상태를 따라 바뀐다: 진행 중이면 흐르는 애니메이션, 끝나면 고정색.
 function arrowState(prev, next) {
   if (next.status === 'RUNNING') return 'active'
-  if (next.status === 'FAILED' || ['REVISE', 'INSUFFICIENT_EVIDENCE'].includes(next.verdict)) return 'warning'
+  if (next.status === 'FAILED' || ['CAUTION', 'REVISE', 'INSUFFICIENT_EVIDENCE'].includes(next.verdict)) return 'warning'
   if (next.status === 'COMPLETED' && ['COMPLETED', 'SKIPPED'].includes(prev.status)) return 'done'
   return 'pending'
 }
@@ -19,7 +19,7 @@ export default function AnalysisProgress({ result }) {
     </div>
     <ol className="analysis-progress__steps">{progress.steps.flatMap((step, index) => {
       const item = <li key={step.role} data-status={step.status} data-verdict={step.verdict}>
-        <span className="analysis-progress__marker" aria-hidden="true">{step.status === 'FAILED' || ['REVISE', 'INSUFFICIENT_EVIDENCE'].includes(step.verdict) ? '!' : step.status === 'COMPLETED' ? '✓' : step.status === 'SKIPPED' ? '–' : '●'}</span>
+        <span className="analysis-progress__marker" aria-hidden="true">{step.status === 'FAILED' || ['CAUTION', 'REVISE', 'INSUFFICIENT_EVIDENCE'].includes(step.verdict) ? '!' : step.status === 'COMPLETED' ? '✓' : step.status === 'SKIPPED' ? '–' : '●'}</span>
         <span><strong>{step.label}</strong><small>{step.detail}</small></span>
       </li>
       if (index === progress.steps.length - 1) return [item]

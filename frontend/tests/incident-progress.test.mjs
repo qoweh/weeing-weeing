@@ -34,3 +34,12 @@ test('failure names the failed step and resumed work identifies reused results',
   assert.equal(analysisProgress(result('RUNNING', [])), null)
   assert.equal(analysisProgress({ ...result('RUNNING', stages), error: '조회 실패' }).title, '분석 상태 확인 실패')
 })
+
+
+test('completed caution remains visible and is not reported as a pass', () => {
+  const caution = run('verification', 'COMPLETED', { verification: { verdict: 'CAUTION' } })
+  const progress = analysisProgress(result('COMPLETED', [caution], { status: 'OK' }))
+  assert.equal(progress.title, '분석 완료 · 주의사항 확인')
+  assert.equal(progress.steps[3].detail, '주의사항 확인')
+  assert.equal(progress.tone, 'warning')
+})

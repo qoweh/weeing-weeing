@@ -102,3 +102,14 @@ def test_checkpoint_retains_empty_success_and_forbids_internal_messages():
     )
     with pytest.raises(ValidationError):
         AnalysisCheckpoint(**checkpoint.model_dump(), messages=["hidden"])
+
+
+def test_caution_requires_and_preserves_specific_issues():
+    with pytest.raises(ValidationError, match="구체적인 지적"):
+        VerificationResult(verdict="CAUTION", summary="확인", issues=[])
+    result = VerificationResult(
+        verdict="CAUTION",
+        summary="주의사항",
+        issues=[{"claim": "설명", "reason": "표현 확인", "correction": "범위 확인"}],
+    )
+    assert VerificationResult.model_validate_json(result.model_dump_json()) == result
