@@ -10,4 +10,5 @@ RUN npx vite build --base=/hmi/
 
 FROM caddy:2-alpine@sha256:f6228111e5fafa1a5238258d0858e103f10599b8d1659a146e7726681a002bb9
 COPY deploy/Caddyfile /etc/caddy/Caddyfile
+COPY deploy/cctv-viewer.html /srv/cctv-viewer.html
 COPY --from=hmi /hmi/dist /srv/hmi

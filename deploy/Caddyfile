@@ -14,6 +14,17 @@
 {$SITE_ADDRESS::80} {
 	encode zstd gzip
 
+	# CCTV 영상은 외부 시청자가 같은 HTTPS 출처에서 받는다.
+	handle /cctv-viewer {
+		root * /srv
+		rewrite * /cctv-viewer.html
+		file_server
+	}
+	redir /cctv /cctv/
+	handle /cctv/* {
+		reverse_proxy weeing-cctv-udp-test:8889
+	}
+
 	# FastAPI: /api 접두사를 떼고 넘긴다(hmi/web의 vite 개발 프록시와 같은 규칙). WebSocket도 그대로 통과한다.
 	handle_path /api/* {
 		reverse_proxy api:8000
