@@ -46,7 +46,7 @@ test("short gaps keep the original forecast and its original time, then recover"
       { prediction_usable: false },
       {
         status: "invalid_input",
-        reason: "gap_over_0_8s",
+        reason: "gap_over_1_5s",
         input_valid: false,
         reference_time: "2026-11-05T06:00:05Z",
         error_probability: undefined,

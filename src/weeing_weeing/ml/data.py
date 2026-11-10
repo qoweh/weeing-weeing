@@ -132,6 +132,11 @@ def _load_source(path):
             for g in groups.values()
             for a, b in zip(g, g[1:])
         ),
+        "gaps_over_1_5s": sum(
+            (b["timestamp"] - a["timestamp"]).total_seconds() > 1.5
+            for g in groups.values()
+            for a, b in zip(g, g[1:])
+        ),
         "differences_from_supplied_counts": differences,
         "blank_label_reasons": "CSV alone cannot distinguish already Error vs insufficient future",
     }
@@ -188,6 +193,7 @@ def load_dataset(paths):
                 for key, fn in (("min", min), ("max", max))
             },
             "gaps_over_0_8s": sum(s["gaps_over_0_8s"] for s in sources),
+            "gaps_over_1_5s": sum(s["gaps_over_1_5s"] for s in sources),
             "differences_from_supplied_counts": {
                 s["source_path"]: s["differences_from_supplied_counts"]
                 for s in sources
