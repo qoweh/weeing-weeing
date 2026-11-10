@@ -156,7 +156,7 @@ export default function ChatWidget({ screenZoom = 100, onSessionExpired }) {
           setOpen(true)
         }}
       >
-        <img src="/assets/ICONS/29bcb.svg" alt="" />
+        <img src={`${import.meta.env.BASE_URL}assets/ICONS/29bcb.svg`} alt="" />
       </button>
       <dialog
         ref={dialog}
