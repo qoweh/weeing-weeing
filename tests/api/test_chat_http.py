@@ -51,9 +51,7 @@ class FakeService:
 
 @pytest.fixture
 def setup(tmp_path, monkeypatch):
-    from weeing_weeing.db import users as users_module
 
-    monkeypatch.setattr(users_module, "SCRYPT_N", 2**10)
     url = f"sqlite:///{tmp_path / 'http.db'}"
     users = db.open_users(url)
     repo = db.open_chats(url)

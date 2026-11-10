@@ -52,9 +52,7 @@ ROWS = [
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
-    from weeing_weeing.db import users as module
 
-    monkeypatch.setattr(module, "SCRYPT_N", 2**10)
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'usage.db'}")
     monkeypatch.setenv("LANGFUSE_BASE_URL", "https://langfuse.example.test")
     monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", "pk-lf-fake")

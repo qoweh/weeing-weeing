@@ -129,20 +129,28 @@ NEEDS_CLARIFICATION만 clarification_questions를 담는다.
 CHAT_PROMPT_VERSION = "chat-tools-v13"
 
 
-def _failure_code(exc: BaseException) -> str:
-    """reply()의 실패 응답 변환과 같은 기준의 기록용 코드(본문·비밀값 없음)."""
-    for kinds, code in (
-        (LlmTimeoutError, "TIMEOUT"),
-        (_SearchUnavailableError, "SEARCH_UNAVAILABLE"),
-        (LlmAuthenticationError, "LLM_AUTHENTICATION"),
-        (LlmRateLimitError, "RATE_LIMITED"),
-        (LlmServiceError, "LLM_SERVICE"),
-        ((AgentError, LlmInvalidResponseError), "INVALID_RESPONSE"),
-        (LlmError, "LLM_SERVICE"),
-    ):
+class _SearchUnavailableError(RuntimeError):
+    pass
+
+
+# 예외 종류 → (실패 코드, 재시도 가능). 위에서부터 처음 맞는 항목을 쓴다(하위 클래스 먼저).
+_FAILURES = (
+    (LlmTimeoutError, "TIMEOUT", True),
+    (_SearchUnavailableError, "SEARCH_UNAVAILABLE", True),
+    (LlmAuthenticationError, "LLM_AUTHENTICATION", False),
+    (LlmRateLimitError, "RATE_LIMITED", True),
+    (LlmServiceError, "LLM_SERVICE", True),
+    ((AgentError, LlmInvalidResponseError), "INVALID_RESPONSE", False),
+    (LlmError, "LLM_SERVICE", False),
+)
+
+
+def _failure(exc: BaseException) -> tuple[str, bool]:
+    """reply()의 실패 응답과 trace 기록이 함께 쓰는 코드·재시도 여부(본문·비밀값 없음)."""
+    for kinds, code, retryable in _FAILURES:
         if isinstance(exc, kinds):
-            return code
-    return "INTERNAL_ERROR"
+            return code, retryable
+    return "INTERNAL_ERROR", False
 
 
 class _Draft(ChatModel):
@@ -179,8 +187,15 @@ class _GetFaq(ChatModel):
     faq_id: str = Field(min_length=1, max_length=64)
 
 
-class _SearchUnavailableError(RuntimeError):
-    pass
+# 한 요청에서 모델에 전달하는 누적 근거의 상한(출처 수·본문 글자 수).
+_MAX_SOURCES = 20
+_MAX_EVIDENCE_CHARS = 32000
+
+
+def _over_evidence_limit(texts: dict[str, str]) -> bool:
+    return (
+        len(texts) > _MAX_SOURCES or sum(map(len, texts.values())) > _MAX_EVIDENCE_CHARS
+    )
 
 
 class _Deadline:
@@ -407,23 +422,9 @@ class ToolChatService:
             return self._traced_reply(
                 question, context, deadline, client, memory, on_progress
             )
-        except LlmTimeoutError:
-            return self._failed(question, "TIMEOUT", True)
-        except _SearchUnavailableError:
-            return self._failed(question, "SEARCH_UNAVAILABLE", True)
-        except LlmAuthenticationError:
-            return self._failed(question, "LLM_AUTHENTICATION", False)
-        except LlmRateLimitError:
-            return self._failed(question, "RATE_LIMITED", True)
-        except LlmServiceError:
-            return self._failed(question, "LLM_SERVICE", True)
-        except (AgentError, LlmInvalidResponseError):
-            return self._failed(question, "INVALID_RESPONSE", False)
-        except LlmError:
-            return self._failed(question, "LLM_SERVICE", False)
-        except Exception:
+        except Exception as exc:
             # 원문 질문·공급자 오류 본문·비밀값은 응답/로그로 노출하지 않는다.
-            return self._failed(question, "INTERNAL_ERROR", False)
+            return self._failed(question, *_failure(exc))
         finally:
             if acquired:
                 self.last_run = ChatRunUsage(
@@ -468,7 +469,7 @@ class ToolChatService:
                 status = response.status
                 return response
             except BaseException as exc:
-                status, failure = "FAILED", _failure_code(exc)
+                status, failure = "FAILED", _failure(exc)[0]
                 raise
             finally:
                 score_trace(tracer, "chat.status", status, data_type="CATEGORICAL")
@@ -697,7 +698,7 @@ class ToolChatService:
                 if previous is not None and previous != scope_source:
                     raise _SearchUnavailableError("출처 ID 충돌")
                 combined[scope_source.source_id] = scope_text
-            if len(combined) > 20 or sum(map(len, combined.values())) > 32000:
+            if _over_evidence_limit(combined):
                 raise ToolInputError(
                     "검색 근거가 너무 많다. 결과 개수나 검색 범위를 줄인다"
                 )
@@ -750,7 +751,7 @@ class ToolChatService:
                     "COUNT_ONLY는 다른 조회 없이 단독으로 요청해야 합니다. 복합 질문은 LIST를 사용하세요."
                 )
             # 전체 근거 상한 20개 중 1개는 집계 출처로 예약한다. DB 직접 조회는 20건까지 가능하다.
-            query.conditions.limit = min(query.conditions.limit, 19)
+            query.conditions.limit = min(query.conditions.limit, _MAX_SOURCES - 1)
             query.conditions = conditions_for(query.conditions)
             if search_count >= 8:
                 raise ToolInputError("조회 호출은 최대 8회다")
@@ -815,7 +816,7 @@ class ToolChatService:
                 **texts,
                 **{source.source_id: text for source, text in returned},
             }
-            if len(combined) > 20 or sum(map(len, combined.values())) > 32000:
+            if _over_evidence_limit(combined):
                 raise ToolInputError("조회 근거 상한 초과: 목록 개수나 범위를 줄인다")
             for source, text in returned:
                 sources[source.source_id] = source
@@ -890,7 +891,7 @@ class ToolChatService:
             source = result.source
             text = to_json(result.model_dump(mode="json"))
             combined = {**texts, source.source_id: text}
-            if len(combined) > 20 or sum(map(len, combined.values())) > 32000:
+            if _over_evidence_limit(combined):
                 raise ToolInputError(
                     "사건 근거 상한 초과: 조회 범위나 목록 개수를 줄입니다"
                 )
@@ -933,7 +934,7 @@ class ToolChatService:
             except FaqNotFoundError as exc:
                 raise ToolInputError("조회할 수 없는 FAQ") from exc
             combined = {**texts, faq.source.source_id: faq.answer}
-            if len(combined) > 20 or sum(map(len, combined.values())) > 32000:
+            if _over_evidence_limit(combined):
                 raise ToolInputError("누적 근거 상한 초과: 필요한 자료만 조회한다")
             if (
                 faq.source.source_id in sources

@@ -65,7 +65,7 @@ make rag-e2e                                                    # Qdrant 로컬 
 make rag-e2e ARGS="--backends qdrant,chroma,qdrant-server"      # 서버도 (make qdrant-up, QDRANT_URL 먼저)
 ```
 
-결과는 `outputs/rag_e2e/report-<시각>.md`에 남는다. 공식 측정 결과와 해석은 [docs/RAG_E2E.md](../docs/RAG_E2E.md)에 날짜별로 남긴다. 종료 코드는 0 통과, 1 검사 실패, 2 시작 못 함(설정·Indexer).
+결과는 `outputs/rag_e2e/report-<시각>.md`에 남는다. 공식 측정 결과와 해석은 [RAG 성능 평가](../docs/rag_e2e/README.md)의 주제별 보고서에 남긴다. 종료 코드는 0 통과, 1 검사 실패, 2 시작 못 함(설정·Indexer).
 #6 Indexer가 `rag/factory.py`의 `indexer_class()`에 연결돼야 실행된다. 그 전에는 종료 코드 2로 안내한다.
 
 ## LLM 점검 (`check_llm.py`, #101)

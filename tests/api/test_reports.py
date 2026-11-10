@@ -22,9 +22,7 @@ PASSWORD = "report-test-password"
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     from weeing_weeing.api import reports as report_api
-    from weeing_weeing.db import users
 
-    monkeypatch.setattr(users, "SCRYPT_N", 2**10)
     monkeypatch.setattr(report_api, "run_pending_reports", lambda: None)
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'reports.db'}")
     for employee, role in (

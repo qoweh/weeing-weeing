@@ -8,7 +8,7 @@ import json
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import case, func, select, text
+from sqlalchemy import case, func, select
 
 from weeing_weeing.contracts import AnalysisResult, Incident, IncidentStatus
 from weeing_weeing.contracts.chat import ChatIncidentQuery, ChatIncidentSource
@@ -92,8 +92,7 @@ class SqlIncidents(Repository):
         같은 시각 안의 순서(예: OPEN → RECOVERED)는 호출하는 쪽이 지킨다(detector는 설비별 순차).
         """
         with self._transaction() as session:
-            if self._engine.dialect.name == "sqlite":
-                session.execute(text("BEGIN IMMEDIATE"))
+            self._sqlite_write_lock(session)
             self._lock_incidents(session, [incident.incident_id])
             if session.get(DeletedIncidentRow, incident.incident_id) is not None:
                 raise UnknownIncidentError("삭제된 사건은 다시 저장할 수 없습니다.")

@@ -7,7 +7,6 @@
 # - 웹에서 다른 파일로 교체한 문서는 덮어쓰지 않는다(--replace로만 교체).
 # - 자동 동기화가 아니다(D-28). 웹에서 삭제한 문서도 이 명령을 다시 돌리면 다시 등록된다.
 # - path는 저장소 루트 기준. doc_version을 비우면 웹 업로드처럼 파일명의 vX.Y(없으면 1.0)를 쓴다.
-# - data/manuals/"BTT-MANUAL_v2.0 copy.pdf"는 원본과 해시가 다른 사본이라 넣지 않는다.
 
 [[documents]]
 doc_id = "BTT-MANUAL"

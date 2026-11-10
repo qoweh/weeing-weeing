@@ -50,6 +50,11 @@ class Repository:
         except (OperationalError, InterfaceError) as exc:
             raise DatabaseUnavailableError(f"{type(exc).__name__}: {exc.orig}") from exc
 
+    def _sqlite_write_lock(self, session: Session) -> None:
+        """SQLite는 쓰기 잠금을 트랜잭션 시작에 잡는다(읽은 뒤 쓰기 승격 중 교착 방지)."""
+        if self._engine.dialect.name == "sqlite":
+            session.execute(text("BEGIN IMMEDIATE"))
+
     def _insert(self, table):
         """ON CONFLICT(업서트·중복 건너뛰기)를 쓰는 INSERT. PostgreSQL·SQLite 모두 지원한다."""
         dialect = postgresql if self._engine.dialect.name == "postgresql" else sqlite

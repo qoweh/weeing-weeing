@@ -85,7 +85,7 @@
 |---|---|---|---|
 | 관련도 하한 `0.02` | `scripts/check_rag_agent.py`(고정), `scripts/validate_rag_holdout.py`(기본값), `data/eval/rag_queries_holdout_v1.toml`, 문서 | bge-reranker 점수 분포로 고른 값. Voyage 리랭커 점수(0~1)는 분포가 달라 그대로 쓰면 근거를 너무 많이·적게 거른다 | 운영 기본값은 빈 값(끔)이라 당장 영향 없음. 켜려면 Voyage로 `make rag-e2e`·보류셋을 다시 재서 고른다 |
 | 검색 품질 수치 | [RAG_E2E](RAG_E2E.md)·[RAG_RETRIEVAL](RAG_RETRIEVAL.md)의 MRR 0.917, hit@1 15/18 등 | bge-m3 + bge-reranker 결과. 지금 설정의 품질을 말해 주지 않는다 | Voyage 설정으로 `make rag-e2e`를 한 번 돌려 새 기준을 남긴다(수백~수천 토큰) |
-| 청킹 비교 결론 | [CHUNKING_COMPARISON](CHUNKING_COMPARISON.md) | legacy·structured 비교가 bge 기준. 명령의 `BAAI/...` 모델은 이제 없다 | 다시 비교할지 결정. 하지 않으면 지금처럼 "당시 기록"으로 둔다 |
+| 청킹 비교 결론 | [CHUNKING_COMPARISON](RAG_EVALUATION_GUIDE.md) | legacy·structured 비교가 bge 기준. 명령의 `BAAI/...` 모델은 이제 없다 | 다시 비교할지 결정. 하지 않으면 지금처럼 "당시 기록"으로 둔다 |
 | 청크 크기 1,000자·겹침 150자 | `rag/chunker.py` `ChunkerConfig` | 검색 품질을 bge로 재며 정한 값. 입력 길이 한도와는 상관없다(`truncation=True`라 넘쳐도 잘려 들어간다) | 바꿀 필요는 없다. 바꾸면 비용(토큰)과 품질을 같이 잰다 |
 | 후보 수 `RAG_CANDIDATE_K=30` | `.env.example` | CPU 리랭커 속도 때문에 작게 둔 값 | 리랭크 1회 요청이라 늘려도 지연은 거의 같고 토큰만 는다. 품질을 재고 정한다 |
 | LLM 평가 결과 | [LLM_EVALUATION](LLM_EVALUATION.md) | Claude 기준이라 유효하다. 다만 근거 검색이 bge였던 사례가 섞여 있다 | 검색까지 묶은 사례는 Voyage로 다시 볼지 결정 |

@@ -422,8 +422,7 @@ class SqlReports(Repository):
             user = _author(session, actor_id)
             if not draft.incident_id:
                 raise ValueError("보고서를 저장하려면 사건을 선택하세요.")
-            if self._engine.dialect.name == "sqlite":
-                session.execute(text("BEGIN IMMEDIATE"))
+            self._sqlite_write_lock(session)
             self._lock_incidents(session, [draft.incident_id])
             incident = session.scalar(
                 select(IncidentRow)
@@ -485,8 +484,7 @@ class SqlReports(Repository):
     ) -> dict:
         """관제 담당자가 사건과 연결 데이터를 제거한다. 센서 원본은 유지한다."""
         with self._transaction() as session:
-            if self._engine.dialect.name == "sqlite":
-                session.execute(text("BEGIN IMMEDIATE"))
+            self._sqlite_write_lock(session)
             _actor(session, actor_id, Role.CONTROL)
             self._lock_incidents(session, [incident_id])
             incident = session.scalar(
@@ -550,8 +548,7 @@ class SqlReports(Repository):
     ) -> ReportDocument:
         with self._transaction() as session:
             user = _author(session, actor_id)
-            if self._engine.dialect.name == "sqlite":
-                session.execute(text("BEGIN IMMEDIATE"))
+            self._sqlite_write_lock(session)
             if draft.incident_id:
                 self._lock_incidents(session, [draft.incident_id])
             row, version = _load(session, report_id, lock=True)
@@ -894,8 +891,7 @@ class SqlReports(Repository):
         self, actor_id: str, report_id: str, *, expected_revision: int
     ) -> ReportDocument | None:
         with self._transaction() as session:
-            if self._engine.dialect.name == "sqlite":
-                session.execute(text("BEGIN IMMEDIATE"))
+            self._sqlite_write_lock(session)
             user = _author(session, actor_id)
             row, version = _load(session, report_id, lock=True)
             _owner(row, user)
@@ -940,8 +936,7 @@ class SqlReports(Repository):
         delete_vector: Callable[[str], int],
     ) -> int:
         with self._transaction() as session:
-            if self._engine.dialect.name == "sqlite":
-                session.execute(text("BEGIN IMMEDIATE"))
+            self._sqlite_write_lock(session)
             _actor(session, actor_id, Role.CONTROL)
             row, _ = _load(session, report_id, lock=True)
             if row.report_status != ReportStatus.APPROVED:
@@ -1071,8 +1066,7 @@ class SqlReports(Repository):
     ) -> Iterator[ReportIndexWork | None]:
         """보고서별로 승인·벡터 쓰기를 직렬화한다(외부 프로세스도 같은 DB 잠금)."""
         with self._transaction() as session:
-            if self._engine.dialect.name == "sqlite":
-                session.execute(text("BEGIN IMMEDIATE"))
+            self._sqlite_write_lock(session)
             row = session.scalar(
                 select(ReportRow)
                 .where(ReportRow.report_id == report_id)

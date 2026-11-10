@@ -10,6 +10,7 @@ from test_chat_service import CommonKnowledge, FakeClient, ask, reply, search, s
 from weeing_weeing.agent.chat import ToolChatService
 from weeing_weeing.agent.interface import (
     LlmAuthenticationError,
+    LlmError,
     LlmInvalidResponseError,
     LlmRateLimitError,
     LlmServiceError,
@@ -127,6 +128,8 @@ def test_malformed_review_never_becomes_ok(raw):
         (LlmServiceError("safe service error"), "LLM_SERVICE", True),
         (LlmTimeoutError("safe timeout"), "TIMEOUT", True),
         (LlmInvalidResponseError("safe format"), "INVALID_RESPONSE", False),
+        (LlmError("safe generic"), "LLM_SERVICE", False),
+        (RuntimeError("safe internal"), "INTERNAL_ERROR", False),
     ],
 )
 def test_provider_error_categories_are_preserved(error, code, retryable):

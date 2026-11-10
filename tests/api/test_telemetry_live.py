@@ -20,9 +20,7 @@ FAKE_TOKEN = "fake-producer-token-for-tests-only"
 
 @pytest.fixture
 def live_client(tmp_path, monkeypatch):
-    from weeing_weeing.db import users
 
-    monkeypatch.setattr(users, "SCRYPT_N", 2**10)
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'db.sqlite'}")
     monkeypatch.setenv("TELEMETRY_HISTORY_DIR", str(tmp_path / "history"))
     monkeypatch.setenv("TELEMETRY_DB_ENABLED", "true")

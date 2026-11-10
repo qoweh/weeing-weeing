@@ -25,7 +25,7 @@ Codex용 설정과 확인 순서는 [SECRET_GUARD_SETUP.md](SECRET_GUARD_SETUP.m
 
 ## Codex 설정과 비교
 
-| Codex(`.codex/config.toml`) | Claude Code(`.claude/settings.json`) |
+| Codex(개인 `.codex/config.toml`, 저장소에는 없음) | Claude Code(`.claude/settings.json`) |
 |---|---|
 | `.env`·`.env.*`·`**/.env`·`**/.env.*` 읽기 거부 | `permissions.deny`의 `Read`·`Edit` 규칙으로 같은 범위를 거부. 항상 적용 |
 | 셸 명령 파일 읽기 거부(샌드박스) | `sandbox.filesystem.denyRead`에 같은 경로. sandbox를 켠 사람에게만 적용 |

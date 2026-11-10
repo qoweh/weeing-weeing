@@ -18,7 +18,7 @@
 | `regulations/BTT-SOP-001.pdf` | 사내 규정·SOP BTT-SOP-001 (조문형, 승인 전 초안) | 노션 1차 분담 최종 문서 |
 | `templates/maintenance_report_form_v1.2.pdf` | 정비 보고서 양식 CONV-MR-S-001 v1.2 | 노션 1차 분담 최종 문서 |
 
-- 평가용 PDF는 `manuals/`, `rulebase/`, `regulations/`에 종류별로 분류한다. 운영 문서는 웹에서 등록하며, 청크 미리보기는 업로드 폴더의 `chunks.md`에서 확인한다. 기존 청킹과 구조 기반 청킹 비교 방법은 [청킹 비교 안내](../docs/CHUNKING_COMPARISON.md)를 참고한다.
+- 평가용 PDF는 `manuals/`, `rulebase/`, `regulations/`에 종류별로 분류한다. 운영 문서는 웹에서 등록하며, 청크 미리보기는 업로드 폴더의 `chunks.md`에서 확인한다. 기존 청킹과 구조 기반 청킹 비교 방법은 [RAG 평가 방법](../docs/RAG_EVALUATION_GUIDE.md)을 참고한다.
 - 운영 문서는 사이트의 매뉴얼 등록·목록에서 관리한다. 등록된 다른 문서와 파일 해시가 같으면 중복 등록을 거부한다.
 - 화면(HMI)에서 올린 문서는 git 밖 `storage/uploads/`에 원본이, DB `document` 테이블에 정보와 상태가 저장된다. 웹 등록 시 검색 자료를 자동 생성한다. 여기에 보관한 팀 PDF 원본은 자동 등록되지 않는다. 미리 등록하려면 `make seed-docs`(서버 `ops/aws.sh seed-docs`)를 실행한다.
 - 모든 수치는 시연용 합성·지정값이다. 실제 설비 진단 근거로 쓰지 않는다(정의서 1절).
@@ -38,7 +38,7 @@
 
 ## 챗봇 프롬프트 v11 비교 설계
 
-`eval/chat_prompt_v11_baseline.json`은 dev 7632d8d의 기존 프롬프트 4개이며, `eval/chat_prompt_v11_cases.json`은 직접 작성한 5개 독립 질문·A/B 총10개 요청의 평가 계획이다. 실제 사용자 대화·운영 보고서 본문·비밀 값은 포함하지 않는다. [실험 설계](../docs/CHAT_PROMPT_V11_EVALUATION.md)를 참고한다. 실제 LLM 평가는 아직 실행하지 않았다.
+`eval/chat_prompt_v11_baseline.json`은 dev 7632d8d의 기존 프롬프트 4개이며, `eval/chat_prompt_v11_cases.json`은 직접 작성한 5개 독립 질문·A/B 총10개 요청의 평가 계획이다. 실제 사용자 대화·운영 보고서 본문·비밀 값은 포함하지 않는다. [실험 설계](../docs/CHAT_EVALUATION.md)를 참고한다. 실제 LLM 평가는 아직 실행하지 않았다.
 
 `eval/chat_prompt_v12_latency_20261106.json`은 사용자가 제공한 로컬 v10/v12 비교 로그 6건의 수치만 추린 기록이다. 답변 본문·식별자는 제외했다. v13 재측정이나 사람 품질 평가 결과가 아니다.
 

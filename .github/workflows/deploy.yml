@@ -115,9 +115,11 @@ jobs:
           /tmp/trivy image --quiet --scanners vuln --ignore-unfixed --severity CRITICAL \
             --exit-code 1 "$IMAGE"
       - name: latest 태그 붙이기
+        # latest = 마지막으로 배포한 이미지. 서버의 기본값이라 IMAGE_TAG가 없어도 최신이 뜬다.
+        # 배포가 막히는 다른 브랜치의 수동 실행은 SHA 태그만 남기고 latest를 옮기지 않는다.
+        if: github.ref == 'refs/heads/main'
         env:
           IMAGE: ${{ env.IMAGE_PREFIX }}-${{ matrix.image }}
-        # latest = 마지막으로 배포한 이미지. 서버의 기본값이라 IMAGE_TAG가 없어도 최신이 뜬다.
         run: docker buildx imagetools create -t "$IMAGE:latest" "$IMAGE:${{ github.sha }}"
 
   deploy:
@@ -171,6 +173,7 @@ jobs:
           ssh "$EC2" 'bash -s env-sync' < ops/server.sh
 
       - name: 이미지 받기·교체
+        id: replace
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ACTOR: ${{ github.actor }}
@@ -276,8 +279,11 @@ jobs:
           ssh "$EC2" 'docker image prune -af >/dev/null; rm -f ~/weeing-weeing/.deploy-previous-tags'
 
       - name: 실패 시 이전 배포로 복귀
-        # 전체 배포에서 헬스체크가 실패했을 때만. API·Caddy만 배포는 교체 단계 안에서 이미 복원한다.
-        if: failure() && steps.health.outcome == 'failure' && !inputs.api_only && !inputs.web_only
+        # 전체 배포에서 교체(.env를 새 태그로 바꾼 뒤 pull·up 실패) 또는 헬스체크가 실패했을 때만.
+        # API·Caddy만 배포는 교체 단계 안에서 이미 복원한다.
+        if: >-
+          failure() && !inputs.api_only && !inputs.web_only
+          && (steps.replace.outcome == 'failure' || steps.health.outcome == 'failure')
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ACTOR: ${{ github.actor }}
@@ -296,6 +302,6 @@ jobs:
           docker compose pull --quiet
           docker compose up -d --remove-orphans --wait --wait-timeout 150
           docker compose ps --format 'table {{.Service}}\t{{.Status}}'
-          echo "::error::새 배포가 헬스체크를 통과하지 못해 이전 이미지로 되돌렸습니다."
+          echo "::error::새 배포의 교체 또는 헬스체크가 실패해 이전 이미지로 되돌렸습니다."
           EOF
           exit 1

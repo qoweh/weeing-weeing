@@ -1,4 +1,4 @@
-"""백엔드가 나중에 사용할 독립 추론 경계. 서버/Detector에 연결하지 않는다."""
+"""추론 경계. API는 관찰 전용으로만 연결하고 Detector 판정·PLC 동작은 바꾸지 않는다(docs/ML_LIVE.md)."""
 
 import numpy as np
 

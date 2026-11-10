@@ -89,10 +89,8 @@ def telemetry(database_url):
 
 
 @pytest.fixture
-def users(database_url, monkeypatch):
-    from weeing_weeing.db import users as module
+def users(database_url):
 
-    monkeypatch.setattr(module, "SCRYPT_N", 2**10)  # 테스트 속도. 형식·검증 경로는 같다
     repo = open_users(database_url)
     yield repo
     repo._engine.dispose()

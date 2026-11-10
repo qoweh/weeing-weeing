@@ -191,7 +191,7 @@ ops/aws.sh up             # 추가·수정한 값을 컨테이너에 반영
 ## 배포
 
 - **자동:** release PR(dev → main)이 머지되면 `Deploy (EC2)` 워크플로가 돈다
-- **수동:** Actions → Deploy (EC2) → Run workflow → `main` 선택(재배포·API만·Caddy만 배포). Environment가 main만 허용하므로 dev·작업 브랜치는 빌드까지만 되고 배포 단계에서 막힌다. dev 변경을 올리려면 release PR을 머지한다
+- **수동:** Actions → Deploy (EC2) → Run workflow → `main` 선택(재배포·API만·Caddy만 배포). Environment가 main만 허용하므로 dev·작업 브랜치는 빌드(SHA 태그만, `latest`는 그대로)까지만 되고 배포 단계에서 막힌다. dev 변경을 올리려면 release PR을 머지한다
 - 워크플로 파일이 기본 브랜치(dev)에 있어야 Run workflow 버튼이 보인다
 
 ### API만 배포
@@ -310,7 +310,7 @@ chmod 600 .env && docker compose up -d
 
 ## 롤백
 
-**자동 복귀.** 전체 배포 뒤 헬스체크가 실패하면, 배포 직전에 남긴 태그(`~/weeing-weeing/.deploy-previous-tags`)로 `.env`를 되돌리고 이전 이미지를 다시 띄운다(GHCR에서 다시 받는다). 실행은 실패로 끝나 알 수 있다. 이전 이미지 정리(`docker image prune`)는 헬스체크가 통과한 뒤에만 한다. API·Caddy만 배포할 때는 교체 단계 안에서 이미 이전 이미지로 복원한다.
+**자동 복귀.** 전체 배포에서 이미지 교체(새 태그 pull·up)나 그 뒤 헬스체크가 실패하면, 배포 직전에 남긴 태그(`~/weeing-weeing/.deploy-previous-tags`)로 `.env`를 되돌리고 이전 이미지를 다시 띄운다(GHCR에서 다시 받는다). 실행은 실패로 끝나 알 수 있다. 이전 이미지 정리(`docker image prune`)는 헬스체크가 통과한 뒤에만 한다. API·Caddy만 배포할 때는 교체 단계 안에서 이미 이전 이미지로 복원한다.
 
 수동으로 되돌릴 때는 Actions에서 예전 `Deploy (EC2)` 실행을 열고 **Re-run all jobs**를 누른다. 그 실행의 커밋 SHA 이미지로 다시 배포된다.
 

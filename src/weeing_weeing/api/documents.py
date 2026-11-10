@@ -47,7 +47,6 @@ router = APIRouter(tags=["documents"])
 logger = logging.getLogger(__name__)
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
-ID_PATTERN = DOC_ID_PATTERN  # 청크 ID 구분자 ':'와 공백은 쓸 수 없다
 FILENAME_VERSION = re.compile(
     r"(?:^|[^A-Za-z0-9])v([0-9]+\.[0-9]+(?:\.[0-9]+)*)(?![A-Za-z0-9.])",
     re.IGNORECASE,
@@ -143,16 +142,6 @@ def _doc_lock(doc_id: str) -> Lock:
         return _DOC_LOCKS.setdefault(doc_id, Lock())
 
 
-def _blocker(repo: db.DocumentRepository, record: DocumentRecord) -> str | None:
-    """더 늦게 접수된 업로드가 있으면 해당 ID를 돌려준다."""
-    newer = repo.newer_upload(
-        record.doc_id, record.uploaded_at, exclude=record.upload_id
-    )
-    if newer:
-        return newer
-    return None
-
-
 def _index(repo: db.DocumentRepository, upload_id: str) -> None:
     record = repo.get_upload(upload_id)
     if record is None:
@@ -162,7 +151,9 @@ def _index(repo: db.DocumentRepository, upload_id: str) -> None:
         if record is None or record.status not in ("queued", "processing"):
             return
         # 잠금을 기다리는 동안 더 새 업로드가 끝났을 수 있어 잠근 뒤에 판단한다.
-        blocker = _blocker(repo, record)
+        blocker = repo.newer_upload(
+            record.doc_id, record.uploaded_at, exclude=record.upload_id
+        )
         if blocker:  # 먼저 올린 것이 최신 문서를 덮지 않게 색인하지 않는다
             repo.update_upload(
                 upload_id,
@@ -239,7 +230,8 @@ def _fail(repo: db.DocumentRepository, upload_id: str, exc: Exception) -> None:
 def upload_document(
     background_tasks: BackgroundTasks,
     file: Annotated[UploadFile, File()],
-    doc_id: Annotated[str, Form(min_length=1, max_length=128, pattern=ID_PATTERN)],
+    # 청크 ID 구분자 ':'와 공백은 쓸 수 없다
+    doc_id: Annotated[str, Form(min_length=1, max_length=128, pattern=DOC_ID_PATTERN)],
     asset_id: Annotated[str, Form(min_length=1, max_length=128)],
     doc_type: Annotated[Literal["manual", "rule", "sop"], Form()] = "manual",
     confirm_replace: Annotated[bool, Form()] = False,

@@ -31,10 +31,8 @@ def wait_result(client, headers, record_id):
 
 @pytest.fixture
 def ml_client(tmp_path, monkeypatch):
-    from weeing_weeing.db import users
     from weeing_weeing.ml import interface
 
-    monkeypatch.setattr(users, "SCRYPT_N", 2**10)
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'db.sqlite'}")
     monkeypatch.setenv("TELEMETRY_HISTORY_DIR", str(tmp_path / "history"))
     monkeypatch.setenv("ML_PREDICTION_DIR", str(tmp_path / "predictions"))

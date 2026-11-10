@@ -109,7 +109,10 @@ def voyage_post(
         for attempt in range(VOYAGE_RETRIES + 1):
             last = attempt == VOYAGE_RETRIES
             try:
-                response = http.post(url, json=payload, headers=headers)
+                # 주입한 client의 기본 타임아웃과 무관하게 요청마다 제한을 건다.
+                response = http.post(
+                    url, json=payload, headers=headers, timeout=timeout_s
+                )
             except httpx.HTTPError as exc:
                 if last:
                     raise EmbeddingApiError(

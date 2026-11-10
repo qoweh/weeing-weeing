@@ -5,8 +5,6 @@ build/
 dist/
 wheels/
 *.egg-info
-.pytest_cache/
-.ruff_cache/
 
 # Virtual environments
 .venv
@@ -15,44 +13,39 @@ wheels/
 .env
 .env.*
 !.env.example
+!.env.sample
 
-# 실행 중 생기는 저장소·산출물
+# 서버 접속 키·AWS 콘솔 자격증명 (#117). 키 파일은 이름과 상관없이 커밋하지 않는다.
+*.pem
+*.ppk
+*credentials*.csv
+
+# 실행 중 생기는 저장소·산출물·로그
 /storage/
 /outputs/
+/output/
+/logs/
+/tmp/
 /data/chunked/
 *.log
 
 # 에디터·에이전트 로컬 상태
 .DS_Store
+._*
 .vscode/
 .idea/
 .omc/
 .claude/worktrees/
 .claude/settings.local.json
-/storage/chroma/
-
-# macOS
-.DS_Store
-._*
-
-# 환경변수·인증정보
-.env
-.env.*
-!.env.example
-!.env.sample
-
-# 임시 파일·생성 산출물
-/tmp/
-/output/
-
-# 실행 로그
-/logs/
-*.log
+/.codex/
 
 # 개발 도구 캐시
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+/.cache/
+# 로컬 병렬 테스트 임시 산출물
+/.pytest-*/
 
 # 노트북 파일
 /notebooks/
@@ -60,23 +53,13 @@ wheels/
 
 # frontend
 node_modules
-
 .next/
-
 frontend/next-env.d.ts
 frontend/*.tsbuildinfo
 .prettierrc.json
-
-# 서버 접속 키·AWS 콘솔 자격증명 (#117)
-*.pem
-*credentials*.csv
 
 # ML 원본 데이터와 로컬 학습 산출물
 conveyor_dataset*.csv
 /data/ml/raw/
 *.joblib
 /deploy/ml-models/
-weeing.ppk
-
-# 로컬 병렬 테스트 임시 산출물
-/.pytest-*/

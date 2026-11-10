@@ -1,0 +1,17 @@
+# gitleaks 설정. CI(Secret scan)와 pre-commit 훅이 저장소 루트의 이 파일을 자동으로 읽는다.
+# 기본 규칙은 그대로 쓰고, 기본 규칙이 놓치는 키 파일만 추가로 막는다.
+# 기본 private-key 규칙은 "-----BEGIN ... PRIVATE KEY" 머리말만 찾으므로 PuTTY 형식(.ppk)을 못 잡는다.
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "putty-private-key"
+description = "PuTTY private key (.ppk) content"
+regex = '''PuTTY-User-Key-File-\d+:'''
+keywords = ["putty-user-key-file"]
+
+[[rules]]
+id = "private-key-file"
+description = "Private key or certificate bundle file committed by extension"
+path = '''(?i)\.(ppk|pem|p12|pfx)$'''
