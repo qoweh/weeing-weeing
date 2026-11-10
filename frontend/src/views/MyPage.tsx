@@ -6,6 +6,7 @@ import ProfileAvatar from "../components/layout/ProfileAvatar";
 import LlmUsageCard from "../components/usage/LlmUsageCard";
 import { canViewLlmUsage } from "../components/usage/access";
 import "./MyPage.scss";
+import { canReviewReports } from "../components/auth/permissions";
 
 type Report = {
   report_id: string;
@@ -44,7 +45,7 @@ export default function MyPage({
   );
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
-  const canReview = ["보전 팀장", "관제 담당자"].includes(user.role);
+  const canReview = canReviewReports(user);
 
   useEffect(() => {
     let active = true;
@@ -200,7 +201,11 @@ export default function MyPage({
             {canReview && (
               <section className="mypage__card">
                 <h2>
-                  {user.role === "보전 팀장" ? "검토 대기" : "최종 결재 대기"}
+                  {user.is_admin
+                    ? "결재 대기"
+                    : user.role === "보전 팀장"
+                      ? "검토 대기"
+                      : "최종 결재 대기"}
                 </h2>
                 {reportList(data.review, "결재 대기 중인 보고서가 없습니다.")}
               </section>
@@ -225,7 +230,7 @@ export default function MyPage({
       {canViewLlmUsage(user) && (
         <LlmUsageCard onSessionExpired={onSessionExpired} />
       )}
-      {user.role === "현장 점검자" && (
+      {(user.role === "현장 점검자" || user.is_admin) && (
         <section className="mypage__card mypage__action">
           <div>
             <h2>새 보고서 작성</h2>

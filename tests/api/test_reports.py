@@ -485,7 +485,8 @@ def test_delete_incident_removes_linked_data_and_prevents_recreation(
         ),
         PASSWORD,
     )
-    assert client.delete(path, headers=auth(client, "S1")).status_code == 403
+    # D-36: 관리자는 다른 직책이어도 관제 담당자처럼 삭제 단계까지 간다(분석 중이라 409).
+    assert client.delete(path, headers=auth(client, "S1")).status_code == 409
     assert client.delete(path, headers=auth(client, "C1")).status_code == 409
     result = AnalysisResult(
         incident_id="INC-1",

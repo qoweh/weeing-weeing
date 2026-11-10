@@ -760,7 +760,9 @@ ul.report-analysis-list {
   color: var(--danger, #bc4161);
   font-weight: 700;
 }
-.report-sheet .report-fields:not(:disabled) .report-field--bare.is-empty:has(:required) {
+.report-sheet
+  .report-fields:not(:disabled)
+  .report-field--bare.is-empty:has(:required) {
   box-shadow: inset 3px 0 var(--danger, #bc4161);
   background: var(--danger-bg, #fff0f3);
 }

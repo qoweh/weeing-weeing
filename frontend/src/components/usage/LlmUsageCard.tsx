@@ -96,11 +96,7 @@ export default function LlmUsageCard({
       <div className="mypage__usage-head">
         <h2>LLM 사용량</h2>
         <div className="mypage__usage-tools">
-          <div
-            className="mypage__usage-periods"
-            role="group"
-            aria-label="기간"
-          >
+          <div className="mypage__usage-periods" role="group" aria-label="기간">
             {periods.map((item) => (
               <button
                 key={item.value}
@@ -149,7 +145,9 @@ export default function LlmUsageCard({
             <div>
               <span className="mypage__summary-label">비용</span>
               <strong>{costFormat.format(data.total_cost_usd)}</strong>
-              <small className="mypage__usage-sub">USD, Langfuse 단가 기준</small>
+              <small className="mypage__usage-sub">
+                USD, Langfuse 단가 기준
+              </small>
             </div>
             <div>
               <span className="mypage__summary-label">LLM 호출</span>
@@ -256,9 +254,7 @@ function UsageTrend({
       </div>
       <div className="mypage__usage-axis" aria-hidden="true">
         {ticks.map((index) => (
-          <span key={index}>
-            {formatTime(series[index].time, granularity)}
-          </span>
+          <span key={index}>{formatTime(series[index].time, granularity)}</span>
         ))}
       </div>
     </div>

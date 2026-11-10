@@ -6,11 +6,10 @@ import {
 import ReportForm from "./ReportForm";
 import { draftValues, formValues } from "./reportValues";
 import "./ReportWorkspace.css";
+import { canControl, canWriteReports, reviewStep } from "./permissions";
 
 const statuses = { DRAFT: "작성 중", SUBMITTED: "제출됨", REVIEWED: "최종 승인 대기", APPROVED: "최종 승인", REJECTED: "반려" };
-const inspector = "현장 점검자";
 const lead = "보전 팀장";
-const control = "관제 담당자";
 
 export default function ReportWorkspace({ user, onSessionExpired, onBusyChange, initialDocument = null, initialIncidentId = "", initialIncident = null, initialTelemetry = null, initialAnalysis = null, onNavigate, active = true }) {
   const [busy, setBusy] = useState(false);
@@ -178,12 +177,11 @@ export default function ReportWorkspace({ user, onSessionExpired, onBusyChange, 
 
   const own = !document || document.author_id === user.employee_no;
   const current = !document || document.current_version === document.report_version;
-  const canWrite = [inspector, lead].includes(user.role);
+  const canWrite = canWriteReports(user);
   const editable = own && current && canWrite && (!document || document.report_status === "DRAFT");
-  const reviewable = document && current && !own && (
-    (user.role === lead && document.report_status === "SUBMITTED") ||
-    (user.role === control && document.report_status === "REVIEWED")
-  );
+  // 관리자는 두 결재 단계를 모두 할 수 있어 직책이 아닌 보고서 상태로 단계를 정한다.
+  const step = document && current && !own ? reviewStep(user, document.report_status) : null;
+  const reviewable = step !== null;
   const linkedIncident = document?.incident_id === incidentId ? document.incident : incidents.find((item) => item.incident_id === incidentId) ?? (initialIncident?.incident_id === incidentId ? initialIncident : null);
   const errorIncidents = incidents.filter((item) => item.severity === "Error");
   const retainedIncident = document?.incident;
@@ -219,7 +217,7 @@ export default function ReportWorkspace({ user, onSessionExpired, onBusyChange, 
             <button type="button" disabled={busy} onClick={() => open(document.report_id)}>최신 내용 불러오기</button>
             {own && current && canWrite && document.report_status === "REJECTED" && <button type="button" className="report-revise-button" disabled={busy} onClick={() => decide("revise")}>보고서 수정하기</button>}
             {own && current && canWrite && document.report_status === "DRAFT" && <button type="button" className="report-delete-button" disabled={busy} onClick={() => removeReport(true)}>{document.report_version > 1 ? "수정 취소" : "임시 저장 삭제"}</button>}
-            {current && user.role === control && document.report_status === "APPROVED" && <button type="button" className="report-delete-button" disabled={busy} onClick={() => removeReport(false)}>보고서 삭제</button>}
+            {current && canControl(user) && document.report_status === "APPROVED" && <button type="button" className="report-delete-button" disabled={busy} onClick={() => removeReport(false)}>보고서 삭제</button>}
           </div>
           {document.approval.length > 0 && <section className="approval-history" aria-label="결재 이력">
             <h4>결재 이력</h4>
@@ -257,7 +255,7 @@ export default function ReportWorkspace({ user, onSessionExpired, onBusyChange, 
         <h3>보고서 결재</h3>
         <label>결재 의견 — 반려 시 필수<textarea value={comment} onChange={(event) => setComment(event.target.value)} maxLength={2000} disabled={busy} /></label>
         <div className="report-actions">
-          <button type="button" disabled={busy} onClick={() => decide(user.role === lead ? "review" : "approve")}>{user.role === lead ? "검토 승인" : "최종 승인"}</button>
+          <button type="button" disabled={busy} onClick={() => step && decide(step)}>{step === "review" ? "검토 승인" : "최종 승인"}</button>
           <button type="button" disabled={busy || !comment.trim()} onClick={() => decide("reject")}>반려</button>
         </div>
       </section>}

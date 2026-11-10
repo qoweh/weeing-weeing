@@ -2,6 +2,7 @@
 
 출처: 노션 '전체 할 일 정리 > 8. 사용자·권한'(직책 4종 권한표, 간단 로그인).
 직책(Role)은 업무 권한(결재 단계 등), is_admin은 계정 관리 권한이다. 둘은 따로 준다.
+계정 관리자는 직책과 관계없이 모든 직책의 업무 권한도 가진다(D-36).
 """
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
@@ -18,7 +19,7 @@ class UserAccount(BaseModel):
     employee_no: str = Field(pattern=EMPLOYEE_NO_PATTERN)
     name: str = Field(min_length=1, max_length=64)
     role: Role
-    is_admin: bool = False  # 계정 만들기·직책 변경·비활성화
+    is_admin: bool = False  # 계정 관리 + 모든 직책의 업무 권한(D-36)
     is_active: bool = True  # False면 로그인·기존 세션 모두 거부
     created_at: AwareDatetime | None = None
     last_login_at: AwareDatetime | None = None

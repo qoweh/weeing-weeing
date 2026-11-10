@@ -15,6 +15,7 @@ import ReportDraftModal from "./components/report/ReportDraftModal";
 import SignupPage from "./views/SignupPage";
 import ForgotPasswordPage from "./views/ForgotPasswordPage";
 import MyPage from "./views/MyPage";
+import { canControl } from "./components/auth/permissions";
 
 type SelectedIncident = { incident_id: string };
 type ReportSelection = {
@@ -322,7 +323,7 @@ export default function App() {
           onBusyChange={setBusy}
         />
       )}
-      {page === "manual-upload" && user?.role === "관제 담당자" && (
+      {page === "manual-upload" && canControl(user) && (
         <ManualUploadPage
           onNavigate={navigate}
           onSessionExpired={forgetSession}

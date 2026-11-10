@@ -80,16 +80,23 @@ class ReportReviewHistory:
 
 def _actor(session, employee_no: str, role: Role | None = None) -> UserRow:
     user = session.get(UserRow, employee_no)
-    if user is None or not user.is_active or (role and user.role != role.value):
+    if (
+        user is None
+        or not user.is_active
+        or (role and user.role != role.value and not user.is_admin)
+    ):
         raise ReportForbiddenError("이 작업을 할 수 있는 활성 계정이 아닙니다.")
     return user
 
 
 def _author(session, employee_no: str) -> UserRow:
     user = _actor(session, employee_no)
-    if user.role not in (Role.INSPECTOR.value, Role.MAINT_LEAD.value):
+    if not user.is_admin and user.role not in (
+        Role.INSPECTOR.value,
+        Role.MAINT_LEAD.value,
+    ):
         raise ReportForbiddenError(
-            "현장 점검자와 보전 팀장만 보고서를 작성할 수 있습니다."
+            "현장 점검자·보전 팀장·계정 관리자만 보고서를 작성할 수 있습니다."
         )
     return user
 
@@ -648,15 +655,21 @@ class SqlReports(Repository):
                 )
             if review:
                 statuses = {
-                    Role.MAINT_LEAD.value: ReportStatus.SUBMITTED,
-                    Role.CONTROL.value: ReportStatus.REVIEWED,
+                    Role.MAINT_LEAD.value: [ReportStatus.SUBMITTED],
+                    Role.CONTROL.value: [ReportStatus.REVIEWED],
                 }
-                if user.role not in statuses:
+                # 계정 관리자는 직책과 관계없이 두 결재 단계를 모두 본다(D-36).
+                pending = (
+                    [ReportStatus.SUBMITTED, ReportStatus.REVIEWED]
+                    if user.is_admin
+                    else statuses.get(user.role)
+                )
+                if not pending:
                     raise ReportForbiddenError(
                         "결재 직책만 결재 대기 목록을 조회할 수 있습니다."
                     )
                 query = query.where(
-                    ReportRow.report_status == statuses[user.role],
+                    ReportRow.report_status.in_(pending),
                     ReportRow.author_id != actor_id,
                 )
             elif not approved_only and not all_reports:
@@ -686,7 +699,10 @@ class SqlReports(Repository):
     ) -> list[ReportReviewHistory]:
         with self._transaction() as session:
             user = _actor(session, actor_id)
-            if user.role not in (Role.MAINT_LEAD.value, Role.CONTROL.value):
+            if not user.is_admin and user.role not in (
+                Role.MAINT_LEAD.value,
+                Role.CONTROL.value,
+            ):
                 raise ReportForbiddenError(
                     "결재 직책만 내 결재 이력을 조회할 수 있습니다."
                 )
@@ -803,9 +819,11 @@ class SqlReports(Repository):
                 report = None
             else:
                 raise ValueError("지원하지 않는 보고서 작업입니다.")
-            if (required is not None and user.role != required.value) or (
-                action != "submit" and actor_id == row.author_id
-            ):
+            if (
+                required is not None
+                and user.role != required.value
+                and not user.is_admin
+            ) or (action != "submit" and actor_id == row.author_id):
                 raise ReportForbiddenError(
                     "해당 결재 직책이어야 하며 본인 보고서를 결재할 수 없습니다."
                 )
@@ -822,7 +840,9 @@ class SqlReports(Repository):
                     version_no=version.version_no,
                     step=step,
                     employee_no=actor_id,
-                    role=user.role,
+                    # 결재는 그 단계의 직책으로 남긴다. 관리자가 다른 직책 단계를 결재해도
+                    # 이력 표시(검토·최종 승인)가 맞고, 실제 결재자는 사번으로 남는다.
+                    role=required.value if required is not None else user.role,
                     decision="제출"
                     if action == "submit"
                     else "반려"

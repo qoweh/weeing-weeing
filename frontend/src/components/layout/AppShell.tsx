@@ -11,6 +11,7 @@ import {
   SettingsUpdateContext,
   type Settings,
 } from "./settings";
+import { canReviewReports, canWriteReports } from "../auth/permissions";
 
 export default function AppShell({
   theme,
@@ -26,7 +27,12 @@ export default function AppShell({
 }: {
   theme: string;
   onToggleTheme: () => void;
-  user: { name: string; role: string; employee_no: string };
+  user: {
+    name: string;
+    role: string;
+    employee_no: string;
+    is_admin?: boolean;
+  };
   onLogout: () => void;
   busy: boolean;
   page: string;
@@ -43,11 +49,11 @@ export default function AppShell({
     async function refresh() {
       const current = ++sequence;
       try {
-        const canReview = ["보전 팀장", "관제 담당자"].includes(user.role);
-        const canWrite = ["현장 점검자", "보전 팀장"].includes(user.role);
         const [mine, review] = await Promise.all([
-          canWrite ? listAllReports("mine") : Promise.resolve([]),
-          canReview ? listAllReports("review") : Promise.resolve([]),
+          canWriteReports(user) ? listAllReports("mine") : Promise.resolve([]),
+          canReviewReports(user)
+            ? listAllReports("review")
+            : Promise.resolve([]),
         ]);
         if (active && current === sequence)
           setMaintenanceAttention(

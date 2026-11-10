@@ -55,9 +55,9 @@ test("short gaps keep the original forecast and its original time, then recover"
     "2026-11-05T06:00:06Z",
   );
   const view = predictionDisplay(gap);
-  assert.equal(view.prediction.error_probability, 0.292);
+  assert.equal(view.prediction, null);
   assert.equal(view.timestamp, at);
-  assert.equal(view.held, true);
+  assert.equal(view.held, false);
   assert.equal(view.isError, false);
   assert.match(view.message, /데이터 공백/);
   assert.deepEqual(state, original);
@@ -107,7 +107,8 @@ for (const [status, expected] of [
     );
     const view = predictionDisplay(state);
     assert.equal(view.isError, true);
-    assert.equal(view.held, true);
+    assert.equal(view.held, false);
+    assert.equal(view.prediction, null);
     assert.equal(
       view.message,
       `${expected} 에러가 발생했습니다. 확인이 필요합니다.`,
@@ -189,7 +190,8 @@ test("stale connection and current detected errors keep clearly historical resul
       at,
     ),
   );
-  assert.equal(ineligible.held, true);
+  assert.equal(ineligible.prediction, null);
+  assert.equal(ineligible.held, false);
   assert.equal(ineligible.message, "이상이 발생하였습니다.");
   assert.equal(ineligible.faulted, true);
 });
@@ -198,9 +200,8 @@ test("invalid probabilities cannot replace a good result or be displayed on firs
   for (const value of [NaN, Infinity, -0.1, 1.1]) {
     const bad = snapshot({}, { error_probability: value });
     assert.equal(
-      predictionDisplay(receivePrediction(initial(), bad, at)).prediction
-        .error_probability,
-      0.292,
+      predictionDisplay(receivePrediction(initial(), bad, at)).prediction,
+      null,
     );
     assert.equal(
       predictionDisplay(receivePrediction(emptyPredictionState(), bad, at))
@@ -223,7 +224,8 @@ test("deadline overruns preserve the forecast with a specific error", () => {
       at,
     ),
   );
-  assert.equal(view.held, true);
+  assert.equal(view.held, false);
+  assert.equal(view.prediction, null);
   assert.equal(view.isError, true);
   assert.match(view.message, /처리 시간 초과/);
 });

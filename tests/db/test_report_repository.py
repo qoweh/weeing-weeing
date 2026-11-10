@@ -38,7 +38,8 @@ def setup_reports(reports, database_url):
         ("I2", Role.INSPECTOR),
         ("L1", Role.MAINT_LEAD),
         ("C1", Role.CONTROL),
-        ("S1", Role.SITE_MANAGER),
+        ("S1", Role.SITE_MANAGER),  # 관리자
+        ("S2", Role.SITE_MANAGER),
     ):
         users.create_user(
             UserAccount(
@@ -336,14 +337,60 @@ def test_complete_workflow_has_immutable_contract_and_atomic_outbox(setup_report
 
 @pytest.mark.parametrize(
     "actor,action",
-    [("S1", "review"), ("C1", "review"), ("I2", "review"), ("I1", "review")],
+    [("C1", "review"), ("I2", "review"), ("I1", "review")],
 )
-def test_admin_flag_does_not_grant_business_approval(setup_reports, actor, action):
+def test_wrong_role_or_author_cannot_approve(setup_reports, actor, action):
     repo = setup_reports
     doc = step(repo, repo.create_draft("I1", ready_draft()), "I1", "submit")
     with pytest.raises(db.ReportForbiddenError):
         step(repo, doc, actor, action)
     assert len(repo.get_report("I1", doc.report_id).approval) == 1
+
+
+def test_admin_has_every_role_permission(setup_reports):
+    """D-36: S1은 현장 책임자 + 관리자. 직책과 관계없이 모든 결재 단계를 할 수 있다."""
+    repo = setup_reports
+    doc = step(repo, repo.create_draft("I1", ready_draft()), "I1", "submit")
+    assert [r.report_id for r in repo.list_reports("S1", review=True)] == [
+        doc.report_id
+    ]
+    doc = step(repo, doc, "S1", "review")
+    assert [r.report_id for r in repo.list_reports("S1", review=True)] == [
+        doc.report_id
+    ]
+    doc = step(repo, doc, "S1", "approve")
+    assert doc.report_status == "APPROVED"
+    # 이력은 실제 결재자 사번과 그 단계의 직책으로 남는다.
+    assert [(a.user, a.role) for a in doc.approval] == [
+        ("I1", Role.INSPECTOR),
+        ("S1", Role.MAINT_LEAD),
+        ("S1", Role.CONTROL),
+    ]
+    assert len(repo.review_history("S1")) == 1
+    assert repo.list_reports("S1", review=True) == []
+
+
+def test_admin_writes_reports_but_cannot_approve_own(setup_reports):
+    repo = setup_reports
+    doc = step(repo, repo.create_draft("S1", ready_draft()), "S1", "submit")
+    assert doc.report_status == "SUBMITTED"
+    assert repo.list_reports("S1", review=True) == []  # 본인 보고서는 결재 대기에 없다
+    with pytest.raises(db.ReportForbiddenError):
+        step(repo, doc, "S1", "review")
+    doc = step(repo, doc, "L1", "review")
+    with pytest.raises(db.ReportForbiddenError):
+        step(repo, doc, "S1", "approve")
+
+
+def test_non_admin_site_manager_has_no_report_role(setup_reports):
+    repo = setup_reports  # S2는 S1과 같은 직책이지만 관리자가 아니다
+    with pytest.raises(db.ReportForbiddenError):
+        repo.create_draft("S2", ready_draft())
+    doc = step(repo, repo.create_draft("I1", ready_draft()), "I1", "submit")
+    with pytest.raises(db.ReportForbiddenError):
+        step(repo, doc, "S2", "review")
+    with pytest.raises(db.ReportForbiddenError):
+        repo.list_reports("S2", review=True)
 
 
 def test_missing_incident_or_incomplete_form_cannot_submit(setup_reports):

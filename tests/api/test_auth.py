@@ -188,10 +188,12 @@ def test_require_roles_dependency(client):
 
     app.include_router(router)
     try:
-        # 관리자라도 직책이 다르면 막는다
-        assert client.get("/_test/lead-only", headers=login(client)).status_code == 403
-        assert client.get("/_test/lead-only").status_code == 401
+        # D-36: 관리자는 직책이 달라도 통과, 관리자가 아닌 다른 직책은 403
         admin = login(client)
+        assert client.get("/_test/lead-only", headers=admin).json() == {"ok": True}
+        assert client.get("/_test/lead-only").status_code == 401
+        other = login(client, "E1001")
+        assert client.get("/_test/lead-only", headers=other).status_code == 403
         client.patch("/users/E1001", headers=admin, json={"role": "보전 팀장"})
         lead = login(client, "E1001")
         assert client.get("/_test/lead-only", headers=lead).json() == {"ok": True}

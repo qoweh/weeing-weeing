@@ -35,7 +35,7 @@ const reportTone: Record<string, string> = {
   REJECTED: "danger",
 };
 const listLimit = 3;
-const predictionRefreshMs = 2000;
+const predictionRefreshMs = 1000;
 const orangeFrom = 0.6;
 const redFrom = 0.8;
 
@@ -186,7 +186,6 @@ export default function DashboardAside({
   const notice = mlDisplay.message;
   const predictionData = mlDisplay.prediction;
   const predictionRows = predictionData ? topPredictions(predictionData) : [];
-  const errorProbability = predictionData?.error_probability;
 
   return (
     <aside className="dashboard-aside" aria-label="설비 현황 요약">
@@ -215,19 +214,6 @@ export default function DashboardAside({
         )}
         {predictionData && (
           <>
-            {mlDisplay.held && (
-              <p className="dashboard-panel__hint">
-                갱신 대기 · 이전 결과 유지
-              </p>
-            )}
-            {typeof errorProbability === "number" && (
-              <p
-                className="dashboard-prediction__summary"
-                data-tone={probabilityTone(errorProbability)}
-              >
-                이상 발생 확률 <strong>{percent(errorProbability)}</strong>
-              </p>
-            )}
             <ul>
               {predictionRows.map((item) => (
                 <li

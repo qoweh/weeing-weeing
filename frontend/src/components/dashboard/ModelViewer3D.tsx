@@ -428,7 +428,14 @@ function ErrorCell({
         <dt>{high ? "상한" : "하한"} 기준</dt>
         <dd>
           {formatSensor(bound, chart.digits)}
-          {unit} {level === "warning" ? (high ? "이상" : "이하") : high ? "초과" : "미만"}
+          {unit}{" "}
+          {level === "warning"
+            ? high
+              ? "이상"
+              : "이하"
+            : high
+              ? "초과"
+              : "미만"}
         </dd>
         <dt>정상 범위</dt>
         <dd>
@@ -1132,16 +1139,16 @@ export default function ModelViewer3D({
         }}
       >
         <div className="model-viewer__canvas" ref={hostRef}>
-          {hasBackdrop ? (
-            backdrop
-          ) : paused && (
-            <img
-              className="model-viewer__poster"
-              src="/models/conveyor-poster.webp"
-              alt=""
-              draggable={false}
-            />
-          )}
+          {hasBackdrop
+            ? backdrop
+            : paused && (
+                <img
+                  className="model-viewer__poster"
+                  src="/models/conveyor-poster.webp"
+                  alt=""
+                  draggable={false}
+                />
+              )}
         </div>
         <div className="model-viewer__frames" aria-hidden="true">
           {([1, 2, 3] as const).map((column) => {
@@ -1221,7 +1228,9 @@ export default function ModelViewer3D({
               onClose={() => setBubbleColumn(null)}
             />
           ))}
-        {!hasBackdrop && !paused && status && <p className="model-viewer__status">{status}</p>}
+        {!hasBackdrop && !paused && status && (
+          <p className="model-viewer__status">{status}</p>
+        )}
         {onExpand && (
           <button
             type="button"

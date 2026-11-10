@@ -42,8 +42,8 @@ type DraftDocument = {
 };
 import { draftValues, formValues } from "./reportValues";
 import "./ReportDraftModal.css";
+import { canControl, canWriteReports, reviewStep } from "../auth/permissions";
 
-const writers = ["현장 점검자", "보전 팀장"];
 const statusLabels: Record<string, string> = {
   DRAFT: "초안",
   SUBMITTED: "검토 중",
@@ -67,7 +67,12 @@ export default function ReportDraftModal({
   reportId?: string;
   version?: number;
   previewOnly?: boolean;
-  user: { role: string; employee_no: string; name: string };
+  user: {
+    role: string;
+    employee_no: string;
+    name: string;
+    is_admin?: boolean;
+  };
   onClose: () => void;
   onSaved: (saved: unknown) => void;
   onDecisionComplete: (message: string) => void;
@@ -240,7 +245,7 @@ export default function ReportDraftModal({
 
   const canEdit =
     previewOnly ||
-    (writers.includes(user?.role) &&
+    (canWriteReports(user) &&
       (!document ||
         (document.author_id === user.employee_no &&
           document.report_version === document.current_version &&
@@ -249,12 +254,12 @@ export default function ReportDraftModal({
   const current =
     document && document.report_version === document.current_version;
   const own = document?.author_id === user.employee_no;
-  const reviewable =
-    document &&
-    current &&
-    !own &&
-    ((user.role === "보전 팀장" && document.report_status === "SUBMITTED") ||
-      (user.role === "관제 담당자" && document.report_status === "REVIEWED"));
+  // 관리자는 두 결재 단계를 모두 할 수 있어 직책이 아닌 보고서 상태로 단계를 정한다.
+  const step =
+    document && current && !own
+      ? reviewStep(user, document.report_status)
+      : null;
+  const reviewable = step !== null;
 
   const reportForm = (canEdit || document) && (
     <ReportForm
@@ -521,7 +526,9 @@ export default function ReportDraftModal({
         onClose();
       }}
       onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        // 초안을 작성·수정하는 중에는 모달 바깥을 눌러도 닫히지 않는다(실수로 입력을 잃지 않게).
+        // 닫기는 오른쪽 위 × 버튼이나 Esc로만 한다. 읽기 전용·권한 안내 화면은 바깥 클릭으로 닫힌다.
+        if (event.target === event.currentTarget && !canEdit) onClose();
       }}
     >
       {!permissionNotice && (
@@ -573,7 +580,9 @@ export default function ReportDraftModal({
             !
           </span>
           <h2 id="report-draft-title">보고서 작성 권한 안내</h2>
-          <p>새 보고서는 현장 점검자와 보전 팀장이 작성할 수 있습니다.</p>
+          <p>
+            새 보고서는 현장 점검자·보전 팀장·계정 관리자가 작성할 수 있습니다.
+          </p>
           <button type="button" onClick={onClose} autoFocus>
             확인
           </button>
@@ -664,7 +673,7 @@ export default function ReportDraftModal({
                   )}
                   {own &&
                     current &&
-                    writers.includes(user.role) &&
+                    canWriteReports(user) &&
                     document.report_status === "REJECTED" && (
                       <button
                         className="report-draft-dialog__revise"
@@ -677,7 +686,7 @@ export default function ReportDraftModal({
                     )}
                   {own &&
                     current &&
-                    writers.includes(user.role) &&
+                    canWriteReports(user) &&
                     document.report_status === "DRAFT" && (
                       <button
                         type="button"
@@ -763,7 +772,7 @@ export default function ReportDraftModal({
                 )}
               </section>
               {current &&
-                user.role === "관제 담당자" &&
+                canControl(user) &&
                 document.report_status === "APPROVED" && (
                   <div className="report-draft-dialog__actions report-draft-dialog__delete-actions">
                     <button
@@ -804,13 +813,9 @@ export default function ReportDraftModal({
                   className="report-draft-dialog__approve"
                   type="button"
                   disabled={busy}
-                  onClick={() =>
-                    void decide(
-                      user.role === "보전 팀장" ? "review" : "approve",
-                    )
-                  }
+                  onClick={() => step && void decide(step)}
                 >
-                  {user.role === "보전 팀장" ? "검토 승인" : "최종 승인"}
+                  {step === "review" ? "검토 승인" : "최종 승인"}
                 </button>
               </div>
             </section>

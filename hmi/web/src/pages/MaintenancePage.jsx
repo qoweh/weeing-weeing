@@ -3,6 +3,7 @@ import { listReports, listIncidents, listReviewHistory } from '../api/client'
 import Button from '../components/ui/Button'
 import { Filters, LibraryTable } from '../components/ui/library'
 import { filterRows } from '../components/ui/libraryUtils'
+import { canReviewReports, canWriteReports } from '../components/permissions'
 
 const labels = {
   DRAFT: '임시 저장',
@@ -25,8 +26,8 @@ const emptyMessages = {
 }
 
 export default function MaintenancePage({ user, busy, selectedTab, onSelectTab, onOpen, onSessionExpired }) {
-  const canWrite = ['현장 점검자', '보전 팀장'].includes(user.role)
-  const canReview = ['보전 팀장', '관제 담당자'].includes(user.role)
+  const canWrite = canWriteReports(user)
+  const canReview = canReviewReports(user)
   const tabs = [
     ...(canWrite ? [{ id: 'mine', label: '내 보고서' }] : []),
     ...(canReview ? [{ id: 'review', label: '결재 대기' }, { id: 'history', label: '내 결재 이력' }] : []),

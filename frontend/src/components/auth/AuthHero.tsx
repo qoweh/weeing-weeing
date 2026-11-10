@@ -12,7 +12,9 @@ export function AuthBrand({ name = "위잉위잉" }: { name?: string }) {
       </span>
       <span>
         {name}
-        <small>Equipment AI</small>
+        <small>
+          {name === "WWE" ? "Weeing Weeing Engineering" : "Equipment AI"}
+        </small>
       </span>
     </div>
   );

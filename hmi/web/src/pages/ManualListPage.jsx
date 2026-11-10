@@ -1,9 +1,10 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { deleteDocument, listDocuments } from '../api/client'
 import './manuals.scss'
+import { canControl } from '../components/permissions'
 
 const kinds = { manual: '매뉴얼', sop: '규정·SOP', rule: '룰베이스' }
-const canManage = (user) => user.role === '관제 담당자'
+const canManage = canControl
 
 function DeleteManualDialog({ document, busy, onCancel, onConfirm }) {
   const dialog = useRef(null)

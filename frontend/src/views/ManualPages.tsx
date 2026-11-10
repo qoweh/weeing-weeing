@@ -40,6 +40,7 @@ import {
   LibraryTable,
   dateLabel,
 } from "../components/ui/library";
+import { canControl } from "../components/auth/permissions";
 
 const labels: Record<string, string> = {
   completed: "등록 완료",
@@ -66,8 +67,8 @@ export function ManualPage({
   onNavigate,
   onSessionExpired,
   onBusyChange,
-}: PageActions & { user: { role: string } }) {
-  const canManage = user?.role === "관제 담당자";
+}: PageActions & { user: { role: string; is_admin?: boolean } }) {
+  const canManage = canControl(user);
   const [deleting, setDeleting] = useState<ManualRow | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [notice, setNotice] = useState("");

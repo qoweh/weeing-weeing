@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { getIncidentAnalysis, retryIncidentAnalysis } from '../api/client'
 import { newRequestId } from '../api/requestId'
 import { pollAnalysis } from '../pages/incidentSimulation'
+import { canRunAnalysis } from './permissions'
 
 export default function AnalysisRetry({ incidentId, result, user, onResult, onSessionExpired }) {
   const [busy, setBusy] = useState(false)
@@ -36,7 +37,7 @@ export default function AnalysisRetry({ incidentId, result, user, onResult, onSe
     }
   }
 
-  if (!onResult || !['관제 담당자', '보전 팀장', '현장 점검자'].includes(user?.role)) return null
+  if (!onResult || !canRunAnalysis(user)) return null
   const canRetry = result?.job?.status === 'FAILED' && Boolean(result.retry_mode)
   if (!busy && !error && !canRetry) return null
   return <div className="analysis-retry">

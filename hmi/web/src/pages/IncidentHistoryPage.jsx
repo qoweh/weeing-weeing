@@ -4,6 +4,7 @@ import { AnalysisCard } from './IncidentTestPage'
 import { pollAnalysis } from './incidentSimulation'
 import '../components/ui/library.scss'
 import './incident-test.scss'
+import { canControl, canWriteReports } from '../components/permissions'
 
 function equipmentStatus(item) {
   if (item.recovered_at || item.status === 'RECOVERED') return '정상 회복'
@@ -188,7 +189,7 @@ export default function IncidentHistoryPage({ focus, onFocusHandled, onSessionEx
       <IncidentTable title="처리 완료된 사건" items={visible.filter((item) => item.has_approved_report)} onSelect={select} />
       <p className="incident-result__note">최근 Error 사건 최대 100건을 표시합니다. 보고서 최종 승인 여부로 처리 상태를 구분합니다.</p>
     </>}
-    {selected && <IncidentDetailDialog user={user} onResult={setResult} onSessionExpired={onSessionExpired} incident={selected} result={result} reports={reports} onRefresh={() => select(selected)} onClose={() => setSelected(null)} onOpenDraft={onOpenDraft} onOpenReport={onOpenReport} onDelete={user.role === '관제 담당자' ? () => { setDeleteError(''); setDeleteTarget(selected) } : undefined} busy={busy} canWrite={['현장 점검자', '보전 팀장'].includes(user.role)} />}
+    {selected && <IncidentDetailDialog user={user} onResult={setResult} onSessionExpired={onSessionExpired} incident={selected} result={result} reports={reports} onRefresh={() => select(selected)} onClose={() => setSelected(null)} onOpenDraft={onOpenDraft} onOpenReport={onOpenReport} onDelete={canControl(user) ? () => { setDeleteError(''); setDeleteTarget(selected) } : undefined} busy={busy} canWrite={canWriteReports(user)} />}
     {deleteTarget && <IncidentDeleteDialog incident={deleteTarget} busy={deleteBusy} error={deleteError} onCancel={() => setDeleteTarget(null)} onConfirm={removeIncident} />}
   </div>
 }

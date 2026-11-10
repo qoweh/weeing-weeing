@@ -5,7 +5,7 @@
     @router.post("/reports/{id}/approve", dependencies=[Depends(require_roles(Role.MAINT_LEAD))])
 
 인증은 `Authorization: Bearer <토큰>`. 토큰은 POST /auth/login이 주고, DB 세션 행으로 확인한다.
-문서 등록·삭제는 관제 담당자로 제한한다. 센서 WebSocket은 별도 송신 인증을 쓴다(docs/AUTH.md).
+직책 제한 기능은 계정 관리자(is_admin)도 할 수 있다(D-36). 센서 WebSocket은 별도 송신 인증을 쓴다(docs/AUTH.md).
 """
 
 import logging
@@ -85,11 +85,11 @@ def require_admin(user: CurrentUser) -> UserAccount:
 
 
 def require_roles(*roles: Role):
-    """지정한 직책 중 하나여야 통과(403). 관리자라도 직책이 다르면 막는다(업무 권한과 분리)."""
+    """지정한 직책 중 하나이거나 계정 관리자(is_admin)여야 통과(403). D-36."""
     allowed = frozenset(roles)
 
     def check(user: CurrentUser) -> UserAccount:
-        if user.role not in allowed:
+        if not user.is_admin and user.role not in allowed:
             names = ", ".join(sorted(r.value for r in allowed))
             raise HTTPException(status_code=403, detail=f"{names}만 할 수 있습니다.")
         return user

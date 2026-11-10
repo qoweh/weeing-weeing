@@ -126,7 +126,7 @@ def incident_report_context(
         raise HTTPException(status_code=404, detail="저장된 사건이 없습니다.")
     draft = (
         _call(repo.find_incident_draft, user.employee_no, incident_id)
-        if user.role in (Role.INSPECTOR, Role.MAINT_LEAD)
+        if user.is_admin or user.role in (Role.INSPECTOR, Role.MAINT_LEAD)
         else None
     )
     document = (

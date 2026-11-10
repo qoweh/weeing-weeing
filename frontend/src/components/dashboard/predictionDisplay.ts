@@ -99,9 +99,10 @@ export function predictionDisplay(state: PredictionState) {
         "observed_span",
         "anchor_not_sample",
       ].includes(p.reason ?? "")
-    )
+    ) {
       notice = "데이터 공백으로 예측 갱신을 기다리고 있습니다.";
-    else error = inputErrors[p.reason ?? ""] ?? "예측 입력 데이터";
+      hideGraph = true;
+    } else error = inputErrors[p.reason ?? ""] ?? "예측 입력 데이터";
   } else if (!snapshot.producer_connected || snapshot.stale) {
     notice = "센서 수신 지연으로 예측 갱신을 기다리고 있습니다.";
     hideGraph = true;
@@ -110,6 +111,7 @@ export function predictionDisplay(state: PredictionState) {
   else if (p?.evaluation_eligible === false) {
     notice = "이상이 발생하였습니다.";
     faulted = true;
+    hideGraph = true;
   } else if (p?.deadline_exceeded) error = "예측 처리 시간 초과";
   else if (!usable(snapshot)) error = "예측 응답";
 
@@ -123,7 +125,8 @@ export function predictionDisplay(state: PredictionState) {
     hideGraph = true; // 정상 복귀(확률 100% 미만)하면 그래프를 다시 보여 준다.
   }
 
-  const held = Boolean(!hideGraph && state.lastGood && (error || notice));
+  if (error || notice) hideGraph = true;
+  const held = false;
   const reference = state.lastGood?.snapshot.prediction.reference_time;
   return {
     prediction: hideGraph
