@@ -168,7 +168,7 @@ frontend·hmi/web(분석 결과·단계·보고서 표시). DB 마이그레이�
 - **DocumentRecord**: 색인 대상 문서 한 줄(db `document` 테이블 ↔ rag 색인 목록 ↔ api 업로드 상태). `origin`은 seed(카탈로그)·upload·report. 색인 목록은 `status=completed` 행이고 같은 doc_id의 completed는 하나뿐이다. `origin=upload`면 `upload_id` 필수. 삭제 진행·실패 상태는 `deleting`·`delete_failed`이며 색인 대상에서 제외한다. 성공하면 문서의 모든 판을 DB에서 실제 삭제한다. `seed`는 이전에 등록된 문서 호환용이며 새 자동 등록은 없다. `doc_id`·`doc_version`에는 `:`와 공백을 쓸 수 없다(청크 ID 구분자)
 - **UserAccount**: 사용자 한 명(사번 `employee_no`, 이름, 직책 `role`, `is_admin`, `is_active`). 비밀번호·세션 토큰은 계약에 없고 db 내부에만 있다. 직책은 업무 권한, `is_admin`은 계정 관리 권한으로 따로 준다. 사번은 보고서의 `ActionTaken.by`·`ApprovalStep.user`와 같은 값을 쓴다
 - **MaintenanceReport**: 칸마다 쓰는 주체가 정해져 있다. AI는 `maintenance`·`approval`을 쓰지 않는다. RAG에는 승인된 보고서의 사람 작성 칸만 넣는다
-- **보고서 작업 계약(#62)**: 초안은 사건·입력이 덜 채워져도 저장한다. 제출에는 저장된 Incident·필수 사람 입력이 필요하다. 실제 조치는 action_at을 요구하고, 미수행은 actions_taken을 만들지 않는다. 작성자·결재 사번은 인증 계정에서 정하고 expected_revision으로 동시 수정을 검사한다. 과거 버전의 폼·사건/AI 스냅샷은 고정하고 승인 시 #29용 대기 기록을 만든다. 영향 모듈: db, api, HMI. 기존 MaintenanceReport/Agent 계약 유지. [REPORTS](REPORTS.md) 참고.
+- **보고서 작업 계약(#62)**: 초안은 사건·입력이 덜 채워져도 저장한다. 제출에는 저장된 Incident·필수 사람 입력이 필요하다. 실제 조치는 action_at을 요구하고, 미수행은 actions_taken을 만들지 않는다. 작성자·결재 사번은 인증 계정에서 정하고 expected_revision으로 동시 수정을 검사한다. 과거 버전의 폼·사건/AI 스냅샷은 고정하고 승인 시 #29용 대기 기록을 만든다. 조치 전·후 사진(각 5MB 이하 JPG/PNG/WebP)과 캡션·촬영 시각·위치도 버전별 폼에 저장한다. 영향 모듈: db, api, 프론트엔드, HMI. 기존 MaintenanceReport/Agent 계약 유지. [REPORTS](REPORTS.md) 참고.
 
 ## 챗봇 1단계 계약 (#86)
 

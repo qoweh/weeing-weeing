@@ -1,5 +1,7 @@
 """보고서 초안·조회 계약(#62). 미완성 초안과 제출된 MaintenanceReport를 구분한다."""
 
+import base64
+import binascii
 from datetime import date
 from typing import Literal, Self
 
@@ -42,6 +44,37 @@ class ReportFormData(BaseModel):
     follow_up: str = ""
     follow_up_owner: str = ""
     follow_up_due: str = Field(default="", pattern=r"^(?:\d{4}-\d{2}-\d{2})?$")
+
+    before_photo: str = Field(default="", max_length=7_000_040)
+    after_photo: str = Field(default="", max_length=7_000_040)
+    before_caption: str = ""
+    after_caption: str = ""
+    before_taken_at: AwareDatetime | None = None
+    after_taken_at: AwareDatetime | None = None
+    before_location: str = ""
+    after_location: str = ""
+
+    @field_validator("before_photo", "after_photo")
+    @classmethod
+    def _valid_photo(cls, value: str) -> str:
+        if not value:
+            return value
+        try:
+            header, content = value.split(",", 1)
+            signatures = {
+                "data:image/jpeg;base64": b"\xff\xd8\xff",
+                "data:image/png;base64": b"\x89PNG\r\n\x1a\n",
+                "data:image/webp;base64": b"RIFF",
+            }
+            signature = signatures[header]
+            decoded = base64.b64decode(content, validate=True)
+            if len(decoded) > 5 * 1024 * 1024 or not decoded.startswith(signature):
+                raise ValueError
+            if header == "data:image/webp;base64" and decoded[8:12] != b"WEBP":
+                raise ValueError
+        except (ValueError, KeyError, binascii.Error):
+            raise ValueError("사진은 5MB 이하의 JPG, PNG, WebP여야 합니다.") from None
+        return value
 
     @field_validator("follow_up_due")
     @classmethod

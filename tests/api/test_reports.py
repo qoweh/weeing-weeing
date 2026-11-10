@@ -1098,3 +1098,35 @@ def test_review_history_limit_applies_after_grouping_reports(client):
         (1, "반려"),
     ]
     assert revised["report_status"] == "REJECTED"
+
+
+def test_report_photos_survive_submit_and_are_visible_to_reviewer(client):
+    import base64
+
+    image = (
+        "data:image/png;base64," + base64.b64encode(b"\x89PNG\r\n\x1a\nphoto").decode()
+    )
+    doc = create(
+        client,
+        form_data={
+            "actual_actions": "센서 청소",
+            "action_at": "2026-10-28T09:00:00+09:00",
+            "confirmed_cause": "오염",
+            "trial_details": "빈 이송 시험",
+            "trial_result": "정상",
+            "before_photo": image,
+            "before_caption": "청소 전",
+            "before_location": "모터",
+            "before_taken_at": "2026-10-28T09:00:00+09:00",
+            "after_photo": image,
+        },
+    )
+    response = action(client, doc, "submit")
+    assert response.status_code == 200, response.text
+    report = client.get(f"/reports/{doc['report_id']}", headers=auth(client, "L1"))
+    assert report.status_code == 200
+    data = report.json()["form_data"]
+    assert data["before_photo"] == data["after_photo"] == image
+    assert data["before_caption"] == "청소 전"
+    assert data["before_location"] == "모터"
+    assert data["before_taken_at"] is not None

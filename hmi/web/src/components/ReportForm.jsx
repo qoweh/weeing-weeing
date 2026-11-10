@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { alarmDescriptions, measurementSummary } from "./reportPresentation";
 import "./ReportForm.css";
@@ -96,93 +96,40 @@ function Field({
   );
 }
 
-function PhotoField({ side, title, onEdit }) {
-  const [file, setFile] = useState(null);
-  const imageRef = useRef(null);
-
-  useEffect(() => {
-    if (!file || !imageRef.current) return;
-
-    const url = URL.createObjectURL(file);
-    imageRef.current.src = url;
-
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
-
+function PhotoField({ side, title, values, onChange, onPhoto, onPending, locked }) {
+  const [photoError, setPhotoError] = useState("");
+  const inputRef = useRef(null);
+  const photo = values[`${side}Photo`];
   function handleFileChange(event) {
-    const input = event.currentTarget;
-    const selected = input.files?.[0] ?? null;
-    const allowed = ["image/jpeg", "image/png", "image/webp"];
-
-    if (selected && !allowed.includes(selected.type)) {
-      input.setCustomValidity("JPG, PNG, WebP 이미지를 선택하세요.");
-      input.reportValidity();
-      input.value = "";
-      setFile(null);
-    } else {
-      input.setCustomValidity("");
-      setFile(selected);
+    const selected = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+    if (!selected) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(selected.type) || selected.size > 5 * 1024 * 1024) {
+      setPhotoError("사진은 5MB 이하의 JPG, PNG, WebP 파일을 선택하세요.");
+      return;
     }
-
-    onEdit();
+    setPhotoError("");
+    const reader = new FileReader();
+    onPending(1);
+    reader.onload = () => onPhoto(`${side}Photo`, reader.result);
+    reader.onerror = () => setPhotoError("사진을 읽지 못했습니다. 다시 선택하세요.");
+    reader.onloadend = () => onPending(-1);
+    reader.readAsDataURL(selected);
   }
-
-  return (
-    <div className="report-photo">
-      <h4>{title}</h4>
-
-      <div className="report-photo-body">
-        <div className="report-photo-preview">
-          {file ? (
-            <img ref={imageRef} alt={`${title} 미리보기`} />
-          ) : (
-            <p>{title} 사진 1장을 선택하세요.</p>
-          )}
-        </div>
-
-        <label>
-          사진 선택
-          <input
-            type="file"
-            name={`${side}_photo`}
-            accept="image/jpeg,image/png,image/webp"
-            onChange={handleFileChange}
-          />
-        </label>
-
-        <label>
-          캡션
-          <textarea
-            name={`${side}_caption`}
-            rows={2}
-            placeholder={
-              side === "before"
-                ? "이상 부위와 관측 상태"
-                : "실제 조치 내용과 복구 상태"
-            }
-            onChange={onEdit}
-          />
-        </label>
-
-        <label>
-          촬영 시각
-          <input
-            type="datetime-local"
-            name={`${side}_taken_at`}
-            onChange={onEdit}
-          />
-        </label>
-
-        <label>
-          촬영 위치
-          <input
-            name={`${side}_location`}
-            onChange={onEdit}
-          />
-        </label>
-      </div>
-    </div>
-  );
+  return <div className="report-photo"><h4>{title}</h4><div className="report-photo-body">
+    <div className="report-photo-preview" role={locked ? undefined : "button"} tabIndex={locked ? undefined : 0}
+      aria-label={locked ? undefined : `${title} 사진 선택`} aria-disabled={locked}
+      onClick={locked ? undefined : () => inputRef.current?.click()}
+      onKeyDown={locked ? undefined : (event) => {
+        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); inputRef.current?.click(); }
+      }}>{photo ? <img src={photo} alt={`${title} 사진`} /> : <p>{locked ? `${title} 사진 없음` : `${title} 사진을 눌러 선택`}</p>}</div>
+    {!locked && <><label>사진 선택 (JPG, PNG, WebP · 최대 5MB)<input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleFileChange} /></label>
+    {photo && <button type="button" onClick={() => onPhoto(`${side}Photo`, "")}>사진 삭제</button>}</>}
+    {photoError && <p className="error" role="alert">{photoError}</p>}
+    <label>캡션<textarea name={`${side}Caption`} rows={2} value={values[`${side}Caption`] ?? ""} onChange={onChange} /></label>
+    <label>촬영 시각<input type="datetime-local" name={`${side}TakenAt`} value={values[`${side}TakenAt`] ?? ""} onChange={onChange} /></label>
+    <label>촬영 위치<input name={`${side}Location`} value={values[`${side}Location`] ?? ""} onChange={onChange} /></label>
+  </div></div>;
 }
 
 function formatTime(value) {
@@ -214,6 +161,7 @@ export default function ReportForm({
     actionBy: author?.employee_no ?? "",
     confirmedBy: author?.name ?? "",
   }));
+  const [photoPending, setPhotoPending] = useState(0);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -263,6 +211,7 @@ export default function ReportForm({
 
   async function handleCheck(event) {
     event.preventDefault();
+    if (photoPending > 0 || busy || readOnly) return;
     clearFeedback();
 
     if (
@@ -496,17 +445,24 @@ export default function ReportForm({
         </Section>
 
         <Section number="06" title="현장 사진 (조치 전·후)">
-          <p className="report-note">사진은 미리보기용입니다. 현재 임시 저장·제출에 사진 파일은 포함되지 않습니다.</p>
           <div className="report-photo-grid">
             <PhotoField
               side="before"
               title="조치 전"
-              onEdit={clearFeedback}
+              values={values}
+              locked={readOnly || busy}
+              onChange={handleChange}
+              onPhoto={(name, value) => { setValues((previous) => ({ ...previous, [name]: value })); clearFeedback(); }}
+              onPending={(delta) => setPhotoPending((previous) => previous + delta)}
             />
             <PhotoField
               side="after"
               title="조치 후"
-              onEdit={clearFeedback}
+              values={values}
+              locked={readOnly || busy}
+              onChange={handleChange}
+              onPhoto={(name, value) => { setValues((previous) => ({ ...previous, [name]: value })); clearFeedback(); }}
+              onPending={(delta) => setPhotoPending((previous) => previous + delta)}
             />
           </div>
         </Section>
@@ -522,8 +478,8 @@ export default function ReportForm({
 
         <footer className="report-footer">
           <span>* 제출 시 필수 입력. 임시 저장은 사건 선택이 필요하며 나머지 항목은 비워둘 수 있습니다.</span>
-          {!readOnly && onSave && <button type="button" onClick={() => void onSave(values)}>임시 저장</button>}
-          {!readOnly && <button type="submit" className="report-check-button">{onSubmit ? "저장 후 제출" : "작성 내용 확인"}</button>}
+          {!readOnly && onSave && <button type="button" disabled={busy || photoPending > 0} onClick={() => void onSave(values)}>임시 저장</button>}
+          {!readOnly && <button type="submit" disabled={busy || photoPending > 0} className="report-check-button">{onSubmit ? "저장 후 제출" : "작성 내용 확인"}</button>}
         </footer>
         </fieldset>
       </form>

@@ -38,3 +38,26 @@ def test_downtime_cannot_run_backwards():
         ReportFormData(
             downtime_start="2026-10-28T11:00:00Z", downtime_end="2026-10-28T10:00:00Z"
         )
+
+
+def test_report_photo_validates_format_and_size():
+    import base64
+
+    image = (
+        "data:image/png;base64,"
+        + base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"x" * 11000).decode()
+    )
+    assert ReportFormData(before_photo=image).before_photo == image
+    for invalid in (
+        "data:image/png;base64,YWJj",
+        "data:image/svg+xml;base64,PHN2Zz4=",
+        "data:image/png;base64,!!!",
+    ):
+        with pytest.raises(ValidationError):
+            ReportFormData(before_photo=invalid)
+    large = (
+        "data:image/png;base64,"
+        + base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"x" * (5 * 1024 * 1024)).decode()
+    )
+    with pytest.raises(ValidationError):
+        ReportFormData(before_photo=large)
