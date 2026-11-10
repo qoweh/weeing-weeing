@@ -1,10 +1,33 @@
 .readable-text {
   line-height: 1.65;
   overflow-wrap: anywhere;
-  p { white-space: pre-wrap; margin: 0.5em 0; }
-  &__table { overflow-x: auto; margin: 12px 0; }
-  table { border-collapse: collapse; width: 100%; min-width: 360px; font-size: 13px; }
-  th, td { border: 1px solid #a8b5c6; padding: 8px 10px; text-align: left; vertical-align: top; }
-  th { background: #64748b22; font-weight: 700; }
-  pre { overflow-x: auto; white-space: pre-wrap; }
+  p {
+    white-space: pre-wrap;
+    margin: 0.5em 0;
+  }
+  &__table {
+    overflow-x: auto;
+    margin: 12px 0;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 360px;
+    font-size: 13px;
+  }
+  th,
+  td {
+    border: 1px solid #a8b5c6;
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: #64748b22;
+    font-weight: 700;
+  }
+  pre {
+    overflow-x: auto;
+    white-space: pre-wrap;
+  }
 }

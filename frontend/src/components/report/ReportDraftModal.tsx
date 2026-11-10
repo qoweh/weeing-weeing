@@ -521,7 +521,9 @@ export default function ReportDraftModal({
         onClose();
       }}
       onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        // 초안을 작성·수정하는 중에는 모달 바깥을 눌러도 닫히지 않는다(실수로 입력을 잃지 않게).
+        // 닫기는 오른쪽 위 × 버튼이나 Esc로만 한다. 읽기 전용·권한 안내 화면은 바깥 클릭으로 닫힌다.
+        if (event.target === event.currentTarget && !canEdit) onClose();
       }}
     >
       {!permissionNotice && (

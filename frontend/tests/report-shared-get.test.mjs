@@ -8,7 +8,9 @@ test("계정 전환과 저장 후에는 진행 중인 이전 목록 요청을 �
   globalThis.fetch = (url, options) => {
     if (options.method === "POST")
       return Promise.resolve(new Response("{}", { status: 200 }));
-    return new Promise((resolve) => pending.push({ resolve, auth: options.headers.Authorization }));
+    return new Promise((resolve) =>
+      pending.push({ resolve, auth: options.headers.Authorization }),
+    );
   };
   const finish = (index, id) =>
     pending[index].resolve(new Response(JSON.stringify([{ report_id: id }])));

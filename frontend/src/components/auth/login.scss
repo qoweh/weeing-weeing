@@ -77,29 +77,37 @@
   object-fit: contain;
   transform: translateY(6.35%) rotate(45deg) scale(1.6);
 }
+.login-page--sign-in .login-brand {
+  transform: scale(1.56);
+  transform-origin: left center;
+}
 .login-page--sign-in .login-brand__mark img {
-  transform: translateY(6.35%) rotate(45deg) scale(1.76);
+  transform: translateY(6.35%) rotate(45deg) scale(1.6);
 }
 @media (min-width: 1101px) {
   .login-page--sign-in .login-brand {
     top: 50%;
     left: calc(45.63% - 240px);
-    transform: translate(-50%, -50%);
-    gap: 18px;
-    font-size: var(--fs-display);
+    transform: translate(-50%, -50%) scale(1.56);
+    transform-origin: center;
+    gap: 13px;
+    font-size: var(--fs-heading-l);
     font-weight: 800;
-    line-height: var(--lh-display);
+    line-height: 1.1;
   }
   .login-page--sign-in .login-brand__mark {
-    width: 72px;
-    height: 72px;
+    width: 46px;
+    height: 46px;
     font-size: var(--fs-display);
     font-weight: 800;
     line-height: var(--lh-display);
   }
   .login-page--sign-in .login-brand small {
-    font-size: var(--fs-emphasis);
-    line-height: var(--lh-emphasis);
+    margin-top: 0;
+    font-size: 12px;
+    line-height: 1.2;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
   }
 }
 .login-hero {
@@ -297,8 +305,10 @@
   height: 1em;
   margin-right: 6px;
   background: currentColor;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 3.5 5.5 8l4.5 4.5'/%3E%3C/svg%3E") center / contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 3.5 5.5 8l4.5 4.5'/%3E%3C/svg%3E") center / contain no-repeat;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 3.5 5.5 8l4.5 4.5'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 3.5 5.5 8l4.5 4.5'/%3E%3C/svg%3E")
+    center / contain no-repeat;
 }
 .login-form__error {
   margin-top: 10px;

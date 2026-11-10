@@ -1,51 +1,210 @@
 .analysis-stages {
-  margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border-color, #d7dee8);
-  &__toggle { cursor: pointer; padding: 8px 0; }
-  &__toggle span { display: block; margin: 5px 0 0 18px; font-size: 12px; color: var(--muted, #64748b); }
-  &[open] &__toggle { margin-bottom: 16px; }
-  &__heading h3 { margin: 0 0 6px; }
-  &__heading p, &__note, &__metrics, &__source-id { color: var(--text-secondary, #64748b); font-size: 13px; }
-  &__tabs { display: flex; gap: 6px; overflow-x: auto; margin: 16px 0; padding-bottom: 4px; }
-  &__tabs button { flex: 1; min-width: 115px; padding: 10px 12px; border: 1px solid #a8b5c6; border-radius: 8px; background: transparent; color: inherit; cursor: pointer; }
-  &__tabs button[aria-selected='true'] { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
-  &__tabs small { display: block; margin-top: 4px; font-size: 11px; }
-  &__run { padding: 16px; border: 1px solid #a8b5c6; border-radius: 10px; margin: 12px 0; overflow-wrap: anywhere; }
-  &__run-heading { display: flex; justify-content: space-between; gap: 12px; }
-  &__run-heading span { font-size: 12px; }
-  &__run-heading [data-status='FAILED'], &__error { color: #dc2626; }
-  &__run h5 { font-size: 14px; margin: 18px 0 8px; }
-  &__run li { margin: 8px 0; }
-  &__run li p { margin-bottom: 4px; }
-  &__sources { margin-top: 20px; }
-  &__sources > summary { padding: 8px 0; }
-  &__sources details { padding: 10px 0; border-top: 1px solid #a8b5c655; }
-  &__sources summary { cursor: pointer; font-weight: 600; }
-  &__sources summary span { display: inline-block; margin-left: 8px; font-weight: 400; font-size: 11px; }
-  &__sources code { font-size: 11px; overflow-wrap: anywhere; }
-  &__original, &__draft > p { white-space: pre-wrap; line-height: 1.65; }
-  &__draft { line-height: 1.75; }
-  &__draft > h5 { margin: 24px 0 10px; font-size: 15px; line-height: 1.4; }
-  &__draft > h5:first-child { margin-top: 20px; }
-  &__draft > ul, &__draft > ol { margin: 0; padding-left: 24px; }
-  &__draft > ul { list-style: disc outside; }
-  &__draft > ol { list-style: decimal outside; }
-  &__draft > ul > li, &__draft > ol > li { margin: 0; padding: 8px 0; }
-  &__draft > ul > li + li, &__draft > ol > li + li { border-top: 1px solid var(--border-color, #d7dee8); }
-  &__draft > ul > li::marker, &__draft > ol > li::marker { color: var(--text-secondary, #64748b); font-weight: 600; }
-  &__draft .readable-text p { margin: 0 0 8px; }
-  &__draft .readable-text p:last-child { margin-bottom: 0; }
-  &__draft .incident-result__candidate-heading { display: block; }
-  &__draft .incident-result__candidate-status { display: block; margin-top: 3px; }
-  &__draft .maintenance-references { margin-top: 24px; }
-  @media (max-width: 550px) { &__draft > ul, &__draft > ol { padding-left: 20px; } }
-  &__verification article { border-left: 3px solid #d97706; padding: 12px; margin: 12px 0; background: #d9770610; }
-  &__verification dt { font-weight: 600; font-size: 12px; margin-top: 8px; }
-  &__verification dd { margin: 4px 0; white-space: pre-wrap; }
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-color, #d7dee8);
+  &__toggle {
+    cursor: pointer;
+    padding: 8px 0;
+  }
+  &__toggle span {
+    display: block;
+    margin: 5px 0 0 18px;
+    font-size: 12px;
+    color: var(--muted, #64748b);
+  }
+  &[open] &__toggle {
+    margin-bottom: 16px;
+  }
+  &__heading h3 {
+    margin: 0 0 6px;
+  }
+  &__heading p,
+  &__note,
+  &__metrics,
+  &__source-id {
+    color: var(--text-secondary, #64748b);
+    font-size: 13px;
+  }
+  &__tabs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    margin: 16px 0;
+    padding-bottom: 4px;
+  }
+  &__tabs button {
+    flex: 1;
+    min-width: 115px;
+    padding: 10px 12px;
+    border: 1px solid #a8b5c6;
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+  }
+  &__tabs button[aria-selected="true"] {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+    color: #fff;
+  }
+  &__tabs small {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+  }
+  &__run {
+    padding: 16px;
+    border: 1px solid #a8b5c6;
+    border-radius: 10px;
+    margin: 12px 0;
+    overflow-wrap: anywhere;
+  }
+  &__run-heading {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  &__run-heading span {
+    font-size: 12px;
+  }
+  &__run-heading [data-status="FAILED"],
+  &__error {
+    color: #dc2626;
+  }
+  &__run h5 {
+    font-size: 14px;
+    margin: 18px 0 8px;
+  }
+  &__run li {
+    margin: 8px 0;
+  }
+  &__run li p {
+    margin-bottom: 4px;
+  }
+  &__sources {
+    margin-top: 20px;
+  }
+  &__sources > summary {
+    padding: 8px 0;
+  }
+  &__sources details {
+    padding: 10px 0;
+    border-top: 1px solid #a8b5c655;
+  }
+  &__sources summary {
+    cursor: pointer;
+    font-weight: 600;
+  }
+  &__sources summary span {
+    display: inline-block;
+    margin-left: 8px;
+    font-weight: 400;
+    font-size: 11px;
+  }
+  &__sources code {
+    font-size: 11px;
+    overflow-wrap: anywhere;
+  }
+  &__original,
+  &__draft > p {
+    white-space: pre-wrap;
+    line-height: 1.65;
+  }
+  &__draft {
+    line-height: 1.75;
+  }
+  &__draft > h5 {
+    margin: 24px 0 10px;
+    font-size: 15px;
+    line-height: 1.4;
+  }
+  &__draft > h5:first-child {
+    margin-top: 20px;
+  }
+  &__draft > ul,
+  &__draft > ol {
+    margin: 0;
+    padding-left: 24px;
+  }
+  &__draft > ul {
+    list-style: disc outside;
+  }
+  &__draft > ol {
+    list-style: decimal outside;
+  }
+  &__draft > ul > li,
+  &__draft > ol > li {
+    margin: 0;
+    padding: 8px 0;
+  }
+  &__draft > ul > li + li,
+  &__draft > ol > li + li {
+    border-top: 1px solid var(--border-color, #d7dee8);
+  }
+  &__draft > ul > li::marker,
+  &__draft > ol > li::marker {
+    color: var(--text-secondary, #64748b);
+    font-weight: 600;
+  }
+  &__draft .readable-text p {
+    margin: 0 0 8px;
+  }
+  &__draft .readable-text p:last-child {
+    margin-bottom: 0;
+  }
+  &__draft .incident-result__candidate-heading {
+    display: block;
+  }
+  &__draft .incident-result__candidate-status {
+    display: block;
+    margin-top: 3px;
+  }
+  &__draft .maintenance-references {
+    margin-top: 24px;
+  }
+  @media (max-width: 550px) {
+    &__draft > ul,
+    &__draft > ol {
+      padding-left: 20px;
+    }
+  }
+  &__verification article {
+    border-left: 3px solid #d97706;
+    padding: 12px;
+    margin: 12px 0;
+    background: #d9770610;
+  }
+  &__verification dt {
+    font-weight: 600;
+    font-size: 12px;
+    margin-top: 8px;
+  }
+  &__verification dd {
+    margin: 4px 0;
+    white-space: pre-wrap;
+  }
 }
 
 .analysis-retry {
-  margin: 16px 0; padding: 16px; border: 1px solid #93b4ef; border-radius: 10px;
-  button { padding: 10px 16px; border: 0; border-radius: 8px; background: #1d4ed8; color: #fff; cursor: pointer; font-weight: 600; }
-  button:disabled { opacity: .65; cursor: wait; }
-  p { margin: 10px 0 0; font-size: 13px; }
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid #93b4ef;
+  border-radius: 10px;
+  button {
+    padding: 10px 16px;
+    border: 0;
+    border-radius: 8px;
+    background: #1d4ed8;
+    color: #fff;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  button:disabled {
+    opacity: 0.65;
+    cursor: wait;
+  }
+  p {
+    margin: 10px 0 0;
+    font-size: 13px;
+  }
 }

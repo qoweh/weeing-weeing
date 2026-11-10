@@ -1,13 +1,52 @@
 .maintenance-references {
-  margin-top: 18px; line-height: 1.7;
-  h4 { margin: 0 0 8px; }
-  &__note { color: var(--muted); margin: 0 0 12px; font-size: 13px; }
-  &__case { padding: 14px; margin-top: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--background); overflow-wrap: anywhere; }
-  dl { margin: 10px 0; }
-  dl > div { margin-top: 8px; }
-  dt { color: var(--muted); font-size: 12px; font-weight: 700; }
-  dd { margin: 2px 0 0; }
-  dd p { margin: 0; }
-  button { display: block; margin: 10px 0 0 auto; padding: 8px 12px; color: var(--primary); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font: inherit; }
-  button:disabled { opacity: .55; cursor: wait; }
+  margin-top: 18px;
+  line-height: 1.7;
+  h4 {
+    margin: 0 0 8px;
+  }
+  &__note {
+    color: var(--muted);
+    margin: 0 0 12px;
+    font-size: 13px;
+  }
+  &__case {
+    padding: 14px;
+    margin-top: 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--background);
+    overflow-wrap: anywhere;
+  }
+  dl {
+    margin: 10px 0;
+  }
+  dl > div {
+    margin-top: 8px;
+  }
+  dt {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  dd {
+    margin: 2px 0 0;
+  }
+  dd p {
+    margin: 0;
+  }
+  button {
+    display: block;
+    margin: 10px 0 0 auto;
+    padding: 8px 12px;
+    color: var(--primary);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    font: inherit;
+  }
+  button:disabled {
+    opacity: 0.55;
+    cursor: wait;
+  }
 }
