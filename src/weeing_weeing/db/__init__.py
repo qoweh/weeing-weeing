@@ -1,8 +1,8 @@
 """db — PostgreSQL 저장소 (2차).
 
-책임: telemetry · incident · analysis · report · approval · user · document 테이블과 저장·조회.
+책임: telemetry · incident · analysis(작업·단계·체크포인트) · report · approval · user · document · chat
+      테이블과 저장·조회. 전체 테이블 정의는 db/models.py.
 의존 가능: contracts, config
-지금 있는 테이블: document(#60), incident·analysis(#61), telemetry(#63), app_user·user_session(#62 회원). report·approval은 #62 나머지.
 사용법: docs/DB.md
 메모: SQLAlchemy 2.x + psycopg 3(동기), 스키마는 Alembic(db/migrations).
       개발용으로 DATABASE_URL=sqlite:///storage/dev.db도 같은 코드로 동작한다.

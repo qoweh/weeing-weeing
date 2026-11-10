@@ -30,10 +30,8 @@ T0 = datetime(2026, 10, 28, 9, tzinfo=timezone.utc)
 
 
 @pytest.fixture
-def setup_reports(reports, database_url, monkeypatch):
-    from weeing_weeing.db import users as module
+def setup_reports(reports, database_url):
 
-    monkeypatch.setattr(module, "SCRYPT_N", 2**10)
     users = db.open_users(database_url)
     for employee, role in (
         ("I1", Role.INSPECTOR),

@@ -109,6 +109,21 @@ def test_voyage_sends_input_type_and_dimension(api_key):
     assert embedder.total_tokens == 3
 
 
+def test_voyage_applies_timeout_to_injected_client(api_key):
+    requests = []
+    embedder = VoyageEmbedder(
+        "m", timeout_s=7.5, client=voyage_client(requests=requests)
+    )
+    embedder.embed_query("q")
+    ((request, _),) = requests
+    assert request.extensions["timeout"] == {
+        "connect": 7.5,
+        "read": 7.5,
+        "write": 7.5,
+        "pool": 7.5,
+    }
+
+
 def test_voyage_batches_large_inputs(api_key):
     requests = []
     embedder = VoyageEmbedder("m", client=voyage_client(requests=requests))

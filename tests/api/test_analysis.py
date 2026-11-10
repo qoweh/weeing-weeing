@@ -382,14 +382,10 @@ def test_query_and_manual_retry_auth_and_idempotency(setup, role):
 
 
 @pytest.mark.parametrize("role", [Role.INSPECTOR, Role.MAINT_LEAD, Role.CONTROL])
-def test_final_report_approval_hides_retry_and_blocks_new_http_requests(
-    setup, monkeypatch, role
-):
+def test_final_report_approval_hides_retry_and_blocks_new_http_requests(setup, role):
     from weeing_weeing.contracts import ReportDraft, ReportFormData
-    from weeing_weeing.db import users as user_module
 
     repo, frame, item = setup
-    monkeypatch.setattr(user_module, "SCRYPT_N", 2**10)
     users = db.open_users(str(repo._engine.url))
     reports = db.open_reports(str(repo._engine.url))
     try:

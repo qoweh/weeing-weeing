@@ -40,6 +40,7 @@ from weeing_weeing.db.reports import (
     ReportNotFoundError,
     ReportReviewHistory,
 )
+from weeing_weeing.db.retention import TelemetryRetention
 from weeing_weeing.db.session import DatabaseUnavailableError
 from weeing_weeing.db.users import (
     MIN_PASSWORD_LENGTH,
@@ -71,6 +72,7 @@ __all__ = [
     "IncidentRepository",
     "LastAdminError",
     "TelemetryRepository",
+    "TelemetryRetention",
     "UnknownIncidentError",
     "UnknownUserError",
     "UserRepository",
@@ -353,7 +355,7 @@ class ReportRepository(Protocol):
     ) -> int: ...
 
     def approved_reports(self) -> list[MaintenanceReport]:
-        """전체 보고서의最新 승인 판. 구조화 기간 조회·집계용이며 색인 대기 상태와 무관하다."""
+        """전체 보고서의 최신 승인 판. 구조화 기간 조회·집계용이며 색인 대기 상태와 무관하다."""
         ...
 
     def pending_index_reports(

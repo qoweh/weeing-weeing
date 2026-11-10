@@ -87,13 +87,18 @@ def test_register_all_codes_report_snapshot_and_retry(batch, monkeypatch, tmp_pa
             ("get_analysis_jobs", jobs),
         ):
             monkeypatch.setattr(db, getter, lambda repo=repo: repo)
-        all_cases = batch.build_cases()
-        cases = all_cases
-        assert len(cases) == 330
+        # 330건 전체의 ID·시각·코드 분포는 위 테스트가 DB 없이 검증한다.
+        # DB 왕복은 코드마다 첫 사례 하나씩(22건)으로 모든 코드 경로를 확인한다.
+        first_by_code = {}
+        for case in batch.build_cases():
+            first_by_code.setdefault(case["incident"].codes[0], case)
+        cases = list(first_by_code.values())
+        assert len(cases) == len(batch.EXPECTED_CODES)
         results = batch.seed_cases(
             *repos, "I1", "L1", "C1", cases=cases, analysis_builder=batch.build_analysis
         )
-        assert len(results) == 330 and all(item[2] == "생성" for item in results)
+        assert len(results) == len(cases)
+        assert all(item[2] == "생성" for item in results)
         for case, (_, report_id, _) in zip(cases, results):
             context = incident_report_context(
                 case["incident"].incident_id, actors[0], reports, report_id
@@ -121,7 +126,7 @@ def test_register_all_codes_report_snapshot_and_retry(batch, monkeypatch, tmp_pa
                 assert report.data_origin == "SYNTHETIC"
                 return 1
 
-        assert batch.index_cases(reports, results, FakeIndexer) == (330, 0)
+        assert batch.index_cases(reports, results, FakeIndexer) == (len(cases), 0)
         assert batch.index_cases(reports, again, FakeIndexer) == (0, 0)
     finally:
         for repo in repos:

@@ -4,11 +4,12 @@
       Incident 정보로 근거를 찾아 출처와 함께 돌려준다(Retriever).
 입력: 웹에서 업로드한 PDF, 승인된 MaintenanceReport의 사람 작성 칸
 출력: list[Evidence]
-의존 가능: contracts
+의존 가능: contracts, config
 담당 메모: 전처리·인덱싱 승민 / Vector DB 민우 / 검색·Reranking 동인 (1차 분담)
 
 내부 파일 (다른 모듈은 interface.py만 import)
-- pdf_parser.py, chunker.py: 파싱·청킹 (#6)
+- pdf_parser.py, chunker.py, structured_chunker.py: 파싱·청킹(조항·사례 경계 인식 포함) (#6)
+- report.py, query.py: 승인 보고서 → 검색 사례 변환, Incident → 검색 질의문
 - embedder.py: 임베더. hashing(기본, 비용 0) 또는 Voyage API. 로컬 모델 없음
 - store.py: 저장 계층 계약. Chunk·Hit·Embedder·VectorStore (#7, #22)
 - qdrant_store.py: VectorStore Qdrant 구현, 기본 백엔드 (#23)

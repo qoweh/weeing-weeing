@@ -4,8 +4,7 @@ import logging
 from datetime import UTC, datetime
 from threading import Event, Thread
 
-from weeing_weeing.db.interface import open_engine
-from weeing_weeing.db.retention import TelemetryRetention
+from weeing_weeing.db.interface import TelemetryRetention, open_engine
 
 logger = logging.getLogger("uvicorn.error.retention")
 

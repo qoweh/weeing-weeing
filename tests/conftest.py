@@ -1,4 +1,6 @@
+import copy
 import csv
+import hashlib
 import os
 from pathlib import Path
 
@@ -65,10 +67,6 @@ def _reuse_pdf_parse(monkeypatch):
     이후에는 깊은 복사본을 돌려줘 테스트끼리 결과를 바꿔도 섞이지 않는다. 파서 자체 테스트는
     pdf_parser.parse_pdf를 직접 불러 이 재사용을 거치지 않는다.
     """
-    import copy
-    import hashlib
-    from pathlib import Path
-
     try:
         from weeing_weeing.rag import parsers, pdf_parser
     except ImportError:  # dev 그룹만 설치한 검사에는 PDF 의존성이 없다

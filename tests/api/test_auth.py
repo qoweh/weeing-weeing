@@ -14,9 +14,7 @@ PASSWORD = "correct-horse-1"
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
-    from weeing_weeing.db import users as module
 
-    monkeypatch.setattr(module, "SCRYPT_N", 2**10)
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'auth.db'}")
     repo = db.get_users()
     repo.create_user(

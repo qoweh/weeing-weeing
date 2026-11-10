@@ -3,7 +3,7 @@
 from datetime import timedelta
 from uuid import uuid4
 
-from sqlalchemy import func, select, text, update
+from sqlalchemy import func, select, update
 
 from weeing_weeing.contracts import AnalysisResult, Incident, IncidentStatus, Severity
 from weeing_weeing.contracts.analysis_workflow import (
@@ -105,8 +105,7 @@ class SqlAnalysisJobs(SqlIncidents):
         """센서·사건은 항상 저장하고, 분석 등록은 옵션이다. 실패하면 전체 롤백."""
         jobs = []
         with self._transaction() as session:
-            if self._engine.dialect.name == "sqlite":
-                session.execute(text("BEGIN IMMEDIATE"))
+            self._sqlite_write_lock(session)
             self._lock_incidents(
                 session, [incident.incident_id for incident in incidents]
             )
@@ -264,8 +263,7 @@ class SqlAnalysisJobs(SqlIncidents):
         if result.incident_id != incident.incident_id:
             raise AnalysisConflictError("분석 사건 ID 불일치")
         with self._transaction() as session:
-            if self._engine.dialect.name == "sqlite":
-                session.execute(text("BEGIN IMMEDIATE"))
+            self._sqlite_write_lock(session)
             self._lock_incidents(session, [incident.incident_id])
             current = session.get(IncidentRow, incident.incident_id)
             if current is None:
@@ -318,8 +316,7 @@ class SqlAnalysisJobs(SqlIncidents):
 
     def retry(self, incident_id, request_id, *, capacity=100, expected_job_id=None):
         with self._transaction() as session:
-            if self._engine.dialect.name == "sqlite":
-                session.execute(text("BEGIN IMMEDIATE"))
+            self._sqlite_write_lock(session)
             self._lock_incidents(session, [incident_id])
             row = session.get(IncidentRow, incident_id)
             if row is None:

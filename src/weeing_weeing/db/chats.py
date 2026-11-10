@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 from uuid import UUID, uuid4
 
-from sqlalchemy import select, text
+from sqlalchemy import select
 
 from weeing_weeing.contracts import (
     ChatContext,
@@ -166,8 +166,7 @@ class SqlChats(Repository):
     def _write(self):
         with self._transaction() as session:
             # SQLite에는 행 잠금이 없어 먼저 쓰기 잠금을 잡는다. PostgreSQL은 대화 행만 잠근다.
-            if self._engine.dialect.name == "sqlite":
-                session.execute(text("BEGIN IMMEDIATE"))
+            self._sqlite_write_lock(session)
             yield session
 
     def create_conversation(
