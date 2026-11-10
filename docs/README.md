@@ -13,7 +13,7 @@ RAG·챗봇 작업은 구현 설명, 실행 방법, 평가 결과, 사건별 승
 | 측정 결과 | [RAG 성능 평가](rag_e2e/README.md) | 검색·리랭킹·청킹·새 질문·독립 질문 실측 |
 | 사건 정답 | [E2E 승인 사례](RAG_E2E_CASES.md) | 합성 10사례의 입력과 사람 승인 정답 v1 |
 | 출처·원문 | [E2E 근거](RAG_E2E_SOURCES.md) | PDF 버전·쪽·해시·수치·기존 사례·청크 대조 |
-| 재현 준비 | [E2E 스냅샷](RAG_E2E_SNAPSHOT.md) | 평가 환경·87청크 저장 확인·fixture 계약·백업/복원·집계 |
+| 재현 준비 | [E2E 스냅샷](RAG_E2E_SNAPSHOT.md), [#259 평가 기준 초안](RAG_259_EVALUATION_BASELINE_DRAFT.md) | 평가 환경·87청크 저장 확인·fixture 계약·백업/복원·집계 |
 | 챗봇 동작 | [챗봇 구현](CHATBOT.md) | FAQ·자유 질문·이력/사건 조회·근거 검토·건수 전용·왕복 감소 |
 | API·화면·저장 | [HTTP·화면](CHAT_API.md), [대화 저장](CHAT_STORAGE.md) | 인증·본인 대화·중복 요청·상태·전송 |
 | 챗봇 평가 실행 | [챗봇 평가 방법](CHAT_EVALUATION.md) | 5문항 프롬프트 A/B·10문항 왕복 비교·계측·사람 검수 |
@@ -71,7 +71,7 @@ RAG·챗봇 작업은 구현 설명, 실행 방법, 평가 결과, 사건별 승
 | 분야 | 문서 |
 |---|---|
 | 분석 Agent | [AGENT](AGENT.md), [멀티 분석](MULTI_AGENT_ANALYSIS.md), [역할 프롬프트](MULTI_AGENT_PROMPTS.md), [LLM 평가](LLM_EVALUATION.md) |
-| 사건·센서 | [DETECTOR_RULES](DETECTOR_RULES.md), [INCIDENT_HISTORY](INCIDENT_HISTORY.md), [SENSOR_WINDOWS](SENSOR_WINDOWS.md), [AUTO_ANALYSIS](AUTO_ANALYSIS.md) |
+| 사건·센서 | [DETECTOR_RULES](DETECTOR_RULES.md), [INCIDENT_HISTORY](INCIDENT_HISTORY.md), [SENSOR_WINDOWS](SENSOR_WINDOWS.md), [AUTO_ANALYSIS](AUTO_ANALYSIS.md), [INCIDENT_DISPLAY_NAMES](INCIDENT_DISPLAY_NAMES.md) |
 | 입력·연동 | [JSON_INPUT](JSON_INPUT.md), [WEBSOCKET_TELEMETRY](WEBSOCKET_TELEMETRY.md), [UNREAL_STATE_CONTEXT](UNREAL_STATE_CONTEXT.md) |
 | DB·보고서·인증 | [DB](DB.md), [REPORTS](REPORTS.md), [MAINTENANCE_SEED](MAINTENANCE_SEED.md), [AUTH](AUTH.md) |
 | 화면 | [DASHBOARD_3D](DASHBOARD_3D.md), [CCTV_WEBRTC](CCTV_WEBRTC.md), [DESKTOP_SCENARIOS](DESKTOP_SCENARIOS.md) |

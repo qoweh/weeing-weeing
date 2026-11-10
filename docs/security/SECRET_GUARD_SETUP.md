@@ -4,8 +4,10 @@
 
 ## 이번에 준비한 설정
 
-[codex-secret-guard.toml](codex-secret-guard.toml)은 실제 키가 없는 설정 원본이다.
-이를 `.codex/config.toml`로 설치하고, 새 Codex 세션에서
+> 2026-11-10(#375): Codex 설정(`.codex/`)은 저장소에서 빼고 `.gitignore`에 넣었다.
+> Codex를 쓰는 사람은 아래 규칙을 개인 `.codex/config.toml`에 직접 둔다. 이하는 작성 당시 기록이다.
+
+`.codex/config.toml`에 실제 키가 없는 보호 설정을 두고, 새 Codex 세션에서
 `weeing-secret-guard` 권한 프로필을 선택한다.
 기존 `config(1).toml`은 읽거나 덮어쓰거나 이름을 바꾸지 않는다.
 

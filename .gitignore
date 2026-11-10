@@ -37,7 +37,7 @@ wheels/
 .omc/
 .claude/worktrees/
 .claude/settings.local.json
-/.codex/config(1).toml
+/.codex/
 
 # 개발 도구 캐시
 .pytest_cache/
