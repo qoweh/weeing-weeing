@@ -48,7 +48,7 @@ WINDOW_RULES = {
     "min_samples": 55,
     "max_samples": 65,
     "min_observed_seconds": 29.2,
-    "max_gap_seconds": 0.8,
+    "max_gap_seconds": 1.5,
     "require_history_at_or_before_left_boundary": True,
     "timestamp_order": "strictly increasing, timezone-aware UTC",
 }
@@ -116,8 +116,11 @@ def extract_features(rows, as_of=None):
     if end - t[-1] > 1e-6:
         raise InvalidWindowError("anchor_not_sample")
     # 경계 직전 표본과 첫 입력 사이도 검사한다. 오래된 이력의 공백은 무관하다.
-    if np.max(np.diff(times[max(0, start - 1) :]), initial=0) > 0.800001:
-        raise InvalidWindowError("gap_over_0_8s")
+    if (
+        np.max(np.diff(times[max(0, start - 1) :]), initial=0)
+        > WINDOW_RULES["max_gap_seconds"] + 0.000001
+    ):
+        raise InvalidWindowError("gap_over_1_5s")
     if not WINDOW_RULES["min_samples"] <= len(t) <= WINDOW_RULES["max_samples"]:
         raise InvalidWindowError("sample_count")
     duration = float(t[-1] - t[0])

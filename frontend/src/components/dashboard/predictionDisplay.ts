@@ -95,6 +95,7 @@ export function predictionDisplay(state: PredictionState) {
     if (
       [
         "gap_over_0_8s",
+        "gap_over_1_5s",
         "sample_count",
         "observed_span",
         "anchor_not_sample",

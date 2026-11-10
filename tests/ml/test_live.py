@@ -118,9 +118,9 @@ def test_supported_codes_follow_loaded_predictor_even_during_warmup(
 def test_missing_gap_order_and_none_not_fabricated_normal(service):
     service.begin("one")
     for i in range(62):
-        if i != 30:
+        if i not in (28, 29, 30):
             submit_wait(service, "one", row(i))
-    assert service.snapshot()["prediction"]["reason"] == "gap_over_0_8s"
+    assert service.snapshot()["prediction"]["reason"] == "gap_over_1_5s"
     submit_wait(service, "one", row(61))
     assert service.snapshot()["prediction"]["reason"] == "timestamp_order"
     assert service.snapshot()["prediction"]["probabilities"] is None

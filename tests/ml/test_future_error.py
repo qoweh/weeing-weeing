@@ -122,7 +122,7 @@ def test_blank_rows_kept_then_endpoint_excluded():
     "mutation,reason",
     [
         ("short", "insufficient_history"),
-        ("gap", "gap_over_0_8s"),
+        ("gap", "gap_over_1_5s"),
         ("duplicate", "timestamp_order"),
         ("reverse", "timestamp_order"),
         ("nan", "nonfinite_sensor"),
@@ -136,7 +136,7 @@ def test_invalid_windows(mutation, reason):
     if mutation == "short":
         data = data[1:]
     if mutation == "gap":
-        del data[30]
+        del data[28:31]
     if mutation == "duplicate":
         data[30]["timestamp"] = data[29]["timestamp"]
     if mutation == "reverse":
@@ -282,3 +282,20 @@ def test_csv_audit_reports_differences_and_rejects_duplicate_ids(tmp_path):
     write()
     with pytest.raises(ValueError, match="duplicate"):
         load_dataset(path)
+
+
+@pytest.mark.parametrize("missing", [1, 2])
+def test_sensor_gaps_up_to_1_5_seconds_are_accepted(missing):
+    data = rows(61)
+    del data[30 : 30 + missing]
+    _, quality = extract_features(data)
+    assert quality["max_gap_seconds"] == pytest.approx((missing + 1) * 0.5)
+
+
+def test_sensor_gap_over_1_5_seconds_is_rejected_until_it_leaves_window():
+    data = rows(122)
+    del data[30:33]
+    with pytest.raises(InvalidWindowError, match="gap_over_1_5s"):
+        extract_features(data[:58])
+    _, quality = extract_features(data)
+    assert quality["max_gap_seconds"] == pytest.approx(0.5)
