@@ -12,6 +12,7 @@ import ManualListPage from "../pages/ManualListPage.jsx";
 import ReportWorkspace from "./ReportWorkspace.jsx";
 import { documentVersionFromFilename } from "./documentVersion.js";
 import "../styles/workspace.scss";
+import { canControl } from "./permissions";
 
 const tabs = [
   { id: "documents", label: "문서 등록" },
@@ -235,7 +236,7 @@ function ResultPanel({ result }) {
 }
 
 export default function RagWorkspace({ tab, user, onSessionExpired, onBusyChange, workspaceBusy, onNavigate, reportSelection }) {
-  const canManageManuals = user.role === "관제 담당자";
+  const canManageManuals = canControl(user);
   const registrationRestricted = tab === "documents" && !canManageManuals;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");

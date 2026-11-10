@@ -9,6 +9,10 @@ import Button from "../components/ui/Button";
 import PageTitle from "../components/ui/PageTitle";
 import { incidentCodesText } from "../components/ui/incidentCodes";
 import { Filters, filterRows, LibraryTable } from "../components/ui/library";
+import {
+  canReviewReports,
+  canWriteReports,
+} from "../components/auth/permissions";
 type Row = {
   id: string;
   reportId: string;
@@ -37,7 +41,7 @@ export default function MaintenancePage({
   onSessionExpired,
   refreshKey = 0,
 }: {
-  user: { role: string };
+  user: { role: string; is_admin?: boolean };
   onOpen: (reportId: string, incidentId: string | null, row: Row) => void;
   onSessionExpired: () => void;
   refreshKey?: number;
@@ -83,7 +87,7 @@ export default function MaintenancePage({
   useEffect(() => {
     let active = true;
     let sequence = 0;
-    if (!["보전 팀장", "관제 담당자"].includes(user.role)) {
+    if (!canReviewReports(user)) {
       setReviewCount(null);
       return;
     }
@@ -178,7 +182,7 @@ export default function MaintenancePage({
         <Button aria-pressed={scope === "all"} onClick={() => setScope("all")}>
           전체 보고서
         </Button>
-        {user.role !== "관제 담당자" && (
+        {canWriteReports(user) && (
           <Button
             aria-pressed={scope === "mine"}
             onClick={() => setScope("mine")}
@@ -194,7 +198,7 @@ export default function MaintenancePage({
             )}
           </Button>
         )}
-        {["보전 팀장", "관제 담당자"].includes(user.role) && (
+        {canReviewReports(user) && (
           <Button
             aria-pressed={scope === "history"}
             onClick={() => setScope("history")}
@@ -202,7 +206,7 @@ export default function MaintenancePage({
             내 결재 이력
           </Button>
         )}
-        {["보전 팀장", "관제 담당자"].includes(user.role) && (
+        {canReviewReports(user) && (
           <Button
             aria-pressed={scope === "review"}
             onClick={() => setScope("review")}

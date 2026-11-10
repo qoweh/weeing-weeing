@@ -1,21 +1,14 @@
-import { useEffect, useRef, useState } from "react";
-import {
-  deleteIncident,
-  getIncidentAnalysis,
-  listIncidentApprovedReports,
-  listIncidentOverview,
-} from "../api/client";
-import { AnalysisCard } from "../components/AnalysisCard";
-import { pollAnalysis } from "../components/pollAnalysis";
-import Glyph from "../../components/ui/Glyph";
-import SearchField from "../../components/ui/SearchField";
-import IncidentCodes from "../../components/ui/IncidentCodeLabel";
-import {
-  incidentCodeMatches,
-  incidentCodeText,
-} from "../../components/ui/incidentCodes";
-import "../../components/ui/library.scss";
-import "./incident-test.scss";
+import { useEffect, useRef, useState } from 'react'
+import { deleteIncident, getIncidentAnalysis, listIncidentApprovedReports, listIncidentOverview } from '../api/client'
+import { AnalysisCard } from '../components/AnalysisCard'
+import { pollAnalysis } from '../components/pollAnalysis'
+import Glyph from '../../components/ui/Glyph'
+import SearchField from '../../components/ui/SearchField'
+import IncidentCodes from '../../components/ui/IncidentCodeLabel'
+import { incidentCodeMatches, incidentCodeText } from '../../components/ui/incidentCodes'
+import '../../components/ui/library.scss'
+import './incident-test.scss'
+import { canControl, canWriteReports } from '../../components/auth/permissions'
 
 function equipmentStatus(item) {
   if (item.recovered_at || item.status === "RECOVERED") return "정상 회복";
@@ -597,86 +590,14 @@ export default function IncidentHistoryPage({
       ),
   );
 
-  return (
-    <div className="library-page incident-history" aria-label="사건 현황">
-      <h1 className="incident-history__title">사건현황</h1>
-      <div className="incident-history__toolbar">
-        <label className="incident-history__search">
-          <span className="incident-history__sr-only">사건 검색</span>
-          <SearchField
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="알람명, 에러 코드, 설비 ID, 사건 번호 검색"
-          />
-        </label>
-        <button type="button" onClick={refresh} disabled={loading}>
-          목록 새로고침
-        </button>
-      </div>
-      {notice && <p role="status">{notice}</p>}
-      {loading ? (
-        <p role="status">사건을 불러오는 중입니다.</p>
-      ) : error ? (
-        <p className="incident-test__error" role="alert">
-          {error}{" "}
-          <button type="button" onClick={refresh}>
-            다시 시도
-          </button>
-        </p>
-      ) : (
-        <>
-          <IncidentTable
-            title="처리 중인 사건"
-            items={visible.filter((item) => !item.has_approved_report)}
-            onSelect={select}
-            active
-          />
-          <IncidentTable
-            title="처리 완료된 사건"
-            items={visible.filter((item) => item.has_approved_report)}
-            onSelect={select}
-          />{" "}
-        </>
-      )}
-      {selected && (
-        <IncidentDetailDialog
-          user={user}
-          onResult={setResult}
-          onSessionExpired={onSessionExpired}
-          incident={selected}
-          result={result}
-          reports={reports}
-          onRefresh={() => select(selected)}
-          onClose={() => setSelected(null)}
-          onOpenDraft={(...args) => {
-            setSelected(null);
-            onOpenDraft(...args);
-          }}
-          onOpenReport={(...args) => {
-            setSelected(null);
-            onOpenReport(...args);
-          }}
-          onDelete={
-            user.role === "관제 담당자"
-              ? () => {
-                  setDeleteError("");
-                  setDeleteTarget(selected);
-                }
-              : undefined
-          }
-          busy={busy}
-          canWrite={["현장 점검자", "보전 팀장"].includes(user.role)}
-        />
-      )}
-      {deleteTarget && (
-        <IncidentDeleteDialog
-          incident={deleteTarget}
-          busy={deleteBusy}
-          error={deleteError}
-          onCancel={() => setDeleteTarget(null)}
-          onConfirm={removeIncident}
-        />
-      )}
-    </div>
-  );
+  return <div className="library-page incident-history" aria-label="사건 현황">
+    <h1 className="incident-history__title">사건현황</h1>
+    <div className="incident-history__toolbar"><label className="incident-history__search"><span className="incident-history__sr-only">사건 검색</span><SearchField value={query} onChange={(event) => setQuery(event.target.value)} placeholder="알람명, 에러 코드, 설비 ID, 사건 번호 검색" /></label><button type="button" onClick={refresh} disabled={loading}>목록 새로고침</button></div>
+    {notice && <p role="status">{notice}</p>}
+    {loading ? <p role="status">사건을 불러오는 중입니다.</p> : error ? <p className="incident-test__error" role="alert">{error} <button type="button" onClick={refresh}>다시 시도</button></p> : <>
+      <IncidentTable title="처리 중인 사건" items={visible.filter((item) => !item.has_approved_report)} onSelect={select} active />
+      <IncidentTable title="처리 완료된 사건" items={visible.filter((item) => item.has_approved_report)} onSelect={select} />    </>}
+    {selected && <IncidentDetailDialog user={user} onResult={setResult} onSessionExpired={onSessionExpired} incident={selected} result={result} reports={reports} onRefresh={() => select(selected)} onClose={() => setSelected(null)} onOpenDraft={(...args) => { setSelected(null); onOpenDraft(...args) }} onOpenReport={(...args) => { setSelected(null); onOpenReport(...args) }} onDelete={canControl(user) ? () => { setDeleteError(''); setDeleteTarget(selected) } : undefined} busy={busy} canWrite={canWriteReports(user)} />}
+    {deleteTarget && <IncidentDeleteDialog incident={deleteTarget} busy={deleteBusy} error={deleteError} onCancel={() => setDeleteTarget(null)} onConfirm={removeIncident} />}
+  </div>
 }

@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
-import { getIncidentAnalysis, retryIncidentAnalysis } from "../api/client";
-import { newRequestId } from "../api/requestId";
-import { pollAnalysis } from "./pollAnalysis";
+import { useEffect, useRef, useState } from 'react'
+import { getIncidentAnalysis, retryIncidentAnalysis } from '../api/client'
+import { newRequestId } from '../api/requestId'
+import { pollAnalysis } from './pollAnalysis'
+import { canRunAnalysis } from '../../components/auth/permissions'
 
 export default function AnalysisRetry({
   incidentId,
@@ -58,39 +59,12 @@ export default function AnalysisRetry({
     }
   }
 
-  if (
-    !onResult ||
-    !["관제 담당자", "보전 팀장", "현장 점검자"].includes(user?.role)
-  )
-    return null;
-  const canRetry =
-    result?.job?.status === "FAILED" && Boolean(result.retry_mode);
-  if (!busy && !error && !canRetry) return null;
-  return (
-    <div className="analysis-retry">
-      {(canRetry || busy) && (
-        <button type="button" disabled={busy} onClick={retry}>
-          {busy
-            ? "재시도 진행 중…"
-            : result.retry_mode === "resume"
-              ? "실패 단계부터 재시도"
-              : "분석 다시 시도"}
-        </button>
-      )}
-      {(canRetry || busy) && (
-        <p role="status">
-          {busy
-            ? "분석 진행 상태를 확인하고 있습니다."
-            : result.retry_mode === "resume"
-              ? "완료된 단계는 재사용하고 실패한 단계와 이후 단계만 다시 실행합니다."
-              : "이 작업에는 재개 기록이 없어 처음부터 다시 실행합니다."}
-        </p>
-      )}
-      {error && (
-        <p className="incident-test__error" role="alert">
-          {error}
-        </p>
-      )}
-    </div>
-  );
+  if (!onResult || !canRunAnalysis(user)) return null
+  const canRetry = result?.job?.status === 'FAILED' && Boolean(result.retry_mode)
+  if (!busy && !error && !canRetry) return null
+  return <div className="analysis-retry">
+    {(canRetry || busy) && <button type="button" disabled={busy} onClick={retry}>{busy ? '재시도 진행 중…' : result.retry_mode === 'resume' ? '실패 단계부터 재시도' : '분석 다시 시도'}</button>}
+    {(canRetry || busy) && <p role="status">{busy ? '분석 진행 상태를 확인하고 있습니다.' : result.retry_mode === 'resume' ? '완료된 단계는 재사용하고 실패한 단계와 이후 단계만 다시 실행합니다.' : '이 작업에는 재개 기록이 없어 처음부터 다시 실행합니다.'}</p>}
+    {error && <p className="incident-test__error" role="alert">{error}</p>}
+  </div>
 }

@@ -514,11 +514,10 @@ def test_document_search_rejects_upload_paths_outside_root(env, path_kind):
 
 
 @pytest.mark.parametrize("role", [Role.INSPECTOR, Role.MAINT_LEAD, Role.SITE_MANAGER])
-@pytest.mark.parametrize("admin", [False, True])
-def test_only_control_can_upload_and_delete_but_all_can_list(env, role, admin):
+def test_only_control_can_upload_and_delete_but_all_can_list(env, role):
     body = upload(other_pdf()).json()
     app.dependency_overrides[current_user] = lambda: UserAccount(
-        employee_no="OTHER", name="다른 직책", role=role, is_admin=admin
+        employee_no="OTHER", name="다른 직책", role=role
     )
     assert upload(other_pdf()).status_code == 403
     assert delete(body).status_code == 403
@@ -526,6 +525,17 @@ def test_only_control_can_upload_and_delete_but_all_can_list(env, role, admin):
     assert TestClient(app).get("/documents", params={"q": "manual"}).status_code == 200
     assert TestClient(app).get(f"/documents/{body['upload_id']}").status_code == 200
     assert env[0].chunks(where={"doc_id": "UP-MANUAL"})
+
+
+@pytest.mark.parametrize("role", [Role.INSPECTOR, Role.MAINT_LEAD, Role.SITE_MANAGER])
+def test_admin_of_any_role_can_upload_and_delete(env, role):
+    """D-36: 계정 관리자는 직책과 관계없이 문서를 등록·삭제한다."""
+    app.dependency_overrides[current_user] = lambda: UserAccount(
+        employee_no="ADMIN2", name="관리자", role=role, is_admin=True
+    )
+    body = upload(other_pdf()).json()
+    assert body["upload_id"]
+    assert delete(body).status_code == 200
 
 
 def test_anonymous_document_requests_are_401(env):
