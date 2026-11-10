@@ -8,7 +8,6 @@ import {
   type ReactNode,
   type ComponentPropsWithoutRef,
   type ChangeEvent,
-  type KeyboardEvent,
   type FormEvent,
 } from "react";
 
@@ -264,114 +263,124 @@ function PhotoField({
   side,
   title,
   locked,
-  onEdit,
+  values,
+  onChange,
+  onPhoto,
+  onPending,
 }: {
-  side: string;
+  side: "before" | "after";
   title: string;
-  // 읽기 전용(작성 완료·제출 이후)이거나 저장 중이면 사진을 바꿀 수 없다.
   locked: boolean;
-  onEdit: () => void;
+  values: Values;
+  onChange: (event: Change) => void;
+  onPhoto: (name: string, value: string) => void;
+  onPending: (delta: number) => void;
 }) {
-  const [file, setFile] = useState<File | null>(null);
   const [photoError, setPhotoError] = useState("");
-  const imageRef = useRef<HTMLImageElement>(null);
-
-  useEffect(() => {
-    if (!file || !imageRef.current) return;
-
-    const url = URL.createObjectURL(file);
-    imageRef.current.src = url;
-
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
-
-  // fieldset disabled는 이 input을 막지 못하므로(밖에서 만든 input) locked를 직접 확인한다.
-  function openPicker() {
-    if (locked) return;
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = PHOTO_TYPES.join(",");
-    input.addEventListener("change", () => {
-      const selected = input.files?.[0] ?? null;
-
-      if (selected && !PHOTO_TYPES.includes(selected.type)) {
-        setFile(null);
-        setPhotoError("JPG, PNG, WebP 이미지를 선택하세요.");
-      } else {
-        setPhotoError("");
-        if (selected) setFile(selected);
-      }
-
-      onEdit();
-    });
-    input.click();
-  }
-
-  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (locked) return;
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      openPicker();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const photo = values[`${side}Photo`];
+  function selectPhoto(event: ChangeEvent<HTMLInputElement>) {
+    const selected = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+    if (!selected) return;
+    if (
+      !PHOTO_TYPES.includes(selected.type) ||
+      selected.size > 5 * 1024 * 1024
+    ) {
+      setPhotoError("사진은 5MB 이하의 JPG, PNG, WebP 파일을 선택하세요.");
+      return;
     }
+    setPhotoError("");
+    const reader = new FileReader();
+    onPending(1);
+    reader.onload = () => {
+      if (typeof reader.result === "string")
+        onPhoto(`${side}Photo`, reader.result);
+    };
+    reader.onerror = () =>
+      setPhotoError("사진을 읽지 못했습니다. 다시 선택하세요.");
+    reader.onloadend = () => onPending(-1);
+    reader.readAsDataURL(selected);
   }
-
   return (
     <div className="report-photo">
       <h4>{title}</h4>
-
       <div className="report-photo-body">
         <div
           className="report-photo-preview"
-          role="button"
-          tabIndex={locked ? -1 : 0}
+          role={locked ? undefined : "button"}
+          tabIndex={locked ? undefined : 0}
+          aria-label={locked ? undefined : `${title} 사진 선택`}
           aria-disabled={locked}
-          aria-label={`${title} 사진 첨부`}
-          onClick={openPicker}
-          onKeyDown={handleKeyDown}
+          onClick={locked ? undefined : () => inputRef.current?.click()}
+          onKeyDown={
+            locked
+              ? undefined
+              : (event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    inputRef.current?.click();
+                  }
+                }
+          }
         >
-          {file ? (
-            <img ref={imageRef} alt={`${title} 미리보기`} />
+          {photo ? (
+            <img src={photo} alt={`${title} 사진`} />
           ) : (
-            <p>
-              <strong>
-                {locked ? `${title} 사진 없음` : `${title} 사진 1장 첨부`}
-              </strong>
-              <br />
-              {locked
-                ? "작성이 끝난 보고서는 사진을 바꿀 수 없습니다"
-                : "비율 유지 / 원본은 연결 사건에 보관"}
-            </p>
+            <p>{locked ? `${title} 사진 없음` : `${title} 사진을 눌러 선택`}</p>
           )}
         </div>
+        {!locked && (
+          <>
+            <label>
+              사진 선택 (JPG, PNG, WebP · 최대 5MB)
+              <input
+                type="file"
+                ref={inputRef}
+                accept={PHOTO_TYPES.join(",")}
+                onChange={selectPhoto}
+              />
+            </label>
+            {photo && (
+              <button type="button" onClick={() => onPhoto(`${side}Photo`, "")}>
+                사진 삭제
+              </button>
+            )}
+          </>
+        )}
         {photoError && (
           <p className="error" role="alert">
             {photoError}
           </p>
         )}
-
         <label className="report-photo-caption">
           <span>
             <strong>캡션</strong>
-            {side === "before"
-              ? " · 이상 부위 · 관측 상태"
-              : " · 조치 내용 · 복구 상태"}
           </span>
-          <AutoTextarea name={`${side}_caption`} rows={1} onChange={onEdit} />
+          <AutoTextarea
+            name={`${side}Caption`}
+            rows={1}
+            value={values[`${side}Caption`] ?? ""}
+            onChange={onChange}
+          />
         </label>
-
         <div className="report-photo-meta">
           <label>
             촬영 시각
             <input
               type="datetime-local"
-              name={`${side}_taken_at`}
-              onChange={onEdit}
+              name={`${side}TakenAt`}
+              value={values[`${side}TakenAt`] ?? ""}
+              onChange={onChange}
             />
           </label>
-
           <label>
             촬영 위치
-            <input name={`${side}_location`} onChange={onEdit} />
+            <input
+              name={`${side}Location`}
+              value={values[`${side}Location`] ?? ""}
+              onChange={onChange}
+            />
           </label>
         </div>
       </div>
@@ -433,6 +442,7 @@ export default function ReportForm({
     actionBy: author?.employee_no ?? "",
     confirmedBy: author?.name ?? "",
   }));
+  const [photoPending, setPhotoPending] = useState(0);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   // 수정 버튼 없이 바로 입력할 수 있다. 읽기 전용이거나 저장 중일 때만 잠근다.
@@ -506,6 +516,7 @@ export default function ReportForm({
 
   async function handleCheck(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (photoPending > 0 || busy || readOnly) return;
     clearFeedback();
 
     if (saveOnly) {
@@ -596,14 +607,23 @@ export default function ReportForm({
             <div className="report-table report-table--observations">
               <div className="report-cell report-cell--wide">
                 <strong>알람명·코드</strong>
-                <IncidentCodes codes={incident?.codes} emptyLabel="알람 미확인" />
+                <IncidentCodes
+                  codes={incident?.codes}
+                  emptyLabel="알람 미확인"
+                />
               </div>
               <div className="report-cell report-cell--wide">
                 <strong>관측 현상</strong>
                 <span style={{ whiteSpace: "pre-line" }}>
-
                   {observedIncident?.evidence?.length
-                    ? observedIncident.evidence.map((item) => sensorFixtureText(measurementSummary(item), incident?.incident_id)).join("\n")
+                    ? observedIncident.evidence
+                        .map((item) =>
+                          sensorFixtureText(
+                            measurementSummary(item),
+                            incident?.incident_id,
+                          ),
+                        )
+                        .join("\n")
                     : "관측 정보 없음"}
                 </span>
               </div>
@@ -815,13 +835,29 @@ export default function ReportForm({
                 side="before"
                 title="조치 전"
                 locked={locked}
-                onEdit={clearFeedback}
+                values={values}
+                onChange={handleChange}
+                onPhoto={(name, value) => {
+                  setValues((previous) => ({ ...previous, [name]: value }));
+                  clearFeedback();
+                }}
+                onPending={(delta) =>
+                  setPhotoPending((previous) => previous + delta)
+                }
               />
               <PhotoField
                 side="after"
                 title="조치 후"
                 locked={locked}
-                onEdit={clearFeedback}
+                values={values}
+                onChange={handleChange}
+                onPhoto={(name, value) => {
+                  setValues((previous) => ({ ...previous, [name]: value }));
+                  clearFeedback();
+                }}
+                onPending={(delta) =>
+                  setPhotoPending((previous) => previous + delta)
+                }
               />
             </div>
           </Section>
@@ -842,7 +878,7 @@ export default function ReportForm({
           {!readOnly && onSave && !saveOnly && (
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || photoPending > 0}
               onClick={() => void onSave(values)}
             >
               임시 저장
@@ -853,7 +889,7 @@ export default function ReportForm({
               <button
                 type="button"
                 className="report-check-button"
-                disabled={busy}
+                disabled={busy || photoPending > 0}
                 onClick={() => void onSave?.(values)}
               >
                 {saveOnlyLabel}
@@ -864,14 +900,13 @@ export default function ReportForm({
             <button
               type="submit"
               className="report-check-button"
-              disabled={busy}
+              disabled={busy || photoPending > 0}
             >
               {onSubmit ? "저장 후 제출" : "작성 내용 확인"}
             </button>
           )}
         </footer>
       </form>
-
     </article>
   );
 }

@@ -197,3 +197,22 @@ test('sensor fixture prefixes are hidden on old approved reports without changin
   assert.match(render({ ...tagged, incident }), /가상 시연/)
   assert.equal(tagged.savedValues.actualActions, '[가상 시연] 방열구 청소')
 })
+
+
+test('saved report photos and captions are visible in read-only view', () => {
+  const image = 'data:image/png;base64,iVBORw0KGgo='
+  const html = render({ ...props, savedValues: { beforePhoto: image, beforeCaption: '청소 전', afterPhoto: image, afterLocation: '모터' } })
+  assert.match(html, /alt="조치 전 사진"/)
+  assert.match(html, /alt="조치 후 사진"/)
+  assert.match(html, /청소 전/)
+  assert.match(html, /모터/)
+})
+
+
+test('empty photo areas can open the picker only while editing', () => {
+  const editable = render({ ...props, readOnly: false })
+  assert.match(editable, /role="button"[^>]*aria-label="조치 전 사진 선택"/)
+  assert.match(editable, /role="button"[^>]*aria-label="조치 후 사진 선택"/)
+  const readonly = render(props)
+  assert.doesNotMatch(readonly, /aria-label="조치 전 사진 선택"/)
+})

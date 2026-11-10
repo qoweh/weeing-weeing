@@ -2,9 +2,9 @@ const fields = [
   "department", "processImpact", "actualActions", "actionStatus", "replacedParts", "actionAt",
   "causeCategory", "confirmedCause", "causeEvidence", "aiAssessment", "trialResult",
   "trialDetails", "downtimeStart", "downtimeEnd", "resolution", "followUp",
-  "followUpOwner", "followUpDue",
+  "followUpOwner", "followUpDue", "beforePhoto", "afterPhoto", "beforeCaption", "afterCaption", "beforeTakenAt", "afterTakenAt", "beforeLocation", "afterLocation",
 ];
-const dates = new Set(["actionAt", "downtimeStart", "downtimeEnd"]);
+const dates = new Set(["actionAt", "downtimeStart", "downtimeEnd", "beforeTakenAt", "afterTakenAt"]);
 const snake = (name) => name.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 
 function localTime(value) {

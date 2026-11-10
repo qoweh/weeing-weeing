@@ -1,6 +1,5 @@
 import { AuthBrand } from "../components/auth/AuthHero";
 import LoginForm from "../components/auth/LoginForm";
-import TestAccounts from "../components/auth/TestAccounts";
 import "../components/auth/login.scss";
 
 export default function LoginPage({
@@ -15,9 +14,8 @@ export default function LoginPage({
   error?: string;
 }) {
   return (
-    <main className="login-page login-page--sign-in login-page--with-accounts">
-      <AuthBrand />
-      <TestAccounts />
+    <main className="login-page login-page--sign-in">
+      <AuthBrand name="WWE" />
       <section className="login-card" aria-labelledby="login-title">
         <p className="login-card__eyebrow">WELCOME BACK</p>
         <h1 id="login-title">로그인</h1>
@@ -36,7 +34,7 @@ export default function LoginPage({
           </button>
         </div>
       </section>
-      <footer className="login-footer">© 위잉위잉 · Equipment AI</footer>
+      <footer className="login-footer">© WWE · Equipment AI</footer>
     </main>
   );
 }

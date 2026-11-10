@@ -4,14 +4,15 @@ const features: [string, string][] = [
   ["정비 보고서", "사건별 보고서 초안 작성과 결재 진행"],
 ];
 
-export function AuthBrand() {
+export function AuthBrand({ name = "위잉위잉" }: { name?: string }) {
   return (
     <div className="login-brand">
       <span className="login-brand__mark">
         <img src="/assets/IMAGE/weeing-logo.png" alt="" />
       </span>
       <span>
-        위잉위잉<small>Equipment AI</small>
+        {name}
+        <small>Equipment AI</small>
       </span>
     </div>
   );

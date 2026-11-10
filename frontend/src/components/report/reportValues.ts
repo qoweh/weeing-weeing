@@ -17,8 +17,22 @@ const fields = [
   "followUp",
   "followUpOwner",
   "followUpDue",
+  "beforePhoto",
+  "afterPhoto",
+  "beforeCaption",
+  "afterCaption",
+  "beforeTakenAt",
+  "afterTakenAt",
+  "beforeLocation",
+  "afterLocation",
 ];
-const dates = new Set(["actionAt", "downtimeStart", "downtimeEnd"]);
+const dates = new Set([
+  "actionAt",
+  "downtimeStart",
+  "downtimeEnd",
+  "beforeTakenAt",
+  "afterTakenAt",
+]);
 const snake = (name: string) =>
   name.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 
