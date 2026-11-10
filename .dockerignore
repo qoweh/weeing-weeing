@@ -9,12 +9,17 @@
 .env.*
 !.env.example
 *.pem
+*.ppk
+*.p12
+*.pfx
 *credentials*.csv
 storage
 outputs
 logs
 .claude
+.codex
 .omc
 .agents
+.cache
 .pytest_cache
 .ruff_cache

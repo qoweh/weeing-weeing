@@ -21,7 +21,9 @@ ENV_FILE := $(if $(wildcard .env),--env-file .env,)
 # 의존성이 바뀌면(pull 후 등) make setup을 다시 실행한다.
 RUN := uv run --no-sync
 
-.PHONY: help setup lint fmt test check env-check skills db-up db-migrate qdrant-up down api index-reports seed-docs seed-users rag-e2e llm-check llm-eval analyze chat
+.PHONY: help setup lint fmt test check env-check skills db-up db-migrate qdrant-up down api \
+	index-reports seed-docs seed-users rag-e2e llm-check llm-eval analyze chat \
+	chat-check langfuse-smoke chat-baseline chat-private chat-prompt-eval
 
 help: ## 명령 목록
 	@$(RUN) python scripts/make_help.py
@@ -88,22 +90,17 @@ api: ## FastAPI 개발 서버 (http://localhost:8000/docs)
 chat: ## 챗봇 질문 실행 (Claude API 비용 발생, DB·색인 필요, ARGS='"P03 점검 절차는?" --asset-id BLDC-001')
 	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) $(ENV_FILE) python scripts/chat.py
 
-.PHONY: chat-check
 chat-check: ## Claude 없이 FAQ·검색·DB 조회 확인 (ARGS='faq' 또는 'search "P03 점검"' 또는 'history')
 	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) $(ENV_FILE) python scripts/check_chat.py
 
-.PHONY: langfuse-smoke
 langfuse-smoke: ## Claude·Voyage 없이 챗봇 1건을 재생해 Langfuse 기록 확인 (비용 0, ARGS='"질문" --session 대화ID')
 	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) $(ENV_FILE) python scripts/langfuse_smoke.py
 
-.PHONY: chat-baseline
 chat-baseline: ## 챗봇 지연 기준선(#215). 기본은 계획만, ARGS=--replay(비용 0) / --execute(유료, 10문항)
 	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) $(ENV_FILE) python scripts/chat_baseline.py
 
-.PHONY: chat-private
 chat-private: ## .env 자동 로딩 없이 Claude 키를 숨김 입력해 직접 대화 (API 비용 발생)
 	$(RUN) python scripts/run_make.py $(RUN_MAKE_OPTIONS) --no-env-file python scripts/chat.py --interactive --ask-key
 
-.PHONY: chat-prompt-eval
 chat-prompt-eval: ## 프롬프트 A/B 5문항·10요청 계획 (실행: ARGS='--execute --ask-key --ask-voyage-key')
 	$(RUN) --no-env-file python scripts/run_make.py $(RUN_MAKE_OPTIONS) --no-env-file python scripts/run_chat_prompt_eval.py

@@ -5,6 +5,7 @@ name: PR CI
 #   "dev를 main에 합친 결과"를 검사했다(필수 검사). 머지 뒤 같은 내용을 다시 검사하지 않는다.
 # - release PR(dev → main)은 합친 결과가 dev와 같으면 Lint·Test를 건너뛴다(dev에서 이미 검사함).
 # - Lint·Test: 코드에 영향 있는 파일이 바뀐 PR만 실행. 문서만 바뀌면 건너뛴다(skipped = 통과로 취급).
+# - Frontend·HMI web: frontend/·hmi/web/이 바뀐 PR만 타입·린트·빌드·테스트(Python 잡과 따로 판단).
 # - Secret scan·Skills sync: 어떤 파일에든 생길 수 있는 문제라 항상 실행(각 10초 이내).
 # 트리거 단계의 paths 필터 대신 잡 단위 if로 건너뛰는 이유: 워크플로 자체가 안 뜨면 필수 검사로
 # 지정했을 때 PR이 "대기 중"으로 영원히 멈춘다. 잡이 skipped로 끝나면 그런 문제가 없다.
@@ -29,6 +30,8 @@ jobs:
     outputs:
       code: ${{ steps.detect.outputs.code }}
       make: ${{ steps.detect.outputs.make }}
+      frontend: ${{ steps.detect.outputs.frontend }}
+      hmi: ${{ steps.detect.outputs.hmi }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -45,7 +48,8 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           # PR이 아니면(수동 재실행 등) 전체 실행
-          if [ "$EVENT" != "pull_request" ]; then printf 'code=true\nmake=true\n' >> "$GITHUB_OUTPUT"; exit 0; fi
+          all_true='code=true\nmake=true\nfrontend=true\nhmi=true\n'
+          if [ "$EVENT" != "pull_request" ]; then printf "$all_true" >> "$GITHUB_OUTPUT"; exit 0; fi
           # release PR(dev → main)은 Lint·Test를 건너뛴다. dev에 들어온 PR은 모두 최신 dev 기준으로
           # 같은 검사를 통과했다(dev 규칙: 필수 검사 + 최신 상태 요구). 단, 합친 결과가 dev와 똑같을
           # 때만이다. main에만 있는 변경이 섞이면 처음 보는 조합이므로 전체 검사한다.
@@ -54,16 +58,18 @@ jobs:
           if [ "$BASE_REF" = main ] && [ "$HEAD_REF" = dev ] && [ "$HEAD_REPO" = "$REPO" ]; then
             if git diff --quiet "$HEAD_SHA" HEAD; then
               echo "release PR: 합친 결과가 dev($HEAD_SHA)와 같아 Lint·Test 생략"
-              printf 'code=false\nmake=false\n' >> "$GITHUB_OUTPUT"; exit 0
+              printf 'code=false\nmake=false\nfrontend=false\nhmi=false\n' >> "$GITHUB_OUTPUT"; exit 0
             fi
             echo "release PR: main에만 있는 변경이 있어 전체 검사"
           fi
           # diff를 못 구하거나 비어 있으면 안전하게 전체 실행
           if ! files=$(git diff --name-only "$BASE_SHA...$HEAD_SHA") || [ -z "$files" ]; then
-            printf 'code=true\nmake=true\n' >> "$GITHUB_OUTPUT"; exit 0
+            printf "$all_true" >> "$GITHUB_OUTPUT"; exit 0
           fi
           code=false
           make=false
+          frontend=false
+          hmi=false
           while IFS= read -r f; do
             case "$f" in
               # 코드·테스트에 영향 없는 파일. 여기 없는 경로는 전부 코드로 본다(새 폴더도 기본 검사).
@@ -73,11 +79,19 @@ jobs:
             esac
             case "$f" in
               # Windows·Ubuntu make 호환 검사는 make 명령 경로가 바뀔 때만 돈다(Windows는 실행 시간 2배 과금).
-              Makefile|scripts/run_make.py|tests/scripts/test_make_commands.py|pyproject.toml|uv.lock|.github/workflows/ci.yml) make=true ;;
+              # make_help.py는 Windows 러너의 "make help" 단계에서만 실행된다.
+              Makefile|scripts/run_make.py|scripts/make_help.py|tests/scripts/test_make_commands.py|pyproject.toml|uv.lock|.github/workflows/ci.yml) make=true ;;
+            esac
+            case "$f" in
+              # Node 앱은 각자 폴더와 이 워크플로가 바뀔 때만 검사한다(deploy.yml이 둘 다 이미지로 빌드한다).
+              frontend/*|.github/workflows/ci.yml) frontend=true ;;
+            esac
+            case "$f" in
+              hmi/web/*|.github/workflows/ci.yml) hmi=true ;;
             esac
           done <<< "$files"
-          printf 'code=%s\nmake=%s\n' "$code" "$make" >> "$GITHUB_OUTPUT"
-          echo "code=$code make=$make"
+          printf 'code=%s\nmake=%s\nfrontend=%s\nhmi=%s\n' "$code" "$make" "$frontend" "$hmi" >> "$GITHUB_OUTPUT"
+          echo "code=$code make=$make frontend=$frontend hmi=$hmi"
 
   lint:
     name: Lint (ruff)
@@ -179,6 +193,52 @@ jobs:
       - run: make help
       # 명령을 가짜 실행기로 받아 검사하므로 .env·DB·실제 LLM은 사용하지 않는다.
       - run: uv run --no-sync pytest tests/scripts/test_make_commands.py
+
+  # Node 앱 2개. 운영 이미지(deploy/*.Dockerfile)와 같은 Node 24로 타입·린트·빌드·테스트를 한다.
+  # package.json의 test:* 스크립트는 일부 파일만 고르므로 tests/ 아래 테스트 전체를 직접 지정한다.
+  frontend:
+    name: Frontend (Next.js)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npx tsc --noEmit
+      - run: npm run build
+      - run: node --test 'tests/*.test.*'
+
+  hmi:
+    name: HMI web (Vite)
+    needs: changes
+    if: needs.changes.outputs.hmi == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: hmi/web
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: hmi/web/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run build
+      - run: node --test 'tests/*.test.js'
 
   skills:
     name: Skills sync

@@ -45,7 +45,8 @@ src/weeing_weeing/
   agent/       Claude 에이전트: 근거 검색·원인 추론·대응 제안 ← 1차
   api/  db/    FastAPI, PostgreSQL                       ← 2차
   plc/         Virtual PLC 상태·보호 제어                ← 3차
-hmi/           Streamlit 화면                            ← 5차
+hmi/web/       HMI 화면 (React + Vite, 운영 /hmi/)          ← 5차
+frontend/      웹 화면 (Next.js, 운영 /)                   ← 5차
 simulator/     Unreal 연동                               ← 4차
 data/          원본 데이터, 룰 정의서·매뉴얼·SOP
 tests/  scripts/  docs/

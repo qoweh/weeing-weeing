@@ -1,4 +1,4 @@
-# 로컬 개발용 보조 서비스. 앱(FastAPI·Streamlit)은 컨테이너 없이 uv run으로 띄운다.
+# 로컬 개발용 보조 서비스. 앱(FastAPI·frontend·hmi/web)은 컨테이너 없이 띄운다(ops/local.sh).
 #   DB만:          docker compose up -d postgres
 #   Qdrant 서버:    docker compose --profile qdrant up -d qdrant  (.env에 QDRANT_URL=http://localhost:6333)
 # LLM은 상용 API(Claude)를 쓰므로 LLM 컨테이너는 없다(docs/DIRECTION_CHANGES.md).

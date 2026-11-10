@@ -174,17 +174,6 @@ jobs:
                     title: "*🔄 이슈 다시 열림* | \(link($i)) — \($who)",
                     fields: ([field("다시 연 사람"; $who)] + $base.fields)
                   }
-                elif $a == "assigned" then
-                  $base + {
-                    color: "#0969da",
-                    title: "*🙋 담당자 지정* | \(link($i)) → \(.assignee.login)",
-                    fields: [
-                      field("새 담당자"; .assignee.login),
-                      field("지정한 사람"; $who),
-                      field("전체 담당자"; $i.assignees | names),
-                      field("라벨"; labels($i))
-                    ]
-                  }
                 else empty end
 
             else empty end
