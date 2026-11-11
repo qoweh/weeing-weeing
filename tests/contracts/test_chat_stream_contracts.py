@@ -17,3 +17,13 @@ def test_progress_has_only_known_phases_and_no_draft_payload():
         ChatStreamProgress(request_id=uuid4(), phase="provider_raw")
     with pytest.raises(ValidationError):
         ChatStreamProgress(request_id=uuid4(), phase="verifying", draft="unverified")
+
+
+def test_cached_progress_phase():
+    from uuid import uuid4
+
+    from weeing_weeing.contracts.chat_stream import ChatStreamProgress
+
+    assert (
+        ChatStreamProgress(request_id=uuid4(), phase="cache_hit").phase == "cache_hit"
+    )

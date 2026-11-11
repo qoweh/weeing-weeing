@@ -4,6 +4,7 @@ HTTP(#91)는 세션의 사번을 actor_id로 전달한다. 요청 본문의 사�
 대화 조회·수정·삭제는 db.interface의 대화 저장소가 소유권을 검사해 수행한다.
 """
 
+import logging
 import math
 from collections.abc import Callable
 from uuid import UUID
@@ -15,7 +16,14 @@ from weeing_weeing.agent.interface import (
     load_faq_catalog,
     trace_session,
 )
+from weeing_weeing.api.chat_answer_cache import (
+    CACHED_QUESTIONS,
+    answer_cache_scope,
+    reusable_answer,
+    sources_current,
+)
 from weeing_weeing.contracts import (
+    ChatContext,
     ChatQuestion,
     ChatRequestView,
     ChatResponse,
@@ -24,6 +32,8 @@ from weeing_weeing.contracts import (
 )
 from weeing_weeing.contracts.chat_stream import ChatProgress
 from weeing_weeing.db.interface import SqlChats
+
+logger = logging.getLogger(__name__)
 
 
 def _default_service():
@@ -85,6 +95,8 @@ class StoredChatService:
         token = claim.execution_token
         request_id = request.submission.request_id
         question_text = None
+        cache_scope = None
+        cache_hit = False
         try:
             if request.submission.kind == "FAQ":
                 # 서버에 보관한 대표 질문·답변을 저장한다. FAQ 오류를 LLM 호출로 우회하지 않는다.
@@ -99,39 +111,78 @@ class StoredChatService:
                     actor_id, conversation_id, request_id, token
                 )
             else:
-                # 저장된 요청의 모델을 사용해 재시도에서도 최초 선택을 유지한다.
-                service = (
-                    self._service_factory(request.submission.model)
-                    if request.submission.model
-                    else self._service_factory()
-                )
-                context = self.repository.get_context(actor_id, conversation_id)
-                question = ChatQuestion(
-                    request_id=request_id,
-                    question=request.submission.question,
-                    conditions=request.conditions,
-                )
-                # 외부 호출 직전에 시작 상태를 커밋한다. DB 잠금은 호출 동안 유지하지 않는다.
-                self.repository.start_request(
-                    actor_id, conversation_id, request_id, token
-                )
-                progressive = getattr(service, "reply_with_progress", None)
-                # 사용량 기록에서 같은 대화의 질문들을 한 세션으로 묶는다(#204).
-                with trace_session(str(conversation_id)):
-                    if on_progress is not None and callable(progressive):
-                        answer = progressive(
-                            question,
-                            context=context,
-                            timeout_s=timeout_s,
-                            on_progress=on_progress,
+                cached = None
+                try:
+                    cache_scope = answer_cache_scope(request)
+                    if cache_scope:
+                        cached = self.repository.find_cached_answer(
+                            actor_id, cache_scope
                         )
-                    else:
-                        if on_progress:
-                            on_progress("generating")
-                        answer = service.reply(
-                            question, context=context, timeout_s=timeout_s
-                        )
-                response = ChatResponse.model_validate(answer)
+                        if cached is not None and not (
+                            reusable_answer(cached) and sources_current(cached)
+                        ):
+                            cached = None
+                except Exception:
+                    logger.warning(
+                        "Chat answer cache unavailable; using normal generation"
+                    )
+                    cache_scope = None
+                    cached = None
+                if cached is not None:
+                    self.repository.start_request(
+                        actor_id, conversation_id, request_id, token
+                    )
+                    response = cached.model_copy(update={"request_id": request_id})
+                    cache_hit = True
+                else:
+                    # 저장된 요청의 모델을 사용해 재시도에서도 최초 선택을 유지한다.
+                    service = (
+                        self._service_factory(request.submission.model)
+                        if request.submission.model
+                        else self._service_factory()
+                    )
+                    context = (
+                        ChatContext()
+                        if request.submission.question.strip() in CACHED_QUESTIONS
+                        else self.repository.get_context(actor_id, conversation_id)
+                    )
+                    question = ChatQuestion(
+                        request_id=request_id,
+                        question=request.submission.question,
+                        conditions=request.conditions,
+                    )
+                    # 외부 호출 직전에 시작 상태를 커밋한다. DB 잠금은 호출 동안 유지하지 않는다.
+                    self.repository.start_request(
+                        actor_id, conversation_id, request_id, token
+                    )
+                    progressive = getattr(service, "reply_with_progress", None)
+                    # 사용량 기록에서 같은 대화의 질문들을 한 세션으로 묶는다(#204).
+                    with trace_session(str(conversation_id)):
+                        if on_progress is not None and callable(progressive):
+                            answer = progressive(
+                                question,
+                                context=context,
+                                timeout_s=timeout_s,
+                                on_progress=on_progress,
+                            )
+                        else:
+                            if on_progress:
+                                on_progress("generating")
+                            answer = service.reply(
+                                question, context=context, timeout_s=timeout_s
+                            )
+                    response = ChatResponse.model_validate(answer)
+                    if cache_scope:
+                        try:
+                            if not (
+                                reusable_answer(response)
+                                and sources_current(response)
+                                and answer_cache_scope(request) == cache_scope
+                            ):
+                                cache_scope = None
+                        except Exception:
+                            cache_scope = None
+
         except FaqNotFoundError:
             return self.repository.fail_request(
                 actor_id, conversation_id, request_id, token, code="FAQ_NOT_FOUND"
@@ -144,11 +195,14 @@ class StoredChatService:
         # 생성 후 저장 실패는 호출자에게 알린다. 실행 전 실패로 바꾸면 중복 과금 위험이 있다.
         if on_progress:
             on_progress("saving")
-        return self.repository.complete_request(
+        result = self.repository.complete_request(
             actor_id,
             conversation_id,
             request_id,
             token,
             response,
             question_text=question_text,
+            cache_scope=cache_scope,
+            cache_hit=cache_hit,
         )
+        return result

@@ -80,6 +80,8 @@ async def stream_chat(request_id, operation: Callable[[ChatProgress], ChatReques
                     next_event.cancel()
                     await asyncio.gather(next_event, return_exceptions=True)
         result = task.result()
+        if result.cache_hit:
+            yield _frame(ChatStreamProgress(request_id=request_id, phase="cache_hit"))
         if result.state == "COMPLETED" and result.response.status == "OK":
             text = "\n\n".join(part.text for part in result.response.parts)
             for start in range(0, len(text), 512):

@@ -102,7 +102,14 @@ def _saved_response(payload):
         )
         for source in payload.get("sources", [])
     ]
-    return ChatResponse.model_validate(payload | {"sources": sources})
+    return ChatResponse.model_validate(
+        {
+            k: v
+            for k, v in payload.items()
+            if k not in {"answer_cache_scope", "answer_cache_hit"}
+        }
+        | {"sources": sources}
+    )
 
 
 def _view(row):
@@ -112,6 +119,7 @@ def _view(row):
         state=row.state,
         conditions=row.conditions,
         response=_saved_response(row.response),
+        cache_hit=bool((row.response or {}).get("answer_cache_hit", False)),
         retry_allowed=row.retry_allowed,
         error_code="PREPARATION_FAILED"
         if row.error_code == "FAQ_VERSION_CONFLICT"
@@ -402,6 +410,27 @@ class SqlChats(Repository):
             conversation.active_request_id, conversation.updated_at = None, now()
             return _view(row)
 
+    def find_cached_answer(self, actor_id, scope):
+        """다른 사용자의 답변을 공유하지 않고 현재 DB의 완료 응답만 재사용한다."""
+        with self._transaction() as session:
+            _active(session, actor_id)
+            row = session.scalar(
+                select(ChatRequestRow)
+                .join(
+                    ChatConversationRow,
+                    ChatRequestRow.conversation_id
+                    == ChatConversationRow.conversation_id,
+                )
+                .where(
+                    ChatConversationRow.owner_id == actor_id,
+                    ChatRequestRow.state == "COMPLETED",
+                    ChatRequestRow.response["answer_cache_scope"].as_string() == scope,
+                )
+                .order_by(ChatRequestRow.updated_at.desc())
+                .limit(1)
+            )
+            return _saved_response(row.response) if row else None
+
     def complete_request(
         self,
         actor_id,
@@ -411,6 +440,8 @@ class SqlChats(Repository):
         response,
         *,
         question_text=None,
+        cache_scope=None,
+        cache_hit=False,
     ):
         """질문 스냅샷·응답·메시지 한 쌍을 한 트랜잭션으로 저장한다."""
         response = ChatResponse.model_validate(response)
@@ -422,6 +453,9 @@ class SqlChats(Repository):
             row = _request(session, conversation_id, request_id)
             _token(row, execution_token, {"RUNNING", "COMPLETED"})
             saved_response = response.model_dump(mode="json")
+            if cache_scope is not None:
+                saved_response["answer_cache_scope"] = cache_scope
+                saved_response["answer_cache_hit"] = cache_hit
             if row.state == "COMPLETED":
                 if _saved_response(row.response) != response:
                     raise ChatConflictError("저장된 응답은 바꿀 수 없습니다.")

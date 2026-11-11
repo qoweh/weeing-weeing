@@ -74,7 +74,9 @@ export default function useChatSession(
   }
   function receiveStream(requestId, signal) {
     setStream({ requestId, phase: "accepted", text: "" });
-    const reveal = createVerifiedReveal({
+    let cached = false;
+    let reveal;
+    const revealOptions = {
       signal,
       append: (text) => {
         guard(signal);
@@ -84,19 +86,23 @@ export default function useChatSession(
           text: (previous?.text || "") + text,
         }));
       },
-    });
+    };
     return async (event) => {
       guard(signal);
       const id = event.request_id || event.request?.submission?.request_id;
       if (id !== requestId)
         throw new Error("채팅 스트림의 요청 ID가 다릅니다.");
+      if (event.event === "progress" && event.phase === "cache_hit") cached = true;
       if (event.event === "progress")
         setStream((previous) => ({
           ...previous,
           requestId,
           phase: event.phase,
         }));
-      if (event.event === "delta") await reveal(event.text);
+      if (event.event === "delta") {
+        reveal ??= createVerifiedReveal({ ...revealOptions, cached });
+        await reveal(event.text);
+      }
     };
   }
   async function loadList(signal, append = false) {

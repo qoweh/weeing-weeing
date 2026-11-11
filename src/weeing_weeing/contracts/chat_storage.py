@@ -43,6 +43,7 @@ class ChatRequestView(ChatModel):
     state: ChatRequestState
     conditions: ChatSearchConditions
     response: ChatResponse | None = None
+    cache_hit: bool = False
     retry_allowed: bool = False
     error_code: (
         Literal[

@@ -66,3 +66,25 @@ test("취소 후에는 표시를 이어가지 않는다", async () => {
   });
   assert.equal(chunks, 1);
 });
+
+
+test("캐시 응답은 최초 3초 대기 후 한 글자씩 표시한다", async () => {
+  const chunks = [], waits = [];
+  const reveal = createVerifiedReveal({ cached: true, reducedMotion: false,
+    append: (text) => chunks.push(text), pause: async (ms) => waits.push(ms) });
+  await reveal("M10 설명");
+  await reveal("입니다.");
+  assert.equal(waits.filter((ms) => ms === 3000).length, 1);
+  assert.ok(chunks.every((text) => Array.from(text).length === 1));
+  assert.equal(chunks.join(""), "M10 설명입니다.");
+});
+
+test("캐시 대기 중 취소하면 본문을 표시하지 않는다", async () => {
+  const controller = new AbortController();
+  const chunks = [];
+  const reveal = createVerifiedReveal({ cached: true, signal: controller.signal,
+    reducedMotion: false, append: (text) => chunks.push(text),
+    pause: async () => controller.abort() });
+  await assert.rejects(reveal("M10"), { name: "AbortError" });
+  assert.deepEqual(chunks, []);
+});
