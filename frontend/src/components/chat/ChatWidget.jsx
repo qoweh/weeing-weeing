@@ -850,6 +850,7 @@ export default function ChatWidget({
                   accepted: "요청 확인 중",
                   searching: "자료 검색 중",
                   generating: "답변 작성 중",
+                  cache_hit: "답변 준비 중",
                   verifying: "근거 검토 중",
                   saving: "답변 저장 중",
                   delivering: "답변 표시 중",

@@ -9,7 +9,9 @@ from pydantic import Field
 from weeing_weeing.contracts.chat import ChatModel, NonEmpty
 from weeing_weeing.contracts.chat_storage import ChatRequestView
 
-ChatPhase = Literal["accepted", "generating", "searching", "verifying", "saving"]
+ChatPhase = Literal[
+    "accepted", "generating", "searching", "verifying", "saving", "cache_hit"
+]
 ChatProgress = Callable[[ChatPhase], None]
 
 

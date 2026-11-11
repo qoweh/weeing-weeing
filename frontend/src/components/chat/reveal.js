@@ -17,6 +17,7 @@ function wait(ms, signal) {
 
 export function createVerifiedReveal({
   append,
+  cached = false,
   signal,
   reducedMotion = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)")
     .matches || false,
@@ -25,16 +26,20 @@ export function createVerifiedReveal({
 }) {
   let started = null;
   return async (text) => {
-    if (started === null) started = now();
+    if (started === null) {
+      if (cached) await pause(3000, signal);
+      started = now();
+    }
     const characters = Array.from(text);
-    for (let offset = 0; offset < characters.length; offset += 12) {
+    const step = cached ? 1 : 12;
+    for (let offset = 0; offset < characters.length; offset += step) {
       if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-      if (reducedMotion || now() - started >= 6000) {
+      if (reducedMotion || (!cached && now() - started >= 6000)) {
         append(characters.slice(offset).join(""));
         return;
       }
-      append(characters.slice(offset, offset + 12).join(""));
-      await pause(30, signal);
+      append(characters.slice(offset, offset + step).join(""));
+      await pause(cached ? 12 : 30, signal);
     }
   };
 }

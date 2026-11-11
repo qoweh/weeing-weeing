@@ -7,6 +7,7 @@
 | 내 PC(로컬 개발) | [`ops/local.sh`](local.sh) | [`ops\local.ps1`](local.ps1) | 설치·검사·로컬 DB/Qdrant·백엔드·프론트·HMI 실행 |
 | 내 PC → 운영 서버 | [`ops/aws.sh`](aws.sh) | [`ops\aws.ps1`](aws.ps1) | 접속·터널, 그리고 아래 서버 명령을 SSH로 실행 |
 | 운영 서버 안 | [`ops/server.sh`](server.sh) | (같음) | 상태·로그·볼륨·RAG·DB 확인·재시작 |
+| 운영 서버 안 | [`ops/server-deploy.sh`](server-deploy.sh) | (같음) | Actions 없이 서버에서 직접 빌드·배포·롤백([DEPLOY](../docs/DEPLOY.md#서버에서-직접-빌드배포-actions-없이)) |
 
 ```bash
 ops/local.sh help         # macOS·Linux

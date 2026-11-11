@@ -366,3 +366,5 @@ frontend(알림 집계·출처), scripts(터미널 표시). 기존 Incident·보
 본문 `parts.text`는 각 부분이 독립적인 마크다운이다. 프론트엔드는 제목·목록·강조·표·코드를
 렌더링하며 한 번 개행도 실제 줄바꿈으로 보존한다. 원시 HTML·외부 이미지·모델 생성 링크는
 실행/로드하지 않고 기존 출처 버튼을 사용한다.
+
+- `ChatRequestView.cache_hit` 기본값은 false이며 지정 문서 질문의 저장 응답 재사용 시 true다. SSE progress의 `cache_hit`는 캐시 전용 표시 효과를 알린다. 영향 모듈: db, api, frontend.

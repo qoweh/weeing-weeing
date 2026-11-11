@@ -88,3 +88,20 @@ def test_faq_selection_error_is_a_stored_request_state(code):
         updated_at=datetime.now(UTC),
     )
     assert value.response is None and value.error_code == code
+
+
+def test_legacy_request_defaults_to_not_cached():
+    from datetime import datetime, timezone
+    from uuid import uuid4
+
+    from weeing_weeing.contracts.chat_storage import ChatRequestView
+
+    view = ChatRequestView(
+        conversation_id=uuid4(),
+        submission={"request_id": uuid4(), "kind": "CHAT", "question": "설명해줘"},
+        state="RESERVED",
+        conditions={},
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+    assert not view.cache_hit

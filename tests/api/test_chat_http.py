@@ -680,3 +680,274 @@ def test_message_model_selection_reaches_service_factory(setup):
         ).status_code
         == 409
     )
+
+
+@pytest.fixture
+def cached_answer_setup(setup, monkeypatch):
+    from weeing_weeing.api import chat_storage
+    from weeing_weeing.api.chat_answer_cache import CACHED_QUESTIONS
+
+    client, headers, repo, catalog, fake = setup
+    version = {"value": "1", "current": True}
+
+    def scope(request):
+        if request.submission.question.strip() not in CACHED_QUESTIONS:
+            return None
+        return (
+            version["value"]
+            + request.submission.question.strip()
+            + str(request.conditions.model_dump())
+            + str(request.submission.model)
+        )
+
+    monkeypatch.setattr(chat_storage, "answer_cache_scope", scope)
+    monkeypatch.setattr(
+        chat_storage, "sources_current", lambda response: version["current"]
+    )
+
+    def answer(question, *, context, timeout_s):
+        fake.calls += 1
+        assert not context.recent_turns
+        return ChatResponse(
+            request_id=question.request_id,
+            intent="MANUAL",
+            status="OK",
+            applied_conditions=question.conditions,
+            message="문서 기준 안내",
+            parts=[
+                dict(
+                    kind="MANUAL",
+                    text="M10은 외함 온도 상한 이탈입니다.",
+                    source_ids=["doc:1"],
+                )
+            ],
+            sources=[
+                dict(
+                    kind="DOCUMENT",
+                    source_id="doc:1",
+                    title="매뉴얼",
+                    doc_id="MAN",
+                    doc_version="1",
+                    page=6,
+                )
+            ],
+            generated_at=datetime.now(UTC),
+        )
+
+    monkeypatch.setattr(fake, "reply", answer)
+    path = create(client, headers["owner"])
+    start(client, headers["owner"], path)
+    return client, headers, repo, fake, version, path, CACHED_QUESTIONS[0]
+
+
+def test_cached_question_reuses_saved_body_sources_and_marks_stream(
+    cached_answer_setup,
+):
+    client, headers, repo, fake, _, path, question = cached_answer_setup
+    first = client.post(
+        path + "/messages",
+        headers=headers["owner"],
+        json={"request_id": str(uuid4()), "question": question},
+    ).json()
+    assert not first["cache_hit"]
+    events = stream_events(
+        client.post(
+            path + "/messages/stream",
+            headers=headers["owner"],
+            json={"request_id": str(uuid4()), "question": " " + question + " "},
+        ).text
+    )
+    result = events[-1]["request"]
+    assert result["cache_hit"] and fake.calls == 1
+    assert result["response"]["parts"] == first["response"]["parts"]
+    assert result["response"]["sources"] == first["response"]["sources"]
+    assert result["response"]["request_id"] != first["response"]["request_id"]
+    assert any(e.get("phase") == "cache_hit" for e in events)
+
+
+@pytest.mark.parametrize(
+    "change", ["version", "source", "owner", "conditions", "model"]
+)
+def test_cached_question_invalidates_or_isolates_scope(cached_answer_setup, change):
+    client, headers, repo, fake, version, path, question = cached_answer_setup
+    body = {"request_id": str(uuid4()), "question": question}
+    assert (
+        client.post(path + "/messages", headers=headers["owner"], json=body).json()[
+            "state"
+        ]
+        == "COMPLETED"
+    )
+    actor = "owner"
+    if change == "version":
+        version["value"] = "2"
+    elif change == "source":
+        version["current"] = False
+    elif change == "owner":
+        actor = "other"
+        path = create(client, headers[actor])
+        start(client, headers[actor], path)
+    elif change == "conditions":
+        assert (
+            client.patch(
+                path,
+                headers=headers["owner"],
+                json={"conditions": {"asset_id": "BLDC-001"}},
+            ).status_code
+            == 200
+        )
+        body["conditions"] = {"asset_id": "BLDC-001"}
+    else:
+        body["model"] = "claude-sonnet-5-5"
+        stored = app.dependency_overrides[chat.stored_chat]()
+        stored._service_factory = lambda model=None: fake
+    body["request_id"] = str(uuid4())
+    result = client.post(path + "/messages", headers=headers[actor], json=body)
+    assert result.status_code == 200, result.text
+    assert not result.json()["cache_hit"]
+    assert fake.calls == 2
+
+
+def test_non_target_question_does_not_use_answer_cache(setup):
+    client, headers, _, _, fake = setup
+    path = create(client, headers["owner"])
+    start(client, headers["owner"], path)
+    for _ in range(2):
+        result = client.post(
+            path + "/messages",
+            headers=headers["owner"],
+            json={"request_id": str(uuid4()), "question": "M10 설명해줘"},
+        )
+        assert not result.json()["cache_hit"]
+    assert fake.calls == 2
+
+
+def test_cache_validation_failure_falls_back_to_generation(
+    cached_answer_setup, monkeypatch
+):
+    from weeing_weeing.api import chat_storage
+
+    client, headers, _, fake, _, path, question = cached_answer_setup
+    for index in range(2):
+        if index:
+
+            def unavailable(response):
+                raise RuntimeError("fake validation failure")
+
+            monkeypatch.setattr(chat_storage, "sources_current", unavailable)
+        result = client.post(
+            path + "/messages",
+            headers=headers["owner"],
+            json={"request_id": str(uuid4()), "question": question},
+        )
+        assert result.json()["state"] == "COMPLETED"
+        assert not result.json()["cache_hit"]
+    assert fake.calls == 2
+
+
+def test_failed_target_answer_is_never_cached(setup, monkeypatch):
+    from weeing_weeing.api import chat_storage
+
+    client, headers, _, _, fake = setup
+    monkeypatch.setattr(chat_storage, "answer_cache_scope", lambda request: "scope")
+    fake.failed_response = True
+    path = create(client, headers["owner"])
+    start(client, headers["owner"], path)
+    for _ in range(2):
+        result = client.post(
+            path + "/messages",
+            headers=headers["owner"],
+            json={"request_id": str(uuid4()), "question": "M10 에러가 뭔지 설명해줘"},
+        )
+        assert result.json()["response"]["status"] == "FAILED"
+        assert not result.json()["cache_hit"]
+    assert fake.calls == 2
+
+
+def test_cache_scope_tracks_document_catalog_without_llm(monkeypatch):
+    from types import SimpleNamespace
+
+    from weeing_weeing.api import chat_answer_cache as cache
+    from weeing_weeing.config import get_settings
+    from weeing_weeing.contracts import ChatSearchConditions
+
+    doc = SimpleNamespace(
+        doc_id="MAN",
+        doc_version="1",
+        source_sha256="a" * 64,
+        status="completed",
+        doc_status="approved",
+        doc_type="manual",
+        title="매뉴얼",
+        extra={"asset_id": "BLDC-001"},
+    )
+    monkeypatch.setattr(cache, "get_settings", get_settings)
+    monkeypatch.setattr(
+        cache,
+        "get_chat_knowledge",
+        lambda: SimpleNamespace(documents=SimpleNamespace(listed=lambda: [doc])),
+    )
+    request = SimpleNamespace(
+        submission=SimpleNamespace(
+            question="M10 에러가 뭔지 설명해줘", model="claude-sonnet-5-5"
+        ),
+        conditions=ChatSearchConditions(),
+    )
+    scopes = set()
+    for question in cache.CACHED_QUESTIONS:
+        request.submission.question = question
+        scopes.add(cache.answer_cache_scope(request))
+    assert len(scopes) == 6 and None not in scopes
+    request.submission.question = cache.CACHED_QUESTIONS[0]
+    initial = cache.answer_cache_scope(request)
+    assert initial == cache.answer_cache_scope(request)
+    doc.extra["asset_id"] = "OTHER"
+    assert cache.answer_cache_scope(request) != initial
+    doc.extra["asset_id"] = "BLDC-001"
+    doc.doc_status = "draft"
+    assert cache.answer_cache_scope(request) != initial
+    request.submission.question = "M10 설명해줘"
+    monkeypatch.setattr(
+        cache, "get_chat_knowledge", lambda: pytest.fail("다른 질문은 캐시 조회 안 함")
+    )
+    assert cache.answer_cache_scope(request) is None
+
+
+def test_cache_survives_service_recreation_and_new_conversation(cached_answer_setup):
+    client, headers, repo, fake, _, path, question = cached_answer_setup
+    first = client.post(
+        path + "/messages",
+        headers=headers["owner"],
+        json={"request_id": str(uuid4()), "question": question},
+    )
+    assert first.json()["state"] == "COMPLETED"
+    replacement = StoredChatService(
+        db.open_chats(repo._engine.url.render_as_string(hide_password=False)),
+        service_factory=lambda: fake,
+    )
+    app.dependency_overrides[chat.stored_chat] = lambda: replacement
+    next_path = create(client, headers["owner"])
+    start(client, headers["owner"], next_path)
+    result = client.post(
+        next_path + "/messages",
+        headers=headers["owner"],
+        json={"request_id": str(uuid4()), "question": question},
+    )
+    assert result.json()["cache_hit"]
+    assert fake.calls == 1
+
+
+def test_all_six_questions_are_cached_separately(cached_answer_setup):
+    from weeing_weeing.api.chat_answer_cache import CACHED_QUESTIONS
+
+    client, headers, _, fake, _, path, _ = cached_answer_setup
+    for index, question in enumerate(CACHED_QUESTIONS):
+        for repeat in range(2):
+            result = client.post(
+                path + "/messages",
+                headers=headers["owner"],
+                json={"request_id": str(uuid4()), "question": question},
+            )
+            assert result.status_code == 200, result.text
+            assert result.json()["state"] == "COMPLETED"
+            assert result.json()["cache_hit"] is bool(repeat)
+            assert fake.calls == index + 1

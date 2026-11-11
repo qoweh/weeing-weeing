@@ -194,6 +194,24 @@ ops/aws.sh up             # 추가·수정한 값을 컨테이너에 반영
 - **수동:** Actions → Deploy (EC2) → Run workflow → `main` 선택(재배포·API만·Caddy만 배포). Environment가 main만 허용하므로 dev·작업 브랜치는 빌드(SHA 태그만, `latest`는 그대로)까지만 되고 배포 단계에서 막힌다. dev 변경을 올리려면 release PR을 머지한다
 - 워크플로 파일이 기본 브랜치(dev)에 있어야 Run workflow 버튼이 보인다
 
+### 서버에서 직접 빌드·배포 (Actions 없이)
+
+Actions 분량이 바닥났거나 Actions가 막혔을 때 쓴다. 서버가 소스를 받아 이미지를 빌드하고 교체한다.
+이미지 이름·태그(커밋 SHA)·`.env` 태그 규칙이 워크플로와 같아 Actions 배포와 섞어 써도 된다.
+
+```bash
+scp ops/server-deploy.sh ww-team:~/ww-deploy.sh   # 처음 한 번(스크립트를 고친 뒤에도)
+ssh -t ww-team '~/ww-deploy.sh'                   # origin/main 전체 배포
+ssh -t ww-team '~/ww-deploy.sh dev api'           # 브랜치·서비스(api|frontend|web) 지정
+ssh -t ww-team '~/ww-deploy.sh --rollback'        # 직전 배포로
+ssh -t ww-team 'FORCE=1 ~/ww-deploy.sh'           # 이미 배포된 커밋을 다시 빌드
+```
+
+- 소스는 서버 `~/weeing-weeing-src`에 읽기 전용 deploy key(`~/.ssh/ww_deploy`, ssh 별칭 `github-ww`)로 받는다. 접속 확인: `ssh ww-team 'ssh -T github-ww'`
+- ML 모델은 떠 있는 api 이미지에서 꺼내 `deploy/ml_model.json`의 SHA-256으로 검증하고 `~/.cache/ww-ml`에 둔다. 모델이 바뀌어 없으면 스크립트가 내려받는 명령을 안내한다
+- 헬스체크(+`check_ml_runtime.py`)에 실패하면 이전 태그로 자동 복귀한다. 이미지는 지금·직전 태그만 남기고 빌드 캐시는 4GB로 줄인다
+- 2코어·8GB라 전체 빌드는 10~20분 걸린다. 동시에 두 번 돌지 않게 잠근다
+
 ### API만 배포
 
 Actions → Deploy (EC2) → Run workflow → `main` → `api_only`를 체크한다.
