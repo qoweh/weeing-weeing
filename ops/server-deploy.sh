@@ -165,7 +165,10 @@ done
 
 # ---------- 5. 교체 ----------
 cd "$APP_DIR"
-grep -E "$TAG_KEYS" .env > .deploy-previous-tags || true
+# 같은 커밋을 다시 배포(FORCE=1)할 때는 롤백 대상(직전 배포 기록)을 덮어쓰지 않는다.
+if ! grep -qxF "IMAGE_TAG=$SHA" .env || [ ! -s .deploy-previous-tags ]; then
+  grep -E "$TAG_KEYS" .env > .deploy-previous-tags || true
+fi
 api_tag=$(current_tag api); fe_tag=$(current_tag frontend); web_tag=$(current_tag web)
 in_list() { [[ " ${SERVICES[*]} " == *" $1 "* ]]; }
 in_list api && api_tag=$SHA
@@ -194,6 +197,6 @@ docker images --format '{{.Repository}}:{{.Tag}}' | grep "^$IMAGE_PREFIX-" | whi
   grep -qxF "${ref##*:}" <<<"$keep" || docker rmi "$ref" >/dev/null 2>&1 || true
 done
 docker image prune -f >/dev/null
-docker builder prune -f --keep-storage 4GB >/dev/null
+docker builder prune -f --keep-storage 2GB >/dev/null
 df -h / | tail -1
 log "배포 완료: $SHA (${SERVICES[*]})"

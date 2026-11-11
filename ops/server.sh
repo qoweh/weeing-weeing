@@ -16,7 +16,7 @@ usage() {
 
 상태·로그
   ps                     앱 컨테이너 상태 (api는 healthy여야 정상)
-  health                 /api/health 호출
+  health                 API 상태: 컨테이너 안 직접 호출 + Caddy(HTTPS) 경유 호출
   logs [서비스] [줄수]    로그 따라가기. 서비스: api|frontend|web|postgres|qdrant (기본 api, 100줄)
   logs-all [줄수]         모든 앱 서비스 로그 따라가기
   images                 지금 떠 있는 이미지 태그 (배포 버전 확인)
@@ -36,7 +36,7 @@ usage() {
   retry-reports          실패한 승인 보고서 색인만 다시 시도
 
 운영
-  restart <서비스>        한 서비스 재시작 (.env는 다시 읽지 않는다)
+  restart [서비스]        재시작. 서비스를 빼면 앱 전체 (.env는 다시 읽지 않는다)
   up                     .env를 다시 읽어 바뀐 서비스만 다시 띄움 (docker compose up -d)
   pull-up                최신 태그 이미지를 받고 다시 띄움 (보통은 배포 워크플로가 한다)
   langfuse-ps            Langfuse 컨테이너 상태
@@ -70,7 +70,24 @@ case "$cmd" in
   ps)
     docker compose ps ;;
   health)
-    curl -fsS localhost/api/health && echo ;;
+    # http://localhost는 Caddy가 HTTPS로 308 리다이렉트만 하고 curl -f는 3xx를 성공으로 본다(빈 출력).
+    # https://127.0.0.1도 사이트 주소(SITE_ADDRESS)와 Host가 달라 빈 200이 온다.
+    # 그래서 컨테이너 안 API와, 사이트 주소를 이 서버로 고정한 Caddy HTTPS 경유를 따로 확인한다.
+    # exec는 </dev/null: aws.sh처럼 스크립트를 stdin으로 넘길 때 뒤 명령을 먹지 않게 한다.
+    ok=0
+    printf 'api(컨테이너 안): '
+    docker compose exec -T api python -c "import urllib.request as u; print(u.urlopen('http://127.0.0.1:8000/health', timeout=5).read().decode())" </dev/null \
+      || { echo "실패"; ok=1; }
+    site=$(docker compose exec -T web printenv SITE_ADDRESS </dev/null 2>/dev/null || true)
+    host=${site#*://}; host=${host%%/*}; host=${host%:*}
+    printf 'web(Caddy https://%s): ' "${host:-?}"
+    if [ -n "$host" ] && body=$(curl -fsS --max-time 10 --resolve "$host:443:127.0.0.1" "https://$host/api/health") \
+      && [[ "$body" == *'"status":"ok"'* ]]; then
+      echo "$body"
+    else
+      echo "실패"; ok=1
+    fi
+    exit "$ok" ;;
   logs)
     exec docker compose logs -f --tail "$(token "${2:-100}")" "$(token "${1:-api}")" ;;
   logs-all)
@@ -151,8 +168,8 @@ SQL
   retry-reports)
     docker compose exec -T api python scripts/index_reports.py --retry-failed ;;
   restart)
-    [ -n "${1:-}" ] || { echo "서비스 이름이 필요하다: restart api"; exit 2; }
-    docker compose restart "$(token "$1")" ;;
+    if [ -n "${1:-}" ]; then docker compose restart "$(token "$1")"; else docker compose restart; fi
+    docker compose ps --format 'table {{.Service}}\t{{.Status}}' ;;
   up)
     docker compose up -d && docker compose ps ;;
   pull-up)

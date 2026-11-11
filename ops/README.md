@@ -82,7 +82,7 @@ Windows는 `ops/aws.sh`를 `.\ops\aws.ps1`로 바꾸면 된다.
 | `ssh` | `ssh ww-team` |
 | `tunnel` | `ssh -N -L 15432:localhost:5432 -L 16333:localhost:6333 ww-team` (내 PC에서) |
 | `ps` / `images` | `docker compose ps` / `docker compose images` |
-| `health` | `curl -fsS localhost/api/health` |
+| `health` | 컨테이너 안 API `/health` + Caddy HTTPS 경유 `/api/health` (둘 다 `status: ok`여야 정상) |
 | `logs [서비스] [줄수]` | `docker compose logs -f --tail 100 api` (서비스: api·frontend·web·postgres·qdrant) |
 | `logs-all [줄수]` | `docker compose logs -f --tail 50` |
 | `volumes` | `docker volume ls --filter label=com.docker.compose.project=weeing-weeing`, `docker volume inspect`, `docker system df -v` |
@@ -93,7 +93,7 @@ Windows는 `ops/aws.sh`를 `.\ops\aws.ps1`로 바꾸면 된다.
 | `env-check` / `env-sync` | 떠 있는 api 이미지로 `docker run --network none ... python check_env.py --no-shell-check` / `--add-missing` (서버 `.env.example`·`check_env.py`는 배포 워크플로가 복사) |
 | `seed-docs [--replace]` | `docker compose exec -T api python scripts/seed_documents.py` |
 | `reindex-reports` / `retry-reports` | `docker compose exec -T api python scripts/index_reports.py --all` / `--retry-failed` |
-| `restart <서비스>` | `docker compose restart <서비스>` |
+| `restart [서비스]` | `docker compose restart [서비스]` (빼면 앱 전체) |
 | `up` | `docker compose up -d` (`.env`를 바꾼 뒤) |
 | `pull-up` | `docker compose pull && docker compose up -d` |
 | `langfuse-ps` / `langfuse-logs` | `cd ~/langfuse && docker compose ps` / `logs -f langfuse-web` |
