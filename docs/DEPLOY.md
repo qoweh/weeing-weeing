@@ -209,7 +209,7 @@ ssh -t ww-team 'FORCE=1 ~/ww-deploy.sh'           # 이미 배포된 커밋을 �
 
 - 소스는 서버 `~/weeing-weeing-src`에 읽기 전용 deploy key(`~/.ssh/ww_deploy`, ssh 별칭 `github-ww`)로 받는다. 접속 확인: `ssh ww-team 'ssh -T github-ww'`
 - ML 모델은 떠 있는 api 이미지에서 꺼내 `deploy/ml_model.json`의 SHA-256으로 검증하고 `~/.cache/ww-ml`에 둔다. 모델이 바뀌어 없으면 스크립트가 내려받는 명령을 안내한다
-- 헬스체크(+`check_ml_runtime.py`)에 실패하면 이전 태그로 자동 복귀한다. 이미지는 지금·직전 태그만 남기고 빌드 캐시는 4GB로 줄인다
+- 헬스체크(+`check_ml_runtime.py`)에 실패하면 이전 태그로 자동 복귀한다. 이미지는 지금·직전 태그만 남기고 빌드 캐시는 2GB로 줄인다. 같은 커밋을 `FORCE=1`로 다시 배포해도 롤백 대상은 그대로 둔다
 - 2코어·8GB라 전체 빌드는 10~20분 걸린다. 동시에 두 번 돌지 않게 잠근다
 
 ### API만 배포
@@ -260,7 +260,7 @@ docker compose run --rm api python scripts/seed_users.py
 
 ```
 docker compose ps                     # 모두 Up, api는 (healthy)
-curl -fsS localhost/api/health
+# 내 PC에서 ops/aws.sh health: API·Caddy HTTPS 둘 다 status ok (http://localhost는 308 리다이렉트라 확인 불가)
 docker compose logs -f --tail 100 api
 df -h / && docker system df           # 디스크 30GB
 ```
