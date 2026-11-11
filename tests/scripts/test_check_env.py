@@ -246,7 +246,7 @@ def test_deploy_syncs_env_before_replacing_containers():
     assert "--network none" in server and "--add-missing" in server
 
 
-def run_server_sync(tmp_path, running_image):
+def run_server_sync(tmp_path, running_image, *, image_exists=True):
     bash = shutil.which("bash")
     if os.name == "nt" or not bash:
         pytest.skip("POSIX bash가 필요합니다")
@@ -259,7 +259,10 @@ def run_server_sync(tmp_path, running_image):
     docker = tools / "docker"
     docker.write_text(
         "#!/bin/sh\n"
-        'if [ "$1" = ps ]; then printf "%s" "$FAKE_IMAGE"; exit 0; fi\n'
+        # ps -q: 떠 있는 api 컨테이너 ID, inspect: 그 컨테이너의 이미지 이름(태그)
+        'if [ "$1" = ps ]; then [ -n "$FAKE_IMAGE" ] && echo fakecid; exit 0; fi\n'
+        'if [ "$1" = inspect ]; then printf "%s\\n" "$FAKE_IMAGE"; exit 0; fi\n'
+        'if [ "$1" = image ]; then [ "$FAKE_IMAGE_EXISTS" = 1 ]; exit; fi\n'
         'printf "%s\\n" "$*" >> "$HOME/docker-calls"\n',
         encoding="utf-8",
     )
@@ -268,6 +271,7 @@ def run_server_sync(tmp_path, running_image):
         "PATH": f"{tools}:/usr/bin:/bin",
         "HOME": str(tmp_path),
         "FAKE_IMAGE": running_image,
+        "FAKE_IMAGE_EXISTS": "1" if image_exists else "0",
     }
     result = subprocess.run(
         [bash, str(ROOT / "ops/server.sh"), "env-sync"],
@@ -292,6 +296,20 @@ def test_server_env_sync_runs_offline_in_running_api_image(tmp_path):
 
 def test_server_env_sync_skips_without_running_api(tmp_path):
     result, calls = run_server_sync(tmp_path, "")
+    assert result.returncode == 0, result.stderr
+    assert calls == []
+    assert "건너뛴다" in result.stdout
+
+
+def test_server_env_sync_skips_when_running_image_name_is_missing(tmp_path):
+    """env-sync는 docker ps의 이미지 ID가 아니라 컨테이너의 이미지 이름(태그)으로 돈다.
+
+    같은 태그를 다시 빌드하면 옛 이미지는 이름을 잃어 ID로 docker run을 못 한다
+    (containerd 저장소). 그 이름마저 서버에 없으면 배포를 멈추지 않고 건너뛴다.
+    """
+    result, calls = run_server_sync(
+        tmp_path, "ghcr.io/fake/app-api:old", image_exists=False
+    )
     assert result.returncode == 0, result.stderr
     assert calls == []
     assert "건너뛴다" in result.stdout

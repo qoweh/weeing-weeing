@@ -123,8 +123,15 @@ SQL
     for f in .env .env.example check_env.py; do
       [ -f "$f" ] || { echo "$APP_DIR/$f 가 없다. .env는 docs/DEPLOY.md, 나머지는 배포 워크플로가 복사한다"; exit 1; }
     done
-    image=$(docker ps --filter "label=com.docker.compose.project=$PROJECT" \
-      --filter label=com.docker.compose.service=api --format '{{.Image}}' | head -n1)
+    # docker ps의 {{.Image}}는 같은 태그를 다시 빌드·pull하면 이름 없는 ID(bf21d13aa372)로 바뀌고,
+    # containerd 이미지 저장소에서는 그 ID로 docker run을 못 한다. 컨테이너가 쓰는 이미지 이름(태그)을 쓴다.
+    image=""
+    cid=$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" \
+      --filter label=com.docker.compose.service=api | head -n1)
+    [ -n "$cid" ] && image=$(docker inspect --format '{{.Config.Image}}' "$cid")
+    if [ -n "$image" ] && ! docker image inspect "$image" >/dev/null 2>&1; then
+      echo "api 이미지($image)가 서버에 없어 $cmd를 건너뛴다"; exit 0
+    fi
     if [ -z "$image" ]; then
       echo "떠 있는 api 컨테이너가 없어 $cmd를 건너뛴다. 처음 설치는 docs/DEPLOY.md 서버 .env 절을 따른다"
       exit 0
