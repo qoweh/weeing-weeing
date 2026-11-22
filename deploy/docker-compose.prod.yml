@@ -71,6 +71,8 @@ services:
       SITE_ADDRESS: ${SITE_ADDRESS:-:80}
       # Langfuse 대시보드 주소(deploy/langfuse). 비우면 끈다
       LANGFUSE_ADDRESS: ${LANGFUSE_ADDRESS:-http://langfuse.localhost}
+      # Unreal 송신 전용 호스트 이름(예: telemetry.<서버 IP>.sslip.io). 비우면 끈다
+      TELEMETRY_ADDRESS: ${TELEMETRY_ADDRESS:-http://telemetry.localhost}
     ports:
       - "80:80"
       - "443:443"

@@ -2,6 +2,7 @@
 
 import argparse
 import getpass
+import os
 import sys
 import time
 from urllib.error import HTTPError, URLError
@@ -34,7 +35,11 @@ def render(state):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--base-url", default="https://<EC2_IP>/api")
+    parser.add_argument(
+        "--base-url",
+        default=os.environ.get("WW_API_BASE_URL", "http://localhost:8000"),
+        help="API 주소. 기본값은 WW_API_BASE_URL 환경변수, 없으면 로컬",
+    )
     parser.add_argument("--once", action="store_true")
     args = parser.parse_args()
     monitor = Monitor(args.base_url)

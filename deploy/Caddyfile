@@ -45,7 +45,8 @@
 }
 
 # Unreal의 인증서 이름 검증은 DNS 이름을 사용한다. 기존 IP 웹 주소는 유지한다.
-telemetry.<EC2_IP>.sslip.io {
+# TELEMETRY_ADDRESS가 비어 있으면 서버 밖에서 닿지 않는 이름으로 두어 꺼 둔다.
+{$TELEMETRY_ADDRESS:http://telemetry.localhost} {
 	handle_path /api/* {
 		reverse_proxy api:8000
 	}

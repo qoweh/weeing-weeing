@@ -224,7 +224,7 @@ API 태그는 서버의 `API_IMAGE_TAG`에 별도로 기록하고 웹용 `IMAGE_
 Caddy 경로·인증서만 수정할 때는 `web_only`를 선택한다. `api_only`와 동시 선택은 거부한다.
 이 경우 Caddy 이미지·컨테이너만 교체하고 `WEB_IMAGE_TAG`를 별도로 기록한다.
 새 센서 도메인의 `/api/health`가 인증서 검증을 통과해 응답해야 성공이며, 실패하면 이전 Caddy 태그로 복원한다.
-Unreal 송신 전용 호스트는 `telemetry.<EC2_IP>.sslip.io`이며 `/api/*`만 API에 전달한다.
+Unreal 송신 전용 호스트는 서버 `.env`의 `TELEMETRY_ADDRESS`(예: `telemetry.<EC2_IP>.sslip.io`)이며 `/api/*`만 API에 전달한다.
 기존 IP 웹·Langfuse 경로와 프론트엔드 컨테이너는 유지한다.
 
 ### 첫 배포 뒤 한 번: 시연 계정

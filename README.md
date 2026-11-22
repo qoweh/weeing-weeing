@@ -102,3 +102,7 @@ ops/           로컬·운영 서버 명령 모음 (local.sh, aws.sh)
 선택 의존성은 `uv sync --locked --no-install-project --group ml`로 설치한다.
 
 실시간 관찰 연결과 로그인 후 결과 확인은 [ML_LIVE](docs/ML_LIVE.md)를 참고하세요.
+
+## 라이선스
+
+소스 코드는 [MIT License](LICENSE)를 따릅니다. `frontend/public/models/`의 3D 모델처럼 출처·사용 허가가 확인되지 않은 외부 자료는 이 라이선스에 포함되지 않습니다([data/README](data/README.md) 참고).
